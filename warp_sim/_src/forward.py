@@ -534,7 +534,7 @@ def fwd_acceleration(m: Model, d: Data, factorize: bool = False):
 @event_scope
 def forward(m: Model, d: Data):
     """Forward dynamics."""
-    fwd_position(m, d, factorize=False)
+    fwd_position(m, d)
     fwd_velocity(m, d)
     fwd_actuation(m, d)
     fwd_acceleration(m, d, factorize=True)

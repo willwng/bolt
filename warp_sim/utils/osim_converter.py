@@ -201,7 +201,94 @@ def get_joint_rel_rot(model: Model, parent: bool) -> list[list[float]]:
         else:
             frame = get_joint_frame(joint, joint.socket_child_frame)
         rot = frame.orientation
-        r = R.from_euler('YXZ', [-rot.z, rot.x, rot.y], degrees=True) # note conversion from y-up to z-up
+        r = R.from_euler('YXZ', [-rot.z, rot.x, rot.y], degrees=True)  # note conversion from y-up to z-up
         quat = r.as_quat()
         rel_parent_rots.append([quat[3], quat[0], quat[1], quat[2]])
     return rel_parent_rots
+
+
+def get_collision_geom_types(model: Model) -> list[str]:
+    from .._src.types import GeomType
+    geom_set = model.contact_geometry_set
+
+    geom_types = []
+    for collider in geom_set.contact_spheres.values():
+        geom_types.append(GeomType.SPHERE)
+
+    return geom_types
+
+
+def get_collider_body_ids(model: Model) -> list[int]:
+    body_name_to_index = {body.name: idx for idx, body in enumerate(model.body_set.bodies.values())}
+    collider_body_ids = []
+    for collider in model.contact_geometry_set.contact_spheres.values():
+        parent_body_name = remove_prefix(collider.socket_frame)
+        body_idx = body_name_to_index[parent_body_name]
+        collider_body_ids.append(body_idx)
+    return collider_body_ids
+
+
+def get_collider_size(model: Model) -> list[float]:
+    collider_sizes = []
+    for collider in model.contact_geometry_set.contact_spheres.values():
+        collider_sizes.append([collider.radius, collider.radius, collider.radius])
+    return collider_sizes
+
+
+def get_collider_pos(model: Model) -> list[list[float]]:
+    geom_positions = []
+    for collider in model.contact_geometry_set.contact_spheres.values():
+        loc = collider.location
+        geom_positions.append([loc.x, loc.y, loc.z])
+    return geom_positions
+
+
+def get_collider_rot(model: Model) -> list[list[float]]:
+    from scipy.spatial.transform import Rotation as R
+    geom_rotations = []
+    for collider in model.contact_geometry_set.contact_spheres.values():
+        rot = collider.orientation
+        r = R.from_euler('YXZ', [-rot.z, rot.x, rot.y], degrees=True)  # note conversion from y-up to z-up
+        quat = r.as_quat()
+        geom_rotations.append([quat[3], quat[0], quat[1], quat[2]])
+    return geom_rotations
+
+
+def get_site_body_ids(model: Model) -> list[int]:
+    body_name_to_index = {body.name: idx for idx, body in enumerate(model.body_set.bodies.values())}
+    site_body_ids = []
+    for muscle in model.force_set.muscles.values():
+        for path_point in muscle.geometry_path.path_point_set.path_points.values():
+            parent_body_name = remove_prefix(path_point.socket_parent_frame)
+            body_idx = body_name_to_index[parent_body_name]
+            site_body_ids.append(body_idx)
+    return site_body_ids
+
+
+def get_site_pos(model: Model) -> list[list[float]]:
+    site_positions = []
+    for muscle in model.force_set.muscles.values():
+        for path_point in muscle.geometry_path.path_point_set.path_points.values():
+            loc = path_point.location
+            site_positions.append([loc.x, loc.y, loc.z])
+    return site_positions
+
+
+def get_muscle_num_pts(model: Model) -> list[int]:
+    muscle_pts_counts = []
+    for muscle in model.force_set.muscles.values():
+        muscle_pts_counts.append(len(muscle.geometry_path.path_point_set.path_points))
+    return muscle_pts_counts
+
+
+def get_dof_body_ids(model: Model) -> list[int]:
+    body_name_to_index = {body.name: idx for idx, body in enumerate(model.body_set.bodies.values())}
+    dof_body_ids = []
+    for joint in model.joint_set.joints.values():
+        child_frame = get_joint_frame(joint, joint.socket_child_frame)
+        child_name = remove_prefix(child_frame.socket_parent)
+        body_idx = body_name_to_index[child_name]
+        for _ in joint.coordinates:
+            dof_body_ids.append(body_idx)
+    return dof_body_ids
+
