@@ -26,6 +26,10 @@ class CheckedModel:
         for body_name, full_desc in self.body_full_desc.items():
             yield body_name, full_desc
 
+    def iter_bodies(self):
+        for body_name, full_desc in self.body_full_desc.items():
+            yield body_name, full_desc.body
+
     def iter_joints(self):
         for body_name, full_desc in self.body_full_desc.items():
             yield body_name, full_desc.joint
@@ -35,6 +39,46 @@ class CheckedModel:
             if name == body_name:
                 return idx
         raise ValueError(f"Body name {body_name} not found.")
+
+    def get_root_body(self) -> Body:
+        for body_name, full_desc in self.body_full_desc.items():
+            joint = full_desc.joint
+            if "ground" in joint.socket_parent_frame:
+                return full_desc.body
+        assert False, "No root body found."
+
+    def get_body_parent_name(self, body_name: str) -> str:
+        full_desc = self.body_full_desc[body_name]
+        joint = full_desc.joint
+        if "ground" in joint.socket_parent_frame:
+            return "ground"
+        parent_frame = None
+        for frame in joint.frames:
+            if frame.name == joint.socket_parent_frame:
+                parent_frame = frame
+                break
+        assert parent_frame is not None
+        parent_body_name = remove_prefix(parent_frame.socket_parent)
+        return parent_body_name
+
+    def get_body_parent_idx(self, body_idx: int) -> int:
+        full_desc = list(self.body_full_desc.values())[body_idx]
+        joint = full_desc.joint
+        if "ground" in joint.socket_parent_frame:
+            return -1
+        parent_frame = None
+        for frame in joint.frames:
+            if frame.name == joint.socket_parent_frame:
+                parent_frame = frame
+                break
+        assert parent_frame is not None
+        parent_body_name = remove_prefix(parent_frame.socket_parent)
+        return self.get_body_index(parent_body_name)
+
+
+def convert_y_up_z_up(model: CheckedModel):
+    from scipy.spatial.transform import Rotation as R
+    return model  # Placeholder for actual conversion logic
 
 
 def remove_prefix(name: str) -> str:
@@ -185,13 +229,12 @@ def get_joint_frame(joint, frame_name: str):
 
 def get_body_parent_ids(model: CheckedModel) -> list[int]:
     parent_ids = []
-    for _, joint in model.iter_joints():
-        if "ground" in joint.socket_parent_frame:
-            parent_ids.append(-1)  # root body
+    for _, body in model.iter_bodies():
+        parent_name = model.get_body_parent_name(body.name)
+        if parent_name == "ground":
+            parent_ids.append(-1)
             continue
-        parent_frame = get_joint_frame(joint, joint.socket_parent_frame)
-        parent_body_name = remove_prefix(parent_frame.socket_parent)
-        parent_idx = model.get_body_index(parent_body_name)
+        parent_idx = model.get_body_index(parent_name)
         parent_ids.append(parent_idx)
     return parent_ids
 
@@ -347,3 +390,52 @@ def get_dof_body_ids(model: CheckedModel) -> list[int]:
         for _ in joint.coordinates:
             dof_body_ids.append(body_idx)
     return dof_body_ids
+
+
+def create_body_tree(model: CheckedModel) -> list[tuple[int, ...]]:
+    body_to_level = {}
+    # starting with root
+    root_body = model.get_root_body()
+    body_to_level[root_body.name] = 0
+
+    # Should be a forward pass
+    for _, desc in model.iter_descs():
+        body_name = desc.body.name
+        if body_name in body_to_level:
+            continue
+
+        joint = desc.joint
+        child_frame = get_joint_frame(joint, joint.socket_child_frame)
+        child_body_name = remove_prefix(child_frame.socket_parent)
+        parent_frame = get_joint_frame(
+            joint, joint.socket_parent_frame)
+        parent_body_name = remove_prefix(parent_frame.socket_parent)
+        parent_level = body_to_level[parent_body_name]
+        body_to_level[child_body_name] = parent_level + 1
+    max_level = max(body_to_level.values())
+    body_tree = [tuple() for _ in range(max_level + 1)]
+    for body_name, level in body_to_level.items():
+        body_idx = model.get_body_index(body_name)
+        body_tree[level] += (body_idx,)
+    return body_tree
+
+
+def compute_expanded_parent(
+        model: CheckedModel,
+        jnt_dof_adr: list[int]
+) -> list[int]:
+    nv = sum(get_joint_num_dofs(model, vel_dofs=True))
+    nb = num_bodies(model)
+
+    # "lambda" function in Featherstone's book
+    def lp(body_idx):
+        parent_id = model.get_body_parent_idx(body_idx - 1)
+        return parent_id + 1
+
+    # Initialize (0, nv]
+    expanded_parent = list(range(nv))
+
+    for i in range(1, nb):
+        expanded_parent[jnt_dof_adr[i - 1]] = jnt_dof_adr[lp(i)]
+    expanded_parent = [p - 1 for p in expanded_parent]  # to zero-based
+    return expanded_parent

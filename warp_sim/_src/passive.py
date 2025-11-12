@@ -330,30 +330,6 @@ def passive(m: Model, d: Data):
             ],
         )
 
-    gravcomp = m.ngravcomp and not (m.opt.disableflags & DisableBit.GRAVITY)
-
-    if gravcomp:
-        d.qfrc_gravcomp.zero_()
-        wp.launch(
-            _gravity_force,
-            dim=(d.nworld, m.nbody - 1, m.nv),
-            inputs=[
-                m.opt.gravity,
-                m.body_parentid,
-                m.body_rootid,
-                m.body_mass,
-                m.body_gravcomp,
-                m.dof_bodyid,
-                d.xipos,
-                d.subtree_com,
-                d.cdof,
-            ],
-            outputs=[d.qfrc_gravcomp],
-        )
-
-    if m.opt.has_fluid:
-        _fluid(m, d)
-
     wp.launch(
         _qfrc_passive,
         dim=(d.nworld, m.nv),

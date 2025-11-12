@@ -38,23 +38,19 @@ wp.set_module_options({"enable_backward": False})
 @wp.kernel
 def _kinematics_level(
         # Model:
-        qpos0: wp.array2d(dtype=float),
         body_parentid: wp.array(dtype=int),
-        body_jntnum: wp.array(dtype=int),
-        body_jntadr: wp.array(dtype=int),
-        body_pos: wp.array2d(dtype=wp.vec3),
-        body_quat: wp.array2d(dtype=wp.quat),
-        body_ipos: wp.array2d(dtype=wp.vec3),
-        body_iquat: wp.array2d(dtype=wp.quat),
+        body_ipos: wp.array(dtype=wp.vec3),
+        body_iquat: wp.array(dtype=wp.quat),
         jnt_type: wp.array(dtype=int),
         jnt_qposadr: wp.array(dtype=int),
-        jnt_pos: wp.array2d(dtype=wp.vec3),
-        jnt_axis: wp.array2d(dtype=wp.vec3),
+        jnt_rel_parent: wp.array(dtype=wp.vec3),
+        jnt_rel_child: wp.array(dtype=wp.vec3),
+        jnt_rel_parent_rot: wp.array(dtype=wp.quat),
+        jnt_rel_child_rot: wp.array(dtype=wp.quat),
         # Data in:
         qpos_in: wp.array2d(dtype=float),
         xpos_in: wp.array2d(dtype=wp.vec3),
         xquat_in: wp.array2d(dtype=wp.quat),
-        xmat_in: wp.array2d(dtype=wp.mat33),
         # In:
         body_tree_: wp.array(dtype=int),
         # Data out:
@@ -64,80 +60,81 @@ def _kinematics_level(
         xipos_out: wp.array2d(dtype=wp.vec3),
         ximat_out: wp.array2d(dtype=wp.mat33),
         xanchor_out: wp.array2d(dtype=wp.vec3),
-        xaxis_out: wp.array2d(dtype=wp.vec3),
 ):
     worldid, nodeid = wp.tid()
     bodyid = body_tree_[nodeid]
-    jntadr = body_jntadr[bodyid]
-    jntnum = body_jntnum[bodyid]
     qpos = qpos_in[worldid]
-    body_pos_id = worldid % body_pos.shape[0]
-    body_quat_id = worldid % body_quat.shape[0]
-    jnt_axis_id = worldid % jnt_axis.shape[0]
+    jnt_type_ = jnt_type[bodyid]
 
-    if jntnum == 0:
-        # no joints - apply fixed translation and rotation relative to parent
-        pid = body_parentid[bodyid]
-        xpos = (xmat_in[worldid, pid] * body_pos[body_pos_id, bodyid]) + xpos_in[worldid, pid]
-        xquat = math.mul_quat(xquat_in[worldid, pid], body_quat[body_quat_id, bodyid])
-    elif jntnum == 1 and jnt_type[jntadr] == JointType.FREE:
-        # free joint
-        qadr = jnt_qposadr[jntadr]
+    if jnt_type_ == JointType.FREE:
+        # free joint: (x,y,z) + (qw,qx,qy,qz)
+        qadr = jnt_qposadr[bodyid]
         xpos = wp.vec3(qpos[qadr], qpos[qadr + 1], qpos[qadr + 2])
         xquat = wp.quat(qpos[qadr + 3], qpos[qadr + 4], qpos[qadr + 5], qpos[qadr + 6])
         xquat = wp.normalize(xquat)
-        xanchor_out[worldid, jntadr] = xpos
-        xaxis_out[worldid, jntadr] = jnt_axis[jnt_axis_id, jntadr]
+
+        xanchor_out[worldid, bodyid] = xpos
     else:
-        # regular or no joints
-        # apply fixed translation and rotation relative to parent
-        qpos0_id = worldid % qpos0.shape[0]
-        jnt_pos_id = worldid % jnt_pos.shape[0]
+        # Grab parent frame information
         pid = body_parentid[bodyid]
-        xpos = (xmat_in[worldid, pid] * body_pos[body_pos_id, bodyid]) + xpos_in[worldid, pid]
-        xquat = math.mul_quat(xquat_in[worldid, pid], body_quat[body_quat_id, bodyid])
+        p_pos = xpos_in[worldid, pid]
+        p_rot = xquat_in[worldid, pid]
 
-        for _ in range(jntnum):
-            qadr = jnt_qposadr[jntadr]
-            jnt_type_ = jnt_type[jntadr]
-            jnt_axis_ = jnt_axis[jnt_axis_id, jntadr]
-            xanchor = math.rot_vec_quat(jnt_pos[jnt_pos_id, jntadr], xquat) + xpos
-            xaxis = math.rot_vec_quat(jnt_axis_, xquat)
+        # compute the joint frame
+        p_to_jnt = math.rot_vec_quat(jnt_rel_parent[bodyid], p_rot)
+        p_to_jnt_rot = jnt_rel_parent_rot[bodyid]
+        jnt_pos = p_pos + p_to_jnt
+        jnt_rot = math.mul_quat(p_rot, p_to_jnt_rot)
 
-            if jnt_type_ == JointType.BALL:
-                qloc = wp.quat(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2], qpos[qadr + 3])
-                qloc = wp.normalize(qloc)
-                xquat = math.mul_quat(xquat, qloc)
-                # correct for off-center rotation
-                xpos = xanchor - math.rot_vec_quat(jnt_pos[jnt_pos_id, jntadr], xquat)
-            elif jnt_type_ == JointType.SLIDE:
-                xpos += xaxis * (qpos[qadr] - qpos0[qpos0_id, qadr])
-            elif jnt_type_ == JointType.HINGE:
-                qpos0_ = qpos0[qpos0_id, qadr]
-                qloc_ = math.axis_angle_to_quat(jnt_axis_, qpos[qadr] - qpos0_)
-                xquat = math.mul_quat(xquat, qloc_)
-                # correct for off-center rotation
-                xpos = xanchor - math.rot_vec_quat(jnt_pos[jnt_pos_id, jntadr], xquat)
+        # joint to child information
+        jnt_to_c_rot = jnt_rel_child_rot[bodyid]
+        jnt_to_c = jnt_rel_child[bodyid]
 
-            xanchor_out[worldid, jntadr] = xanchor
-            xaxis_out[worldid, jntadr] = xaxis
-            jntadr += 1
+        # local joint transformation
+        qadr = jnt_qposadr[bodyid]
+        qloc_ = wp.quat(1.0, 0.0, 0.0, 0.0)
+        xloc_ = wp.vec3(0.0, 0.0, 0.0)
+        if jnt_type_ == JointType.HINGE:
+            hinge_axis = wp.vec3(0.0, -1.0, 0.0)
+            qloc_ = math.axis_angle_to_quat(hinge_axis, qpos[qadr])
+        if jnt_type_ == JointType.BALL:
+            qloc_ = wp.quat(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2], qpos[qadr + 3])
+            qloc_ = wp.normalize(qloc_)
+        elif jnt_type_ == JointType.SLIDE:
+            slide_axis = wp.vec3(1.0, 0.0, 0.0)
+            xloc_ = qpos[qadr] * math.rot_vec_quat(slide_axis, jnt_rot)
+        elif jnt_type_ == JointType.UNIVERSAL:
+            axis1 = wp.vec3(1.0, 0.0, 0.0)
+            axis2 = wp.vec3(0.0, 0.0, 1.0)
+            qloc_ = math.mul_quat(
+                math.axis_angle_to_quat(axis1, qpos[qadr + 0]),
+                math.axis_angle_to_quat(axis2, qpos[qadr + 1]),
+            )
+        elif jnt_type_ == JointType.CUSTOM:
+            assert False
+
+        xquat = math.mul_quat(jnt_rot, math.mul_quat(qloc_, jnt_to_c_rot))
+        xpos = jnt_pos + xloc_ + math.rot_vec_quat(jnt_to_c, xquat)
+
+        xanchor_out[worldid, bodyid] = jnt_pos
+        # world coordinates
+        xquat = math.mul_quat(xquat, math.mul_quat(qloc_, jnt_to_c_rot))
+        xpos += math.rot_vec_quat(jnt_to_c, xquat)
 
     xpos_out[worldid, bodyid] = xpos
     xquat_out[worldid, bodyid] = wp.normalize(xquat)
     xmat_out[worldid, bodyid] = math.quat_to_mat(xquat)
-    xipos_out[worldid, bodyid] = xpos + math.rot_vec_quat(
-        body_ipos[worldid % body_ipos.shape[0], bodyid], xquat)
-    ximat_out[worldid, bodyid] = math.quat_to_mat(
-        math.mul_quat(xquat, body_iquat[worldid % body_iquat.shape[0], bodyid]))
+
+    xipos_out[worldid, bodyid] = xpos + math.rot_vec_quat(body_ipos[bodyid], xquat)
+    ximat_out[worldid, bodyid] = math.quat_to_mat(math.mul_quat(xquat, body_iquat[bodyid]))
 
 
 @wp.kernel
 def _geom_local_to_global(
         # Model:
         geom_bodyid: wp.array(dtype=int),
-        geom_pos: wp.array2d(dtype=wp.vec3),
-        geom_quat: wp.array2d(dtype=wp.quat),
+        geom_pos: wp.array(dtype=wp.vec3),
+        geom_quat: wp.array(dtype=wp.quat),
         # Data in:
         xpos_in: wp.array2d(dtype=wp.vec3),
         xquat_in: wp.array2d(dtype=wp.quat),
@@ -150,61 +147,58 @@ def _geom_local_to_global(
 
     xpos = xpos_in[worldid, bodyid]
     xquat = xquat_in[worldid, bodyid]
-    geom_xpos_out[worldid, geomid] = xpos + math.rot_vec_quat(geom_pos[worldid % geom_pos.shape[0], geomid], xquat)
-    geom_xmat_out[worldid, geomid] = math.quat_to_mat(
-        math.mul_quat(xquat, geom_quat[worldid % geom_quat.shape[0], geomid]))
+
+    geom_xpos_out[worldid, geomid] = (
+            xpos + math.rot_vec_quat(geom_pos[geomid], xquat))
+    geom_xmat_out[worldid, geomid] = (
+        math.quat_to_mat(math.mul_quat(xquat, geom_quat[geomid])))
 
 
 @wp.kernel
 def _site_local_to_global(
         # Model:
         site_bodyid: wp.array(dtype=int),
-        site_pos: wp.array2d(dtype=wp.vec3),
-        site_quat: wp.array2d(dtype=wp.quat),
+        site_pos: wp.array(dtype=wp.vec3),
         # Data in:
         xpos_in: wp.array2d(dtype=wp.vec3),
         xquat_in: wp.array2d(dtype=wp.quat),
         # Data out:
+        site_rpos_out: wp.array2d(dtype=wp.vec3),
         site_xpos_out: wp.array2d(dtype=wp.vec3),
-        site_xmat_out: wp.array2d(dtype=wp.mat33),
 ):
     worldid, siteid = wp.tid()
     bodyid = site_bodyid[siteid]
     xpos = xpos_in[worldid, bodyid]
     xquat = xquat_in[worldid, bodyid]
-    site_xpos_out[worldid, siteid] = xpos + math.rot_vec_quat(site_pos[worldid % site_pos.shape[0], siteid], xquat)
-    site_xmat_out[worldid, siteid] = math.quat_to_mat(
-        math.mul_quat(xquat, site_quat[worldid % site_quat.shape[0], siteid]))
+    # Relative to body and world positions
+    site_rpos_out[worldid, siteid] = math.rot_vec_quat(site_pos[siteid], xquat)
+    site_xpos_out[worldid, siteid] = xpos + site_rpos_out[worldid, siteid]
 
 
 @event_scope
 def kinematics(m: Model, d: Data):
     """ Computes forward kinematics for all bodies, sites, geoms. """
-    for i in range(1, len(m.body_tree)):
+    for i in range(len(m.body_tree)):
         body_tree = m.body_tree[i]
         wp.launch(
             _kinematics_level,
             dim=(d.nworld, body_tree.size),
             inputs=[
-                m.qpos0,
                 m.body_parentid,
-                m.body_jntnum,
-                m.body_jntadr,
-                m.body_pos,
-                m.body_quat,
                 m.body_ipos,
                 m.body_iquat,
                 m.jnt_type,
                 m.jnt_qposadr,
-                m.jnt_pos,
-                m.jnt_axis,
+                m.jnt_rel_parent,
+                m.jnt_rel_child,
+                m.jnt_rel_parent_rot,
+                m.jnt_rel_child_rot,
                 d.qpos,
                 d.xpos,
                 d.xquat,
-                d.xmat,
                 body_tree,
             ],
-            outputs=[d.xpos, d.xquat, d.xmat, d.xipos, d.ximat, d.xanchor, d.xaxis],
+            outputs=[d.xpos, d.xquat, d.xmat, d.xipos, d.ximat, d.xanchor],
         )
 
     wp.launch(
@@ -217,22 +211,22 @@ def kinematics(m: Model, d: Data):
     wp.launch(
         _site_local_to_global,
         dim=(d.nworld, m.nsite),
-        inputs=[m.site_bodyid, m.site_pos, m.site_quat, d.xpos, d.xquat],
-        outputs=[d.site_xpos, d.site_xmat],
+        inputs=[m.site_bodyid, m.site_pos, d.xpos, d.xquat],
+        outputs=[d.site_rpos, d.site_xpos],
     )
 
 
 @wp.kernel
 def _subtree_com_init(
         # Model:
-        body_mass: wp.array2d(dtype=float),
+        body_mass: wp.array(dtype=float),
         # Data in:
         xipos_in: wp.array2d(dtype=wp.vec3),
         # Data out:
         subtree_com_out: wp.array2d(dtype=wp.vec3),
 ):
     worldid, bodyid = wp.tid()
-    subtree_com_out[worldid, bodyid] = xipos_in[worldid, bodyid] * body_mass[worldid % body_mass.shape[0], bodyid]
+    subtree_com_out[worldid, bodyid] = xipos_in[worldid, bodyid] * body_mass[bodyid]
 
 
 @wp.kernel
@@ -256,7 +250,7 @@ def _subtree_com_acc(
 @wp.kernel
 def _subtree_div(
         # Model:
-        body_subtreemass: wp.array2d(dtype=float),
+        body_subtreemass: wp.array(dtype=float),
         # Data in:
         subtree_com_in: wp.array2d(dtype=wp.vec3),
         # Data out:
@@ -264,7 +258,7 @@ def _subtree_div(
 ):
     worldid, bodyid = wp.tid()
     com = subtree_com_in[worldid, bodyid]
-    mass = body_subtreemass[worldid % body_subtreemass.shape[0], bodyid]
+    mass = body_subtreemass[bodyid]
     if mass != 0.0:
         subtree_com_out[worldid, bodyid] = com / mass
 
@@ -273,8 +267,8 @@ def _subtree_div(
 def _cinert(
         # Model:
         body_rootid: wp.array(dtype=int),
-        body_mass: wp.array2d(dtype=float),
-        body_inertia: wp.array2d(dtype=wp.vec3),
+        body_mass: wp.array(dtype=float),
+        body_inertia: wp.array(dtype=wp.vec3),
         # Data in:
         xipos_in: wp.array2d(dtype=wp.vec3),
         ximat_in: wp.array2d(dtype=wp.mat33),
@@ -282,22 +276,23 @@ def _cinert(
         # Data out:
         cinert_out: wp.array2d(dtype=vec10),
 ):
+    # express inertia in com-based frame
     worldid, bodyid = wp.tid()
     mat = ximat_in[worldid, bodyid]
-    inert = body_inertia[worldid % body_inertia.shape[0], bodyid]
-    mass = body_mass[worldid % body_mass.shape[0], bodyid]
+    inert = body_inertia[bodyid]
+    mass = body_mass[bodyid]
+    # offset from "origin" to body com
     dif = xipos_in[worldid, bodyid] - subtree_com_in[worldid, body_rootid[bodyid]]
-    # express inertia in com-based frame (mju_inertCom)
 
     res = vec10()
     # res_rot = mat * diag(inert) * mat'
-    tmp = mat @ wp.diag(inert) @ wp.transpose(mat)
-    res[0] = tmp[0, 0]
-    res[1] = tmp[1, 1]
-    res[2] = tmp[2, 2]
-    res[3] = tmp[0, 1]
-    res[4] = tmp[0, 2]
-    res[5] = tmp[1, 2]
+    inertia_wf = mat @ wp.diag(inert) @ wp.transpose(mat)
+    res[0] = inertia_wf[0, 0]
+    res[1] = inertia_wf[1, 1]
+    res[2] = inertia_wf[2, 2]
+    res[3] = inertia_wf[0, 1]
+    res[4] = inertia_wf[0, 2]
+    res[5] = inertia_wf[1, 2]
     # res_rot -= mass * dif_cross * dif_cross
     res[0] += mass * (dif[1] * dif[1] + dif[2] * dif[2])
     res[1] += mass * (dif[0] * dif[0] + dif[2] * dif[2])
@@ -321,7 +316,6 @@ def _cdof(
         body_rootid: wp.array(dtype=int),
         jnt_type: wp.array(dtype=int),
         jnt_dofadr: wp.array(dtype=int),
-        jnt_bodyid: wp.array(dtype=int),
         # Data in:
         xmat_in: wp.array2d(dtype=wp.mat33),
         xanchor_in: wp.array2d(dtype=wp.vec3),
@@ -330,15 +324,14 @@ def _cdof(
         # Data out:
         cdof_out: wp.array2d(dtype=wp.spatial_vector),
 ):
-    worldid, jntid = wp.tid()
-    bodyid = jnt_bodyid[jntid]
-    dofid = jnt_dofadr[jntid]
-    jnt_type_ = jnt_type[jntid]
-    xaxis = xaxis_in[worldid, jntid]
+    worldid, bodyid = wp.tid()
+    dofid = jnt_dofadr[bodyid]
+    jnt_type_ = jnt_type[bodyid]
+    xaxis = xaxis_in[worldid, bodyid]
     xmat = wp.transpose(xmat_in[worldid, bodyid])
 
     # compute com-anchor vector
-    offset = subtree_com_in[worldid, body_rootid[bodyid]] - xanchor_in[worldid, jntid]
+    offset = subtree_com_in[worldid, body_rootid[bodyid]] - xanchor_in[worldid, bodyid]
 
     res = cdof_out[worldid]
     if jnt_type_ == JointType.FREE:
@@ -358,19 +351,24 @@ def _cdof(
         res[dofid] = wp.spatial_vector(wp.vec3(0.0), xaxis)
     elif jnt_type_ == JointType.HINGE:  # hinge
         res[dofid] = wp.spatial_vector(xaxis, wp.cross(xaxis, offset))
+    elif jnt_type_ == JointType.UNIVERSAL:
+        pass
+    elif jnt_type_ == JointType.CUSTOM:
+        pass
+
 
 
 @event_scope
 def com_pos(m: Model, d: Data):
-    """
-    Computes subtree center of mass positions.
+    """ Computes subtree center of mass positions. """
 
-    Transforms inertia and motion to global frame centered at subtree CoM. Accumulates the
-    mass-weighted positions up the kinematic tree, divides by total mass, and computes composite
-    inertias and motion degrees of freedom in the subtree CoM frame.
-    """
-    wp.launch(_subtree_com_init, dim=(d.nworld, m.nbody), inputs=[m.body_mass, d.xipos], outputs=[d.subtree_com])
+    # Initialize to (current body com * mass)
+    wp.launch(_subtree_com_init,
+              dim=(d.nworld, m.nbody),
+              inputs=[m.body_mass, d.xipos],
+              outputs=[d.subtree_com])
 
+    # Backward pass to accumulate subtree com * mass
     for i in reversed(range(len(m.body_tree))):
         body_tree = m.body_tree[i]
         wp.launch(
@@ -380,18 +378,25 @@ def com_pos(m: Model, d: Data):
             outputs=[d.subtree_com],
         )
 
-    wp.launch(_subtree_div, dim=(d.nworld, m.nbody), inputs=[m.body_subtreemass, d.subtree_com],
-              outputs=[d.subtree_com])
+    # Compute the subtree com
+    wp.launch(
+        _subtree_div,
+        dim=(d.nworld, m.nbody),
+        inputs=[m.body_subtreemass, d.subtree_com],
+        outputs=[d.subtree_com])
+
+    # Spatial inertia
     wp.launch(
         _cinert,
         dim=(d.nworld, m.nbody),
         inputs=[m.body_rootid, m.body_mass, m.body_inertia, d.xipos, d.ximat, d.subtree_com],
         outputs=[d.cinert],
     )
+    # Phi: todo
     wp.launch(
         _cdof,
-        dim=(d.nworld, m.njnt),
-        inputs=[m.body_rootid, m.jnt_type, m.jnt_dofadr, m.jnt_bodyid, d.xmat, d.xanchor, d.xaxis, d.subtree_com],
+        dim=(d.nworld, m.nbody),
+        inputs=[m.body_rootid, m.jnt_type, m.jnt_dofadr, d.xmat, d.xanchor, d.xaxis, d.subtree_com],
         outputs=[d.cdof],
     )
 
@@ -450,7 +455,7 @@ def _qM_dense(
         # Model:
         dof_bodyid: wp.array(dtype=int),
         dof_parentid: wp.array(dtype=int),
-        dof_armature: wp.array2d(dtype=float),
+        dof_armature: wp.array(dtype=float),
         # Data in:
         cdof_in: wp.array2d(dtype=wp.spatial_vector),
         crb_in: wp.array2d(dtype=vec10),
@@ -460,7 +465,7 @@ def _qM_dense(
     worldid, dofid = wp.tid()
     bodyid = dof_bodyid[dofid]
     # init M(i,i) with armature inertia.
-    M = dof_armature[worldid % dof_armature.shape[0], dofid]
+    M = dof_armature[dofid]
 
     # precompute buf = crb_body_i * cdof_i
     buf = math.inert_vec(crb_in[worldid, bodyid], cdof_in[worldid, dofid])
@@ -489,7 +494,9 @@ def crb(m: Model, d: Data):
 
     for i in reversed(range(len(m.body_tree))):
         body_tree = m.body_tree[i]
-        wp.launch(_crb_accumulate, dim=(d.nworld, body_tree.size), inputs=[m.body_parentid, d.crb, body_tree],
+        wp.launch(_crb_accumulate,
+                  dim=(d.nworld, body_tree.size),
+                  inputs=[m.body_parentid, d.crb, body_tree],
                   outputs=[d.crb])
 
     d.qM.zero_()
@@ -502,7 +509,9 @@ def crb(m: Model, d: Data):
         )
     else:
         wp.launch(
-            _qM_dense, dim=(d.nworld, m.nv), inputs=[m.dof_bodyid, m.dof_parentid, m.dof_armature, d.cdof, d.crb],
+            _qM_dense,
+            dim=(d.nworld, m.nv),
+            inputs=[m.dof_bodyid, m.dof_parentid, m.dof_armature, d.cdof, d.crb],
             outputs=[d.qM]
         )
 
@@ -1489,59 +1498,25 @@ def subtree_vel(m: Model, d: Data):
 
 
 @wp.kernel
-def _spatial_site_tendon(
+def _compute_path_length(
         # Model:
-        nv: int,
-        body_parentid: wp.array(dtype=int),
-        body_rootid: wp.array(dtype=int),
-        dof_bodyid: wp.array(dtype=int),
-        site_bodyid: wp.array(dtype=int),
-        wrap_objid: wp.array(dtype=int),
-        tendon_site_pair_adr: wp.array(dtype=int),
-        wrap_site_pair_adr: wp.array(dtype=int),
-        wrap_pulley_scale: wp.array(dtype=float),
+        muscle_pts_adr: wp.array(dtype=int),
+        muscle_pts_num: wp.array(dtype=int),
         # Data in:
         site_xpos_in: wp.array2d(dtype=wp.vec3),
-        subtree_com_in: wp.array2d(dtype=wp.vec3),
-        cdof_in: wp.array2d(dtype=wp.spatial_vector),
         # Data out:
-        ten_J_out: wp.array3d(dtype=float),
-        ten_length_out: wp.array2d(dtype=float),
+        muscle_length_out: wp.array2d(dtype=float),
 ):
-    worldid, elementid = wp.tid()
+    worldid, muscle_id = wp.tid()
 
-    # site pairs
-    site_pair_adr = wrap_site_pair_adr[elementid]
-    ten_adr = tendon_site_pair_adr[elementid]
+    n_sites = muscle_pts_num[muscle_id]
+    pts_adr = muscle_pts_adr[muscle_id]
 
-    # pulley scaling
-    pulley_scale = wrap_pulley_scale[site_pair_adr]
+    for i in range(n_sites - 1):
+        pt1 = site_xpos_in[worldid, pts_adr + i]
+        pt2 = site_xpos_in[worldid, pts_adr + i + 1]
+        muscle_length_out[worldid, muscle_id] += wp.length(pt2 - pt1)
 
-    id0 = wrap_objid[site_pair_adr + 0]
-    id1 = wrap_objid[site_pair_adr + 1]
-
-    pnt0 = site_xpos_in[worldid, id0]
-    pnt1 = site_xpos_in[worldid, id1]
-    dif = pnt1 - pnt0
-    vec, length = math.normalize_with_norm(dif)
-    wp.atomic_add(ten_length_out[worldid], ten_adr, length * pulley_scale)
-
-    if length < MJ_MINVAL:
-        vec = wp.vec3(1.0, 0.0, 0.0)
-
-    body0 = site_bodyid[id0]
-    body1 = site_bodyid[id1]
-    if body0 != body1:
-        # TODO(team): parallelize
-        for i in range(nv):
-            jacp1, _ = support.jac(body_parentid, body_rootid, dof_bodyid, subtree_com_in, cdof_in, pnt0, body0, i,
-                                   worldid)
-            jacp2, _ = support.jac(body_parentid, body_rootid, dof_bodyid, subtree_com_in, cdof_in, pnt1, body1, i,
-                                   worldid)
-
-            J = wp.dot(jacp2 - jacp1, vec)
-            if J:
-                wp.atomic_add(ten_J_out[worldid, ten_adr], i, J * pulley_scale)
 
 
 def tendon(m: Model, d: Data):
@@ -1553,33 +1528,15 @@ def tendon(m: Model, d: Data):
     if not m.nmuscle:
         return
 
-    d.ten_length.zero_()
-    d.ten_J.zero_()
-
-    spatial_site = m.wrap_site_pair_adr.size > 0
-    spatial_geom = m.wrap_geom_adr.size > 0
-
-    if spatial_site or spatial_geom:
-        d.wrap_xpos.zero_()
-        d.wrap_obj.zero_()
-
-    # process spatial site tendons
+    d.muscle_length.zero_()
+    # Compute path length of muscles
     wp.launch(
-        _spatial_site_tendon,
-        dim=(d.nworld, m.wrap_site_pair_adr.size),
+        _compute_path_length,
+        dim=(d.nworld, m.nmuscle),
         inputs=[
-            m.nv,
-            m.body_parentid,
-            m.body_rootid,
-            m.dof_bodyid,
-            m.site_bodyid,
-            m.wrap_objid,
-            m.tendon_site_pair_adr,
-            m.wrap_site_pair_adr,
-            m.wrap_pulley_scale,
+            m.muscle_pts_adr,
+            m.muscle_pts_num,
             d.site_xpos,
-            d.subtree_com,
-            d.cdof,
         ],
-        outputs=[d.ten_J, d.ten_length],
+        outputs=[d.muscle_length],
     )

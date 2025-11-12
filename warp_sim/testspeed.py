@@ -1,3 +1,5 @@
+from venv import create
+
 import warp_sim._src.forward as forward
 import warp_sim._src.types as types
 
@@ -37,7 +39,9 @@ def make_zero(shape, dtype):
 
 def main():
     raw_osim_model = parse_osim_file("data/osim/model.osim")
-    osim_model = to_checked_model(raw_osim_model)
+    checked_osim_model = to_checked_model(raw_osim_model)
+    osim_model = convert_y_up_z_up(checked_osim_model)
+
     nb = num_bodies(osim_model)
 
     joint_num_qdofs = get_joint_num_dofs(osim_model, vel_dofs=False)
@@ -89,11 +93,13 @@ def main():
     dof_damping = [0.1] * nv  # Placeholder for DOF
 
     body_rootid = [0] * nb
+    body_tree = create_body_tree(osim_model)
+    body_tree_warp = tuple([wp.array(bt, dtype=int) for bt in body_tree])
 
     dof_body_id = get_dof_body_ids(osim_model)
-    dof_parent_id = [0] * nv  # todo, expanded parent
+    dof_parent_id = compute_expanded_parent(osim_model, jnt_dof_adr)
 
-    n_worlds = 1024
+    n_worlds = 1
 
     print(f"Number of bodies: {nb}")
     print(f"Num dofs: {nv}")
@@ -206,12 +212,15 @@ def main():
         dof_bodyid=to_warp_array(dof_body_id, dtype=int),
         dof_parentid=to_warp_array(dof_parent_id, dtype=int),
 
+        body_tree=body_tree_warp,
         body_subtreemass=to_warp_array([0.0] * nb, dtype=float),
         body_invweight0=to_warp_array([0.0, 0.0] * nb, dtype=wp.vec2),
         mean_inertia=0.0,
         dof_Madr=to_warp_array([0] * nv, dtype=int),
         dof_invweight0=to_warp_array([0.0] * nv, dtype=float)
     )
+
+    qpos = wp.array(np.tile(m.qpos0, (n_worlds, 1)), dtype=float)
 
     d = types.Data(
         solver_niter=make_zero(n_worlds, dtype=int),
@@ -220,7 +229,7 @@ def main():
         nefc=make_zero(n_worlds, dtype=int),
         time=make_zero(n_worlds, dtype=int),
 
-        qpos=make_zero((n_worlds, nq), dtype=float),
+        qpos=wp.array(np.tile(m.qpos0, (n_worlds, 1)), dtype=float),
         qvel=make_zero((n_worlds, nv), dtype=float),
         act=make_zero((n_worlds, nmuscle), dtype=float),
 
@@ -242,6 +251,7 @@ def main():
         geom_xpos=make_zero((n_worlds, ngeom), dtype=wp.vec3),
         geom_xmat=make_zero((n_worlds, ngeom), dtype=wp.mat33),
 
+        site_rpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
 
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
@@ -253,7 +263,9 @@ def main():
         qLD=make_zero((n_worlds, nv, nv), dtype=float),
         qLDiagInv=make_zero((n_worlds, nv), dtype=float),
 
-        ten_velocity=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
+
         cvel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         cdof_dot=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
 
@@ -328,7 +340,7 @@ def main():
         subtree_bodyvel=make_zero((n_worlds, nb), dtype=wp.vec3),
     )
 
-    for _ in range(100):
+    for _ in range(1):
         forward.step(m, d)
 
 

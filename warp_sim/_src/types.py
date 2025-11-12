@@ -526,6 +526,7 @@ class Model:
     dof_parentid: wp.array(dtype=int)
 
     # To be computed at model creation
+    body_tree: tuple[wp.array(dtype=int), ...]
     body_subtreemass: wp.array(dtype=float)
     body_invweight0: wp.array(dtype=wp.vec2)
     mean_inertia: float
@@ -592,6 +593,8 @@ class Data:
 
       geom_xpos: Cartesian geom position                          (nworld, ngeom, 3)
       geom_xmat: Cartesian geom orientation                       (nworld, ngeom, 3, 3)
+
+      site_rpos: local position of site rel. to body              (nworld, nsite, 3)
       site_xpos: Cartesian site position                          (nworld, nsite, 3)
 
       subtree_com: center of mass of each subtree                 (nworld, nbody, 3)
@@ -603,7 +606,9 @@ class Data:
       qLD: L'*D*L factorization of M (sparse) (nworld, 1, nM) or  (nworld, nv, nv) if dense
       qLDiagInv: 1/diag(D)                                        (nworld, nv)
 
-      ten_velocity: tendon velocities                             (nworld, nmuscle)
+      muscle_length: muscle lengths                               (nworld, nmuscle)
+      muscle_velocity: muscle velocities                          (nworld, nmuscle)
+
       cvel: com-based velocity (rot:lin)                          (nworld, nbody, 6)
       cdof_dot: time-derivative of cdof (rot:lin)                 (nworld, nv, 6)
 
@@ -661,6 +666,8 @@ class Data:
 
     geom_xpos: wp.array2d(dtype=wp.vec3)
     geom_xmat: wp.array2d(dtype=wp.mat33)
+
+    site_rpos: wp.array2d(dtype=wp.vec3)
     site_xpos: wp.array2d(dtype=wp.vec3)
 
     subtree_com: wp.array2d(dtype=wp.vec3)
@@ -672,7 +679,9 @@ class Data:
     qLD: wp.array3d(dtype=float)
     qLDiagInv: wp.array2d(dtype=float)
 
-    ten_velocity: wp.array2d(dtype=float)
+    muscle_length: wp.array2d(dtype=float)
+    muscle_velocity: wp.array2d(dtype=float)
+
     cvel: wp.array2d(dtype=wp.spatial_vector)
     cdof_dot: wp.array2d(dtype=wp.spatial_vector)
 

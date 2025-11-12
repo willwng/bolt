@@ -318,85 +318,6 @@ def fwd_velocity(m: Model, d: Data):
     smooth.rne(m, d)
 
 
-@wp.kernel
-def _actuator_force(
-        # Model:
-        na: int,
-        opt_timestep: wp.array(dtype=float),
-        actuator_dyntype: wp.array(dtype=int),
-        actuator_actadr: wp.array(dtype=int),
-        actuator_actnum: wp.array(dtype=int),
-        actuator_ctrllimited: wp.array(dtype=bool),
-        actuator_forcelimited: wp.array(dtype=bool),
-        actuator_actlimited: wp.array(dtype=bool),
-        actuator_dynprm: wp.array2d(dtype=vec10f),
-        actuator_actearly: wp.array(dtype=bool),
-        actuator_ctrlrange: wp.array2d(dtype=wp.vec2),
-        actuator_forcerange: wp.array2d(dtype=wp.vec2),
-        actuator_actrange: wp.array2d(dtype=wp.vec2),
-        # Data in:
-        act_in: wp.array2d(dtype=float),
-        ctrl_in: wp.array2d(dtype=float),
-        actuator_length_in: wp.array2d(dtype=float),
-        actuator_velocity_in: wp.array2d(dtype=float),
-        # In:
-        dsbl_clampctrl: int,
-        # Data out:
-        act_dot_out: wp.array2d(dtype=float),
-        actuator_force_out: wp.array2d(dtype=float),
-):
-    worldid, uid = wp.tid()
-
-    actuator_ctrlrange_id = worldid % actuator_ctrlrange.shape[0]
-
-    ctrl = ctrl_in[worldid, uid]
-
-    if actuator_ctrllimited[uid] and not dsbl_clampctrl:
-        ctrlrange = actuator_ctrlrange[actuator_ctrlrange_id, uid]
-        ctrl = wp.clamp(ctrl, ctrlrange[0], ctrlrange[1])
-    ctrl_act = ctrl
-
-    act_first = actuator_actadr[uid]
-    if na and act_first >= 0:
-        act_last = act_first + actuator_actnum[uid] - 1
-        dyntype = actuator_dyntype[uid]
-        dynprm = actuator_dynprm[worldid % actuator_dynprm.shape[0], uid]
-
-        dynprm = actuator_dynprm[worldid, uid]
-        act = act_in[worldid, act_last]
-        act_dot = util_misc.muscle_dynamics(ctrl, act, dynprm)
-
-        act_dot_out[worldid, act_last] = act_dot
-
-        if actuator_actearly[uid]:
-            ctrl_act = _next_act(
-                opt_timestep[worldid % opt_timestep.shape[0]],
-                dyntype,
-                dynprm,
-                actuator_actrange[worldid % actuator_actrange.shape[0], uid],
-                act,
-                act_dot,
-                1.0,
-                actuator_actlimited[uid],
-            )
-        else:
-            ctrl_act = act_in[worldid, act_last]
-
-    # length = actuator_length_in[worldid, uid]
-    # velocity = actuator_velocity_in[worldid, uid]
-
-    # gain
-    gain = 0.0
-    # bias
-    bias = 0.0  # BiasType.NONE
-    force = gain * ctrl_act + bias
-
-    if actuator_forcelimited[uid]:
-        forcerange = actuator_forcerange[worldid % actuator_forcerange.shape[0], uid]
-        force = wp.clamp(force, forcerange[0], forcerange[1])
-
-    actuator_force_out[worldid, uid] = force
-
 
 @wp.kernel
 def _qfrc_actuator(
@@ -436,37 +357,6 @@ def _qfrc_actuator(
 @event_scope
 def fwd_actuation(m: Model, d: Data):
     """Actuation-dependent computations."""
-    if not m.nu:
-        d.act_dot.zero_()
-        d.qfrc_actuator.zero_()
-        return
-
-    wp.launch(
-        _actuator_force,
-        dim=(d.nworld, m.nu),
-        inputs=[
-            m.na,
-            m.opt.timestep,
-            m.actuator_dyntype,
-            m.actuator_actadr,
-            m.actuator_actnum,
-            m.actuator_ctrllimited,
-            m.actuator_forcelimited,
-            m.actuator_actlimited,
-            m.actuator_dynprm,
-            m.actuator_actearly,
-            m.actuator_ctrlrange,
-            m.actuator_forcerange,
-            m.actuator_actrange,
-            d.act,
-            d.ctrl,
-            d.actuator_length,
-            d.actuator_velocity,
-            m.opt.disableflags,
-        ],
-        outputs=[d.act_dot, d.actuator_force],
-    )
-
     if m.nmuscle:
         # total actuator force at tendon
         ten_actfrc = wp.zeros((d.nworld, m.nmuscle), dtype=float)
