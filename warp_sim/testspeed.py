@@ -36,11 +36,12 @@ def make_zero(shape, dtype):
 
 
 def main():
-    osim_model = parse_osim_file("data/osim/model.osim")
+    raw_osim_model = parse_osim_file("data/osim/model.osim")
+    osim_model = to_checked_model(raw_osim_model)
     nb = num_bodies(osim_model)
 
-    joint_num_qdofs = get_joint_num_qdofs(osim_model)
-    joint_num_vdofs = get_joint_num_vdofs(osim_model)
+    joint_num_qdofs = get_joint_num_dofs(osim_model, vel_dofs=False)
+    joint_num_vdofs = get_joint_num_dofs(osim_model, vel_dofs=True)
 
     nv = sum(joint_num_vdofs)
     nq = sum(joint_num_qdofs)
@@ -327,7 +328,8 @@ def main():
         subtree_bodyvel=make_zero((n_worlds, nb), dtype=wp.vec3),
     )
 
-    forward.step(m, d)
+    for _ in range(100):
+        forward.step(m, d)
 
 
 if __name__ == "__main__":

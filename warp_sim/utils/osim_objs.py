@@ -216,19 +216,27 @@ class Body:
 class BodySet:
     bodies: OrderedDict[str, Body]
 
-
 @dataclass
-class ContactSphere:
+class Collider:
     name: str
     socket_frame: str
     location: Vector3
     orientation: Vector3
+
+    def size(self) -> list[float]:
+        raise NotImplementedError
+
+@dataclass
+class ContactSphere(Collider):
     radius: float
+
+    def size(self) -> list[float]:
+        return [self.radius, self.radius, self.radius]
 
 
 @dataclass
 class ContactGeometrySet:
-    contact_spheres: OrderedDict[str, ContactSphere]
+    contact_spheres: OrderedDict[str, Collider]
 
 
 @dataclass

@@ -545,4 +545,4 @@ def forward(m: Model, d: Data):
 def step(m: Model, d: Data):
     """Advance simulation."""
     forward(m, d)
-    euler(m, d)
+    # euler(m, d)
