@@ -51,11 +51,27 @@ def main():
     nq = sum(joint_num_qdofs)
     nmuscle = num_muscles(osim_model)
 
-    n_conv_jnts, n_custom_jnts = get_num_joints(osim_model)
+    joint_types = get_joint_types(osim_model)
+    n_conv_jnts, n_custom_jnts = 0, 0
+    for jt in joint_types:
+        if jt == types.JointType.CUSTOM:
+            n_custom_jnts += 1
+        else:
+            n_conv_jnts += 1
+
 
     ngeom = num_colliders(osim_model)
     nsite = num_sites(osim_model)
-    qpos0 = get_default_positions(osim_model)
+    # qpos0 = get_default_positions(osim_model)
+    # print(qpos0)
+    qpos0 = [0.0] * nq
+    qpos0[0:3] = [0.0, 0.0, 1.5]  # Root pos
+    qpos0[3] = 1 # root quat
+    qpos0[7] = 0.5
+    qpos0[8] = 0.1
+    qpos0[9] = -0.1
+    qpos0[12] = -0.1
+    qpos0[15] = 0.2
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
 
     b_masses = body_masses(osim_model)
@@ -66,7 +82,12 @@ def main():
     body_collider_offset = exclusive_scan(body_num_colliders, True)
 
     body_parent_ids = get_body_parent_ids(osim_model)
-    joint_types = get_joint_types(osim_model)
+
+    # Custom joints: compute address of joint -> custom joint
+    is_custom_joint_mask = [1 if joint_types[i] == types.JointType.CUSTOM else 0
+                            for i in range(len(joint_types))]
+    custom_joint_indices = exclusive_scan(is_custom_joint_mask, True)
+    assert(max(custom_joint_indices) == n_custom_jnts - 1)
 
     jnt_qpos_adr = exclusive_scan(joint_num_qdofs, False)
     jnt_dof_adr = exclusive_scan(joint_num_vdofs, False)
@@ -94,7 +115,7 @@ def main():
 
     dof_armature = [0.0] * nv  # Placeholder for DOF armature
     dof_damping = [0.1] * nv  # Placeholder for DOF
-    jnt_stiffness = [0.0] * nb # Placeholder for joint stiffness
+    jnt_stiffness = [0.0] * nb  # Placeholder for joint stiffness
 
     body_rootid = [0] * nb
     body_tree = create_body_tree(osim_model)
@@ -110,6 +131,34 @@ def main():
         sorted(tiles.keys()))
 
     dof_tri_row, dof_tri_col = np.tril_indices(nv)
+
+    linear_fns, const_fns = get_functions(osim_model)
+    txfm_fn_type, txfm_fn_adr, txfm_qadr, txfm_axis = get_txfm_fns(osim_model)
+
+    # Reshape
+    txfm_fn_type = np.array(txfm_fn_type)
+    txfm_fn_type = txfm_fn_type.reshape(n_custom_jnts, -1)
+
+    txfm_fn_adr = np.array(txfm_fn_adr)
+    txfm_fn_adr = txfm_fn_adr.reshape(n_custom_jnts, -1)
+
+    txfm_qadr = np.array(txfm_qadr)
+    txfm_qadr = txfm_qadr.reshape(n_custom_jnts, -1)
+
+    txfm_axis = np.array(txfm_axis)
+    txfm_axis = txfm_axis.reshape(n_custom_jnts, -1)
+
+    #
+    # jnt_limited_slide_hinge_adr = wp.array(
+    #   np.nonzero(
+    #     mjm.jnt_limited & ((mjm.jnt_type == mujoco.mjtJoint.mjJNT_SLIDE) | (mjm.jnt_type == mujoco.mjtJoint.mjJNT_HINGE))
+    #   )[0],
+    #   dtype=int,
+    # ),
+    # jnt_limited_ball_adr=wp.array(
+    #   np.nonzero(mjm.jnt_limited & (mjm.jnt_type == mujoco.mjtJoint.mjJNT_BALL))[0],
+    #   dtype=int,
+    # ),
 
     n_worlds = 1
 
@@ -168,7 +217,7 @@ def main():
                               int(geom_types[geom2[i]]))
         for i in np.arange(len(geom1))
         if nxn_pairid_contact[i] > -2 or nxn_pairid_collision[i] > -1
-    ], minlength=len(types.GeomType) * (len(types.GeomType) + 1) // 2,)
+    ], minlength=len(types.GeomType) * (len(types.GeomType) + 1) // 2, )
 
     naconmax = 262144
     njmax = 128
@@ -198,7 +247,7 @@ def main():
         nmuscle=nmuscle,
 
         njnts_conv=n_conv_jnts,
-        njnts_custom=n_custom_jnts,
+        njnts_cst=n_custom_jnts,
 
         ngeom=ngeom,
         nsite=nsite,
@@ -229,6 +278,14 @@ def main():
         jnt_rel_parent_rot=to_warp_array(jnt_rel_parent_rot, dtype=wp.quat),
         jnt_rel_child_rot=to_warp_array(jnt_rel_child_rot, dtype=wp.quat),
 
+        jnt_cst_adr=to_warp_array(custom_joint_indices, dtype=int),
+        const_fns=to_warp_array(const_fns, dtype=float),
+        linear_fns=to_warp_array(linear_fns, dtype=wp.vec2),
+        cst_txfm_axis=wp.array(txfm_axis, dtype=wp.vec3),
+        cst_txfm_fn=to_warp_array(txfm_fn_type, dtype=int),
+        cst_txfm_fn_adr=to_warp_array(txfm_fn_adr, dtype=int),
+        cst_txfm_qadr=to_warp_array(txfm_qadr, dtype=int),
+
         geom_type=to_warp_array(geom_types, dtype=int),
         geom_bodyid=to_warp_array(geom_parent, dtype=int),
         geom_size=to_warp_array(geom_sizes, dtype=wp.vec3),
@@ -239,7 +296,7 @@ def main():
         geom_rbound=to_warp_array(geom_rbound, dtype=float),
         geom_margin=make_zero(ngeom, dtype=float),
 
-        geom_pair_type_count = tuple(geom_type_pair_count),
+        geom_pair_type_count=tuple(geom_type_pair_count),
         nxn_geom_pair_filtered=wp.array(nxn_geom_pair_filtered, dtype=wp.vec2i),
         nxn_pairid_filtered=wp.array(nxn_pairid_filtered, dtype=wp.vec2i),
 

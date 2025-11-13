@@ -1,8 +1,9 @@
 from collections import OrderedDict
 from dataclasses import dataclass
+from scipy.spatial.transform import Rotation as R
 
 from .osim_objs import Model, Ground, ForceSet, \
-    Body, Joint, Collider
+    Body, Joint, Collider, FunctionType, Vector3, Quat
 
 
 @dataclass
@@ -33,6 +34,25 @@ class CheckedModel:
     def iter_joints(self):
         for body_name, full_desc in self.body_full_desc.items():
             yield body_name, full_desc.joint
+
+    def iter_cst_joints(self):
+        for _, jnt in self.iter_joints():
+            if "ground" in jnt.socket_parent_frame:
+                continue
+            if jnt.__class__.__name__ == "CustomJoint":
+                yield jnt
+
+    def iter_transform_axes(self):
+        # Transform axes for custom joints first
+        for jnt in self.iter_cst_joints():
+            spt_txfm = jnt.spatial_transform
+            transform_axes = spt_txfm.transform_axes
+            for axis in transform_axes:
+                yield axis
+
+    def iter_fns(self):
+        for axis in self.iter_transform_axes():
+            yield axis.function
 
     def get_body_index(self, body_name: str) -> int:
         for idx, name in enumerate(self.body_full_desc.keys()):
@@ -75,9 +95,71 @@ class CheckedModel:
         parent_body_name = remove_prefix(parent_frame.socket_parent)
         return self.get_body_index(parent_body_name)
 
+    # don't use this for root dofs
+    def lookup_dof_idx(self, coord_name: str, pos: bool) -> int:
+        dof_idx = 0
+        for _, joint in self.iter_joints():
+            for coord in joint.coordinates:
+                if coord.name == coord_name:
+                    return dof_idx + 1 if pos else dof_idx
+                dof_idx += 1
+        raise ValueError(f"Coordinate name {coord_name} not found.")
+
 
 def convert_y_up_z_up(model: CheckedModel):
-    from scipy.spatial.transform import Rotation as R
+    rot_convert = R.from_euler("x", 90, degrees=True)
+    rot_mat = rot_convert.as_matrix()
+
+    def convert_vec(v: Vector3) -> Vector3:
+        vec = rot_mat @ [v.x, v.y, v.z]
+        return Vector3(x=vec[0], y=vec[1], z=vec[2])
+
+    def convert_quat(q: Quat) -> Quat:
+        r = R.from_quat([q.x, q.y, q.z, q.w])
+        r_converted = rot_convert * r * rot_convert.inv()
+        q_converted = r_converted.as_quat()
+        return Quat(w=q_converted[3], x=q_converted[0],
+                    y=q_converted[1], z=q_converted[2])
+
+    def convert_rel_quat(q: Quat) -> Quat:
+        r = R.from_quat([q.x, q.y, q.z, q.w])
+        r_converted = rot_convert * r
+        q_converted = r_converted.as_quat()
+        return Quat(w=q_converted[3], x=q_converted[0],
+                    y=q_converted[1], z=q_converted[2])
+
+    for _, desc in model.iter_descs():
+        # Body mass properties
+        body = desc.body
+        body.mass_center = convert_vec(body.mass_center)
+        inertia = body.inertia
+        # Rotate inertia tensor
+        inertia_mat = [[inertia.xx, inertia.xy, inertia.xz],
+                       [inertia.xy, inertia.yy, inertia.yz],
+                       [inertia.xz, inertia.yz, inertia.zz]]
+        rotated_inertia = rot_mat @ inertia_mat @ rot_mat.T
+        body.inertia.xx = rotated_inertia[0][0]
+        body.inertia.yy = rotated_inertia[1][1]
+        body.inertia.zz = rotated_inertia[2][2]
+        body.inertia.xy = rotated_inertia[0][1]
+        body.inertia.xz = rotated_inertia[0][2]
+        body.inertia.yz = rotated_inertia[1][2]
+
+        # Joint connections
+        joint = desc.joint
+        for frame in joint.frames:
+            frame.translation = convert_vec(frame.translation)
+            frame.orientation = convert_quat(frame.orientation)
+
+        # Attached geom
+        for collider in desc.colliders.values():
+            collider.location = convert_vec(collider.location)
+            collider.orientation = convert_rel_quat(collider.orientation)
+
+    # Custom joints spatial transform axes
+    for axis in model.iter_transform_axes():
+        axis.axis = convert_vec(axis.axis)
+
     return model  # Placeholder for actual conversion logic
 
 
@@ -190,9 +272,9 @@ def get_body_inertias(model: CheckedModel) -> list[list[float]]:
         body = desc.body
         inertia = body.inertia
         # should be diagonal
-        assert inertia.xy == 0.0
-        assert inertia.xz == 0.0
-        assert inertia.yz == 0.0
+        assert abs(inertia.xy) <= 1e-12
+        assert abs(inertia.xz) <= 1e-12
+        assert abs(inertia.yz) <= 1e-12
         inertias.append([inertia.xx, inertia.yy, inertia.zz])
     return inertias
 
@@ -239,16 +321,6 @@ def get_body_parent_ids(model: CheckedModel) -> list[int]:
     return parent_ids
 
 
-def get_num_joints(model: CheckedModel) -> tuple[int, int]:
-    num_conventional, num_custom = 0, 0
-    for _, joint in model.iter_joints():
-        if joint.__class__.__name__ != "CustomJoint":
-            num_conventional += 1
-        else:
-            num_custom += 1
-    return num_conventional, num_custom
-
-
 def get_joint_types(model: CheckedModel) -> list[str]:
     from .._src.types import JointType
     joint_types = []
@@ -265,8 +337,7 @@ def get_joint_types(model: CheckedModel) -> list[str]:
         else:
             print(
                 f"Warning: Unrecognized joint type {joint.__class__.__name__}")
-            quit()
-
+            assert False
     return joint_types
 
 
@@ -283,18 +354,14 @@ def get_joint_rel_pos(model: CheckedModel, parent: bool) -> list[list[float]]:
 
 
 def get_joint_rel_rot(model: CheckedModel, parent: bool) -> list[list[float]]:
-    from scipy.spatial.transform import Rotation as R
     rel_parent_rots = []
     for _, joint in model.iter_joints():
         if parent:
             frame = get_joint_frame(joint, joint.socket_parent_frame)
         else:
             frame = get_joint_frame(joint, joint.socket_child_frame)
-        rot = frame.orientation
-        r = R.from_euler('YXZ', [-rot.z, rot.x, rot.y],
-                         degrees=True)  # note conversion from y-up to z-up
-        quat = r.as_quat()
-        rel_parent_rots.append([quat[3], quat[0], quat[1], quat[2]])
+        rot = frame.orientation if parent else frame.orientation.inv()
+        rel_parent_rots.append([rot.w, rot.x, rot.y, rot.z])
     return rel_parent_rots
 
 
@@ -360,15 +427,11 @@ def get_collider_pos(model: CheckedModel) -> list[list[float]]:
 
 
 def get_collider_rot(model: CheckedModel) -> list[list[float]]:
-    from scipy.spatial.transform import Rotation as R
     geom_rotations = []
     for _, desc in model.iter_descs():
         for collider in desc.colliders.values():
             rot = collider.orientation
-            r = R.from_euler('YXZ', [-rot.z, rot.x, rot.y],
-                             degrees=True)  # note conversion from y-up to z-up
-            quat = r.as_quat()
-            geom_rotations.append([quat[3], quat[0], quat[1], quat[2]])
+            geom_rotations.append([rot.w, rot.x, rot.y, rot.z])
     return geom_rotations
 
 
@@ -416,7 +479,7 @@ def create_body_tree(model: CheckedModel) -> list[tuple[int, ...]]:
     root_body = model.get_root_body()
     body_to_level[root_body.name] = 0
 
-    # Should be a forward pass
+    # Should be a forward pass: todo make sure these are in fk order
     for _, desc in model.iter_descs():
         body_name = desc.body.name
         if body_name in body_to_level:
@@ -489,3 +552,66 @@ def make_tiles(
         tile_end = nv if i == len(tile_corners) - 1 else tile_corners[i + 1]
         tiles.setdefault(tile_end - tile_beg, []).append(tile_beg)
     return tiles
+
+
+def get_functions(
+        model: CheckedModel
+) -> tuple[list[tuple[float, float]], list[float]]:
+    """
+    Returns linear functions and constant functions
+    [(m1, b1), (m2, b2), ...] for linear functions
+    [c1, c2, ...] for constant functions
+    """
+    linear_fns = []
+    constant_fns = []
+    for fn in model.iter_fns():
+        if fn.type() == FunctionType.LINEAR:
+            coefficients = fn.coefficients
+            m, b = coefficients.x, coefficients.y
+            linear_fns.append((m, b))
+        elif fn.type() == FunctionType.CONSTANT:
+            c = fn.value
+            constant_fns.append(c)
+        else:
+            print(f"Warning: Unrecognized function type {fn.type()}")
+            assert False
+    return linear_fns, constant_fns
+
+
+def get_txfm_fns(
+        model: CheckedModel
+) -> tuple[list[int], list[int], list[int], list[list[float]]]:
+    from .._src.types import CustomFnType
+
+    txfm_axes = []
+    txfm_coords = []
+    fn_types = []
+    fn_addresses = []
+
+    const_idx, linear_idx = 0, 0
+    for axis in model.iter_transform_axes():
+        # coordinates
+        coordinates = axis.coordinates
+        if coordinates is None:
+            txfm_coords.append(-1)
+        else:
+            coord_idx = model.lookup_dof_idx(coordinates, True)
+            txfm_coords.append(coord_idx)
+
+        # function
+        fn = axis.function
+        if fn.type() == FunctionType.LINEAR:
+            fn_types.append(CustomFnType.LINEAR)
+            fn_addresses.append(linear_idx)
+            linear_idx += 1
+        elif fn.type() == FunctionType.CONSTANT:
+            fn_types.append(CustomFnType.CONSTANT)
+            fn_addresses.append(const_idx)
+            const_idx += 1
+        else:
+            print(f"Warning: Unrecognized function type {fn.type()}")
+            assert False
+
+        # axes
+        txfm_axes.append([axis.axis.x, axis.axis.y, axis.axis.z])
+    return fn_types, fn_addresses, txfm_coords, txfm_axes

@@ -82,7 +82,7 @@ def parse_physical_offset_frames(frames_element) -> list[PhysicalOffsetFrame]:
             name=name,
             socket_parent=socket_parent,
             translation=translation,
-            orientation=orientation
+            orientation=Quat.from_fixed_angles(orientation),
         )
         frames.append(frame_obj)
     return frames
@@ -331,7 +331,7 @@ def parse_contact_sphere(contact_sphere) -> ContactSphere:
         name=name,
         socket_frame=socket_frame,
         location=location,
-        orientation=orientation,
+        orientation=Quat.from_fixed_angles(orientation),
         radius=radius
     )
 

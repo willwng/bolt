@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from collections import OrderedDict
 
+from enum import Enum
+import math
+
 
 @dataclass
 class Vector2:
@@ -13,6 +16,44 @@ class Vector3:
     x: float
     y: float
     z: float
+
+
+@dataclass
+class Quat:
+    w: float
+    x: float
+    y: float
+    z: float
+
+    @staticmethod
+    def from_angle_axis(angle: float, axis: Vector3) -> "Quat":
+        cos_half = math.cos(angle / 2)
+        sin_half = math.sin(angle / 2)
+        return Quat(
+            w=cos_half,
+            x=axis.x * sin_half,
+            y=axis.y * sin_half,
+            z=axis.z * sin_half,
+        )
+
+    @staticmethod
+    def mul(q1: "Quat", q2: "Quat") -> "Quat":
+        return Quat(
+            w=q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z,
+            x=q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y,
+            y=q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x,
+            z=q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w,
+        )
+
+    @staticmethod
+    def from_fixed_angles(r: Vector3) -> "Quat":
+        qx = Quat.from_angle_axis(r.x, Vector3(1, 0, 0))
+        qy = Quat.from_angle_axis(r.y, Vector3(0, 1, 0))
+        qz = Quat.from_angle_axis(r.z, Vector3(0, 0, 1))
+        return Quat.mul(qx, Quat.mul(qy, qz))
+
+    def inv(self) -> "Quat":
+        return Quat(w=self.w, x=-self.x, y=-self.y, z=-self.z)
 
 
 @dataclass
@@ -61,10 +102,19 @@ class Coordinate:
     locked: bool
 
 
+class FunctionType(Enum):
+    LINEAR = "linear"
+    CONSTANT = "constant"
+    SIMM_SPLINE = "simm_spline"
+
+
 @dataclass
 class Function:
     def scale(self, factor: float):
         pass
+
+    def type(self) -> FunctionType:
+        raise NotImplementedError
 
 
 @dataclass
@@ -75,6 +125,9 @@ class LinearFunction(Function):
         self.coefficients.x *= factor
         self.coefficients.y *= factor
 
+    def type(self) -> FunctionType:
+        return FunctionType.LINEAR
+
 
 @dataclass
 class ConstantFunction(Function):
@@ -82,6 +135,9 @@ class ConstantFunction(Function):
 
     def scale(self, factor: float):
         self.value *= factor
+
+    def type(self) -> FunctionType:
+        return FunctionType.CONSTANT
 
 
 @dataclass
@@ -91,6 +147,9 @@ class SimmSplineFunction(Function):
 
     def scale(self, factor: float):
         self.y = [y * factor for y in self.y]
+
+    def type(self) -> FunctionType:
+        return FunctionType.SIMM_SPLINE
 
 
 @dataclass
@@ -111,7 +170,7 @@ class PhysicalOffsetFrame:
     name: str
     socket_parent: str
     translation: Vector3
-    orientation: Vector3
+    orientation: Quat
 
 
 @dataclass
@@ -224,7 +283,7 @@ class Collider:
     name: str
     socket_frame: str
     location: Vector3
-    orientation: Vector3
+    orientation: Quat
 
     def size(self) -> list[float]:
         raise NotImplementedError

@@ -23,6 +23,7 @@ from .types import Data
 from .types import JointType
 from .types import Model
 from .types import TileSet
+from .types import CustomFnType
 from .types import vec5
 from .types import vec10
 from .types import vec11
@@ -31,6 +32,28 @@ from .warp_util import event_scope
 from .warp_util import kernel as nested_kernel
 
 wp.set_module_options({"enable_backward": False})
+
+
+@wp.func
+def evaluate_txfm(
+        # data in
+        qpos_in: wp.array(dtype=float),
+        # in
+        txfm_fn_type: int,
+        txfm_fn_adr: int,
+        txfm_qadr: int,
+        # model in
+        const_fns: wp.array(dtype=float),
+        linear_fns: wp.array(dtype=wp.vec2),
+) -> float:
+    if txfm_fn_type == CustomFnType.CONSTANT:
+        return const_fns[txfm_fn_adr]
+    elif txfm_fn_type == CustomFnType.LINEAR:
+        if txfm_qadr == -1:
+            return 0.0
+        lin_fn = linear_fns[txfm_fn_adr]
+        return lin_fn[0] * qpos_in[txfm_qadr] + lin_fn[1]
+    return 0.0
 
 
 @wp.kernel
@@ -45,6 +68,13 @@ def _kinematics_level(
         jnt_rel_child: wp.array(dtype=wp.vec3),
         jnt_rel_parent_rot: wp.array(dtype=wp.quat),
         jnt_rel_child_rot: wp.array(dtype=wp.quat),
+        jnt_cst_adr: wp.array(dtype=int),  # start custom joints
+        const_fns: wp.array(dtype=float),
+        linear_fns: wp.array(dtype=wp.vec2),
+        cst_txfm_axis: wp.array2d(dtype=wp.vec3),
+        cst_txfm_fn: wp.array2d(dtype=int),
+        cst_txfm_fn_adr: wp.array2d(dtype=int),
+        cst_txfm_qadr: wp.array2d(dtype=int),
         # Data in:
         qpos_in: wp.array2d(dtype=float),
         xpos_in: wp.array2d(dtype=wp.vec3),
@@ -102,7 +132,7 @@ def _kinematics_level(
             qloc_ = wp.normalize(qloc_)
         elif jnt_type_ == JointType.SLIDE:
             slide_axis = wp.vec3(1.0, 0.0, 0.0)
-            xloc_ = qpos[qadr] * math.rot_vec_quat(slide_axis, jnt_rot)
+            xloc_ = qpos[qadr] * slide_axis
         elif jnt_type_ == JointType.UNIVERSAL:
             axis1 = wp.vec3(1.0, 0.0, 0.0)
             axis2 = wp.vec3(0.0, 0.0, 1.0)
@@ -111,24 +141,52 @@ def _kinematics_level(
                 math.axis_angle_to_quat(axis2, qpos[qadr + 1]),
             )
         elif jnt_type_ == JointType.CUSTOM:
-            assert False
+            cst_adr = jnt_cst_adr[bodyid]
+            txfm_axes = cst_txfm_axis[cst_adr]
+            txfm_fn = cst_txfm_fn[cst_adr]
 
-        xquat = math.mul_quat(jnt_rot, math.mul_quat(qloc_, jnt_to_c_rot))
-        xpos = jnt_pos + xloc_ + math.rot_vec_quat(jnt_to_c, xquat)
+            # First 3 are rotation
+            qloc_ = wp.quat(1.0, 0.0, 0.0, 0.0)
+            for i in range(3):
+                fn_eval = evaluate_txfm(
+                    qpos,
+                    txfm_fn[i],
+                    cst_txfm_fn_adr[cst_adr, i],
+                    cst_txfm_qadr[cst_adr, i],
+                    const_fns,
+                    linear_fns,
+                )
+                qloc_ = math.mul_quat(
+                    qloc_, math.axis_angle_to_quat(txfm_axes[i], fn_eval))
 
-        xanchor_out[worldid, bodyid] = jnt_pos
+            # Next 3 are translation
+            xloc_ = wp.vec3(0.0, 0.0, 0.0)
+            for i in range(3, 6):
+                fn_eval = evaluate_txfm(
+                    qpos,
+                    txfm_fn[i],
+                    cst_txfm_fn_adr[cst_adr, i],
+                    cst_txfm_qadr[cst_adr, i],
+                    const_fns,
+                    linear_fns,
+                )
+                xloc_ += fn_eval * txfm_axes[i]
+
         # world coordinates
-        xquat = math.mul_quat(xquat, math.mul_quat(qloc_, jnt_to_c_rot))
-        xpos += math.rot_vec_quat(jnt_to_c, xquat)
+        xquat = math.mul_quat(jnt_rot, math.mul_quat(qloc_, jnt_to_c_rot))
+        xpos = (jnt_pos + math.rot_vec_quat(xloc_, jnt_rot) +
+                math.rot_vec_quat(jnt_to_c, xquat))
+        xanchor_out[worldid, bodyid] = jnt_pos
 
     xpos_out[worldid, bodyid] = xpos
     xquat_out[worldid, bodyid] = wp.normalize(xquat)
     xmat_out[worldid, bodyid] = math.quat_to_mat(xquat)
 
-    xipos_out[worldid, bodyid] = xpos + math.rot_vec_quat(body_ipos[bodyid],
-                                                          xquat)
-    ximat_out[worldid, bodyid] = math.quat_to_mat(
-        math.mul_quat(xquat, body_iquat[bodyid]))
+    # inertial frame
+    xipos_out[worldid, bodyid] = (
+            xpos + math.rot_vec_quat(body_ipos[bodyid], xquat))
+    ximat_out[worldid, bodyid] = (
+        math.quat_to_mat(math.mul_quat(xquat, body_iquat[bodyid])))
 
 
 @wp.kernel
@@ -195,6 +253,13 @@ def kinematics(m: Model, d: Data):
                 m.jnt_rel_child,
                 m.jnt_rel_parent_rot,
                 m.jnt_rel_child_rot,
+                m.jnt_cst_adr,
+                m.const_fns,
+                m.linear_fns,
+                m.cst_txfm_axis,
+                m.cst_txfm_fn,
+                m.cst_txfm_fn_adr,
+                m.cst_txfm_qadr,
                 d.qpos,
                 d.xpos,
                 d.xquat,
@@ -202,7 +267,6 @@ def kinematics(m: Model, d: Data):
             ],
             outputs=[d.xpos, d.xquat, d.xmat, d.xipos, d.ximat, d.xanchor],
         )
-
     wp.launch(
         _geom_local_to_global,
         dim=(d.nworld, m.ngeom),

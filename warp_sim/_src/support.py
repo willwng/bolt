@@ -52,7 +52,8 @@ def mul_m_sparse_diag(check_skip: bool):
             if skip[worldid]:
                 return
 
-        res[worldid, dofid] = qM_in[worldid, 0, dof_Madr[dofid]] * vec[worldid, dofid]
+        res[worldid, dofid] = qM_in[worldid, 0, dof_Madr[dofid]] * vec[
+            worldid, dofid]
 
     return _mul_m_sparse_diag
 
@@ -115,8 +116,10 @@ def mul_m_dense(tile: TileSet, check_skip: bool):
                 return
 
         dofid = adr[nodeid]
-        qM_tile = wp.tile_load(qM_in[worldid], shape=(TILE_SIZE, TILE_SIZE), offset=(dofid, dofid))
-        vec_tile = wp.tile_load(vec[worldid], shape=(TILE_SIZE, 1), offset=(dofid, 0))
+        qM_tile = wp.tile_load(qM_in[worldid], shape=(TILE_SIZE, TILE_SIZE),
+                               offset=(dofid, dofid))
+        vec_tile = wp.tile_load(vec[worldid], shape=(TILE_SIZE, 1),
+                                offset=(dofid, 0))
         res_tile = wp.tile_matmul(qM_tile, vec_tile)
         wp.tile_store(res[worldid], res_tile, offset=(dofid, 0))
 
@@ -199,9 +202,11 @@ def _apply_ft(
             parentid = body_parentid[parentid]
         if parentid == 0:
             continue  # body is not part of the subtree
-        offset = xipos_in[worldid, bodyid] - subtree_com_in[worldid, body_rootid[bodyid]]
+        offset = xipos_in[worldid, bodyid] - subtree_com_in[
+            worldid, body_rootid[bodyid]]
         cross_term = wp.cross(rotational_cdof, offset)
-        accumul += wp.dot(jac, ft_body) + wp.dot(cross_term, wp.spatial_top(ft_body))
+        accumul += wp.dot(jac, ft_body) + wp.dot(cross_term,
+                                                 wp.spatial_top(ft_body))
 
     if flg_add:
         qfrc_out[worldid, dofid] += accumul
@@ -209,11 +214,18 @@ def _apply_ft(
         qfrc_out[worldid, dofid] = accumul
 
 
-def apply_ft(m: Model, d: Data, ft: wp.array2d(dtype=wp.spatial_vector), qfrc: wp.array2d(dtype=float), flg_add: bool):
+def apply_ft(
+        m: Model,
+        d: Data,
+        ft: wp.array2d(dtype=wp.spatial_vector),
+        qfrc: wp.array2d(dtype=float),
+        flg_add: bool
+):
     wp.launch(
         kernel=_apply_ft,
         dim=(d.nworld, m.nv),
-        inputs=[m.nbody, m.body_parentid, m.body_rootid, m.dof_bodyid, d.xipos, d.subtree_com, d.cdof, ft, flg_add],
+        inputs=[m.nbody, m.body_parentid, m.body_rootid, m.dof_bodyid, d.xipos,
+                d.subtree_com, d.cdof, ft, flg_add],
         outputs=[qfrc],
     )
 
@@ -228,60 +240,6 @@ def xfrc_accumulate(m: Model, d: Data, qfrc: wp.array2d(dtype=float)):
       qfrc: Total applied force mapped to dof space.
     """
     apply_ft(m, d, d.xfrc_applied, qfrc, True)
-
-
-@wp.func
-def all_same(v0: wp.vec3, v1: wp.vec3) -> wp.bool:
-    dx = abs(v0[0] - v1[0])
-    dy = abs(v0[1] - v1[1])
-    dz = abs(v0[2] - v1[2])
-
-    return (
-            (dx <= 1.0e-9 or dx <= max(abs(v0[0]), abs(v1[0])) * 1.0e-9)
-            and (dy <= 1.0e-9 or dy <= max(abs(v0[1]), abs(v1[1])) * 1.0e-9)
-            and (dz <= 1.0e-9 or dz <= max(abs(v0[2]), abs(v1[2])) * 1.0e-9)
-    )
-
-
-@wp.func
-def any_different(v0: wp.vec3, v1: wp.vec3) -> wp.bool:
-    dx = abs(v0[0] - v1[0])
-    dy = abs(v0[1] - v1[1])
-    dz = abs(v0[2] - v1[2])
-
-    return (
-            (dx > 1.0e-9 and dx > max(abs(v0[0]), abs(v1[0])) * 1.0e-9)
-            or (dy > 1.0e-9 and dy > max(abs(v0[1]), abs(v1[1])) * 1.0e-9)
-            or (dz > 1.0e-9 and dz > max(abs(v0[2]), abs(v1[2])) * 1.0e-9)
-    )
-
-
-@wp.func
-def _decode_pyramid(
-        njmax_in: int, pyramid: wp.array(dtype=float), efc_address: int, mu: vec5, condim: int
-) -> wp.spatial_vector:
-    """Converts pyramid representation to contact force."""
-    force = wp.spatial_vector()
-
-    if condim == 1:
-        force[0] = pyramid[efc_address]
-        return force
-
-    force[0] = float(0.0)
-    for i in range(condim - 1):
-        adr = 2 * i + efc_address
-        if adr < njmax_in:
-            dir1 = pyramid[adr]
-        else:
-            dir1 = 0.0
-        if adr + 1 < njmax_in:
-            dir2 = pyramid[adr + 1]
-        else:
-            dir2 = 0.0
-        force[0] += dir1 + dir2
-        force[i + 1] = (dir1 - dir2) * mu[i]
-
-    return force
 
 
 @wp.func
@@ -309,7 +267,8 @@ def contact_force_fn(
     if contact_id >= 0 and contact_id <= nacon_in[0] and efc_address >= 0:
         for i in range(condim):
             if contact_efc_address_in[contact_id, i] < njmax_in:
-                force[i] = efc_force_in[worldid, contact_efc_address_in[contact_id, i]]
+                force[i] = efc_force_in[
+                    worldid, contact_efc_address_in[contact_id, i]]
 
     if to_world_frame:
         # Transform both top and bottom parts of spatial vector by the full contact frame matrix
@@ -364,7 +323,8 @@ def contact_force_kernel(
 
 
 def contact_force(
-        m: Model, d: Data, contact_ids: wp.array(dtype=int), to_world_frame: bool,
+        m: Model, d: Data, contact_ids: wp.array(dtype=int),
+        to_world_frame: bool,
         force: wp.array(dtype=wp.spatial_vector)
 ):
     """Compute forces for contacts in Data.
@@ -397,12 +357,14 @@ def contact_force(
 
 
 @wp.func
-def transform_force(force: wp.vec3, torque: wp.vec3, offset: wp.vec3) -> wp.spatial_vector:
+def transform_force(force: wp.vec3, torque: wp.vec3,
+                    offset: wp.vec3) -> wp.spatial_vector:
     return wp.spatial_vector(torque - wp.cross(offset, force), force)
 
 
 @wp.func
-def transform_force(frc: wp.spatial_vector, offset: wp.vec3) -> wp.spatial_vector:
+def transform_force(frc: wp.spatial_vector,
+                    offset: wp.vec3) -> wp.spatial_vector:
     force = wp.spatial_top(frc)
     torque = wp.spatial_bottom(frc)
     return transform_force(force, torque, offset)
@@ -494,7 +456,8 @@ def jac_dot(
     jnttype = jnt_type[dofjntid]
     jntdofadr = jnt_dofadr[dofjntid]
 
-    if (jnttype == JointType.BALL) or ((jnttype == JointType.FREE) and dofid >= jntdofadr + 3):
+    if (jnttype == JointType.BALL) or (
+            (jnttype == JointType.FREE) and dofid >= jntdofadr + 3):
         # compute cdof_dot for quaternion (use current body cvel)
         cvel = cvel_in[worldid, dof_bodyid[dofid]]
         cdof_dot = motion_cross(cvel, cdof)
@@ -515,7 +478,8 @@ def jac_dot(
     return jacp, jacr
 
 
-def get_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int, active: Optional[wp.array] = None):
+def get_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int,
+              active: Optional[wp.array] = None):
     """Copy concatenated state components specified by sig from Data into state.
 
     The bits of the integer sig correspond to element fields of State.
@@ -585,7 +549,8 @@ def get_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int, activ
                     adr += na
                 elif element == State.WARMSTART:
                     for j in range(nv):
-                        state_out[worldid, adr + j] = qacc_warmstart_in[worldid, j]
+                        state_out[worldid, adr + j] = qacc_warmstart_in[
+                            worldid, j]
                     adr += nv
                 elif element == State.CTRL:
                     for j in range(nu):
@@ -593,7 +558,8 @@ def get_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int, activ
                     adr += nu
                 elif element == State.QFRC_APPLIED:
                     for j in range(nv):
-                        state_out[worldid, adr + j] = qfrc_applied_in[worldid, j]
+                        state_out[worldid, adr + j] = qfrc_applied_in[
+                            worldid, j]
                     adr += nv
                 elif element == State.XFRC_APPLIED:
                     for j in range(nbody):
@@ -607,7 +573,8 @@ def get_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int, activ
                         adr += 6
                 elif element == State.EQ_ACTIVE:
                     for j in range(neq):
-                        state_out[worldid, adr + j] = float(eq_active_in[worldid, j])
+                        state_out[worldid, adr + j] = float(
+                            eq_active_in[worldid, j])
                     adr += j
                 elif element == State.MOCAP_POS:
                     for j in range(nmocap):
@@ -654,7 +621,8 @@ def get_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int, activ
     )
 
 
-def set_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int, active: Optional[wp.array] = None):
+def set_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int,
+              active: Optional[wp.array] = None):
     """Copy concatenated state components specified by sig from state into Data.
 
     The bits of the integer sig correspond to element fields of State.
@@ -723,7 +691,8 @@ def set_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int, activ
                     adr += na
                 elif element == State.WARMSTART:
                     for j in range(nv):
-                        qacc_warmstart_out[worldid, j] = state_in[worldid, adr + j]
+                        qacc_warmstart_out[worldid, j] = state_in[
+                            worldid, adr + j]
                     adr += nv
                 elif element == State.CTRL:
                     for j in range(nu):
@@ -731,7 +700,8 @@ def set_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int, activ
                     adr += nu
                 elif element == State.QFRC_APPLIED:
                     for j in range(nv):
-                        qfrc_applied_out[worldid, j] = state_in[worldid, adr + j]
+                        qfrc_applied_out[worldid, j] = state_in[
+                            worldid, adr + j]
                     adr += nv
                 elif element == State.XFRC_APPLIED:
                     for j in range(nbody):
@@ -747,7 +717,8 @@ def set_state(m: Model, d: Data, state: wp.array2d(dtype=float), sig: int, activ
                         adr += 6
                 elif element == State.EQ_ACTIVE:
                     for j in range(neq):
-                        eq_active_out[worldid, j] = bool(state_in[worldid, adr + j])
+                        eq_active_out[worldid, j] = bool(
+                            state_in[worldid, adr + j])
                     adr += j
                 elif element == State.MOCAP_POS:
                     for j in range(nmocap):

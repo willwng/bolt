@@ -232,6 +232,16 @@ class State(enum.IntEnum):
     FULLPHYSICS = 11
     INTEGRATION = 12
 
+class CustomFnType(enum.IntEnum):
+    """
+    Custom function
+    CONSTANT: constant function
+    LINEAR: linear function
+    """
+
+    CONSTANT = 0
+    LINEAR = 1
+
 
 class vec5f(wp.types.vector(length=5, dtype=float)):
     pass
@@ -427,7 +437,7 @@ class Model:
       nmuscle: number of tendons
 
       njnts_conv: number of conventional joints
-      njnts_custom: number of custom joints
+      njnts_cst: number of custom joints
 
       ngeom: number of geoms
       nsite: number of sites
@@ -455,6 +465,15 @@ class Model:
       jnt_rel_child: offset from child frame                   (nbody, 3)
       jnt_rel_parent_rot: rotation from parent frame           (nbody, 4)
       jnt_rel_child_rot: rotation from child frame             (nbody, 4)
+
+      for custom joints:
+      jnt_cst_adr: address of custom joint, -1 if conventional (nbody,)
+      const_fns:     (c) of constant functions                 (<=6*njnts_cst,)
+      linear_fns:    (m, b) of linear functions                (<=6*njnts_cst, 2)
+      cst_txfm_axis: axis for each spatial transform           (njnts_cst, 6, vec3)
+      cst_txfm_fn: function type for each spatial transform    (njnts_cst, 6)
+      cst_txfm_fn_adr: address of spatial transform function   (njnts_cst, 6)
+      cst_txfm_qadr: qpos address for each spatial transform   (njnts_cst, 6)
 
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
@@ -489,7 +508,7 @@ class Model:
     nmuscle: int
 
     njnts_conv: int
-    njnts_custom: int
+    njnts_cst: int
 
     ngeom: int
     nsite: int
@@ -521,6 +540,15 @@ class Model:
     jnt_rel_child: wp.array(dtype=wp.vec3)
     jnt_rel_parent_rot: wp.array(dtype=wp.quat)
     jnt_rel_child_rot: wp.array(dtype=wp.quat)
+
+    # Custom joint data
+    jnt_cst_adr: wp.array(dtype=int)
+    const_fns: wp.array(dtype=float)
+    linear_fns: wp.array(dtype=wp.vec2)
+    cst_txfm_axis: wp.array2d(dtype=wp.vec3)
+    cst_txfm_fn: wp.array2d(dtype=int)
+    cst_txfm_fn_adr: wp.array2d(dtype=int)
+    cst_txfm_qadr: wp.array2d(dtype=int)
 
     # Collision geometry
     geom_type: wp.array(dtype=int)
