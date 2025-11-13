@@ -134,7 +134,8 @@ class Joint:
 class PinJoint(Joint):
     @classmethod
     def from_joint(cls, joint: Joint) -> "PinJoint":
-        assert len(joint.coordinates) == 1, "PinJoint must have exactly one coordinate"
+        assert len(
+            joint.coordinates) == 1, "PinJoint must have exactly one coordinate"
         return cls(
             name=joint.name,
             socket_parent_frame=joint.socket_parent_frame,
@@ -154,7 +155,8 @@ class PinJoint(Joint):
 class UniversalJoint(Joint):
     @classmethod
     def from_joint(cls, joint: Joint) -> "UniversalJoint":
-        assert len(joint.coordinates) == 2, "UniversalJoint must have exactly two coordinates"
+        assert len(
+            joint.coordinates) == 2, "UniversalJoint must have exactly two coordinates"
         return cls(
             name=joint.name,
             socket_parent_frame=joint.socket_parent_frame,
@@ -216,6 +218,7 @@ class Body:
 class BodySet:
     bodies: OrderedDict[str, Body]
 
+
 @dataclass
 class Collider:
     name: str
@@ -226,12 +229,29 @@ class Collider:
     def size(self) -> list[float]:
         raise NotImplementedError
 
+    def get_aabb(self) -> list[float]:
+        """ concat(center, size). note center is in the geom frame """
+        raise NotImplementedError
+
+    def get_rbound(self) -> float:
+        """ return the radius bound of the collider """
+        raise NotImplementedError
+
+
 @dataclass
 class ContactSphere(Collider):
     radius: float
 
     def size(self) -> list[float]:
         return [self.radius, self.radius, self.radius]
+
+    def get_aabb(self) -> list[float]:
+        center = [0.0, 0.0, 0.0]
+        size = [2 * self.radius, 2 * self.radius, 2 * self.radius]
+        return center + size
+
+    def get_rbound(self) -> float:
+        return self.radius
 
 
 @dataclass

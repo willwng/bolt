@@ -148,36 +148,20 @@ def mul_m(
     if M is None:
         M = d.qM
 
-    if m.opt.is_sparse:
-        wp.launch(
-            mul_m_sparse_diag(check_skip),
-            dim=(d.nworld, m.nv),
-            inputs=[m.dof_Madr, M, vec, skip],
-            outputs=[res],
+    for tile in m.qM_tiles:
+        wp.launch_tiled(
+            mul_m_dense(tile, check_skip),
+            dim=(d.nworld, tile.adr.size),
+            inputs=[
+                M,
+                tile.adr,
+                # note reshape: tile_matmul expects 2d input
+                vec.reshape(vec.shape + (1,)),
+                skip,
+            ],
+            outputs=[res.reshape(res.shape + (1,))],
+            block_dim=m.block_dim.mul_m_dense,
         )
-
-        wp.launch(
-            mul_m_sparse_ij(check_skip),
-            dim=(d.nworld, m.qM_madr_ij.size),
-            inputs=[m.qM_mulm_i, m.qM_mulm_j, m.qM_madr_ij, M, vec, skip],
-            outputs=[res],
-        )
-
-    else:
-        for tile in m.qM_tiles:
-            wp.launch_tiled(
-                mul_m_dense(tile, check_skip),
-                dim=(d.nworld, tile.adr.size),
-                inputs=[
-                    M,
-                    tile.adr,
-                    # note reshape: tile_matmul expects 2d input
-                    vec.reshape(vec.shape + (1,)),
-                    skip,
-                ],
-                outputs=[res.reshape(res.shape + (1,))],
-                block_dim=m.block_dim.mul_m_dense,
-            )
 
 
 @wp.kernel

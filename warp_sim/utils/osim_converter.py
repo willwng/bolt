@@ -332,6 +332,24 @@ def get_collider_size(model: CheckedModel) -> list[list[float]]:
     return collider_sizes
 
 
+def get_collider_aabb(model: CheckedModel) -> list[list[float]]:
+    collider_aabbs = []
+    for _, desc in model.iter_descs():
+        for collider in desc.colliders.values():
+            aabb = collider.get_aabb()
+            collider_aabbs.append(aabb)
+    return collider_aabbs
+
+
+def get_collider_rbound(model: CheckedModel) -> list[float]:
+    collider_rbounds = []
+    for _, desc in model.iter_descs():
+        for collider in desc.colliders.values():
+            rbound = collider.get_rbound()
+            collider_rbounds.append(rbound)
+    return collider_rbounds
+
+
 def get_collider_pos(model: CheckedModel) -> list[list[float]]:
     geom_positions = []
     for _, desc in model.iter_descs():
@@ -439,3 +457,35 @@ def compute_expanded_parent(
         expanded_parent[jnt_dof_adr[i - 1]] = jnt_dof_adr[lp(i)]
     expanded_parent = [p - 1 for p in expanded_parent]  # to zero-based
     return expanded_parent
+
+
+def get_subtree_mass(model: CheckedModel) -> list[float]:
+    body_masses_list = body_masses(model)
+    subtree_masses = body_masses_list.copy()
+
+    body_tree = create_body_tree(model)
+
+    # Traverse from leaves to root
+    for level in reversed(body_tree):
+        for body_idx in level:
+            parent_idx = model.get_body_parent_idx(body_idx)
+            if parent_idx == -1:
+                continue
+            subtree_masses[parent_idx] += subtree_masses[body_idx]
+
+    return subtree_masses
+
+
+def make_tiles(
+        model: CheckedModel,
+        expanded_parent: list[int]
+) -> dict[int, list[int]]:
+    nv = sum(get_joint_num_dofs(model, vel_dofs=True))
+    # qM_tiles records the block diagonal structure of qM
+    tile_corners = [i for i in range(nv) if expanded_parent[i] == -1]
+    tiles = {}
+    for i in range(len(tile_corners)):
+        tile_beg = tile_corners[i]
+        tile_end = nv if i == len(tile_corners) - 1 else tile_corners[i + 1]
+        tiles.setdefault(tile_end - tile_beg, []).append(tile_beg)
+    return tiles

@@ -5,6 +5,7 @@ import warp as wp
 
 MJ_MAXVAL = 10000000000.0
 MJ_MINIMP = 0.0001
+MJ_MAXIMP = 0.9999
 MJ_MINMU = 1e-05
 MJ_MINVAL = 1e-15
 MJ_MAXCONPAIR = 50
@@ -96,7 +97,6 @@ class JointType(enum.IntEnum):
     CUSTOM = 5
 
 
-
 class GeomType(enum.IntEnum):
     """Type of geometry.
 
@@ -119,6 +119,7 @@ class GeomType(enum.IntEnum):
     CYLINDER = 5
     BOX = 6
     MESH = 7
+
 
 class ConstraintState(enum.IntEnum):
     """State of constraint.
@@ -262,6 +263,18 @@ vec10 = vec10f
 vec11 = vec11f
 
 
+class SolverType(enum.IntEnum):
+    """Constraint solver algorithm.
+
+    Attributes:
+      CG: Conjugate gradient (primal)
+      NEWTON: Newton (primal)
+    """
+
+    CG = 1
+    NEWTON = 2
+
+
 @dataclasses.dataclass
 class Option:
     """Physics options.
@@ -294,12 +307,11 @@ class Option:
     ls_tolerance: float
     ccd_tolerance: float
     gravity: float
-    solver: int
+    solver: SolverType
     iterations: int
     ls_iterations: int
     ccd_iterations: int
-    # warp only fields:
-    is_sparse: bool
+    warm_start: bool
     ls_parallel: bool
     ls_parallel_min_step: float
     graph_conditional: bool
@@ -436,6 +448,7 @@ class Model:
       body_rootid: id of root above body                       (nbody,)
       body_parentid: id of body's parent                       (nbody,)
       jnt_type: type of joint (JointType)                      (nbody,)
+      jnt_stiffness: joint stiffness                           (nbody,)
       jnt_qposadr: start addr in 'qpos' for joint's data       (nbody,)
       jnt_dofadr: start addr in 'qvel' for joint's data        (nbody,)
       jnt_rel_parent: offset from parent frame                 (nbody, 3)
@@ -449,6 +462,8 @@ class Model:
       geom_pos: local position offset rel. to body             (ngeom, 3)
       geom_quat: local orientation offset rel. to body         (ngeom, 4)
       geom_friction: friction for (slide, spin, roll)          (ngeom, 3)
+
+      nxn_geom_pair_filtered: valid collision pair geom ids    (<=ngeom*(ngeom-1)/2,)
 
       site_bodyid: id of site's body                           (nsite,)
       site_pos: local position offset rel. to body             (nsite, 3)
@@ -465,7 +480,6 @@ class Model:
 
       dof_bodyid: id of dof's body                             (nv,)
       dof_parentid: id of dof's parent; -1: none               (nv,)
-      dof_Madr: dof address in M-diagonal                      (nv,)
       dof_invweight0: diag. inverse inertia in qpos0           (nworld, nv)
     """
 
@@ -495,8 +509,13 @@ class Model:
 
     body_rootid: wp.array(dtype=int)
     body_parentid: wp.array(dtype=int)
+    body_tree: tuple[wp.array(dtype=int), ...]
+    body_subtreemass: wp.array(dtype=float)
+
     jnt_type: wp.array(dtype=int)
+    jnt_stiffness: wp.array(dtype=float)
     jnt_qposadr: wp.array(dtype=int)
+    jnt_dofnum: wp.array(dtype=int)
     jnt_dofadr: wp.array(dtype=int)
     jnt_rel_parent: wp.array(dtype=wp.vec3)
     jnt_rel_child: wp.array(dtype=wp.vec3)
@@ -510,6 +529,13 @@ class Model:
     geom_pos: wp.array(dtype=wp.vec3)
     geom_quat: wp.array(dtype=wp.quat)
     geom_friction: wp.array(dtype=wp.vec3)
+    geom_aabb: wp.array2d(dtype=wp.vec3)
+    geom_rbound: wp.array(dtype=float)
+    geom_margin: wp.array(dtype=float)
+
+    geom_pair_type_count: tuple[int, ...]
+    nxn_geom_pair_filtered: wp.array(dtype=wp.vec2i)
+    nxn_pairid_filtered: wp.array(dtype=wp.vec2i)
 
     # Attachment sites (muscle path)
     site_bodyid: wp.array(dtype=int)
@@ -526,14 +552,13 @@ class Model:
     dof_parentid: wp.array(dtype=int)
 
     # To be computed at model creation
-    body_tree: tuple[wp.array(dtype=int), ...]
-    body_subtreemass: wp.array(dtype=float)
     body_invweight0: wp.array(dtype=wp.vec2)
     mean_inertia: float
-
-    dof_Madr: wp.array(dtype=int)
     dof_invweight0: wp.array(dtype=float)
-
+    qM_tiles: tuple[TileSet, ...]
+    block_dim: BlockDim
+    dof_tri_row: wp.array(dtype=int)
+    dof_tri_col: wp.array(dtype=int)
 
 @dataclasses.dataclass
 class Contact:
@@ -625,7 +650,6 @@ class Data:
       qfrc_constraint: constraint force                           (nworld, nv)
       qfrc_inverse: net external force; should equal:             (nworld, nv)
                     qfrc_applied + J.T @ xfrc_applied
-                    + qfrc_actuator
       cacc: com-based acceleration                                (nworld, nbody, 6)
       cfrc_int: com-based interaction force with parent           (nworld, nbody, 6)
       cfrc_ext: com-based external force on body                  (nworld, nbody, 6)
@@ -703,10 +727,16 @@ class Data:
     contact: Contact
     efc: Constraint
 
-    # warp only fields:
+    #
     nworld: int
     naconmax: int
     njmax: int
     nacon: wp.array(dtype=int)
     nsolving: wp.array(dtype=int)
     subtree_bodyvel: wp.array2d(dtype=wp.spatial_vector)
+
+    # collision driver
+    collision_pair: wp.array(dtype=wp.vec2i)
+    collision_pairid: wp.array(dtype=wp.vec2i)
+    collision_worldid: wp.array(dtype=int)
+    ncollision: wp.array(dtype=int)

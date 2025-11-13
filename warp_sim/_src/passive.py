@@ -69,13 +69,12 @@ def _ellipsoid_max_moment(size: wp.vec3, dir: int) -> float:
 @wp.kernel
 def _spring_damper_dof_passive(
         # Model:
-        opt_disableflags: int,
-        qpos_spring: wp.array2d(dtype=float),
+        qpos_spring: wp.array(dtype=float),
         jnt_type: wp.array(dtype=int),
         jnt_qposadr: wp.array(dtype=int),
         jnt_dofadr: wp.array(dtype=int),
-        jnt_stiffness: wp.array2d(dtype=float),
-        dof_damping: wp.array2d(dtype=float),
+        jnt_stiffness: wp.array(dtype=float),
+        dof_damping: wp.array(dtype=float),
         # Data in:
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
@@ -85,8 +84,8 @@ def _spring_damper_dof_passive(
 ):
     worldid, jntid = wp.tid()
     dofid = jnt_dofadr[jntid]
-    stiffness = jnt_stiffness[worldid % jnt_stiffness.shape[0], jntid]
-    damping = dof_damping[worldid % dof_damping.shape[0], dofid]
+    stiffness = jnt_stiffness[jntid]
+    damping = dof_damping[dofid]
 
     has_stiffness = stiffness != 0.0
     has_damping = damping != 0.0
@@ -102,15 +101,14 @@ def _spring_damper_dof_passive(
 
     jnttype = jnt_type[jntid]
     qposid = jnt_qposadr[jntid]
-    qpos_spring_id = worldid % qpos_spring.shape[0]
 
     if jnttype == JointType.FREE:
         # spring
         if has_stiffness:
             dif = wp.vec3(
-                qpos_in[worldid, qposid + 0] - qpos_spring[qpos_spring_id, qposid + 0],
-                qpos_in[worldid, qposid + 1] - qpos_spring[qpos_spring_id, qposid + 1],
-                qpos_in[worldid, qposid + 2] - qpos_spring[qpos_spring_id, qposid + 2],
+                qpos_in[worldid, qposid + 0] - qpos_spring[qposid + 0],
+                qpos_in[worldid, qposid + 1] - qpos_spring[qposid + 1],
+                qpos_in[worldid, qposid + 2] - qpos_spring[qposid + 2],
             )
             qfrc_spring_out[worldid, dofid + 0] = -stiffness * dif[0]
             qfrc_spring_out[worldid, dofid + 1] = -stiffness * dif[1]
@@ -123,10 +121,10 @@ def _spring_damper_dof_passive(
             )
             rot = wp.normalize(rot)
             ref = wp.quat(
-                qpos_spring[qpos_spring_id, qposid + 3],
-                qpos_spring[qpos_spring_id, qposid + 4],
-                qpos_spring[qpos_spring_id, qposid + 5],
-                qpos_spring[qpos_spring_id, qposid + 6],
+                qpos_spring[qposid + 3],
+                qpos_spring[qposid + 4],
+                qpos_spring[qposid + 5],
+                qpos_spring[qposid + 6],
             )
             dif = math.quat_sub(rot, ref)
             qfrc_spring_out[worldid, dofid + 3] = -stiffness * dif[0]
@@ -152,10 +150,10 @@ def _spring_damper_dof_passive(
             )
             rot = wp.normalize(rot)
             ref = wp.quat(
-                qpos_spring[qpos_spring_id, qposid + 0],
-                qpos_spring[qpos_spring_id, qposid + 1],
-                qpos_spring[qpos_spring_id, qposid + 2],
-                qpos_spring[qpos_spring_id, qposid + 3],
+                qpos_spring[qposid + 0],
+                qpos_spring[qposid + 1],
+                qpos_spring[qposid + 2],
+                qpos_spring[qposid + 3],
             )
             dif = math.quat_sub(rot, ref)
             qfrc_spring_out[worldid, dofid + 0] = -stiffness * dif[0]
@@ -170,122 +168,24 @@ def _spring_damper_dof_passive(
     else:  # mjJNT_SLIDE, mjJNT_HINGE
         # spring
         if has_stiffness:
-            fdif = qpos_in[worldid, qposid] - qpos_spring[qpos_spring_id, qposid]
+            fdif = qpos_in[worldid, qposid] - qpos_spring[qposid]
             qfrc_spring_out[worldid, dofid] = -stiffness * fdif
 
         # damper
         if has_damping:
             qfrc_damper_out[worldid, dofid] = -damping * qvel_in[worldid, dofid]
 
-
-@wp.kernel
-def _spring_damper_tendon_passive(
-        # Model:
-        tendon_stiffness: wp.array2d(dtype=float),
-        tendon_damping: wp.array2d(dtype=float),
-        tendon_lengthspring: wp.array2d(dtype=wp.vec2),
-        # Data in:
-        ten_J_in: wp.array3d(dtype=float),
-        ten_length_in: wp.array2d(dtype=float),
-        ten_velocity_in: wp.array2d(dtype=float),
-        # In:
-        dsbl_spring: bool,
-        dsbl_damper: bool,
-        # Data out:
-        qfrc_spring_out: wp.array2d(dtype=float),
-        qfrc_damper_out: wp.array2d(dtype=float),
-):
-    worldid, tenid, dofid = wp.tid()
-
-    stiffness = tendon_stiffness[worldid % tendon_stiffness.shape[0], tenid]
-    damping = tendon_damping[worldid % tendon_damping.shape[0], tenid]
-
-    has_stiffness = stiffness != 0.0 and not dsbl_spring
-    has_damping = damping != 0.0 and not dsbl_damper
-
-    if not has_stiffness and not has_damping:
-        return
-
-    J = ten_J_in[worldid, tenid, dofid]
-
-    if has_stiffness:
-        # compute spring force along tendon
-        length = ten_length_in[worldid, tenid]
-        lengthspring = tendon_lengthspring[worldid % tendon_lengthspring.shape[0], tenid]
-        lower = lengthspring[0]
-        upper = lengthspring[1]
-
-        if length > upper:
-            frc_spring = stiffness * (upper - length)
-        elif length < lower:
-            frc_spring = stiffness * (lower - length)
-        else:
-            frc_spring = 0.0
-
-        # transform to joint torque
-        wp.atomic_add(qfrc_spring_out[worldid], dofid, J * frc_spring)
-
-    if has_damping:
-        # compute damper linear force along tendon
-        frc_damper = -damping * ten_velocity_in[worldid, tenid]
-
-        # transform to joint torque
-        wp.atomic_add(qfrc_damper_out[worldid], dofid, J * frc_damper)
-
-
-@wp.kernel
-def _gravity_force(
-        # Model:
-        opt_gravity: wp.array(dtype=wp.vec3),
-        body_parentid: wp.array(dtype=int),
-        body_rootid: wp.array(dtype=int),
-        body_mass: wp.array2d(dtype=float),
-        body_gravcomp: wp.array2d(dtype=float),
-        dof_bodyid: wp.array(dtype=int),
-        # Data in:
-        xipos_in: wp.array2d(dtype=wp.vec3),
-        subtree_com_in: wp.array2d(dtype=wp.vec3),
-        cdof_in: wp.array2d(dtype=wp.spatial_vector),
-        # Data out:
-        qfrc_gravcomp_out: wp.array2d(dtype=float),
-):
-    worldid, bodyid, dofid = wp.tid()
-    bodyid += 1  # skip world body
-    gravcomp = body_gravcomp[worldid % body_gravcomp.shape[0], bodyid]
-    gravity = opt_gravity[worldid % opt_gravity.shape[0]]
-
-    if gravcomp:
-        force = -gravity * body_mass[worldid % body_mass.shape[0], bodyid] * gravcomp
-        pos = xipos_in[worldid, bodyid]
-        jac, _ = support.jac(body_parentid, body_rootid, dof_bodyid, subtree_com_in, cdof_in, pos, bodyid, dofid,
-                             worldid)
-
-        wp.atomic_add(qfrc_gravcomp_out[worldid], dofid, wp.dot(jac, force))
-
-
 @wp.kernel
 def _qfrc_passive(
-        # Model:
-        opt_has_fluid: bool,
-        jnt_actgravcomp: wp.array(dtype=int),
-        dof_jntid: wp.array(dtype=int),
         # Data in:
         qfrc_spring_in: wp.array2d(dtype=float),
         qfrc_damper_in: wp.array2d(dtype=float),
-        qfrc_gravcomp_in: wp.array2d(dtype=float),
-        qfrc_fluid_in: wp.array2d(dtype=float),
-        # In:
-        gravcomp: bool,
         # Data out:
         qfrc_passive_out: wp.array2d(dtype=float),
 ):
     worldid, dofid = wp.tid()
     qfrc_passive = qfrc_spring_in[worldid, dofid]
     qfrc_passive += qfrc_damper_in[worldid, dofid]
-
-    # add gravcomp unless added by actuators
-    if gravcomp and not jnt_actgravcomp[dof_jntid[dofid]]:
-        qfrc_passive += qfrc_gravcomp_in[worldid, dofid]
 
     qfrc_passive_out[worldid, dofid] = qfrc_passive
 
@@ -295,9 +195,8 @@ def passive(m: Model, d: Data):
     """Adds all passive forces."""
     wp.launch(
         _spring_damper_dof_passive,
-        dim=(d.nworld, m.njnt),
+        dim=(d.nworld, m.nbody),
         inputs=[
-            m.opt.disableflags,
             m.qpos_spring,
             m.jnt_type,
             m.jnt_qposadr,
@@ -310,38 +209,12 @@ def passive(m: Model, d: Data):
         outputs=[d.qfrc_spring, d.qfrc_damper],
     )
 
-    if m.nmuscle:
-        wp.launch(
-            _spring_damper_tendon_passive,
-            dim=(d.nworld, m.nmuscle, m.nv),
-            inputs=[
-                m.tendon_stiffness,
-                m.tendon_damping,
-                m.tendon_lengthspring,
-                d.ten_J,
-                d.ten_length,
-                d.ten_velocity,
-                dsbl_spring,
-                dsbl_damper,
-            ],
-            outputs=[
-                d.qfrc_spring,
-                d.qfrc_damper,
-            ],
-        )
-
     wp.launch(
         _qfrc_passive,
         dim=(d.nworld, m.nv),
         inputs=[
-            m.opt.has_fluid,
-            m.jnt_actgravcomp,
-            m.dof_jntid,
             d.qfrc_spring,
             d.qfrc_damper,
-            d.qfrc_gravcomp,
-            d.qfrc_fluid,
-            gravcomp,
         ],
         outputs=[
             d.qfrc_passive,
