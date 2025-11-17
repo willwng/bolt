@@ -188,6 +188,9 @@ class Joint:
     def num_pos_dofs(self) -> int:
         raise NotImplementedError
 
+    def connects_to_ground(self) -> bool:
+        return "ground" in self.socket_parent_frame
+
 
 _VOID_NAME = "__VOID__"
 

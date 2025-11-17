@@ -15,12 +15,10 @@
 
 import warp as wp
 
-from . import math
 from . import support
 from . import types
 from .types import ConstraintType
 from .types import vec5
-from .types import vec11
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -106,93 +104,82 @@ def _update_efc_row(
     efc_id_out[worldid, efcid] = id
 
 
-# @wp.kernel
-# def _efc_limit_slide_hinge(
-#         # Model:
-#         nv: int,
-#         opt_timestep: wp.array(dtype=float),
-#         jnt_qposadr: wp.array(dtype=int),
-#         jnt_dofadr: wp.array(dtype=int),
-#         jnt_solref: wp.array2d(dtype=wp.vec2),
-#         jnt_solimp: wp.array2d(dtype=vec5),
-#         jnt_range: wp.array2d(dtype=wp.vec2),
-#         jnt_margin: wp.array2d(dtype=float),
-#         dof_invweight0: wp.array2d(dtype=float),
-#         jnt_limited_slide_hinge_adr: wp.array(dtype=int),
-#         # Data in:
-#         qpos_in: wp.array2d(dtype=float),
-#         qvel_in: wp.array2d(dtype=float),
-#         njmax_in: int,
-#         # In:
-#         refsafe_in: int,
-#         # Data out:
-#         nl_out: wp.array(dtype=int),
-#         nefc_out: wp.array(dtype=int),
-#         efc_type_out: wp.array2d(dtype=int),
-#         efc_id_out: wp.array2d(dtype=int),
-#         efc_J_out: wp.array3d(dtype=float),
-#         efc_pos_out: wp.array2d(dtype=float),
-#         efc_margin_out: wp.array2d(dtype=float),
-#         efc_D_out: wp.array2d(dtype=float),
-#         efc_vel_out: wp.array2d(dtype=float),
-#         efc_aref_out: wp.array2d(dtype=float),
-#         efc_frictionloss_out: wp.array2d(dtype=float),
-# ):
-#     worldid, jntlimitedid = wp.tid()
-#     jntid = jnt_limited_slide_hinge_adr[jntlimitedid]
-#     jnt_range_id = worldid % jnt_range.shape[0]
-#     jntrange = jnt_range[jnt_range_id, jntid]
-#
-#     qpos = qpos_in[worldid, jnt_qposadr[jntid]]
-#     jnt_margin_id = worldid % jnt_margin.shape[0]
-#     jntmargin = jnt_margin[jnt_margin_id, jntid]
-#     dist_min, dist_max = qpos - jntrange[0], jntrange[1] - qpos
-#     pos = wp.min(dist_min, dist_max) - jntmargin
-#     active = pos < 0
-#
-#     if active:
-#         wp.atomic_add(nl_out, worldid, 1)
-#         efcid = wp.atomic_add(nefc_out, worldid, 1)
-#
-#         if efcid >= njmax_in:
-#             return
-#
-#         for i in range(nv):
-#             efc_J_out[worldid, efcid, i] = 0.0
-#
-#         dofadr = jnt_dofadr[jntid]
-#
-#         J = float(dist_min < dist_max) * 2.0 - 1.0
-#         efc_J_out[worldid, efcid, dofadr] = J
-#         Jqvel = J * qvel_in[worldid, dofadr]
-#
-#         dof_invweight0_id = worldid % dof_invweight0.shape[0]
-#         jnt_solref_id = worldid % jnt_solref.shape[0]
-#         jnt_solimp_id = worldid % jnt_solimp.shape[0]
-#         _update_efc_row(
-#             worldid,
-#             opt_timestep[worldid % opt_timestep.shape[0]],
-#             refsafe_in,
-#             efcid,
-#             pos,
-#             pos,
-#             dof_invweight0[dof_invweight0_id, dofadr],
-#             jnt_solref[jnt_solref_id, jntid],
-#             jnt_solimp[jnt_solimp_id, jntid],
-#             jntmargin,
-#             Jqvel,
-#             0.0,
-#             ConstraintType.LIMIT_JOINT,
-#             jntid,
-#             efc_type_out,
-#             efc_id_out,
-#             efc_pos_out,
-#             efc_margin_out,
-#             efc_D_out,
-#             efc_vel_out,
-#             efc_aref_out,
-#             efc_frictionloss_out,
-#         )
+@wp.kernel
+def _efc_dof_limit(
+        # Model:
+        nv: int,
+        opt_timestep: float,
+        limit_dof_range: wp.array(dtype=wp.vec2),
+        limit_dof_adr: wp.array(dtype=int),
+        limit_dof_qadr: wp.array(dtype=int),
+        dof_invweight0: wp.array(dtype=float),
+        # Data in:
+        qpos_in: wp.array2d(dtype=float),
+        qvel_in: wp.array2d(dtype=float),
+        njmax_in: int,
+        # In:
+        refsafe_in: int,
+        # Data out:
+        nl_out: wp.array(dtype=int),
+        nefc_out: wp.array(dtype=int),
+        efc_type_out: wp.array2d(dtype=int),
+        efc_id_out: wp.array2d(dtype=int),
+        efc_J_out: wp.array3d(dtype=float),
+        efc_pos_out: wp.array2d(dtype=float),
+        efc_D_out: wp.array2d(dtype=float),
+        efc_vel_out: wp.array2d(dtype=float),
+        efc_aref_out: wp.array2d(dtype=float),
+):
+    worldid, limitdofid = wp.tid()
+
+    dof_range = limit_dof_range[limitdofid]
+    dof_adr = limit_dof_adr[limitdofid]
+    dof_qadr = limit_dof_qadr[limitdofid]
+
+    qpos = qpos_in[worldid, dof_qadr]
+
+    dist_min, dist_max = qpos - dof_range[0], dof_range[1] - qpos
+    pos = wp.min(dist_min, dist_max)
+    active = pos < 0
+
+    if active:
+        wp.atomic_add(nl_out, worldid, 1)
+        efcid = wp.atomic_add(nefc_out, worldid, 1)
+
+        if efcid >= njmax_in:
+            return
+
+        for i in range(nv):
+            efc_J_out[worldid, efcid, i] = 0.0
+
+        J = float(dist_min < dist_max) * 2.0 - 1.0
+        efc_J_out[worldid, efcid, dof_adr] = J
+        Jqvel = J * qvel_in[worldid, dof_adr]
+
+        # ref = solref_in[conid]
+        ref = wp.vec2(0.02, 1.0)
+        solimp = vec5(0.9, 0.95, 0.001, 0.5, 2.0)
+
+        _update_efc_row(
+            worldid,
+            opt_timestep,
+            refsafe_in,
+            efcid,
+            pos,
+            pos,
+            dof_invweight0[dof_adr],
+            ref,
+            solimp,
+            Jqvel,
+            ConstraintType.LIMIT_JOINT,
+            limitdofid,
+            efc_type_out,
+            efc_id_out,
+            efc_pos_out,
+            efc_D_out,
+            efc_vel_out,
+            efc_aref_out,
+        )
 
 
 @wp.kernel
@@ -228,11 +215,9 @@ def _efc_contact_elliptic(
         efc_id_out: wp.array2d(dtype=int),
         efc_J_out: wp.array3d(dtype=float),
         efc_pos_out: wp.array2d(dtype=float),
-        efc_margin_out: wp.array2d(dtype=float),
         efc_D_out: wp.array2d(dtype=float),
         efc_vel_out: wp.array2d(dtype=float),
         efc_aref_out: wp.array2d(dtype=float),
-        efc_frictionloss_out: wp.array2d(dtype=float),
 ):
     conid, dimid = wp.tid()
 
@@ -376,39 +361,35 @@ def make_constraint(m: types.Model, d: types.Data):
     )
 
     refsafe = 1
-    # wp.launch(
-    #     _efc_limit_slide_hinge,
-    #     dim=(d.nworld, m.jnt_limited_slide_hinge_adr.size),
-    #     inputs=[
-    #         m.nv,
-    #         m.opt.timestep,
-    #         m.jnt_qposadr,
-    #         m.jnt_dofadr,
-    #         m.jnt_solref,
-    #         m.jnt_solimp,
-    #         m.jnt_range,
-    #         m.jnt_margin,
-    #         m.dof_invweight0,
-    #         m.jnt_limited_slide_hinge_adr,
-    #         d.qpos,
-    #         d.qvel,
-    #         d.njmax,
-    #         refsafe,
-    #     ],
-    #     outputs=[
-    #         d.nl,
-    #         d.nefc,
-    #         d.efc.type,
-    #         d.efc.id,
-    #         d.efc.J,
-    #         d.efc.pos,
-    #         d.efc.margin,
-    #         d.efc.D,
-    #         d.efc.vel,
-    #         d.efc.aref,
-    #         d.efc.frictionloss,
-    #     ],
-    # )
+
+    # Individual DOF limits
+    wp.launch(
+        _efc_dof_limit,
+        dim=(d.nworld, m.ndoflimit),
+        inputs=[
+            m.nv,
+            m.opt.timestep,
+            m.limit_dof_range,
+            m.limit_dof_adr,
+            m.limit_dof_qadr,
+            m.dof_invweight0,
+            d.qpos,
+            d.qvel,
+            d.njmax,
+            refsafe,
+        ],
+        outputs=[
+            d.nl,
+            d.nefc,
+            d.efc.type,
+            d.efc.id,
+            d.efc.J,
+            d.efc.pos,
+            d.efc.D,
+            d.efc.vel,
+            d.efc.aref,
+        ],
+    )
 
     # contact
     wp.launch(
@@ -444,10 +425,8 @@ def make_constraint(m: types.Model, d: types.Data):
             d.efc.id,
             d.efc.J,
             d.efc.pos,
-            d.efc.margin,
             d.efc.D,
             d.efc.vel,
             d.efc.aref,
-            d.efc.frictionloss,
         ],
     )

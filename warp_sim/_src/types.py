@@ -436,6 +436,7 @@ class Model:
       nq: number of generalized coordinates
       nv: number of degrees of freedom
       nmuscle: number of tendons
+      ndoflimit: number of dofs with limits
 
       njnts_conv: number of conventional joints
       njnts_cst: number of custom joints
@@ -481,6 +482,11 @@ class Model:
       cst_txfm_qadr: qpos address for each spatial transform   (njnts_cst, 6)
       cst_txfm_dofadr: dof address for each spatial transform  (njnts_cst, 6)
 
+      * dof limits
+      limit_dof_range: joint limits (min, max)                 (ndoflimit, 2)
+      limit_dof_adr: dof address of dof-limit                  (ndoflimit,)
+      limit_dof_qadr: qpos address of dof-limit                (ndoflimit,)
+
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
       geom_size: geom-specific size parameters                 (ngeom, 3)
@@ -508,6 +514,7 @@ class Model:
     nq: int
     nv: int
     nmuscle: int
+    ndoflimit: int
 
     njnts_conv: int
     njnts_cst: int
@@ -552,6 +559,11 @@ class Model:
     cst_txfm_fn_adr: wp.array2d(dtype=int)
     cst_txfm_qadr: wp.array2d(dtype=int)
     cst_txfm_dofadr: wp.array2d(dtype=int)
+
+    # Dof limits
+    limit_dof_range: wp.array2d(dtype=wp.vec2)
+    limit_dof_adr: wp.array(dtype=int)
+    limit_dof_qadr: wp.array(dtype=int)
 
     # Collision geometry
     geom_type: wp.array(dtype=int)

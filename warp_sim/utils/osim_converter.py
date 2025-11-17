@@ -1,9 +1,9 @@
 from collections import OrderedDict
 from scipy.spatial.transform import Rotation as R
 
-from .osim_objs import Model, Ground, ForceSet, \
-    Body, Joint, Collider, FunctionType, Vector3, Quat, Inertia, \
-    AttachedGeometry, DummyJoint, _VOID_NAME
+from .osim_objs import (Model, ForceSet, Body, Joint, Collider, FunctionType,
+                        Vector3, Quat, Inertia, AttachedGeometry,
+                        DummyJoint, _VOID_NAME)
 from .converted_objs import *
 from typing import Optional
 
@@ -277,19 +277,6 @@ def num_sites(model: Model) -> int:
     return num_sites
 
 
-def get_default_positions(model: CheckedModel) -> list[float]:
-    positions = []
-    for _, desc in model.iter_descs():
-        joint = desc.joint
-        if "ground" in joint.socket_parent_frame:  # root body (free)
-            # Default position (0,0,0) and orientation (1,0,0,0)
-            positions.extend([0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0])
-            continue
-        for coord in joint.coordinates:
-            positions.append(coord.default_value)
-    return positions
-
-
 def body_masses(model: CheckedModel) -> list[float]:
     masses = []
     for _, desc in model.iter_descs():
@@ -350,21 +337,22 @@ def get_body_parent_ids(model: CheckedModel) -> list[int]:
     return parent_ids
 
 
-def get_joint_types(model: CheckedModel) -> list[str]:
-    from .._src.types import JointType
+def get_joint_types(model: CheckedModel) -> list[types.JointType]:
     joint_types = []
     for _, joint in model.iter_joints():
-        if "ground" in joint.socket_parent_frame:
-            joint_types.append(JointType.FREE)
+        if joint.connects_to_ground():
+            joint_types.append(types.JointType.FREE)
             continue
-        if joint.__class__.__name__ == "PinJoint":
-            joint_types.append(JointType.HINGE)
-        elif joint.__class__.__name__ == "UniversalJoint":
-            joint_types.append(JointType.UNIVERSAL)
-        elif joint.__class__.__name__ == "CustomJoint":
-            joint_types.append(JointType.CUSTOM)
-        elif joint.__class__.__name__ == "DummyJoint":
-            joint_types.append(JointType.DUMMY)
+
+        class_name = joint.__class__.__name__
+        if class_name == "PinJoint":
+            joint_types.append(types.JointType.HINGE)
+        elif class_name == "UniversalJoint":
+            joint_types.append(types.JointType.UNIVERSAL)
+        elif class_name == "CustomJoint":
+            joint_types.append(types.JointType.CUSTOM)
+        elif class_name == "DummyJoint":
+            joint_types.append(types.JointType.DUMMY)
         else:
             print(
                 f"Warning: Unrecognized joint type {joint.__class__.__name__}")
@@ -624,3 +612,22 @@ def get_txfm_fns(
         # axes
         txfm_axes.append([axis.axis.x, axis.axis.y, axis.axis.z])
     return fn_types, fn_addresses, txfm_qpos_adr, txfm_dof_adr, txfm_axes
+
+
+def get_dof_limits(
+        model: CheckedModel
+) -> tuple[list[tuple[float, float]], list[int], list[int]]:
+    dof_ranges = []
+    dof_adr, dof_qadr = [], []
+    for _, joint in model.iter_joints():
+        # No joint limits for free joints. FIXME check for free joints better
+        if joint.connects_to_ground():
+            continue
+
+        for coord in joint.coordinates:
+            if coord.clamped:
+                dof_ranges.append((coord.range.x, coord.range.y))
+                dof_adr.append(model.lookup_dof_idx(coord.name, False))
+                dof_qadr.append(model.lookup_dof_idx(coord.name, True))
+
+    return dof_ranges, dof_adr, dof_qadr

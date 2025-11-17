@@ -73,10 +73,6 @@ def main():
     qpos0[0:3] = [0.0, 0.0, 1.5]  # Root pos
     qpos0[3] = 1  # root quat
 
-    # random
-    qpos0[7:] = [-0.5] * (nq - 7)
-
-
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
 
     b_masses = body_masses(osim_model)
@@ -112,9 +108,12 @@ def main():
 
     dof_armature = [0.01] * nv  # Placeholder for DOF armature
     dof_armature[0:6] = [0.0] * 6  # No armature for free joint
-    dof_damping = [0.1] * nv  # Placeholder for DOF
+    dof_damping = [1.0] * nv  # Placeholder for DOF
     dof_damping[0:6] = [0.0] * 6  # No damping for free joint
     jnt_stiffness = [0.0] * nb  # Placeholder for joint stiffness
+
+    dof_limit_ranges, dof_limit_adr, dof_limit_qadr = get_dof_limits(osim_model)
+    n_limits = len(dof_limit_ranges)
 
     body_rootid = [1] * nb  # Placeholder for body root IDs
     body_tree = create_body_tree(osim_model)
@@ -224,6 +223,7 @@ def main():
         nv=nv,
         nq=nq,
         nmuscle=nmuscle,
+        ndoflimit=n_limits,
 
         njnts_conv=n_conv_jnts,
         njnts_cst=n_custom_jnts,
@@ -265,6 +265,10 @@ def main():
         cst_txfm_fn_adr=to_warp_array(txfm_fn_adr, dtype=int),
         cst_txfm_qadr=to_warp_array(txfm_qadr, dtype=int),
         cst_txfm_dofadr=to_warp_array(txfm_dof_adr, dtype=int),
+
+        limit_dof_range=to_warp_array(dof_limit_ranges, dtype=wp.vec2),
+        limit_dof_adr=to_warp_array(dof_limit_adr, dtype=int),
+        limit_dof_qadr=to_warp_array(dof_limit_qadr, dtype=int),
 
         geom_type=to_warp_array(geom_types, dtype=int),
         geom_bodyid=to_warp_array(geom_data.body_id, dtype=int),
@@ -438,7 +442,7 @@ def main():
 
     viewer = Viewer(viewer_type=ViewerType.USD)
     init_model._model_init(m, d)
-    for _ in range(1000):
+    for _ in range(1500):
         forward.step(m, d)
         viewer.render(m, d)
     viewer.close()
