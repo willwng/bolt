@@ -189,6 +189,41 @@ class Joint:
         raise NotImplementedError
 
 
+_VOID_NAME = "__VOID__"
+
+
+@dataclass
+class DummyJoint(Joint):  # used for ground
+
+    def __init__(self):
+        super().__init__(
+            name="ground_joint",
+            socket_parent_frame=_VOID_NAME,
+            socket_child_frame="ground",
+            coordinates=[],
+            frames=[
+                PhysicalOffsetFrame(
+                    name=_VOID_NAME,
+                    socket_parent=_VOID_NAME,
+                    translation=Vector3(0.0, 0.0, 0.0),
+                    orientation=Quat(1.0, 0.0, 0.0, 0.0),
+                ),
+                PhysicalOffsetFrame(
+                    name="ground",
+                    socket_parent="ground",
+                    translation=Vector3(0.0, 0.0, 0.0),
+                    orientation=Quat(1.0, 0.0, 0.0, 0.0),
+                ),
+            ],
+        )
+
+    def num_dofs(self) -> int:
+        return 0
+
+    def num_pos_dofs(self) -> int:
+        return 0
+
+
 @dataclass
 class PinJoint(Joint):
     @classmethod
@@ -298,6 +333,20 @@ class Collider:
 
 
 @dataclass
+class ContactHalfSpace(Collider):
+    def size(self) -> list[float]:
+        return [0.0, 0.0, 0.05]
+
+    def get_aabb(self) -> list[float]:
+        center = [0.0, 0.0, -5e9]
+        size = [1e10, 1e10, 5e9]
+        return center + size
+
+    def get_rbound(self) -> float:
+        return 0.0
+
+
+@dataclass
 class ContactSphere(Collider):
     radius: float
 
@@ -314,8 +363,26 @@ class ContactSphere(Collider):
 
 
 @dataclass
+class ContactCapsule(Collider):
+    radius: float
+    half_length: float
+
+    def size(self) -> list[float]:
+        return [self.radius, self.half_length, self.half_length]
+
+    def get_aabb(self) -> list[float]:
+        center = [0.0, 0.0, 0.0]
+        length = self.half_length * 2
+        size = [2 * self.radius, 2 * self.radius, length + 2 * self.radius]
+        return center + size
+
+    def get_rbound(self) -> float:
+        return math.sqrt(self.half_length ** 2 + self.radius ** 2)
+
+
+@dataclass
 class ContactGeometrySet:
-    contact_spheres: OrderedDict[str, Collider]
+    contact_geom: OrderedDict[str, Collider]
 
 
 @dataclass

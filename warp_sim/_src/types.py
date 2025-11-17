@@ -95,6 +95,7 @@ class JointType(enum.IntEnum):
     HINGE = 3
     UNIVERSAL = 4
     CUSTOM = 5
+    DUMMY = 6 # for ground
 
 
 class GeomType(enum.IntEnum):
@@ -448,6 +449,7 @@ class Model:
       qpos_spring: reference pose for springs                  (nq,)
 
       body_mass: mass                                          (nbody,)
+      body_subtreemass: mass of subtree starting at this body  (nbody,)
       body_inertia: diagonal inertia in ipos/iquat frame       (nbody, 3)
       body_ipos: local position of center of mass              (nbody, 3)
       body_iquat: local orientation of inertia ellipsoid       (nbody, 4)
@@ -466,7 +468,10 @@ class Model:
       jnt_rel_parent_rot: rotation from parent frame           (nbody, 4)
       jnt_rel_child_rot: rotation from child frame             (nbody, 4)
 
-      for custom joints:
+      dof_bodyid: id of dof's body                             (nv,)
+      dof_parentid: id of dof's parent; -1: none               (nv,)
+
+      * for custom joints *
       jnt_cst_adr: address of custom joint, -1 if conventional (nbody,)
       const_fns:     (c) of constant functions                 (<=6*njnts_cst,)
       linear_fns:    (m, b) of linear functions                (<=6*njnts_cst, 2)
@@ -474,6 +479,7 @@ class Model:
       cst_txfm_fn: function type for each spatial transform    (njnts_cst, 6)
       cst_txfm_fn_adr: address of spatial transform function   (njnts_cst, 6)
       cst_txfm_qadr: qpos address for each spatial transform   (njnts_cst, 6)
+      cst_txfm_dofadr: dof address for each spatial transform  (njnts_cst, 6)
 
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
@@ -493,13 +499,9 @@ class Model:
       dof_armature: dof armature inertia/mass                  (nv)
       dof_damping: damping coefficient                         (nv)
 
-      body_subtreemass: mass of subtree starting at this body  (nbody,)
-      body_invweight0: mean inv inert in qpos0 (trn, rot)      (nbody, 2)
       mean_inertia: mean diagonal inertia                      ()
-
-      dof_bodyid: id of dof's body                             (nv,)
-      dof_parentid: id of dof's parent; -1: none               (nv,)
-      dof_invweight0: diag. inverse inertia in qpos0           (nworld, nv)
+      body_invweight0: mean inv inert in qpos0 (trn, rot)      (nbody, 2)
+      dof_invweight0: diag. inverse inertia in qpos0           (nv)
     """
 
     nbody: int
@@ -519,6 +521,7 @@ class Model:
     qpos_spring: wp.array(dtype=float)
 
     body_mass: wp.array(dtype=float)
+    body_subtreemass: wp.array(dtype=float)
     body_inertia: wp.array(dtype=wp.vec3)
     body_ipos: wp.array(dtype=wp.vec3)
     body_iquat: wp.array(dtype=wp.quat)
@@ -529,7 +532,6 @@ class Model:
     body_rootid: wp.array(dtype=int)
     body_parentid: wp.array(dtype=int)
     body_tree: tuple[wp.array(dtype=int), ...]
-    body_subtreemass: wp.array(dtype=float)
 
     jnt_type: wp.array(dtype=int)
     jnt_stiffness: wp.array(dtype=float)
@@ -549,6 +551,7 @@ class Model:
     cst_txfm_fn: wp.array2d(dtype=int)
     cst_txfm_fn_adr: wp.array2d(dtype=int)
     cst_txfm_qadr: wp.array2d(dtype=int)
+    cst_txfm_dofadr: wp.array2d(dtype=int)
 
     # Collision geometry
     geom_type: wp.array(dtype=int)
@@ -642,9 +645,10 @@ class Data:
       xipos: Cartesian position of body com                       (nworld, nbody, 3)
       ximat: Cartesian orientation of body inertia                (nworld, nbody, 3, 3)
       xanchor: Cartesian position of joint anchor                 (nworld, njnt, 3)
-      xaxis: Cartesian joint axis                                 (nworld, njnt, 3)
+      xaxis: Cartesian joint axis (including temporaries)         (nworld, njnt, 6, 3)
 
       geom_xpos: Cartesian geom position                          (nworld, ngeom, 3)
+      geom_xquat: Cartesian geom orientation                      (nworld, ngeom, 4)
       geom_xmat: Cartesian geom orientation                       (nworld, ngeom, 3, 3)
 
       site_rpos: local position of site rel. to body              (nworld, nsite, 3)
@@ -714,9 +718,10 @@ class Data:
     xipos: wp.array2d(dtype=wp.vec3)
     ximat: wp.array2d(dtype=wp.mat33)
     xanchor: wp.array2d(dtype=wp.vec3)
-    xaxis: wp.array2d(dtype=wp.vec3)
+    xaxis: wp.array3d(dtype=wp.quat)
 
     geom_xpos: wp.array2d(dtype=wp.vec3)
+    geom_xquat: wp.array2d(dtype=wp.quat)
     geom_xmat: wp.array2d(dtype=wp.mat33)
 
     site_rpos: wp.array2d(dtype=wp.vec3)

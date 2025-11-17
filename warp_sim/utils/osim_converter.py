@@ -1,9 +1,11 @@
 from collections import OrderedDict
-from dataclasses import dataclass
 from scipy.spatial.transform import Rotation as R
 
 from .osim_objs import Model, Ground, ForceSet, \
-    Body, Joint, Collider, FunctionType, Vector3, Quat
+    Body, Joint, Collider, FunctionType, Vector3, Quat, Inertia, \
+    AttachedGeometry, DummyJoint, _VOID_NAME
+from .converted_objs import *
+from typing import Optional
 
 
 @dataclass
@@ -19,7 +21,6 @@ class CheckedModel:
     A checked model ensures that every body has an associated joint
      (this simplifies the ordering of bodies and joints).
     """
-    ground: Ground
     body_full_desc: OrderedDict[str, FullBodyDesc]
     force_set: ForceSet
 
@@ -34,6 +35,11 @@ class CheckedModel:
     def iter_joints(self):
         for body_name, full_desc in self.body_full_desc.items():
             yield body_name, full_desc.joint
+
+    def iter_colliders(self):
+        for body_name, full_desc in self.body_full_desc.items():
+            for collider_name, collider in full_desc.colliders.items():
+                yield (body_name, collider_name), collider
 
     def iter_cst_joints(self):
         for _, jnt in self.iter_joints():
@@ -55,23 +61,25 @@ class CheckedModel:
             yield axis.function
 
     def get_body_index(self, body_name: str) -> int:
+        if body_name == _VOID_NAME:
+            return 0
         for idx, name in enumerate(self.body_full_desc.keys()):
             if name == body_name:
                 return idx
         raise ValueError(f"Body name {body_name} not found.")
 
-    def get_root_body(self) -> Body:
-        for body_name, full_desc in self.body_full_desc.items():
-            joint = full_desc.joint
-            if "ground" in joint.socket_parent_frame:
-                return full_desc.body
-        assert False, "No root body found."
+    def get_world_body(self) -> Body:
+        return self.body_full_desc["ground"].body
 
-    def get_body_parent_name(self, body_name: str) -> str:
+    def is_world(self, body_name: str) -> bool:
+        return body_name == self.body_full_desc["ground"].body.name
+
+    def get_body_parent_name(self, body_name: str) -> Optional[str]:
+        if self.is_world(body_name):
+            return _VOID_NAME
+
         full_desc = self.body_full_desc[body_name]
         joint = full_desc.joint
-        if "ground" in joint.socket_parent_frame:
-            return "ground"
         parent_frame = None
         for frame in joint.frames:
             if frame.name == joint.socket_parent_frame:
@@ -84,8 +92,6 @@ class CheckedModel:
     def get_body_parent_idx(self, body_idx: int) -> int:
         full_desc = list(self.body_full_desc.values())[body_idx]
         joint = full_desc.joint
-        if "ground" in joint.socket_parent_frame:
-            return -1
         parent_frame = None
         for frame in joint.frames:
             if frame.name == joint.socket_parent_frame:
@@ -160,23 +166,28 @@ def convert_y_up_z_up(model: CheckedModel):
     for axis in model.iter_transform_axes():
         axis.axis = convert_vec(axis.axis)
 
-    return model  # Placeholder for actual conversion logic
+    # All muscle points
+    for muscle in model.force_set.muscles.values():
+        geom_path = muscle.geometry_path
+        for path_point in geom_path.path_point_set.path_points.values():
+            path_point.location = convert_vec(path_point.location)
+    return model
 
 
 def remove_prefix(name: str) -> str:
     if "bodyset/" in name:
         return name.split("bodyset/")[1]
+    if "/ground" in name:
+        return "ground"
     return name
 
 
 def to_checked_model(model: Model) -> CheckedModel:
     body_full_desc = OrderedDict()
-    for body in model.body_set.bodies.values():
-        body_full_desc[body.name] = None  # to be filled later
 
     # All colliders for each body
     body_name_to_colliders = {}
-    for collider in model.contact_geometry_set.contact_spheres.values():
+    for collider in model.contact_geometry_set.contact_geom.values():
         parent_body_name = remove_prefix(collider.socket_frame)
         if parent_body_name not in body_name_to_colliders:
             body_name_to_colliders[parent_body_name] = OrderedDict()
@@ -194,8 +205,23 @@ def to_checked_model(model: Model) -> CheckedModel:
         child_body_name = remove_prefix(child_frame.socket_parent)
         body_name_to_joint[child_body_name] = joint
 
+    # Create a body for the ground
+    ground_body = Body(name="ground",
+                       attached_geometry=AttachedGeometry(meshes=[]),
+                       mass=0.0,
+                       mass_center=Vector3(0.0, 0.0, 0.0),
+                       inertia=Inertia(0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
+    body_full_desc["ground"] = FullBodyDesc(
+        body=ground_body,
+        joint=DummyJoint(),
+        colliders=body_name_to_colliders.get("ground", OrderedDict())
+    )
+
+    # Todo: make sure this is in forward kinematic order
+    body_ordering = list(model.body_set.bodies.keys())
+
     # Now fill in the body_full_desc
-    for body_name in body_full_desc.keys():
+    for body_name in body_ordering:
         body = model.body_set.bodies[body_name]
         joint = body_name_to_joint.get(body_name, None)
         colliders = body_name_to_colliders.get(body_name, OrderedDict())
@@ -206,7 +232,6 @@ def to_checked_model(model: Model) -> CheckedModel:
         )
 
     return CheckedModel(
-        ground=model.ground,
         body_full_desc=body_full_desc,
         force_set=model.force_set
     )
@@ -236,6 +261,13 @@ def num_colliders(model: CheckedModel) -> int:
     for _, desc in model.iter_descs():
         num_colliders += len(desc.colliders)
     return num_colliders
+
+
+def num_visuals(model: CheckedModel) -> int:
+    num_visuals = 0
+    for _, desc in model.iter_descs():
+        num_visuals += len(desc.body.attached_geometry.meshes)
+    return num_visuals
 
 
 def num_sites(model: Model) -> int:
@@ -302,7 +334,7 @@ def get_body_num_colliders(model: CheckedModel) -> list[int]:
     return num_body_colliders
 
 
-def get_joint_frame(joint, frame_name: str):
+def get_frame_from_joint(joint, frame_name: str):
     for frame in joint.frames:
         if frame.name == frame_name:
             return frame
@@ -313,9 +345,6 @@ def get_body_parent_ids(model: CheckedModel) -> list[int]:
     parent_ids = []
     for _, body in model.iter_bodies():
         parent_name = model.get_body_parent_name(body.name)
-        if parent_name == "ground":
-            parent_ids.append(-1)
-            continue
         parent_idx = model.get_body_index(parent_name)
         parent_ids.append(parent_idx)
     return parent_ids
@@ -334,6 +363,8 @@ def get_joint_types(model: CheckedModel) -> list[str]:
             joint_types.append(JointType.UNIVERSAL)
         elif joint.__class__.__name__ == "CustomJoint":
             joint_types.append(JointType.CUSTOM)
+        elif joint.__class__.__name__ == "DummyJoint":
+            joint_types.append(JointType.DUMMY)
         else:
             print(
                 f"Warning: Unrecognized joint type {joint.__class__.__name__}")
@@ -341,13 +372,16 @@ def get_joint_types(model: CheckedModel) -> list[str]:
     return joint_types
 
 
-def get_joint_rel_pos(model: CheckedModel, parent: bool) -> list[list[float]]:
+def get_joint_rel_pos(
+        model: CheckedModel,
+        get_parent_rel: bool
+) -> list[list[float]]:
     rel_parent_positions = []
     for _, joint in model.iter_joints():
-        if parent:
-            frame = get_joint_frame(joint, joint.socket_parent_frame)
+        if get_parent_rel:
+            frame = get_frame_from_joint(joint, joint.socket_parent_frame)
         else:
-            frame = get_joint_frame(joint, joint.socket_child_frame)
+            frame = get_frame_from_joint(joint, joint.socket_child_frame)
         pos = frame.translation
         rel_parent_positions.append([pos.x, pos.y, pos.z])
     return rel_parent_positions
@@ -357,82 +391,50 @@ def get_joint_rel_rot(model: CheckedModel, parent: bool) -> list[list[float]]:
     rel_parent_rots = []
     for _, joint in model.iter_joints():
         if parent:
-            frame = get_joint_frame(joint, joint.socket_parent_frame)
+            frame = get_frame_from_joint(joint, joint.socket_parent_frame)
         else:
-            frame = get_joint_frame(joint, joint.socket_child_frame)
+            frame = get_frame_from_joint(joint, joint.socket_child_frame)
         rot = frame.orientation if parent else frame.orientation.inv()
         rel_parent_rots.append([rot.w, rot.x, rot.y, rot.z])
     return rel_parent_rots
 
 
-def get_collision_geom_types(model: CheckedModel):
-    from .._src.types import GeomType
+def get_collider_data(model: CheckedModel) -> ColliderData:
+    collider_data = ColliderData()
 
-    geom_types = []
-    for _, desc in model.iter_descs():
-        for collider in desc.colliders.values():
-            if collider.__class__.__name__ == "ContactSphere":
-                geom_types.append(GeomType.SPHERE)
-            else:
-                print(
-                    f"Warning: Unrecognized collider type {collider.__class__.__name__}")
-                assert False
+    for _, collider in model.iter_colliders():
+        class_name = collider.__class__.__name__
+        if class_name == "ContactSphere":
+            geom_type = types.GeomType.SPHERE
+        elif class_name == "ContactCapsule":
+            geom_type = types.GeomType.CAPSULE
+        elif class_name == "ContactHalfSpace":
+            # FIXME: conversion between rotations for geoms is a little wonky
+            geom_type = types.GeomType.PLANE
+            collider.orientation = Quat(w=1.0, x=0.0, y=0.0, z=0.0)
+        else:
+            assert False, f"Unrecognized collider type {class_name}"
 
-    return geom_types
+        parent_body_name = remove_prefix(collider.socket_frame)
+        body_id = model.get_body_index(parent_body_name)
+        size = collider.size()
+        loc, rot = collider.location, collider.orientation
+        pos = [loc.x, loc.y, loc.z]
+        rot = [rot.w, rot.x, rot.y, rot.z]
+        friction = [0.95, 0.95, 0.95]  # default friction values
+        aabb = collider.get_aabb()
+        rbound = collider.get_rbound()
 
+        collider_data.type.append(geom_type)
+        collider_data.body_id.append(body_id)
+        collider_data.size.append(size)
+        collider_data.pos.append(pos)
+        collider_data.rot.append(rot)
+        collider_data.friction.append(friction)
+        collider_data.aabb.append(aabb)
+        collider_data.rbound.append(rbound)
 
-def get_collider_body_ids(model: CheckedModel) -> list[int]:
-    collider_body_ids = []
-    for _, desc in model.iter_descs():
-        for collider in desc.colliders.values():
-            parent_body_name = remove_prefix(collider.socket_frame)
-            body_idx = model.get_body_index(parent_body_name)
-            collider_body_ids.append(body_idx)
-    return collider_body_ids
-
-
-def get_collider_size(model: CheckedModel) -> list[list[float]]:
-    collider_sizes = []
-    for _, desc in model.iter_descs():
-        for collider in desc.colliders.values():
-            collider_sizes.append(collider.size())
-    return collider_sizes
-
-
-def get_collider_aabb(model: CheckedModel) -> list[list[float]]:
-    collider_aabbs = []
-    for _, desc in model.iter_descs():
-        for collider in desc.colliders.values():
-            aabb = collider.get_aabb()
-            collider_aabbs.append(aabb)
-    return collider_aabbs
-
-
-def get_collider_rbound(model: CheckedModel) -> list[float]:
-    collider_rbounds = []
-    for _, desc in model.iter_descs():
-        for collider in desc.colliders.values():
-            rbound = collider.get_rbound()
-            collider_rbounds.append(rbound)
-    return collider_rbounds
-
-
-def get_collider_pos(model: CheckedModel) -> list[list[float]]:
-    geom_positions = []
-    for _, desc in model.iter_descs():
-        for collider in desc.colliders.values():
-            loc = collider.location
-            geom_positions.append([loc.x, loc.y, loc.z])
-    return geom_positions
-
-
-def get_collider_rot(model: CheckedModel) -> list[list[float]]:
-    geom_rotations = []
-    for _, desc in model.iter_descs():
-        for collider in desc.colliders.values():
-            rot = collider.orientation
-            geom_rotations.append([rot.w, rot.x, rot.y, rot.z])
-    return geom_rotations
+    return collider_data
 
 
 def get_site_body_ids(model: CheckedModel) -> list[int]:
@@ -465,7 +467,10 @@ def get_muscle_num_pts(model: CheckedModel) -> list[int]:
 def get_dof_body_ids(model: CheckedModel) -> list[int]:
     dof_body_ids = []
     for _, joint in model.iter_joints():
-        child_frame = get_joint_frame(joint, joint.socket_child_frame)
+        if len(joint.coordinates) == 0:  # no dofs
+            continue
+        # get child body (the body the dofs belong to)
+        child_frame = get_frame_from_joint(joint, joint.socket_child_frame)
         child_name = remove_prefix(child_frame.socket_parent)
         body_idx = model.get_body_index(child_name)
         for _ in joint.coordinates:
@@ -476,7 +481,7 @@ def get_dof_body_ids(model: CheckedModel) -> list[int]:
 def create_body_tree(model: CheckedModel) -> list[tuple[int, ...]]:
     body_to_level = {}
     # starting with root
-    root_body = model.get_root_body()
+    root_body = model.get_world_body()
     body_to_level[root_body.name] = 0
 
     # Should be a forward pass: todo make sure these are in fk order
@@ -486,9 +491,9 @@ def create_body_tree(model: CheckedModel) -> list[tuple[int, ...]]:
             continue
 
         joint = desc.joint
-        child_frame = get_joint_frame(joint, joint.socket_child_frame)
+        child_frame = get_frame_from_joint(joint, joint.socket_child_frame)
         child_body_name = remove_prefix(child_frame.socket_parent)
-        parent_frame = get_joint_frame(
+        parent_frame = get_frame_from_joint(
             joint, joint.socket_parent_frame)
         parent_body_name = remove_prefix(parent_frame.socket_parent)
         parent_level = body_to_level[parent_body_name]
@@ -580,11 +585,12 @@ def get_functions(
 
 def get_txfm_fns(
         model: CheckedModel
-) -> tuple[list[int], list[int], list[int], list[list[float]]]:
+) -> tuple[list[int], list[int], list[int], list[int], list[list[float]]]:
     from .._src.types import CustomFnType
 
     txfm_axes = []
-    txfm_coords = []
+    txfm_qpos_adr = []
+    txfm_dof_adr = []
     fn_types = []
     fn_addresses = []
 
@@ -593,10 +599,13 @@ def get_txfm_fns(
         # coordinates
         coordinates = axis.coordinates
         if coordinates is None:
-            txfm_coords.append(-1)
+            txfm_qpos_adr.append(-1)
+            txfm_dof_adr.append(-1)
         else:
-            coord_idx = model.lookup_dof_idx(coordinates, True)
-            txfm_coords.append(coord_idx)
+            qpos_adr = model.lookup_dof_idx(coordinates, True)
+            dof_adr = model.lookup_dof_idx(coordinates, False)
+            txfm_qpos_adr.append(qpos_adr)
+            txfm_dof_adr.append(dof_adr)
 
         # function
         fn = axis.function
@@ -614,4 +623,4 @@ def get_txfm_fns(
 
         # axes
         txfm_axes.append([axis.axis.x, axis.axis.y, axis.axis.z])
-    return fn_types, fn_addresses, txfm_coords, txfm_axes
+    return fn_types, fn_addresses, txfm_qpos_adr, txfm_dof_adr, txfm_axes

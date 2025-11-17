@@ -1,13 +1,15 @@
-from venv import create
-
+import warp_sim._src.init_model as init_model
 import warp_sim._src.forward as forward
-import warp_sim._src.types as types
+from warp_sim._src.benchmark import benchmark
+import warp_sim._src.math as math
+import warp_sim as warp_sim
 
 import warp as wp
 import numpy as np
 
 from warp_sim.utils.osim_parser import parse_osim_file
-from .utils.osim_converter import *
+from warp_sim.utils.osim_converter import *
+from warp_sim.render.renderer import Viewer, ViewerType
 
 
 def exclusive_scan(v, mark_empty: bool):
@@ -59,19 +61,13 @@ def main():
         else:
             n_conv_jnts += 1
 
-
     ngeom = num_colliders(osim_model)
     nsite = num_sites(osim_model)
     # qpos0 = get_default_positions(osim_model)
     # print(qpos0)
     qpos0 = [0.0] * nq
     qpos0[0:3] = [0.0, 0.0, 1.5]  # Root pos
-    qpos0[3] = 1 # root quat
-    qpos0[7] = 0.5
-    qpos0[8] = 0.1
-    qpos0[9] = -0.1
-    qpos0[12] = -0.1
-    qpos0[15] = 0.2
+    qpos0[3] = 1  # root quat
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
 
     b_masses = body_masses(osim_model)
@@ -87,37 +83,31 @@ def main():
     is_custom_joint_mask = [1 if joint_types[i] == types.JointType.CUSTOM else 0
                             for i in range(len(joint_types))]
     custom_joint_indices = exclusive_scan(is_custom_joint_mask, True)
-    assert(max(custom_joint_indices) == n_custom_jnts - 1)
+    assert (max(custom_joint_indices) == n_custom_jnts - 1)
 
     jnt_qpos_adr = exclusive_scan(joint_num_qdofs, False)
     jnt_dof_adr = exclusive_scan(joint_num_vdofs, False)
 
-    jnt_rel_parent = get_joint_rel_pos(osim_model, parent=True)
-    jnt_rel_child = get_joint_rel_pos(osim_model, parent=False)
+    jnt_rel_parent = get_joint_rel_pos(osim_model, get_parent_rel=True)
+    jnt_rel_child = get_joint_rel_pos(osim_model, get_parent_rel=False)
     jnt_rel_parent_rot = get_joint_rel_rot(osim_model, parent=True)
     jnt_rel_child_rot = get_joint_rel_rot(osim_model, parent=False)
 
-    geom_types = get_collision_geom_types(osim_model)
-    geom_parent = get_collider_body_ids(osim_model)
-    geom_sizes = get_collider_size(osim_model)
-    geom_pos = get_collider_pos(osim_model)
-    geom_rot = get_collider_rot(osim_model)
-    geom_friction = [[0.95, 0.95,
-                      0.95]] * ngeom  # Placeholder for friction coefficients
+    geom_data = get_collider_data(osim_model)
 
-    geom_aabb = get_collider_aabb(osim_model)
-    geom_rbound = get_collider_rbound(osim_model)
     site_body_ids = get_site_body_ids(osim_model)
     site_pos = get_site_pos(osim_model)
 
     muscle_pts_num = get_muscle_num_pts(osim_model)
     muscle_pts_adr = exclusive_scan(muscle_pts_num, False)
 
-    dof_armature = [0.0] * nv  # Placeholder for DOF armature
+    dof_armature = [0.01] * nv  # Placeholder for DOF armature
+    dof_armature[0:6] = [0.0] * 6  # No armature for free joint
     dof_damping = [0.1] * nv  # Placeholder for DOF
+    dof_damping[0:6] = [0.0] * 6  # No damping for free joint
     jnt_stiffness = [0.0] * nb  # Placeholder for joint stiffness
 
-    body_rootid = [0] * nb
+    body_rootid = [1] * nb  # Placeholder for body root IDs
     body_tree = create_body_tree(osim_model)
     body_tree_warp = tuple([wp.array(bt, dtype=int) for bt in body_tree])
 
@@ -129,24 +119,24 @@ def main():
     qM_tiles = tuple(
         types.TileSet(adr=wp.array(tiles[sz], dtype=int), size=sz) for sz in
         sorted(tiles.keys()))
-
     dof_tri_row, dof_tri_col = np.tril_indices(nv)
 
     linear_fns, const_fns = get_functions(osim_model)
-    txfm_fn_type, txfm_fn_adr, txfm_qadr, txfm_axis = get_txfm_fns(osim_model)
+    txfm_fn_type, txfm_fn_adr, txfm_qadr, txfm_dof_adr, txfm_axis = get_txfm_fns(
+        osim_model)
 
     # Reshape
     txfm_fn_type = np.array(txfm_fn_type)
-    txfm_fn_type = txfm_fn_type.reshape(n_custom_jnts, -1)
-
     txfm_fn_adr = np.array(txfm_fn_adr)
-    txfm_fn_adr = txfm_fn_adr.reshape(n_custom_jnts, -1)
-
     txfm_qadr = np.array(txfm_qadr)
-    txfm_qadr = txfm_qadr.reshape(n_custom_jnts, -1)
-
+    txfm_dof_adr = np.array(txfm_dof_adr)
     txfm_axis = np.array(txfm_axis)
-    txfm_axis = txfm_axis.reshape(n_custom_jnts, -1)
+
+    txfm_fn_type = txfm_fn_type.reshape(n_custom_jnts, 6)
+    txfm_fn_adr = txfm_fn_adr.reshape(n_custom_jnts, 6)
+    txfm_qadr = txfm_qadr.reshape(n_custom_jnts, 6)
+    txfm_dof_adr = txfm_dof_adr.reshape(n_custom_jnts, 6)
+    txfm_axis = txfm_axis.reshape(n_custom_jnts, 6, 3)
 
     #
     # jnt_limited_slide_hinge_adr = wp.array(
@@ -160,57 +150,37 @@ def main():
     #   dtype=int,
     # ),
 
-    n_worlds = 1
-
-    print(f"Number of bodies: {nb}")
-    print(f"Num dofs: {nv}")
-    print(f"Num pos dofs: {nq}")
-    print(f"Num muscles: {nmuscle}")
-    print(f"Num colliders: {ngeom}")
-    # print(f"Num sites: {nsite}")
-    # print(f"Default positions: {qpos0}")
-    # print(f"Spring positions: {qpos_spring}")
-    # print(f"Body masses: {b_masses}")
-    # print(f"Body inertias: {inertias}")
-    # print(f"Body local COM positions: {body_local_com}")
-    # print(f"Body local COM rotations: {body_local_rot}")
-    # print(f"Body num colliders: {body_num_colliders}")
-    # print(f"Body collider offsets: {body_collider_offset}")
-    # print(f"Body parent IDs: {body_parent_ids}")
-    # print(f"Number of conventional joints: {n_conv_jnts}")
-    # print(f"Number of custom joints: {n_custom_jnts}")
-    # print(f"Joint qpos addresses: {jnt_qpos_adr}")
-    # print(f"Joint vpos addresses: {jnt_dof_adr}")
-    # print(f"Joint types: {joint_types}")
-    # print(f"Joint relative parent positions: {jnt_rel_parent}")
-    # print(f"Joint relative child positions: {jnt_rel_child}")
-    # print(f"Joint relative parent rotations: {jnt_rel_parent_rot}")
-    # print(f"Joint relative child rotations: {jnt_rel_child_rot}")
-    # print(f"Geometry types: {geom_types}")
-    # print(f"Geometry parent body IDs: {geom_parent}")
-    # print(f"Geometry sizes: {geom_sizes}")
-    # print(f"Geometry positions: {geom_pos}")
-    # print(f"Geometry rotations: {geom_rot}")
-    # print(f"Geometry friction coefficients: {geom_friction}")
-    # print(f"Site body IDs: {site_body_ids}")
-    # print(f"Site positions: {site_pos}")
-    # print(f"Muscle points num: {muscle_pts_num}")
-    # print(f"Muscle points addresses: {muscle_pts_adr}")
+    n_worlds = 2
 
     # precalculated geom pairs
     geom1, geom2 = np.triu_indices(ngeom, k=1)
     nxn_geom_pair = np.stack((geom1, geom2), axis=1)
 
+    # Contact pair id: -1 if not pre-defined, -2 if skipped, id otherwise
     nxn_pairid_contact = -1 * np.ones(len(geom1), dtype=int)
 
+    # filter out parent-child collisions and self-collisions
+    geom_bodyid = np.array(geom_data.body_id)
+    body_parentid = np.array(body_parent_ids)
+    bodyid1, bodyid2 = geom_bodyid[geom1], geom_bodyid[geom2]
+    parentid1, parentid2 = body_parentid[bodyid1], body_parentid[bodyid2]
+
+    self_collision = (bodyid1 == bodyid2)
+    parent_child_collision = (
+            ((bodyid1 == parentid2) & (bodyid1 != 0)) |
+            ((bodyid2 == parentid1) & (bodyid2 != 0)))
+    nxn_pairid_contact[parent_child_collision | self_collision] = -2
+
     nxn_pairid_collision = -1 * np.ones(len(geom1), dtype=int)
+
+    include = (nxn_pairid_contact > -2) | (nxn_pairid_collision >= 0)
     nxn_pairid = np.hstack([nxn_pairid_contact.reshape((-1, 1)),
                             nxn_pairid_collision.reshape((-1, 1))])
-    nxn_pairid_filtered = nxn_pairid
-    nxn_geom_pair_filtered = nxn_geom_pair
-    # count contact pair types
+    nxn_pairid_filtered = nxn_pairid[include]
+    nxn_geom_pair_filtered = nxn_geom_pair[include]
 
-    from warp_sim._src import math
+    # count contact pair types
+    geom_types = geom_data.type
     geom_type_pair_count = np.bincount([
         math.upper_trid_index(len(types.GeomType),
                               int(geom_types[geom1[i]]),
@@ -230,7 +200,7 @@ def main():
         ls_tolerance=0.01,
         ccd_tolerance=1e-6,
         gravity=-9.81,
-        solver=types.SolverType.NEWTON,
+        solver=types.SolverType.CG,
         iterations=50,
         ls_iterations=100,
         ccd_iterations=50,
@@ -285,15 +255,16 @@ def main():
         cst_txfm_fn=to_warp_array(txfm_fn_type, dtype=int),
         cst_txfm_fn_adr=to_warp_array(txfm_fn_adr, dtype=int),
         cst_txfm_qadr=to_warp_array(txfm_qadr, dtype=int),
+        cst_txfm_dofadr=to_warp_array(txfm_dof_adr, dtype=int),
 
         geom_type=to_warp_array(geom_types, dtype=int),
-        geom_bodyid=to_warp_array(geom_parent, dtype=int),
-        geom_size=to_warp_array(geom_sizes, dtype=wp.vec3),
-        geom_pos=to_warp_array(geom_pos, dtype=wp.vec3),
-        geom_quat=to_warp_array(geom_rot, dtype=wp.quat),
-        geom_friction=to_warp_array(geom_friction, dtype=wp.vec3),
-        geom_aabb=to_warp_array(geom_aabb, dtype=wp.vec3),
-        geom_rbound=to_warp_array(geom_rbound, dtype=float),
+        geom_bodyid=to_warp_array(geom_data.body_id, dtype=int),
+        geom_size=to_warp_array(geom_data.size, dtype=wp.vec3),
+        geom_pos=to_warp_array(geom_data.pos, dtype=wp.vec3),
+        geom_quat=to_warp_array(geom_data.rot, dtype=wp.quat),
+        geom_friction=to_warp_array(geom_data.friction, dtype=wp.vec3),
+        geom_aabb=to_warp_array(geom_data.aabb, dtype=wp.vec3),
+        geom_rbound=to_warp_array(geom_data.rbound, dtype=float),
         geom_margin=make_zero(ngeom, dtype=float),
 
         geom_pair_type_count=tuple(geom_type_pair_count),
@@ -314,13 +285,15 @@ def main():
 
         body_tree=body_tree_warp,
         body_subtreemass=to_warp_array(body_subtree_mass, dtype=float),
-        body_invweight0=to_warp_array([0.0, 0.0] * nb, dtype=wp.vec2),
-        mean_inertia=7.456884,  # HARDCODED from MADRONA
-        dof_invweight0=to_warp_array([0.0] * nv, dtype=float),
         qM_tiles=qM_tiles,
         block_dim=types.BlockDim(),
         dof_tri_row=to_warp_array(dof_tri_row, dtype=int),
         dof_tri_col=to_warp_array(dof_tri_col, dtype=int),
+
+        # These are computed with the _model_init function
+        mean_inertia=0.0,
+        body_invweight0=to_warp_array([0.0, 0.0] * nb, dtype=wp.vec2),  # TODO
+        dof_invweight0=to_warp_array([0.0] * nv, dtype=float),  # TODO
     )
 
     d = types.Data(
@@ -328,7 +301,7 @@ def main():
 
         nl=make_zero(n_worlds, dtype=int),
         nefc=make_zero(n_worlds, dtype=int),
-        time=make_zero(n_worlds, dtype=int),
+        time=make_zero(n_worlds, dtype=float),
 
         qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
         qvel=make_zero((n_worlds, nv), dtype=float),
@@ -346,10 +319,11 @@ def main():
         xmat=make_zero((n_worlds, nb), dtype=wp.mat33),
         xipos=make_zero((n_worlds, nb), dtype=wp.vec3),
         ximat=make_zero((n_worlds, nb), dtype=wp.mat33),
-        xanchor=make_zero((n_worlds, ngeom), dtype=wp.vec3),
-        xaxis=make_zero((n_worlds, ngeom), dtype=wp.vec3),
+        xanchor=make_zero((n_worlds, nb), dtype=wp.vec3),
+        xaxis=make_zero((n_worlds, nb, 6), dtype=wp.vec3),
 
         geom_xpos=make_zero((n_worlds, ngeom), dtype=wp.vec3),
+        geom_xquat=make_zero((n_worlds, ngeom), dtype=wp.quat),
         geom_xmat=make_zero((n_worlds, ngeom), dtype=wp.mat33),
 
         site_rpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
@@ -448,8 +422,18 @@ def main():
         ncollision=wp.zeros((1,), dtype=int),
     )
 
-    for _ in range(1):
+    wp.clear_kernel_cache()
+
+    viewer = Viewer(viewer_type=ViewerType.OPENGL)
+    init_model._model_init(m, d)
+    for _ in range(100000):
         forward.step(m, d)
+        viewer.render(m, d)
+    viewer.close()
+
+    # res = benchmark(fn=forward.step, m=m, d=d, nstep=10, event_trace=True,
+    #                 measure_alloc=True, measure_solver_niter=True)
+
 
 
 if __name__ == "__main__":

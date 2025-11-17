@@ -321,6 +321,19 @@ def parse_force_set(force_set) -> ForceSet:
     return ForceSet(muscles=muscles, actuators=actuators)
 
 
+def parse_half_space(contact_half_space) -> ContactHalfSpace:
+    name = contact_half_space.attrib["name"]
+    socket_frame = contact_half_space.find("socket_frame").text
+    location = to_vector3(contact_half_space.find("location").text)
+    orientation = to_vector3(contact_half_space.find("orientation").text)
+    return ContactHalfSpace(
+        name=name,
+        socket_frame=socket_frame,
+        location=location,
+        orientation=Quat.from_fixed_angles(orientation)
+    )
+
+
 def parse_contact_sphere(contact_sphere) -> ContactSphere:
     name = contact_sphere.attrib["name"]
     socket_frame = contact_sphere.find("socket_frame").text
@@ -336,19 +349,51 @@ def parse_contact_sphere(contact_sphere) -> ContactSphere:
     )
 
 
+def parse_contact_capsule(contact_capsule) -> ContactCapsule:
+    name = contact_capsule.attrib["name"]
+    socket_frame = contact_capsule.find("socket_frame").text
+    location = to_vector3(contact_capsule.find("location").text)
+    orientation = to_vector3(contact_capsule.find("orientation").text)
+    radius = float(contact_capsule.find("radius").text)
+    length = float(contact_capsule.find("length").text)
+    return ContactCapsule(
+        name=name,
+        socket_frame=socket_frame,
+        location=location,
+        orientation=Quat.from_fixed_angles(orientation),
+        radius=radius,
+        half_length=length
+    )
+
+
 def parse_contact_geometry_set(contact_geometry_set) -> ContactGeometrySet:
-    contact_half_spaces = OrderedDict()
-    contact_spheres = OrderedDict()
+    contact_geom = OrderedDict()
     contact_geometry_set_objects = contact_geometry_set.find("objects")
+
     if contact_geometry_set_objects is not None:
+        # Half-space (plane)
+        contact_half_space_elements = contact_geometry_set_objects.findall(
+            "ContactHalfSpace")
+        for chs in contact_half_space_elements:
+            chs_obj = parse_half_space(chs)
+            contact_geom[chs_obj.name] = chs_obj
+
+        # Spheres
         contact_sphere_elements = contact_geometry_set_objects.findall(
             "ContactSphere")
         for cs in contact_sphere_elements:
             cs_obj = parse_contact_sphere(cs)
-            contact_spheres[cs_obj.name] = cs_obj
+            contact_geom[cs_obj.name] = cs_obj
+
+        # Capsules
+        contact_capsule_elements = contact_geometry_set_objects.findall(
+            "ContactCapsule")
+        for cc in contact_capsule_elements:
+            cc_obj = parse_contact_capsule(cc)
+            contact_geom[cc_obj.name] = cc_obj
 
     return ContactGeometrySet(
-        contact_spheres=contact_spheres
+        contact_geom=contact_geom
     )
 
 
