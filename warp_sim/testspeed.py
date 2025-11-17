@@ -1,8 +1,6 @@
 import warp_sim._src.init_model as init_model
 import warp_sim._src.forward as forward
-from warp_sim._src.benchmark import benchmark
 import warp_sim._src.math as math
-import warp_sim as warp_sim
 
 import warp as wp
 import numpy as np
@@ -10,6 +8,12 @@ import numpy as np
 from warp_sim.utils.osim_parser import parse_osim_file
 from warp_sim.utils.osim_converter import *
 from warp_sim.render.renderer import Viewer, ViewerType
+
+import argparse
+
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument("--recompile", action="store_true")
+arg_parser.add_argument("--debug", action="store_true")
 
 
 def exclusive_scan(v, mark_empty: bool):
@@ -68,6 +72,11 @@ def main():
     qpos0 = [0.0] * nq
     qpos0[0:3] = [0.0, 0.0, 1.5]  # Root pos
     qpos0[3] = 1  # root quat
+
+    # random
+    qpos0[7:] = [-0.5] * (nq - 7)
+
+
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
 
     b_masses = body_masses(osim_model)
@@ -150,7 +159,7 @@ def main():
     #   dtype=int,
     # ),
 
-    n_worlds = 2
+    n_worlds = 1
 
     # precalculated geom pairs
     geom1, geom2 = np.triu_indices(ngeom, k=1)
@@ -422,11 +431,14 @@ def main():
         ncollision=wp.zeros((1,), dtype=int),
     )
 
-    wp.clear_kernel_cache()
+    if args.recompile:
+        wp.clear_kernel_cache()
+    if args.debug:
+        wp.config.mode = "debug"
 
-    viewer = Viewer(viewer_type=ViewerType.OPENGL)
+    viewer = Viewer(viewer_type=ViewerType.USD)
     init_model._model_init(m, d)
-    for _ in range(100000):
+    for _ in range(1000):
         forward.step(m, d)
         viewer.render(m, d)
     viewer.close()
@@ -435,6 +447,6 @@ def main():
     #                 measure_alloc=True, measure_solver_niter=True)
 
 
-
 if __name__ == "__main__":
+    args = arg_parser.parse_args()
     main()

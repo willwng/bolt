@@ -444,6 +444,8 @@ def _cdof(
         cdof_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, bodyid = wp.tid()
+    if bodyid == 0:
+        return
     dofid = jnt_dofadr[bodyid]
     jnt_type_ = jnt_type[bodyid]
     xmat = wp.transpose(xmat_in[worldid, bodyid])
@@ -845,8 +847,8 @@ def _cfrc_ext(
         xfrc_applied = xfrc_applied_in[worldid, bodyid]
         subtree_com = subtree_com_in[worldid, body_rootid[bodyid]]
         xipos = xipos_in[worldid, bodyid]
-        cfrc_ext_out[worldid, bodyid] = support.transform_force(xfrc_applied,
-                                                                subtree_com - xipos)
+        cfrc_ext_out[worldid, bodyid] = support.transform_force(
+            xfrc_applied, subtree_com - xipos)
 
 
 @wp.kernel
