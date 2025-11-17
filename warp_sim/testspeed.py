@@ -8,12 +8,29 @@ import numpy as np
 from warp_sim.utils.osim_parser import parse_osim_file
 from warp_sim.utils.osim_converter import *
 from warp_sim.render.renderer import Viewer, ViewerType
+from warp_sim._src.benchmark import benchmark
 
 import argparse
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--recompile", action="store_true")
 arg_parser.add_argument("--debug", action="store_true")
+
+
+def _print_trace(trace, indent, steps):
+    if indent == 0:
+        print("\nEvent trace:\n")
+    for k, v in trace.items():
+        times, sub_trace = v
+        if len(times) == 1:
+            print("  " * indent + f"{k}: {1e6 * times[0] / steps:.2f}")
+        else:
+            print("  " * indent + f"{k}: [ ", end="")
+            for i in range(len(times)):
+                print(f"{1e6 * times[i] / steps:.2f}", end="")
+                print(", " if i < len(times) - 1 else " ", end="")
+            print("]")
+        _print_trace(sub_trace, indent + 1, steps)
 
 
 def exclusive_scan(v, mark_empty: bool):
@@ -425,7 +442,7 @@ def main():
         naconmax=naconmax,
         njmax=njmax,
         nacon=make_zero(n_worlds, dtype=int),
-        nsolving=make_zero(n_worlds, dtype=int),
+        nsolving=make_zero(1, dtype=int),
         subtree_bodyvel=make_zero((n_worlds, nb), dtype=wp.vec3),
 
         # collision driver
@@ -440,15 +457,31 @@ def main():
     if args.debug:
         wp.config.mode = "debug"
 
-    viewer = Viewer(viewer_type=ViewerType.USD)
     init_model._model_init(m, d)
+
+    viewer = Viewer(viewer_type=ViewerType.NONE)
     for _ in range(1500):
         forward.step(m, d)
         viewer.render(m, d)
     viewer.close()
 
-    # res = benchmark(fn=forward.step, m=m, d=d, nstep=10, event_trace=True,
+    # n_steps = 200
+    # res = benchmark(fn=forward.step, m=m, d=d, nstep=n_steps, event_trace=True,
     #                 measure_alloc=True, measure_solver_niter=True)
+    # jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
+    # steps = n_worlds * n_steps
+    #
+    # print(f"""
+    # Summary for {n_worlds} parallel rollouts
+    #
+    # Total JIT time: {jit_time:.2f} s
+    # Total simulation time: {run_time:.2f} s
+    # Total steps per second: {steps / run_time:,.0f}
+    # Total realtime factor: {steps * m.opt.timestep / run_time:,.2f} x
+    # Total time per step: {1e9 * run_time / steps:.2f} ns
+    # Total converged worlds: {nsuccess} / {d.nworld}""")
+    #
+    # _print_trace(trace, 0, steps)
 
 
 if __name__ == "__main__":
