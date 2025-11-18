@@ -17,6 +17,7 @@ arg_parser.add_argument("--recompile", action="store_true")
 arg_parser.add_argument("--debug", action="store_true")
 arg_parser.add_argument("--benchmark", action="store_true")
 arg_parser.add_argument("--nworld", type=int, default=1)
+arg_parser.add_argument("--nstep", type=int, default=1000)
 args = arg_parser.parse_args()
 
 
@@ -482,13 +483,13 @@ def main():
 
     if not args.benchmark:
         viewer = Viewer(viewer_type=ViewerType.OPENGL)
-        for _ in range(1000):
+        for _ in range(args.nstep):
             forward.step(m, d)
             viewer.render(m, d)
         viewer.close()
 
     else:
-        n_steps = 500
+        n_steps = args.nstep
         res = benchmark(fn=forward.step, m=m, d=d, nstep=n_steps,
                         event_trace=True, measure_alloc=True,
                         measure_solver_niter=True)
