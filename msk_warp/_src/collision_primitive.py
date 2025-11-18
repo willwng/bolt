@@ -58,7 +58,6 @@ class Geom:
     rot: wp.mat33
     normal: wp.vec3
     size: wp.vec3
-    margin: float
     hfprism: mat63
     vertadr: int
     vertnum: int
@@ -110,11 +109,7 @@ def geom_collision_pair(
                            geom2.rot[2, 2])  # plane
 
     geom1.index = -1
-    geom1.margin = 0.0
-
     geom2.index = -1
-    geom2.margin = 0.0
-
     return geom1, geom2
 
 
@@ -402,7 +397,6 @@ def write_contact(
 def contact_params(
         # Model:
         geom_friction: wp.array(dtype=wp.vec3),
-        geom_margin: wp.array(dtype=float),
         # Data in:
         collision_pair_in: wp.array(dtype=wp.vec2i),
         collision_pairid_in: wp.array(dtype=wp.vec2i),
@@ -713,7 +707,6 @@ def plane_ellipsoid_wrapper(
         plane: Geom,
         ellipsoid: Geom,
         worldid: int,
-        margin: float,
         gap: float,
         condim: int,
         friction: vec5,
@@ -726,7 +719,6 @@ def plane_ellipsoid_wrapper(
         contact_dist_out: wp.array(dtype=float),
         contact_pos_out: wp.array(dtype=wp.vec3),
         contact_frame_out: wp.array(dtype=wp.mat33),
-        contact_includemargin_out: wp.array(dtype=float),
         contact_friction_out: wp.array(dtype=vec5),
         contact_solref_out: wp.array(dtype=wp.vec2),
         contact_solreffriction_out: wp.array(dtype=wp.vec2),
@@ -748,7 +740,6 @@ def plane_ellipsoid_wrapper(
         dist,
         pos,
         make_frame(normal),
-        margin,
         gap,
         condim,
         friction,
@@ -761,7 +752,6 @@ def plane_ellipsoid_wrapper(
         contact_dist_out,
         contact_pos_out,
         contact_frame_out,
-        contact_includemargin_out,
         contact_friction_out,
         contact_solref_out,
         contact_solreffriction_out,
@@ -783,7 +773,6 @@ def plane_box_wrapper(
         plane: Geom,
         box: Geom,
         worldid: int,
-        margin: float,
         gap: float,
         condim: int,
         friction: vec5,
@@ -796,7 +785,6 @@ def plane_box_wrapper(
         contact_dist_out: wp.array(dtype=float),
         contact_pos_out: wp.array(dtype=wp.vec3),
         contact_frame_out: wp.array(dtype=wp.mat33),
-        contact_includemargin_out: wp.array(dtype=float),
         contact_friction_out: wp.array(dtype=vec5),
         contact_solref_out: wp.array(dtype=wp.vec2),
         contact_solreffriction_out: wp.array(dtype=wp.vec2),
@@ -820,7 +808,6 @@ def plane_box_wrapper(
             dist[i],
             pos[i],
             frame,
-            margin,
             gap,
             condim,
             friction,
@@ -833,7 +820,6 @@ def plane_box_wrapper(
             contact_dist_out,
             contact_pos_out,
             contact_frame_out,
-            contact_includemargin_out,
             contact_friction_out,
             contact_solref_out,
             contact_solreffriction_out,
@@ -855,7 +841,6 @@ def plane_convex_wrapper(
         plane: Geom,
         convex: Geom,
         worldid: int,
-        margin: float,
         gap: float,
         condim: int,
         friction: vec5,
@@ -868,7 +853,6 @@ def plane_convex_wrapper(
         contact_dist_out: wp.array(dtype=float),
         contact_pos_out: wp.array(dtype=wp.vec3),
         contact_frame_out: wp.array(dtype=wp.mat33),
-        contact_includemargin_out: wp.array(dtype=float),
         contact_friction_out: wp.array(dtype=vec5),
         contact_solref_out: wp.array(dtype=wp.vec2),
         contact_solreffriction_out: wp.array(dtype=wp.vec2),
@@ -891,7 +875,6 @@ def plane_convex_wrapper(
             dist[i],
             pos[i],
             frame,
-            margin,
             gap,
             condim,
             friction,
@@ -904,7 +887,6 @@ def plane_convex_wrapper(
             contact_dist_out,
             contact_pos_out,
             contact_frame_out,
-            contact_includemargin_out,
             contact_friction_out,
             contact_solref_out,
             contact_solreffriction_out,
@@ -926,7 +908,6 @@ def sphere_cylinder_wrapper(
         sphere: Geom,
         cylinder: Geom,
         worldid: int,
-        margin: float,
         gap: float,
         condim: int,
         friction: vec5,
@@ -939,7 +920,6 @@ def sphere_cylinder_wrapper(
         contact_dist_out: wp.array(dtype=float),
         contact_pos_out: wp.array(dtype=wp.vec3),
         contact_frame_out: wp.array(dtype=wp.mat33),
-        contact_includemargin_out: wp.array(dtype=float),
         contact_friction_out: wp.array(dtype=vec5),
         contact_solref_out: wp.array(dtype=wp.vec2),
         contact_solreffriction_out: wp.array(dtype=wp.vec2),
@@ -971,7 +951,6 @@ def sphere_cylinder_wrapper(
         dist,
         pos,
         make_frame(normal),
-        margin,
         gap,
         condim,
         friction,
@@ -984,7 +963,6 @@ def sphere_cylinder_wrapper(
         contact_dist_out,
         contact_pos_out,
         contact_frame_out,
-        contact_includemargin_out,
         contact_friction_out,
         contact_solref_out,
         contact_solreffriction_out,
@@ -1006,7 +984,6 @@ def plane_cylinder_wrapper(
         plane: Geom,
         cylinder: Geom,
         worldid: int,
-        margin: float,
         gap: float,
         condim: int,
         friction: vec5,
@@ -1019,7 +996,6 @@ def plane_cylinder_wrapper(
         contact_dist_out: wp.array(dtype=float),
         contact_pos_out: wp.array(dtype=wp.vec3),
         contact_frame_out: wp.array(dtype=wp.mat33),
-        contact_includemargin_out: wp.array(dtype=float),
         contact_friction_out: wp.array(dtype=vec5),
         contact_solref_out: wp.array(dtype=wp.vec2),
         contact_solreffriction_out: wp.array(dtype=wp.vec2),
@@ -1053,7 +1029,6 @@ def plane_cylinder_wrapper(
             dist[i],
             pos[i],
             frame,
-            margin,
             gap,
             condim,
             friction,
@@ -1066,7 +1041,6 @@ def plane_cylinder_wrapper(
             contact_dist_out,
             contact_pos_out,
             contact_frame_out,
-            contact_includemargin_out,
             contact_friction_out,
             contact_solref_out,
             contact_solreffriction_out,
@@ -1088,7 +1062,6 @@ def sphere_box_wrapper(
         sphere: Geom,
         box: Geom,
         worldid: int,
-        margin: float,
         gap: float,
         condim: int,
         friction: vec5,
@@ -1101,7 +1074,6 @@ def sphere_box_wrapper(
         contact_dist_out: wp.array(dtype=float),
         contact_pos_out: wp.array(dtype=wp.vec3),
         contact_frame_out: wp.array(dtype=wp.mat33),
-        contact_includemargin_out: wp.array(dtype=float),
         contact_friction_out: wp.array(dtype=vec5),
         contact_solref_out: wp.array(dtype=wp.vec2),
         contact_solreffriction_out: wp.array(dtype=wp.vec2),
@@ -1122,7 +1094,6 @@ def sphere_box_wrapper(
         dist,
         pos,
         make_frame(normal),
-        margin,
         gap,
         condim,
         friction,
@@ -1135,7 +1106,6 @@ def sphere_box_wrapper(
         contact_dist_out,
         contact_pos_out,
         contact_frame_out,
-        contact_includemargin_out,
         contact_friction_out,
         contact_solref_out,
         contact_solreffriction_out,
@@ -1157,7 +1127,6 @@ def capsule_box_wrapper(
         cap: Geom,
         box: Geom,
         worldid: int,
-        margin: float,
         gap: float,
         condim: int,
         friction: vec5,
@@ -1170,7 +1139,6 @@ def capsule_box_wrapper(
         contact_dist_out: wp.array(dtype=float),
         contact_pos_out: wp.array(dtype=wp.vec3),
         contact_frame_out: wp.array(dtype=wp.mat33),
-        contact_includemargin_out: wp.array(dtype=float),
         contact_friction_out: wp.array(dtype=vec5),
         contact_solref_out: wp.array(dtype=wp.vec2),
         contact_solreffriction_out: wp.array(dtype=wp.vec2),
@@ -1205,7 +1173,6 @@ def capsule_box_wrapper(
             dist[i],
             pos[i],
             make_frame(normal[i]),
-            margin,
             gap,
             condim,
             friction,
@@ -1218,7 +1185,6 @@ def capsule_box_wrapper(
             contact_dist_out,
             contact_pos_out,
             contact_frame_out,
-            contact_includemargin_out,
             contact_friction_out,
             contact_solref_out,
             contact_solreffriction_out,
@@ -1240,7 +1206,6 @@ def box_box_wrapper(
         box1: Geom,
         box2: Geom,
         worldid: int,
-        margin: float,
         gap: float,
         condim: int,
         friction: vec5,
@@ -1253,7 +1218,6 @@ def box_box_wrapper(
         contact_dist_out: wp.array(dtype=float),
         contact_pos_out: wp.array(dtype=wp.vec3),
         contact_frame_out: wp.array(dtype=wp.mat33),
-        contact_includemargin_out: wp.array(dtype=float),
         contact_friction_out: wp.array(dtype=vec5),
         contact_solref_out: wp.array(dtype=wp.vec2),
         contact_solreffriction_out: wp.array(dtype=wp.vec2),
@@ -1274,7 +1238,6 @@ def box_box_wrapper(
         box2.pos,
         box2.rot,
         box2.size,
-        margin,
     )
 
     for i in range(8):
@@ -1284,7 +1247,6 @@ def box_box_wrapper(
             dist[i],
             pos[i],
             make_frame(normal[i]),
-            margin,
             gap,
             condim,
             friction,
@@ -1297,7 +1259,6 @@ def box_box_wrapper(
             contact_dist_out,
             contact_pos_out,
             contact_frame_out,
-            contact_includemargin_out,
             contact_friction_out,
             contact_solref_out,
             contact_solreffriction_out,
@@ -1357,7 +1318,6 @@ def _create_narrowphase_kernel(primitive_collisions_types,
             geom_type: wp.array(dtype=int),
             geom_size: wp.array(dtype=wp.vec3),
             geom_friction: wp.array(dtype=wp.vec3),
-            geom_margin: wp.array(dtype=float),
             # Data in:
             geom_xpos_in: wp.array2d(dtype=wp.vec3),
             geom_xmat_in: wp.array2d(dtype=wp.mat33),
@@ -1387,7 +1347,6 @@ def _create_narrowphase_kernel(primitive_collisions_types,
 
         _, condim, friction = contact_params(
             geom_friction,
-            geom_margin,
             collision_pair_in,
             collision_pairid_in,
             tid,
@@ -1472,7 +1431,6 @@ def primitive_narrowphase(m: Model, d: Data):
             m.geom_type,
             m.geom_size,
             m.geom_friction,
-            m.geom_margin,
             d.geom_xpos,
             d.geom_xmat,
             d.naconmax,

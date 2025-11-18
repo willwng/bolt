@@ -38,27 +38,27 @@ def _zero_nacon_ncollision(
 
 @wp.func
 def _plane_filter(
-        size1: float, size2: float, margin1: float, margin2: float,
+        size1: float, size2: float,
         xpos1: wp.vec3, xpos2: wp.vec3, xmat1: wp.mat33, xmat2: wp.mat33
 ) -> bool:
     if size1 == 0.0:
         # geom1 is a plane
         dist = wp.dot(xpos2 - xpos1,
                       wp.vec3(xmat1[0, 2], xmat1[1, 2], xmat1[2, 2]))
-        return dist <= size2 + wp.max(margin1, margin2)
+        return dist <= size2
     elif size2 == 0.0:
         # geom2 is a plane
         dist = wp.dot(xpos1 - xpos2,
                       wp.vec3(xmat2[0, 2], xmat2[1, 2], xmat2[2, 2]))
-        return dist <= size1 + wp.max(margin1, margin2)
+        return dist <= size1
 
     return True
 
 
 @wp.func
-def _sphere_filter(size1: float, size2: float, margin1: float, margin2: float,
+def _sphere_filter(size1: float, size2: float,
                    xpos1: wp.vec3, xpos2: wp.vec3) -> bool:
-    bound = size1 + size2 + wp.max(margin1, margin2)
+    bound = size1 + size2
     dif = xpos2 - xpos1
     dist_sq = wp.dot(dif, dif)
     return dist_sq <= bound * bound
@@ -72,8 +72,6 @@ def _aabb_filter(
         center2: wp.vec3,
         size1: wp.vec3,
         size2: wp.vec3,
-        margin1: float,
-        margin2: float,
         xpos1: wp.vec3,
         xpos2: wp.vec3,
         xmat1: wp.mat33,
@@ -86,8 +84,6 @@ def _aabb_filter(
     """
     center1 = xmat1 @ center1 + xpos1
     center2 = xmat2 @ center2 + xpos2
-
-    margin = wp.max(margin1, margin2)
 
     max_x1 = -MJ_MAXVAL
     max_y1 = -MJ_MAXVAL
@@ -152,17 +148,17 @@ def _aabb_filter(
                 if pos2[2] < min_z2:
                     min_z2 = pos2[2]
 
-    if center1[0] + max_x1 + margin < center2[0] + min_x2:
+    if center1[0] + max_x1 < center2[0] + min_x2:
         return False
-    if center1[1] + max_y1 + margin < center2[1] + min_y2:
+    if center1[1] + max_y1 < center2[1] + min_y2:
         return False
-    if center1[2] + max_z1 + margin < center2[2] + min_z2:
+    if center1[2] + max_z1 < center2[2] + min_z2:
         return False
-    if center2[0] + max_x2 + margin < center1[0] + min_x1:
+    if center2[0] + max_x2 < center1[0] + min_x1:
         return False
-    if center2[1] + max_y2 + margin < center1[1] + min_y1:
+    if center2[1] + max_y2 < center1[1] + min_y1:
         return False
-    if center2[2] + max_z2 + margin < center1[2] + min_z1:
+    if center2[2] + max_z2 < center1[2] + min_z1:
         return False
 
     return True
@@ -180,16 +176,12 @@ def _obb_filter(
         center2: wp.vec3,
         size1: wp.vec3,
         size2: wp.vec3,
-        margin1: float,
-        margin2: float,
         xpos1: wp.vec3,
         xpos2: wp.vec3,
         xmat1: wp.mat33,
         xmat2: wp.mat33,
 ) -> bool:
     """Oriented bounding boxes collision (see Gottschalk et al.), see mj_collideOBB."""
-    margin = wp.max(margin1, margin2)
-
     xcenter = mat23()
     normal = mat63()
     proj = wp.vec2()
@@ -227,7 +219,7 @@ def _obb_filter(
                     size[2] * wp.dot(normal[3 * i + 2], normal[3 * j + k]))
                 )
                 # fmt: on
-            if radius[0] + radius[1] + margin < wp.abs(proj[1] - proj[0]):
+            if radius[0] + radius[1] < wp.abs(proj[1] - proj[0]):
                 return False
 
     return True
@@ -239,7 +231,6 @@ def _broadphase_filter(m: Model):
             # Model:
             geom_aabb: wp.array2d(dtype=wp.vec3),
             geom_rbound: wp.array(dtype=float),
-            geom_margin: wp.array(dtype=float),
             # Data in:
             geom_xpos_in: wp.array2d(dtype=wp.vec3),
             geom_xmat_in: wp.array2d(dtype=wp.mat33),
@@ -259,7 +250,6 @@ def _broadphase_filter(m: Model):
 
         # Bounding sphere
         rbound1, rbound2 = geom_rbound[geom1], geom_rbound[geom2]
-        margin1, margin2 = geom_margin[geom1], geom_margin[geom2]
 
         xpos1, xpos2 = geom_xpos_in[worldid, geom1], geom_xpos_in[
             worldid, geom2]
@@ -267,16 +257,16 @@ def _broadphase_filter(m: Model):
             worldid, geom2]
 
         if rbound1 == 0.0 or rbound2 == 0.0:
-            return _plane_filter(rbound1, rbound2, margin1, margin2, xpos1,
+            return _plane_filter(rbound1, rbound2, xpos1,
                                  xpos2, xmat1, xmat2)
         else:
-            if not _sphere_filter(rbound1, rbound2, margin1, margin2, xpos1,
+            if not _sphere_filter(rbound1, rbound2, xpos1,
                                   xpos2):
                 return False
-            if not _aabb_filter(center1, center2, size1, size2, margin1,
-                                margin2, xpos1, xpos2, xmat1, xmat2):
+            if not _aabb_filter(center1, center2, size1, size2,
+                                xpos1, xpos2, xmat1, xmat2):
                 return False
-            if not _obb_filter(center1, center2, size1, size2, margin1, margin2,
+            if not _obb_filter(center1, center2, size1, size2,
                                xpos1, xpos2, xmat1, xmat2):
                 return False
 
@@ -329,7 +319,6 @@ def _nxn_broadphase(broadphase_filter):
             geom_type: wp.array(dtype=int),
             geom_aabb: wp.array2d(dtype=wp.vec3),
             geom_rbound: wp.array(dtype=float),
-            geom_margin: wp.array(dtype=float),
             nxn_geom_pair: wp.array(dtype=wp.vec2i),
             nxn_pairid: wp.array(dtype=wp.vec2i),
             # Data in:
@@ -349,7 +338,7 @@ def _nxn_broadphase(broadphase_filter):
         geom2 = geom[1]
 
         if (broadphase_filter(
-                geom_aabb, geom_rbound, geom_margin, geom_xpos_in,
+                geom_aabb, geom_rbound, geom_xpos_in,
                 geom_xmat_in, geom1, geom2, worldid)
                 or nxn_pairid[elementid][1] >= 0):
             _add_geom_pair(
@@ -391,7 +380,6 @@ def nxn_broadphase(m: Model, d: Data):
             m.geom_type,
             m.geom_aabb,
             m.geom_rbound,
-            m.geom_margin,
             m.nxn_geom_pair_filtered,
             m.nxn_pairid_filtered,
             d.naconmax,

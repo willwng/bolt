@@ -1,14 +1,13 @@
-import warp_sim._src.init_model as init_model
-import warp_sim._src.forward as forward
-import warp_sim._src.math as math
+import msk_warp._src.init_model as init_model
+import msk_warp._src.forward as forward
+import msk_warp._src.math as math
 
 import warp as wp
 import numpy as np
 
-from warp_sim.utils.osim_parser import parse_osim_file
-from warp_sim.utils.osim_converter import *
-from warp_sim.render.renderer import Viewer, ViewerType
-from warp_sim._src.benchmark import benchmark
+from msk_warp.utils.osim_parser import parse_osim_file
+from msk_warp.utils.osim_converter import *
+from msk_warp.render.renderer import Viewer, ViewerType
 
 import argparse
 
@@ -175,7 +174,7 @@ def main():
     #   dtype=int,
     # ),
 
-    n_worlds = 8192
+    n_worlds = 1
 
     # precalculated geom pairs
     geom1, geom2 = np.triu_indices(ngeom, k=1)
@@ -225,7 +224,7 @@ def main():
         ls_tolerance=0.01,
         ccd_tolerance=1e-6,
         gravity=-9.81,
-        solver=types.SolverType.NEWTON,
+        solver=types.SolverType.CG,
         iterations=50,
         ls_iterations=100,
         ccd_iterations=50,
@@ -234,6 +233,8 @@ def main():
         ls_parallel_min_step=1e-8,
         graph_conditional=True
     )
+
+    mp = types.MuscleProps()
 
     m = types.Model(
         nbody=nb,
@@ -249,6 +250,7 @@ def main():
         nsite=nsite,
 
         opt=opt,
+        mp=mp,
 
         # warp arrays
         qpos0=to_warp_array(qpos0, dtype=float),
@@ -295,7 +297,6 @@ def main():
         geom_friction=to_warp_array(geom_data.friction, dtype=wp.vec3),
         geom_aabb=to_warp_array(geom_data.aabb, dtype=wp.vec3),
         geom_rbound=to_warp_array(geom_data.rbound, dtype=float),
-        geom_margin=make_zero(ngeom, dtype=float),
 
         geom_pair_type_count=tuple(geom_type_pair_count),
         nxn_geom_pair_filtered=wp.array(nxn_geom_pair_filtered, dtype=wp.vec2i),
@@ -336,6 +337,7 @@ def main():
         qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
         qvel=make_zero((n_worlds, nv), dtype=float),
         act=make_zero((n_worlds, nmuscle), dtype=float),
+        mstate=make_zero((n_worlds, nmuscle), dtype=float),
 
         qacc_warmstart=make_zero((n_worlds, nv), dtype=float),
         qfrc_applied=make_zero((n_worlds, nv), dtype=float),
@@ -343,6 +345,7 @@ def main():
 
         qacc=make_zero((n_worlds, nv), dtype=float),
         act_dot=make_zero((n_worlds, nmuscle), dtype=float),
+        mstate_dot=make_zero((n_worlds, nmuscle), dtype=float),
 
         xpos=make_zero((n_worlds, nb), dtype=wp.vec3),
         xquat=make_zero((n_worlds, nb), dtype=wp.quat),
@@ -374,6 +377,7 @@ def main():
 
         muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
 
         cvel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         cdof_dot=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
@@ -463,29 +467,29 @@ def main():
 
     init_model._model_init(m, d)
 
-    # viewer = Viewer(viewer_type=ViewerType.USD)
-    # for _ in range(1000):
-    #     forward.step(m, d)
-    #     viewer.render(m, d)
-    # viewer.close()
+    viewer = Viewer(viewer_type=ViewerType.OPENGL)
+    for _ in range(1000):
+        forward.step(m, d)
+        viewer.render(m, d)
+    viewer.close()
 
-    n_steps = 1500
-    res = benchmark(fn=forward.step, m=m, d=d, nstep=n_steps, event_trace=True,
-                    measure_alloc=True, measure_solver_niter=True)
-    jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
-    steps = n_worlds * n_steps
-
-    print(f"""
-    Summary for {n_worlds} parallel rollouts
-
-    Total JIT time: {jit_time:.2f} s
-    Total simulation time: {run_time:.2f} s
-    Total steps per second: {steps / run_time:,.0f}
-    Total realtime factor: {steps * m.opt.timestep / run_time:,.2f} x
-    Total time per step: {1e9 * run_time / steps:.2f} ns
-    Total converged worlds: {nsuccess} / {d.nworld}""")
-
-    _print_trace(trace, 0, steps)
+    # n_steps = 1500
+    # res = benchmark(fn=forward.step, m=m, d=d, nstep=n_steps, event_trace=True,
+    #                 measure_alloc=True, measure_solver_niter=True)
+    # jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
+    # steps = n_worlds * n_steps
+    #
+    # print(f"""
+    # Summary for {n_worlds} parallel rollouts
+    #
+    # Total JIT time: {jit_time:.2f} s
+    # Total simulation time: {run_time:.2f} s
+    # Total steps per second: {steps / run_time:,.0f}
+    # Total realtime factor: {steps * m.opt.timestep / run_time:,.2f} x
+    # Total time per step: {1e9 * run_time / steps:.2f} ns
+    # Total converged worlds: {nsuccess} / {d.nworld}""")
+    #
+    # _print_trace(trace, 0, steps)
 
 
 if __name__ == "__main__":

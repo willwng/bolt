@@ -95,7 +95,7 @@ class JointType(enum.IntEnum):
     HINGE = 3
     UNIVERSAL = 4
     CUSTOM = 5
-    DUMMY = 6 # for ground
+    DUMMY = 6  # for ground
 
 
 class GeomType(enum.IntEnum):
@@ -180,59 +180,6 @@ class EqType(enum.IntEnum):
     TENDON = 3
 
 
-class WrapType(enum.IntEnum):
-    """Type of tendon wrapping object.
-
-    Attributes:
-      JOINT: constant moment arm
-      PULLEY: pulley used to split tendon
-      SITE: pass through site
-      SPHERE: wrap around sphere
-      CYLINDER: wrap around (infinite) cylinder
-    """
-
-    JOINT = 0
-    PULLEY = 1
-    SITE = 2
-    SPHERE = 3
-    CYLINDER = 4
-
-
-class State(enum.IntEnum):
-    """State component elements as integer bitflags.
-
-    Includes several convenient combinations of these flags.
-
-    Attributes:
-      TIME: time
-      QPOS: position
-      QVEL: velocity
-      ACT: actuator activation
-      WARMSTART: acceleration used for warmstart
-      CTRL: control
-      QFRC_APPLIED: applied generalized force
-      XFRC_APPLIED: applied Cartesian force/torque
-      EQ_ACTIVE: enable/disable constraints
-      NSTATE: number of state elements
-      PHYSICS: QPOS | QVEL | ACT
-      FULLPHYSICS: TIME | PHYSICS | PLUGIN
-      INTEGRATION: FULLPHYSICS | USER | WARMSTART
-    """
-
-    TIME = 0
-    QPOS = 1
-    QVEL = 2
-    ACT = 3
-    WARMSTART = 4
-    CTRL = 5
-    QFRC_APPLIED = 6
-    XFRC_APPLIED = 7
-    EQ_ACTIVE = 8
-    NSTATE = 9
-    PHYSICS = 10
-    FULLPHYSICS = 11
-    INTEGRATION = 12
-
 class CustomFnType(enum.IntEnum):
     """
     Custom function
@@ -264,14 +211,9 @@ class vec10f(wp.types.vector(length=10, dtype=float)):
     pass
 
 
-class vec11f(wp.types.vector(length=11, dtype=float)):
-    pass
-
-
 vec5 = vec5f
 vec6 = vec6f
 vec10 = vec10f
-vec11 = vec11f
 
 
 class SolverType(enum.IntEnum):
@@ -329,14 +271,46 @@ class Option:
 
 
 @dataclasses.dataclass
-class Statistic:
-    """Model statistics (in qpos0).
+class MuscleProps:
+    b11: float = 0.8150671134243542
+    b21: float = 1.055033428970575
+    b31: float = 0.162384573599574
+    b41: float = 0.063303448465465
+    b12: float = 0.433004984392647
+    b22: float = 0.716775413397760
+    b32: float = -0.029947116970696
+    b42: float = 0.200356847296188
+    b13: float = 0.1
+    b23: float = 1.0
+    b33: float = 0.353553390593274
+    b43: float = 0.0
+    # Tendon force-length curve
+    c1: float = 0.200
+    c2: float = 1.0
+    c3: float = 0.200
+    # Muscle force-velocity curve
+    d1: float = -0.3211346127989808
+    d2: float = -8.149
+    d3: float = -0.374
+    d4: float = 0.8825327733249912
+    # Muscle passive force-length curve
+    kPE: float = 4.0
+    # Activation dynamics
+    activation_time_constant: float = 0.015
+    deactivation_time_constant: float = 0.060
+    activation_dynamics_smoothing: float = 10.
 
-    Attributes:
-      meaninertia: mean diagonal inertia
-    """
+    m_minNormFiberLength: float = 0.2
+    m_maxNormFiberLength: float = 1.8
+    m_minNormTendonForce: float = 0.0
+    m_maxNormTendonForce: float = 5.0
+    m_minPennationAngle: float = 0.0
+    m_maxPennationAngle: float = 1.47062891
 
-    meaninertia: float
+    # Muscle properties (todo: move to metadata)
+    active_force_width_scale: float = 1.
+    tendon_strain_at_one_norm_force: float = 0.049
+    passive_fiber_strain_at_one_norm_force: float = 0.6
 
 
 @dataclasses.dataclass
@@ -445,6 +419,7 @@ class Model:
       nsite: number of sites
 
       opt: physics options
+      mp: muscle properties
 
       qpos0: qpos values at default pose                       (nq,)
       qpos_spring: reference pose for springs                  (nq,)
@@ -460,6 +435,8 @@ class Model:
 
       body_rootid: id of root above body                       (nbody,)
       body_parentid: id of body's parent                       (nbody,)
+      body_tree: list of body ids by tree level
+
       jnt_type: type of joint (JointType)                      (nbody,)
       jnt_stiffness: joint stiffness                           (nbody,)
       jnt_qposadr: start addr in 'qpos' for joint's data       (nbody,)
@@ -468,9 +445,6 @@ class Model:
       jnt_rel_child: offset from child frame                   (nbody, 3)
       jnt_rel_parent_rot: rotation from parent frame           (nbody, 4)
       jnt_rel_child_rot: rotation from child frame             (nbody, 4)
-
-      dof_bodyid: id of dof's body                             (nv,)
-      dof_parentid: id of dof's parent; -1: none               (nv,)
 
       * for custom joints *
       jnt_cst_adr: address of custom joint, -1 if conventional (nbody,)
@@ -481,6 +455,11 @@ class Model:
       cst_txfm_fn_adr: address of spatial transform function   (njnts_cst, 6)
       cst_txfm_qadr: qpos address for each spatial transform   (njnts_cst, 6)
       cst_txfm_dofadr: dof address for each spatial transform  (njnts_cst, 6)
+
+      dof_bodyid: id of dof's body                             (nv,)
+      dof_parentid: id of dof's parent; -1: none               (nv,)
+      dof_armature: dof armature inertia/mass                  (nv)
+      dof_damping: damping coefficient                         (nv)
 
       * dof limits
       limit_dof_range: joint limits (min, max)                 (ndoflimit, 2)
@@ -493,17 +472,18 @@ class Model:
       geom_pos: local position offset rel. to body             (ngeom, 3)
       geom_quat: local orientation offset rel. to body         (ngeom, 4)
       geom_friction: friction for (slide, spin, roll)          (ngeom, 3)
+      geom_aabb: axis-aligned bounding box (center, size)      (ngeom, 2, 3)
+      geom_rbound: bounding sphere radius                      (ngeom,)
 
+      geom_pair_type_count: count of max number of each potential collision
       nxn_geom_pair_filtered: valid collision pair geom ids    (<=ngeom*(ngeom-1)/2,)
+      nxn_pairid_filtered: active subset of nxn_pairid         (<=ngeom*(ngeom-1)/2, 2)
 
       site_bodyid: id of site's body                           (nsite,)
       site_pos: local position offset rel. to body             (nsite, 3)
 
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
-
-      dof_armature: dof armature inertia/mass                  (nv)
-      dof_damping: damping coefficient                         (nv)
 
       mean_inertia: mean diagonal inertia                      ()
       body_invweight0: mean inv inert in qpos0 (trn, rot)      (nbody, 2)
@@ -523,6 +503,7 @@ class Model:
     nsite: int
 
     opt: Option
+    mp: MuscleProps
 
     qpos0: wp.array(dtype=float)
     qpos_spring: wp.array(dtype=float)
@@ -560,6 +541,12 @@ class Model:
     cst_txfm_qadr: wp.array2d(dtype=int)
     cst_txfm_dofadr: wp.array2d(dtype=int)
 
+    # Dof data
+    dof_armature: wp.array(dtype=float)
+    dof_damping: wp.array(dtype=float)
+    dof_bodyid: wp.array(dtype=int)
+    dof_parentid: wp.array(dtype=int)
+
     # Dof limits
     limit_dof_range: wp.array2d(dtype=wp.vec2)
     limit_dof_adr: wp.array(dtype=int)
@@ -574,7 +561,6 @@ class Model:
     geom_friction: wp.array(dtype=wp.vec3)
     geom_aabb: wp.array2d(dtype=wp.vec3)
     geom_rbound: wp.array(dtype=float)
-    geom_margin: wp.array(dtype=float)
 
     geom_pair_type_count: tuple[int, ...]
     nxn_geom_pair_filtered: wp.array(dtype=wp.vec2i)
@@ -588,20 +574,16 @@ class Model:
     muscle_pts_adr: wp.array(dtype=int)
     muscle_pts_num: wp.array(dtype=int)
 
-    dof_armature: wp.array(dtype=float)
-    dof_damping: wp.array(dtype=float)
-
-    dof_bodyid: wp.array(dtype=int)
-    dof_parentid: wp.array(dtype=int)
-
     # To be computed at model creation
-    body_invweight0: wp.array(dtype=wp.vec2)
     mean_inertia: float
+    body_invweight0: wp.array(dtype=wp.vec2)
     dof_invweight0: wp.array(dtype=float)
+
     qM_tiles: tuple[TileSet, ...]
     block_dim: BlockDim
     dof_tri_row: wp.array(dtype=int)
     dof_tri_col: wp.array(dtype=int)
+
 
 @dataclasses.dataclass
 class Contact:
@@ -640,16 +622,20 @@ class Data:
       solver_niter: number of solver iterations                   (nworld,)
       nl: number of limit constraints                             (nworld,)
       nefc: number of constraints                                 (nworld,)
+
       time: simulation time                                       (nworld,)
       qpos: position                                              (nworld, nq)
       qvel: velocity                                              (nworld, nv)
       act: actuator activation                                    (nworld, nmuscles)
-      qacc_warmstart: acceleration used for warmstart             (nworld, nv)
-      qfrc_applied: applied generalized force                     (nworld, nv)
-      xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
+      mstate: muscle state variable                               (nworld, nmuscles)
 
       qacc: acceleration                                          (nworld, nv)
       act_dot: time-derivative of actuator activation             (nworld, na)
+      mstate_dot: time-derivative of muscle state variable        (nworld, nmuscles)
+
+      qacc_warmstart: acceleration used for warmstart             (nworld, nv)
+      qfrc_applied: applied generalized force                     (nworld, nv)
+      xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
 
       xpos: Cartesian position of body frame                      (nworld, nbody, 3)
       xquat: Cartesian orientation of body frame                  (nworld, nbody, 4)
@@ -680,6 +666,7 @@ class Data:
 
       muscle_length: muscle lengths                               (nworld, nmuscle)
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
+      muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
 
       cvel: com-based velocity (rot:lin)                          (nworld, nbody, 6)
       cdof_dot: time-derivative of cdof (rot:lin)                 (nworld, nv, 6)
@@ -720,12 +707,15 @@ class Data:
     qpos: wp.array2d(dtype=float)
     qvel: wp.array2d(dtype=float)
     act: wp.array2d(dtype=float)
-    qacc_warmstart: wp.array2d(dtype=float)
-    qfrc_applied: wp.array2d(dtype=float)
-    xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
+    mstate: wp.array2d(dtype=float)
 
     qacc: wp.array2d(dtype=float)
     act_dot: wp.array2d(dtype=float)
+    mstate_dot: wp.array2d(dtype=float)
+
+    qacc_warmstart: wp.array2d(dtype=float)
+    qfrc_applied: wp.array2d(dtype=float)
+    xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
 
     xpos: wp.array2d(dtype=wp.vec3)
     xquat: wp.array2d(dtype=wp.quat)
@@ -757,6 +747,7 @@ class Data:
 
     muscle_length: wp.array2d(dtype=float)
     muscle_velocity: wp.array2d(dtype=float)
+    muscle_actuation: wp.array2d(dtype=float)
 
     cvel: wp.array2d(dtype=wp.spatial_vector)
     cdof_dot: wp.array2d(dtype=wp.spatial_vector)

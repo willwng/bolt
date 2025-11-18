@@ -2,13 +2,14 @@ import warp as wp
 import warp.render
 
 from enum import Enum
+from scipy.spatial.transform import Rotation as R
 
-from warp_sim._src import types
+from msk_warp._src import types
 
 
 class ViewerType(Enum):
     NONE = 0
-    OPENGL = 1  # this has bugs rendering rotated capsule with z up axis
+    OPENGL = 1
     USD = 2
 
 
@@ -25,7 +26,7 @@ class Viewer:
             )
         elif viewer_type == ViewerType.USD:
             self.renderer = wp.render.UsdRenderer(
-                stage="warp_sim.usd",
+                stage="msk_warp.usd",
                 up_axis='Z',
                 scaling=100.0,
             )
@@ -33,8 +34,15 @@ class Viewer:
             self.renderer = None
         else:
             raise ValueError(f"Unsupported viewer type: {viewer_type}")
+        self.rot_convert = R.from_euler("z", -90, degrees=True)
 
         self.viewer_type = viewer_type
+
+    def fix_capsule_rot(self, quat) -> tuple:
+        rot_input = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
+        rot_result = self.rot_convert * rot_input
+        quat_result = rot_result.as_quat()
+        return quat_result[3], quat_result[0], quat_result[1], quat_result[2]
 
     def render(self, m: types.Model, d: types.Data):
 
@@ -45,6 +53,9 @@ class Viewer:
             geom_xquat = d.geom_xquat.numpy()[0]
             geom_types = m.geom_type.numpy()
             geom_sizes = m.geom_size.numpy()
+
+            sphere_color = (0.7, 0.5, 0.5)
+            capsule_color = (0.5, 0.5, 0.5)
             for i in range(m.ngeom):
                 pos, rot = geom_xpos[i], geom_xquat[i]
                 rot = (rot[1], rot[2], rot[3], rot[0])  # xyzw to wxyz
@@ -54,24 +65,31 @@ class Viewer:
                         f"sphere_{i}",
                         pos,
                         rot,
-                        color=(0.7, 0.2, 0.2),
+                        color=sphere_color,
                         radius=float(geom_sizes[i][0]),
                     )
                 elif geom_types[i] == types.GeomType.CAPSULE:
+                    # The capsule renderer is broken for z up axis in OpenGL
+                    if self.viewer_type == ViewerType.OPENGL:
+                        rot = self.fix_capsule_rot(rot)
+                        up_axis = 1
+                    else:
+                        up_axis = 2
                     self.renderer.render_capsule(
                         f"capsule_{i}",
                         pos,
                         rot,
                         radius=geom_sizes[i][0],
                         half_height=geom_sizes[i][1],
-                        up_axis=2,
+                        up_axis=up_axis,
+                        color=capsule_color,
                     )
                 elif geom_types[i] == types.GeomType.PLANE:
                     self.renderer.render_box(
                         f"plane_{i}",
                         pos,
                         rot,
-                        extents=(5.0, 5.0, 0.01)
+                        extents=(5.0, 5.0, 0.01),
                     )
 
             # render muscles
@@ -79,17 +97,24 @@ class Viewer:
             muscle_pts_num = m.muscle_pts_num.numpy()
             muscle_pts_adr = m.muscle_pts_adr.numpy()
             site_xpos = d.site_xpos.numpy()[0]
-            muscle_color = (0.2, 0.2, 0.7)
+            muscle_activations = d.act.numpy()[0]
+
+            def activation_to_color(act: float) -> tuple:
+                # Map activation [0, 1] to color from blue to red
+                return act, 0.0, 1.0 - act
+
             self.renderer.render_points(
                 "muscle_points",
                 site_xpos,
                 radius=0.005,
-                colors=muscle_color,
+                colors=(0.2, 0.2, 0.7)
             )
+
             for i in range(num_muscles):
                 start_idx = muscle_pts_adr[i]
                 end_idx = start_idx + muscle_pts_num[i]
                 pts = site_xpos[start_idx:end_idx]
+                muscle_color = activation_to_color(muscle_activations[i])
                 self.renderer.render_line_strip(
                     f"muscle_{i}",
                     pts,

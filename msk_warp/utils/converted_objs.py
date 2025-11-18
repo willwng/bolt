@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from warp_sim._src import types
+from msk_warp._src import types
 
 
 @dataclass

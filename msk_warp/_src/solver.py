@@ -20,7 +20,7 @@ from typing import Tuple
 import warp as wp
 
 from . import math
-from . import smooth
+from . import smooth_acc
 from . import support
 from . import types
 from .block_cholesky import create_blocked_cholesky_func
@@ -1675,7 +1675,7 @@ def _update_gradient(m: types.Model, d: types.Data):
     )
 
     if m.opt.solver == types.SolverType.CG:
-        smooth.solve_m(m, d, d.efc.Mgrad, d.efc.grad)
+        smooth_acc.solve_m(m, d, d.efc.Mgrad, d.efc.grad)
     elif m.opt.solver == types.SolverType.NEWTON:
         # h = qM + (efc_J.T * efc_D * active) @ efc_J
         wp.launch_tiled(

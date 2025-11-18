@@ -17,7 +17,7 @@ from typing import Any, Tuple
 
 import warp as wp
 
-from warp_sim._src import types
+from msk_warp._src import types
 
 
 @wp.func
