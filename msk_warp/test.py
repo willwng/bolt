@@ -16,6 +16,8 @@ arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--recompile", action="store_true")
 arg_parser.add_argument("--debug", action="store_true")
 arg_parser.add_argument("--benchmark", action="store_true")
+arg_parser.add_argument("--nworld", type=int, default=1)
+args = arg_parser.parse_args()
 
 
 def _print_trace(trace, indent, steps):
@@ -173,7 +175,7 @@ def main():
     #   dtype=int,
     # ),
 
-    n_worlds = 1
+    n_worlds = args.nworld
 
     # precalculated geom pairs
     geom1, geom2 = np.triu_indices(ngeom, k=1)
@@ -486,7 +488,7 @@ def main():
         viewer.close()
 
     else:
-        n_steps = 1500
+        n_steps = 500
         res = benchmark(fn=forward.step, m=m, d=d, nstep=n_steps,
                         event_trace=True, measure_alloc=True,
                         measure_solver_niter=True)
@@ -507,5 +509,4 @@ def main():
 
 
 if __name__ == "__main__":
-    args = arg_parser.parse_args()
     main()

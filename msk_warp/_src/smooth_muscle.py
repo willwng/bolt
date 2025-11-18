@@ -26,6 +26,17 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
+def _init_sites_arr(
+        # Data out:
+        site_active_out: wp.array2d(dtype=bool),
+        muscle_active_sites_out: wp.array2d(dtype=int),
+):
+    worldid, site_id = wp.tid()
+    site_active_out[worldid, site_id] = True
+    muscle_active_sites_out[worldid, site_id] = -1
+
+
+@wp.kernel
 def _conditional_sites(
         # Model:
         site_cond_id: wp.array(dtype=int),
@@ -172,8 +183,15 @@ def path(m: Model, d: Data):
     d.muscle_length.zero_()
     d.muscle_velocity.zero_()
 
+    # fill_ doesn't work with graph capture so we just launch a kernel
+    wp.launch(
+        _init_sites_arr,
+        dim=(d.nworld, m.nsite),
+        inputs=[],
+        outputs=[d.site_active, d.muscle_active_sites],
+    )
+
     # Check whether conditional sites are active
-    d.site_active.fill_(True)
     wp.launch(
         _conditional_sites,
         dim=(d.nworld, m.nsite_cond),
@@ -182,7 +200,6 @@ def path(m: Model, d: Data):
     )
 
     # Build "compacted" list of active sites for each muscle
-    d.muscle_active_sites.fill_(-1)
     wp.launch(
         _compact_active_sites,
         dim=(d.nworld, m.nmuscle),
