@@ -8,12 +8,14 @@ import numpy as np
 from msk_warp.utils.osim_parser import parse_osim_file
 from msk_warp.utils.osim_converter import *
 from msk_warp.render.renderer import Viewer, ViewerType
+from msk_warp.benchmark.benchmark import benchmark
 
 import argparse
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--recompile", action="store_true")
 arg_parser.add_argument("--debug", action="store_true")
+arg_parser.add_argument("--benchmark", action="store_true")
 
 
 def _print_trace(trace, indent, steps):
@@ -467,29 +469,32 @@ def main():
 
     init_model._model_init(m, d)
 
-    viewer = Viewer(viewer_type=ViewerType.OPENGL)
-    for _ in range(1000):
-        forward.step(m, d)
-        viewer.render(m, d)
-    viewer.close()
+    if not args.benchmark:
+        viewer = Viewer(viewer_type=ViewerType.OPENGL)
+        for _ in range(1000):
+            forward.step(m, d)
+            viewer.render(m, d)
+        viewer.close()
 
-    # n_steps = 1500
-    # res = benchmark(fn=forward.step, m=m, d=d, nstep=n_steps, event_trace=True,
-    #                 measure_alloc=True, measure_solver_niter=True)
-    # jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
-    # steps = n_worlds * n_steps
-    #
-    # print(f"""
-    # Summary for {n_worlds} parallel rollouts
-    #
-    # Total JIT time: {jit_time:.2f} s
-    # Total simulation time: {run_time:.2f} s
-    # Total steps per second: {steps / run_time:,.0f}
-    # Total realtime factor: {steps * m.opt.timestep / run_time:,.2f} x
-    # Total time per step: {1e9 * run_time / steps:.2f} ns
-    # Total converged worlds: {nsuccess} / {d.nworld}""")
-    #
-    # _print_trace(trace, 0, steps)
+    else:
+        n_steps = 1500
+        res = benchmark(fn=forward.step, m=m, d=d, nstep=n_steps,
+                        event_trace=True, measure_alloc=True,
+                        measure_solver_niter=True)
+        jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
+        steps = n_worlds * n_steps
+
+        print(f"""
+        Summary for {n_worlds} parallel rollouts
+
+        Total JIT time: {jit_time:.2f} s
+        Total simulation time: {run_time:.2f} s
+        Total steps per second: {steps / run_time:,.0f}
+        Total realtime factor: {steps * m.opt.timestep / run_time:,.2f} x
+        Total time per step: {1e9 * run_time / steps:.2f} ns
+        Total converged worlds: {nsuccess} / {d.nworld}""")
+
+        _print_trace(trace, 0, steps)
 
 
 if __name__ == "__main__":

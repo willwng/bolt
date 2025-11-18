@@ -19,9 +19,9 @@ from typing import Callable, Optional, Tuple
 import numpy as np
 import warp as wp
 
-from warp_sim._src import warp_util
-from warp_sim._src.types import Data
-from warp_sim._src.types import Model
+from msk_warp._src import warp_util
+from msk_warp._src.types import Data
+from msk_warp._src.types import Model
 
 
 def _sum(stack1, stack2):
