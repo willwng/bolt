@@ -175,7 +175,7 @@ def main():
     #   dtype=int,
     # ),
 
-    n_worlds = 1
+    n_worlds = 8192
 
     # precalculated geom pairs
     geom1, geom2 = np.triu_indices(ngeom, k=1)
@@ -225,7 +225,7 @@ def main():
         ls_tolerance=0.01,
         ccd_tolerance=1e-6,
         gravity=-9.81,
-        solver=types.SolverType.CG,
+        solver=types.SolverType.NEWTON,
         iterations=50,
         ls_iterations=100,
         ccd_iterations=50,
@@ -359,6 +359,9 @@ def main():
         site_rpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xvel=make_zero((n_worlds, nsite), dtype=wp.vec3),
+        site_diff_vec=make_zero((n_worlds, nsite-1), dtype=wp.vec3),
+        site_diff_len=make_zero((n_worlds, nsite-1), dtype=float),
+        site_diff_vel=make_zero((n_worlds, nsite - 1), dtype=float),
 
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
         cdof=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
@@ -460,29 +463,29 @@ def main():
 
     init_model._model_init(m, d)
 
-    viewer = Viewer(viewer_type=ViewerType.USD)
-    for _ in range(1000):
-        forward.step(m, d)
-        viewer.render(m, d)
-    viewer.close()
+    # viewer = Viewer(viewer_type=ViewerType.USD)
+    # for _ in range(1000):
+    #     forward.step(m, d)
+    #     viewer.render(m, d)
+    # viewer.close()
 
-    # n_steps = 200
-    # res = benchmark(fn=forward.step, m=m, d=d, nstep=n_steps, event_trace=True,
-    #                 measure_alloc=True, measure_solver_niter=True)
-    # jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
-    # steps = n_worlds * n_steps
-    #
-    # print(f"""
-    # Summary for {n_worlds} parallel rollouts
-    #
-    # Total JIT time: {jit_time:.2f} s
-    # Total simulation time: {run_time:.2f} s
-    # Total steps per second: {steps / run_time:,.0f}
-    # Total realtime factor: {steps * m.opt.timestep / run_time:,.2f} x
-    # Total time per step: {1e9 * run_time / steps:.2f} ns
-    # Total converged worlds: {nsuccess} / {d.nworld}""")
-    #
-    # _print_trace(trace, 0, steps)
+    n_steps = 1500
+    res = benchmark(fn=forward.step, m=m, d=d, nstep=n_steps, event_trace=True,
+                    measure_alloc=True, measure_solver_niter=True)
+    jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
+    steps = n_worlds * n_steps
+
+    print(f"""
+    Summary for {n_worlds} parallel rollouts
+
+    Total JIT time: {jit_time:.2f} s
+    Total simulation time: {run_time:.2f} s
+    Total steps per second: {steps / run_time:,.0f}
+    Total realtime factor: {steps * m.opt.timestep / run_time:,.2f} x
+    Total time per step: {1e9 * run_time / steps:.2f} ns
+    Total converged worlds: {nsuccess} / {d.nworld}""")
+
+    _print_trace(trace, 0, steps)
 
 
 if __name__ == "__main__":

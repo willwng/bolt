@@ -665,6 +665,9 @@ class Data:
 
       site_rpos: local position of site rel. to body              (nworld, nsite, 3)
       site_xpos: Cartesian site position                          (nworld, nsite, 3)
+      site_xvel: Cartesian site velocity                          (nworld, nsite, 3)
+      site_diff_vec: Cartesian unit vector b/w consecutive sites  (nworld, nsite-1, 3)
+      site_diff_len: length b/w consecutive sites                 (nworld, nsite-1)
 
       subtree_com: center of mass of each subtree                 (nworld, nbody, 3)
       cdof: com-based motion axis of each dof (rot:lin)           (nworld, nv, 6)
@@ -739,6 +742,9 @@ class Data:
     site_rpos: wp.array2d(dtype=wp.vec3)
     site_xpos: wp.array2d(dtype=wp.vec3)
     site_xvel: wp.array2d(dtype=wp.vec3)
+    site_diff_vec: wp.array2d(dtype=wp.vec3)
+    site_diff_len: wp.array2d(dtype=float)
+    site_diff_vel: wp.array2d(dtype=float)
 
     subtree_com: wp.array2d(dtype=wp.vec3)
     cdof: wp.array2d(dtype=wp.spatial_vector)

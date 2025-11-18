@@ -277,6 +277,43 @@ def _site_local_to_global(
     site_xpos_out[worldid, siteid] = xpos + site_rpos_out[worldid, siteid]
 
 
+@wp.kernel
+def _site_consecutive_diff_len(
+        # Data in:
+        site_xpos_in: wp.array2d(dtype=wp.vec3),
+        # Data out:
+        site_diff_vec_out: wp.array2d(dtype=wp.vec3),
+        site_diff_len_out: wp.array2d(dtype=float),
+):
+    worldid, site_diff_id = wp.tid()
+    p1 = site_xpos_in[worldid, site_diff_id]
+    p2 = site_xpos_in[worldid, site_diff_id + 1]
+    vec, length = math.normalize_with_norm(p2 - p1)
+    site_diff_vec_out[worldid, site_diff_id] = vec
+    site_diff_len_out[worldid, site_diff_id] = length
+
+
+@wp.kernel
+def _site_consecutive_diff_vel(
+        # Data in:
+        site_vel_in: wp.array2d(dtype=wp.vec3),
+        site_diff_vec_in: wp.array2d(dtype=wp.vec3),
+        site_diff_len_in: wp.array2d(dtype=float),
+        # Data out:
+        site_diff_vel_out: wp.array2d(dtype=float),
+):
+    worldid, site_diff_id = wp.tid()
+    v1 = site_vel_in[worldid, site_diff_id]
+    v2 = site_vel_in[worldid, site_diff_id + 1]
+
+    vec = site_diff_vec_in[worldid, site_diff_id]
+    length = site_diff_len_in[worldid, site_diff_id]
+    if length > 1e-8:
+        site_diff_vel_out[worldid, site_diff_id] = wp.dot((v2 - v1), vec)
+    else:
+        site_diff_vel_out[worldid, site_diff_id] = 0.0
+
+
 @event_scope
 def kinematics(m: Model, d: Data):
     """ Computes forward kinematics for all bodies, sites, geoms. """
@@ -319,13 +356,6 @@ def kinematics(m: Model, d: Data):
         dim=(d.nworld, m.ngeom),
         inputs=[m.geom_bodyid, m.geom_pos, m.geom_quat, d.xpos, d.xquat],
         outputs=[d.geom_xpos, d.geom_xquat, d.geom_xmat],
-    )
-
-    wp.launch(
-        _site_local_to_global,
-        dim=(d.nworld, m.nsite),
-        inputs=[m.site_bodyid, m.site_pos, d.xpos, d.xquat],
-        outputs=[d.site_rpos, d.site_xpos],
     )
 
 
@@ -1226,8 +1256,7 @@ def _compute_path_velocity(
         muscle_pts_adr: wp.array(dtype=int),
         muscle_pts_num: wp.array(dtype=int),
         # Data in:
-        site_xpos_in: wp.array2d(dtype=wp.vec3),
-        site_xvel_in: wp.array2d(dtype=wp.vec3),
+        site_diff_vel_in: wp.array2d(dtype=float),
         # Data out:
         muscle_velocity_out: wp.array2d(dtype=float),
 ):
@@ -1236,15 +1265,8 @@ def _compute_path_velocity(
     n_sites = muscle_pts_num[muscle_id]
     pts_adr = muscle_pts_adr[muscle_id]
     for i in range(n_sites - 1):
-        pt1 = site_xpos_in[worldid, pts_adr + i]
-        pt2 = site_xpos_in[worldid, pts_adr + i + 1]
-        dif = pt2 - pt1
+        muscle_velocity_out[worldid, muscle_id] += site_diff_vel_in[worldid, pts_adr + i]
 
-        vec, length = math.normalize_with_norm(dif)
-        if length > 1e-8:
-            v1 = site_xvel_in[worldid, pts_adr + i]
-            v2 = site_xvel_in[worldid, pts_adr + i + 1]
-            muscle_velocity_out[worldid, muscle_id] += wp.dot(v2 - v1, vec)
 
 @cache_kernel
 def _tile_cholesky_solve(tile: TileSet):
@@ -1554,7 +1576,7 @@ def _compute_path_length(
         muscle_pts_adr: wp.array(dtype=int),
         muscle_pts_num: wp.array(dtype=int),
         # Data in:
-        site_xpos_in: wp.array2d(dtype=wp.vec3),
+        site_diff_len_in: wp.array2d(dtype=float),
         # Data out:
         muscle_length_out: wp.array2d(dtype=float),
 ):
@@ -1564,30 +1586,42 @@ def _compute_path_length(
     pts_adr = muscle_pts_adr[muscle_id]
 
     for i in range(n_sites - 1):
-        pt1 = site_xpos_in[worldid, pts_adr + i]
-        pt2 = site_xpos_in[worldid, pts_adr + i + 1]
-        muscle_length_out[worldid, muscle_id] += wp.length(pt2 - pt1)
+        muscle_length_out[worldid, muscle_id] += site_diff_len_in[worldid, pts_adr + i]
 
 
+@event_scope
 def muscle_path_length(m: Model, d: Data):
     """Computes the muscle path lengths. """
     if not m.nmuscle:
         return
-
     d.muscle_length.zero_()
+
+    # Compute global site positions
+    wp.launch(
+        _site_local_to_global,
+        dim=(d.nworld, m.nsite),
+        inputs=[m.site_bodyid, m.site_pos, d.xpos, d.xquat],
+        outputs=[d.site_rpos, d.site_xpos],
+    )
+
+    # Vector between consecutive muscle points
+    wp.launch(
+        _site_consecutive_diff_len,
+        dim=(d.nworld, m.nsite - 1),
+        inputs=[d.site_xpos, ],
+        outputs=[d.site_diff_vec, d.site_diff_len],
+    )
+
     # Compute path length of muscles
     wp.launch(
         _compute_path_length,
         dim=(d.nworld, m.nmuscle),
-        inputs=[
-            m.muscle_pts_adr,
-            m.muscle_pts_num,
-            d.site_xpos,
-        ],
+        inputs=[m.muscle_pts_adr, m.muscle_pts_num, d.site_diff_len, ],
         outputs=[d.muscle_length],
     )
 
 
+@event_scope
 def muscle_path_velocity(m: Model, d: Data):
     """Computes the muscle path velocities. """
     if not m.nmuscle:
@@ -1604,14 +1638,19 @@ def muscle_path_velocity(m: Model, d: Data):
     )
 
     wp.launch(
+        _site_consecutive_diff_vel,
+        dim=(d.nworld, m.nsite - 1),
+        inputs=[d.site_xvel, d.site_diff_vec, d.site_diff_len],
+        outputs=[d.site_diff_vel, ]
+    )
+
+    wp.launch(
         _compute_path_velocity,
         dim=(d.nworld, m.nmuscle),
         inputs=[
             m.muscle_pts_adr,
             m.muscle_pts_num,
-            d.site_xpos,
-            d.site_xvel,
+            d.site_diff_vel,
         ],
         outputs=[d.muscle_velocity],
     )
-
