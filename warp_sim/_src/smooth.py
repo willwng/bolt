@@ -1194,6 +1194,58 @@ def com_vel(m: Model, d: Data):
         )
 
 
+@wp.kernel
+def _site_velocity(
+        # Model:
+        site_bodyid: wp.array(dtype=int),
+        body_rootid: wp.array(dtype=int),
+        # Data in:
+        site_xpos_in: wp.array2d(dtype=wp.vec3),
+        subtree_com_in: wp.array2d(dtype=wp.vec3),
+        cvel_in: wp.array2d(dtype=wp.spatial_vector),
+        # Data out:
+        site_xvel: wp.array2d(dtype=wp.vec3),
+):
+    worldid, siteid = wp.tid()
+    # Body COM-velocity
+    bodyid = site_bodyid[siteid]
+    cvel = cvel_in[worldid, bodyid]
+    ang = wp.spatial_top(cvel)
+    lin = wp.spatial_bottom(cvel)
+    # Transform to site
+    pos = site_xpos_in[worldid, siteid]
+    subtree_com = subtree_com_in[worldid, body_rootid[bodyid]]
+    dif = pos - subtree_com
+
+    site_xvel[worldid, siteid] = lin - wp.cross(dif, ang)
+
+
+@wp.kernel
+def _compute_path_velocity(
+        # Model:
+        muscle_pts_adr: wp.array(dtype=int),
+        muscle_pts_num: wp.array(dtype=int),
+        # Data in:
+        site_xpos_in: wp.array2d(dtype=wp.vec3),
+        site_xvel_in: wp.array2d(dtype=wp.vec3),
+        # Data out:
+        muscle_velocity_out: wp.array2d(dtype=float),
+):
+    worldid, muscle_id = wp.tid()
+
+    n_sites = muscle_pts_num[muscle_id]
+    pts_adr = muscle_pts_adr[muscle_id]
+    for i in range(n_sites - 1):
+        pt1 = site_xpos_in[worldid, pts_adr + i]
+        pt2 = site_xpos_in[worldid, pts_adr + i + 1]
+        dif = pt2 - pt1
+
+        vec, length = math.normalize_with_norm(dif)
+        if length > 1e-8:
+            v1 = site_xvel_in[worldid, pts_adr + i]
+            v2 = site_xvel_in[worldid, pts_adr + i + 1]
+            muscle_velocity_out[worldid, muscle_id] += wp.dot(v2 - v1, vec)
+
 @cache_kernel
 def _tile_cholesky_solve(tile: TileSet):
     """Returns a kernel for dense Cholesky backsubstitution of a tile."""
@@ -1540,3 +1592,26 @@ def muscle_path_velocity(m: Model, d: Data):
     """Computes the muscle path velocities. """
     if not m.nmuscle:
         return
+
+    d.muscle_length.zero_()
+
+    wp.launch(
+        _site_velocity,
+        dim=(d.nworld, m.nsite),
+        inputs=[m.site_bodyid, m.body_rootid, d.site_xpos, d.subtree_com,
+                d.cvel],
+        outputs=[d.site_xvel]
+    )
+
+    wp.launch(
+        _compute_path_velocity,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[
+            m.muscle_pts_adr,
+            m.muscle_pts_num,
+            d.site_xpos,
+            d.site_xvel,
+        ],
+        outputs=[d.muscle_velocity],
+    )
+

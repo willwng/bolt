@@ -358,6 +358,7 @@ def main():
 
         site_rpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
+        site_xvel=make_zero((n_worlds, nsite), dtype=wp.vec3),
 
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
         cdof=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
@@ -459,8 +460,8 @@ def main():
 
     init_model._model_init(m, d)
 
-    viewer = Viewer(viewer_type=ViewerType.NONE)
-    for _ in range(1500):
+    viewer = Viewer(viewer_type=ViewerType.USD)
+    for _ in range(1000):
         forward.step(m, d)
         viewer.render(m, d)
     viewer.close()

@@ -738,6 +738,7 @@ class Data:
 
     site_rpos: wp.array2d(dtype=wp.vec3)
     site_xpos: wp.array2d(dtype=wp.vec3)
+    site_xvel: wp.array2d(dtype=wp.vec3)
 
     subtree_com: wp.array2d(dtype=wp.vec3)
     cdof: wp.array2d(dtype=wp.spatial_vector)
