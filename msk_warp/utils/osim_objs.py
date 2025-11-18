@@ -394,21 +394,43 @@ class PathPoint:
     socket_parent_frame: str
     location: Vector3
 
+    def is_conditional(self) -> bool:
+        return False
+
+    def get_range(self) -> Vector2:
+        raise ValueError
+
+    def get_coordinate(self) -> str:
+        raise ValueError
+
 
 @dataclass
 class ConditionalPathPoint(PathPoint):
     socket_coordinate: str
     range: Vector2
 
+    def is_conditional(self) -> bool:
+        return True
+
+    def get_range(self) -> Vector2:
+        return self.range
+
+    def get_coordinate(self) -> str:
+        return self.socket_coordinate
+
 
 @dataclass
 class MovingPathPoint(PathPoint):
+    # can't handle these yet
     socket_x_coordinate: str
     socket_y_coordinate: str
     socket_z_coordinate: str
     x_location: Function
     y_location: Function
     z_location: Function
+
+    def is_conditional(self) -> bool:
+        return False
 
 
 @dataclass

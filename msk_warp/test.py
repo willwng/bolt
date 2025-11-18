@@ -84,7 +84,7 @@ def main():
             n_conv_jnts += 1
 
     ngeom = num_colliders(osim_model)
-    nsite = num_sites(osim_model)
+    site_data = get_site_data(osim_model)
     # qpos0 = get_default_positions(osim_model)
     # print(qpos0)
     qpos0 = [0.0] * nq
@@ -117,9 +117,6 @@ def main():
     jnt_rel_child_rot = get_joint_rel_rot(osim_model, parent=False)
 
     geom_data = get_collider_data(osim_model)
-
-    site_body_ids = get_site_body_ids(osim_model)
-    site_pos = get_site_pos(osim_model)
 
     muscle_pts_num = get_muscle_num_pts(osim_model)
     muscle_pts_adr = exclusive_scan(muscle_pts_num, False)
@@ -236,8 +233,10 @@ def main():
         graph_conditional=True
     )
 
-    mp = types.MuscleProps()
+    mp = types.MuscleConsts()
 
+    nsite = site_data.nsite
+    nsite_cond = site_data.nsite_cond
     m = types.Model(
         nbody=nb,
         nv=nv,
@@ -250,6 +249,7 @@ def main():
 
         ngeom=ngeom,
         nsite=nsite,
+        nsite_cond=nsite_cond,
 
         opt=opt,
         mp=mp,
@@ -304,8 +304,12 @@ def main():
         nxn_geom_pair_filtered=wp.array(nxn_geom_pair_filtered, dtype=wp.vec2i),
         nxn_pairid_filtered=wp.array(nxn_pairid_filtered, dtype=wp.vec2i),
 
-        site_bodyid=to_warp_array(site_body_ids, dtype=int),
-        site_pos=to_warp_array(site_pos, dtype=wp.vec3),
+        site_bodyid=to_warp_array(site_data.body_id, dtype=int),
+        site_pos=to_warp_array(site_data.pos, dtype=wp.vec3),
+        site_cond_id=to_warp_array(site_data.conditional_ids, dtype=int),
+        site_cond_qadr=to_warp_array(site_data.conditional_qadr, dtype=int),
+        site_cond_range=to_warp_array(site_data.conditional_range,
+                                      dtype=wp.vec2),
 
         muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
@@ -364,8 +368,13 @@ def main():
         site_rpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xvel=make_zero((n_worlds, nsite), dtype=wp.vec3),
-        site_diff_vec=make_zero((n_worlds, nsite-1), dtype=wp.vec3),
-        site_diff_len=make_zero((n_worlds, nsite-1), dtype=float),
+        site_active=make_zero((n_worlds, nsite), dtype=bool),
+
+        muscle_active_sites=make_zero((n_worlds, nsite), dtype=int),
+        muscle_num_active=make_zero((n_worlds, nmuscle), dtype=int),
+
+        site_diff_vec=make_zero((n_worlds, nsite - 1), dtype=wp.vec3),
+        site_diff_len=make_zero((n_worlds, nsite - 1), dtype=float),
         site_diff_vel=make_zero((n_worlds, nsite - 1), dtype=float),
 
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),

@@ -149,76 +149,13 @@ def _site_velocity(
     site_xvel[worldid, siteid] = lin - wp.cross(dif, ang)
 
 
-@wp.kernel
-def _site_consecutive_diff_vel(
-        # Data in:
-        site_vel_in: wp.array2d(dtype=wp.vec3),
-        site_diff_vec_in: wp.array2d(dtype=wp.vec3),
-        site_diff_len_in: wp.array2d(dtype=float),
-        # Data out:
-        site_diff_vel_out: wp.array2d(dtype=float),
-):
-    worldid, site_diff_id = wp.tid()
-    v1 = site_vel_in[worldid, site_diff_id]
-    v2 = site_vel_in[worldid, site_diff_id + 1]
-
-    vec = site_diff_vec_in[worldid, site_diff_id]
-    length = site_diff_len_in[worldid, site_diff_id]
-    if length > 1e-8:
-        site_diff_vel_out[worldid, site_diff_id] = wp.dot((v2 - v1), vec)
-    else:
-        site_diff_vel_out[worldid, site_diff_id] = 0.0
-
-
-@wp.kernel
-def _compute_path_velocity(
-        # Model:
-        muscle_pts_adr: wp.array(dtype=int),
-        muscle_pts_num: wp.array(dtype=int),
-        # Data in:
-        site_diff_vel_in: wp.array2d(dtype=float),
-        # Data out:
-        muscle_velocity_out: wp.array2d(dtype=float),
-):
-    worldid, muscle_id = wp.tid()
-
-    n_sites = muscle_pts_num[muscle_id]
-    pts_adr = muscle_pts_adr[muscle_id]
-    for i in range(n_sites - 1):
-        muscle_velocity_out[worldid, muscle_id] += site_diff_vel_in[
-            worldid, pts_adr + i]
-
-
 @event_scope
-def muscle_path_velocity(m: Model, d: Data):
-    """Computes the muscle path velocities. """
-    if not m.nmuscle:
-        return
-
-    d.muscle_length.zero_()
-
+def site_velocity(m: Model, d: Data):
+    """Computes the velocity of sites. """
     wp.launch(
         _site_velocity,
         dim=(d.nworld, m.nsite),
         inputs=[m.site_bodyid, m.body_rootid, d.site_xpos, d.subtree_com,
                 d.cvel],
         outputs=[d.site_xvel]
-    )
-
-    wp.launch(
-        _site_consecutive_diff_vel,
-        dim=(d.nworld, m.nsite - 1),
-        inputs=[d.site_xvel, d.site_diff_vec, d.site_diff_len],
-        outputs=[d.site_diff_vel, ]
-    )
-
-    wp.launch(
-        _compute_path_velocity,
-        dim=(d.nworld, m.nmuscle),
-        inputs=[
-            m.muscle_pts_adr,
-            m.muscle_pts_num,
-            d.site_diff_vel,
-        ],
-        outputs=[d.muscle_velocity],
     )

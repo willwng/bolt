@@ -36,6 +36,12 @@ class CheckedModel:
         for body_name, full_desc in self.body_full_desc.items():
             yield body_name, full_desc.joint
 
+    def iter_path_points(self):
+        for muscle in self.force_set.muscles.values():
+            geom_path = muscle.geometry_path
+            for path_point in geom_path.path_point_set.path_points.values():
+                yield path_point
+
     def iter_colliders(self):
         for body_name, full_desc in self.body_full_desc.items():
             for collider_name, collider in full_desc.colliders.items():
@@ -175,11 +181,10 @@ def convert_y_up_z_up(model: CheckedModel):
 
 
 def remove_prefix(name: str) -> str:
-    if "bodyset/" in name:
-        return name.split("bodyset/")[1]
-    if "/ground" in name:
-        return "ground"
-    return name
+    # get after the last "/"
+    if "/" not in name:
+        return name
+    return name.split("/")[-1]
 
 
 def to_checked_model(model: Model) -> CheckedModel:
@@ -270,11 +275,35 @@ def num_visuals(model: CheckedModel) -> int:
     return num_visuals
 
 
-def num_sites(model: Model) -> int:
-    num_sites = 0
-    for muscle in model.force_set.muscles.values():
-        num_sites += len(muscle.geometry_path.path_point_set.path_points)
-    return num_sites
+def get_site_data(model: CheckedModel) -> SiteData:
+    """
+    Returns number of sites, and number of conditional sites
+    """
+    site_data = SiteData()
+    for i, path_point in enumerate(model.iter_path_points()):
+        # Body id
+        parent_body_name = remove_prefix(path_point.socket_parent_frame)
+        body_idx = model.get_body_index(parent_body_name)
+        # Position
+        loc = path_point.location
+
+        site_data.body_id.append(body_idx)
+        site_data.pos.append([loc.x, loc.y, loc.z])
+
+        # Check conditional
+        if path_point.is_conditional():
+            coordinate = path_point.get_coordinate()
+            cond_range = path_point.get_range()
+            qadr = model.lookup_dof_idx(remove_prefix(coordinate), True)
+
+            site_data.conditional_ids.append(i)
+            site_data.conditional_qadr.append(qadr)
+            site_data.conditional_range.append([cond_range.x, cond_range.y])
+            site_data.nsite_cond += 1
+
+        site_data.nsite += 1
+
+    return site_data
 
 
 def body_masses(model: CheckedModel) -> list[float]:

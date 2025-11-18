@@ -354,41 +354,6 @@ def passive(m: Model, d: Data):
 
 
 @wp.kernel
-def _xfrc_muscles(
-        # Model:
-        muscle_pts_adr: wp.array(dtype=int),
-        muscle_pts_num: wp.array(dtype=int),
-        site_bodyid: wp.array(dtype=int),
-        # Data in:
-        muscle_actuation_in: wp.array2d(dtype=float),
-        xpos_in: wp.array2d(dtype=wp.vec3),
-        site_xpos_in: wp.array2d(dtype=wp.vec3),
-        # Data out:
-        xfrc_applied_out: wp.array2d(dtype=wp.spatial_vector),
-):
-    worldid, muscle_id = wp.tid()
-    actuation = muscle_actuation_in[worldid, muscle_id]
-    pt_adr = muscle_pts_adr[muscle_id]
-    pt_num = muscle_pts_num[muscle_id]
-
-    for i in range(pt_num - 1):
-        site1, site2 = pt_adr + i, pt_adr + i + 1
-        body1, body2 = site_bodyid[site1], site_bodyid[site2]
-        p1, p2 = site_xpos_in[worldid, site1], site_xpos_in[worldid, site2]
-        vec, length = math.normalize_with_norm(p2 - p1)
-        if length < 1e-8:
-            continue
-
-        com1, com2 = xpos_in[worldid, body1], xpos_in[worldid, body2]
-
-        muscle_frc = wp.spatial_vector(wp.vec3(0.0, 0.0, 0.0), actuation * vec)
-        wp.atomic_add(xfrc_applied_out[worldid], body1,
-                      support.transform_force(muscle_frc, com1 - p1))
-        wp.atomic_sub(xfrc_applied_out[worldid], body2,
-                      support.transform_force(muscle_frc, com2 - p2))
-
-
-@wp.kernel
 def _qfrc_smooth(
         # Data in:
         qfrc_applied_in: wp.array2d(dtype=float),
@@ -409,21 +374,7 @@ def _qfrc_smooth(
 def applied_forces(m: Model, d: Data):
     """ Compute all applied forces """
     d.xfrc_applied.zero_()
-
-    if m.nmuscle:
-        wp.launch(
-            _xfrc_muscles,
-            dim=(d.nworld, m.nmuscle),
-            inputs=[
-                m.muscle_pts_adr,
-                m.muscle_pts_num,
-                m.site_bodyid,
-                d.muscle_actuation,
-                d.xpos,
-                d.site_xpos,
-            ],
-            outputs=[d.xfrc_applied],
-        )
+    # dof actuators would go here
 
 
 @event_scope

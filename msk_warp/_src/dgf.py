@@ -1,6 +1,6 @@
 import warp as wp
 
-from .types import MuscleProps
+from .types import MuscleConsts
 
 wp.set_module_options({"enable_backward": False})
 
@@ -33,7 +33,7 @@ def calc_gaussian_like_curve_der(
 def calc_activation_derivative(
         activation: float,
         excitation: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     time_const_fact = 0.5 + 1.5 * activation
     tmp_act = 1.0 / (mp.activation_time_constant * time_const_fact)
@@ -47,7 +47,7 @@ def calc_activation_derivative(
 ### --- Begin Pennation --- ###
 @wp.func
 def get_tendon_stiffness_parameter(
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     return wp.log((1.0 + mp.c3) / mp.c1) / \
         (1.0 + mp.tendon_strain_at_one_norm_force - mp.c2)
@@ -73,7 +73,7 @@ def get_max_contraction_velocity_in_meters_per_second(
 def is_fiber_state_clamped(
         norm_fiber_length: float,
         norm_fiber_velocity: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> bool:
     return (norm_fiber_length <= mp.m_minNormFiberLength and
             norm_fiber_velocity < 0.0) or \
@@ -84,7 +84,7 @@ def is_fiber_state_clamped(
 def clamp_fiber_length(
         norm_fiber_length: float,
         optimal_pennation_angle: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     if mp.m_maxPennationAngle > 1e-8:
         minimum_fiber_length = wp.sin(optimal_pennation_angle) / wp.sin(
@@ -104,7 +104,7 @@ def calc_pennation_angle(
         optimal_pennation_angle: float,
         optimal_fiber_length: float,
         norm_fiber_length: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     phi = 0.0
 
@@ -167,7 +167,7 @@ def calc_tendon_velocity(
 @wp.func
 def calc_active_force_length_multiplier(
         norm_fiber_length: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     scale = mp.active_force_width_scale
     x = (norm_fiber_length - 1.0) / scale + 1.0
@@ -179,7 +179,7 @@ def calc_active_force_length_multiplier(
 @wp.func
 def calc_active_force_length_multiplier_derivative(
         norm_fiber_length: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     scale = mp.active_force_width_scale
     x = (norm_fiber_length - 1.0) / scale + 1.0
@@ -193,7 +193,7 @@ def calc_active_force_length_multiplier_derivative(
 @wp.func
 def calc_force_velocity_multiplier(
         norm_fiber_velocity: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     temp_v = mp.d2 * norm_fiber_velocity + mp.d3
     temp_log_arg = temp_v + wp.sqrt(temp_v ** 2 + 1.0)
@@ -203,7 +203,7 @@ def calc_force_velocity_multiplier(
 @wp.func
 def calc_force_velocity_multiplier_derivative(
         norm_fiber_velocity: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     temp_v = mp.d2 * norm_fiber_velocity + mp.d3
     tmp = wp.sqrt(temp_v ** 2 + 1.0)
@@ -213,7 +213,7 @@ def calc_force_velocity_multiplier_derivative(
 @wp.func
 def calc_force_velocity_multiplier_derivative(
         norm_fiber_velocity: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     temp_v = mp.d2 * norm_fiber_velocity + mp.d3
     tmp = wp.sqrt(temp_v ** 2 + 1.0)
@@ -223,7 +223,7 @@ def calc_force_velocity_multiplier_derivative(
 @wp.func
 def calc_force_velocity_inverse_curve(
         force_velocity_mult: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     return (wp.sinh(1.0 / mp.d1 * (
             force_velocity_mult - mp.d4)) - mp.d3) / mp.d2
@@ -232,7 +232,7 @@ def calc_force_velocity_inverse_curve(
 @wp.func
 def calc_passive_force_multiplier(
         norm_fiber_length: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     kPE = mp.kPE
     e0 = mp.passive_fiber_strain_at_one_norm_force
@@ -272,7 +272,7 @@ def calc_passive_fiber_force(
 def calc_tendon_force_multiplier(
         norm_tendon_length: float,
         clamped: bool,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     tmp = mp.c1 * wp.exp(get_tendon_stiffness_parameter(mp) *
                          (norm_tendon_length - mp.c2)) - mp.c3
@@ -285,7 +285,7 @@ def calc_tendon_force_multiplier(
 @wp.func
 def calc_tendon_force_length_inverse_curve(
         norm_tendon_force: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     return wp.log((1.0 / mp.c1) * (norm_tendon_force + mp.c3)) / \
         get_tendon_stiffness_parameter() + mp.c2
@@ -295,7 +295,7 @@ def calc_tendon_force_length_inverse_curve(
 def calc_tendon_force_length_inverse_curve_derivative(
         deriv_norm_tendon_force: float,
         norm_tendon_length: float,
-        mp: MuscleProps
+        mp: MuscleConsts
 ) -> float:
     return deriv_norm_tendon_force / (
             mp.c1 * get_tendon_stiffness_parameter()
