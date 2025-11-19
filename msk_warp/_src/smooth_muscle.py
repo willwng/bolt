@@ -157,31 +157,24 @@ def _xfrc_muscles(
     pt_adr = muscle_pts_adr[muscle_id]
     pt_num = muscle_num_active_in[worldid, muscle_id]
 
-    site1 = muscle_active_sites_in[worldid, pt_adr]
-    body1 = site_bodyid[site1]
-    p1 = site_xpos_in[worldid, site1]
-    com1 = xpos_in[worldid, body1]
     for i in range(pt_num - 1):
         length = site_diff_len_in[worldid, pt_adr + i]
-        vec = site_diff_vec_in[worldid, pt_adr + i]
         if length < 1e-8:
             continue
 
+        vec = site_diff_vec_in[worldid, pt_adr + i]
+        site1 = muscle_active_sites_in[worldid, pt_adr + i]
         site2 = muscle_active_sites_in[worldid, pt_adr + i + 1]
-        body2 = site_bodyid[site2]
-        p2 = site_xpos_in[worldid, site2]
-        com2 = xpos_in[worldid, body2]
+        body1, body2 = site_bodyid[site1], site_bodyid[site2]
 
-        # Todo: check, if body1==body2, should we skip this?
+        p1, p2 = site_xpos_in[worldid, site1], site_xpos_in[worldid, site2]
+        com1, com2 = xpos_in[worldid, body1], xpos_in[worldid, body2]
+
         muscle_frc = wp.spatial_vector(wp.vec3(0.0, 0.0, 0.0), actuation * vec)
         wp.atomic_add(xfrc_applied_out[worldid], body1,
                       support.transform_force(muscle_frc, com1 - p1))
         wp.atomic_sub(xfrc_applied_out[worldid], body2,
                       support.transform_force(muscle_frc, com2 - p2))
-
-        body1 = body2
-        p1 = p2
-        com1 = com2
 
 
 @event_scope
