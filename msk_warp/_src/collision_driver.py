@@ -16,7 +16,7 @@
 import warp as wp
 
 from .collision_primitive import primitive_narrowphase
-from .types import MJ_MAXVAL
+from .consts import MJ_MAXVAL
 from .types import Data
 from .types import Model
 from .warp_util import cache_kernel

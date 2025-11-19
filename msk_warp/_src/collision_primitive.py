@@ -32,8 +32,8 @@ from .collision_primitive_core import sphere_sphere
 from .math import make_frame
 from .math import safe_div
 from .math import upper_trid_index
-from .types import MJ_MINMU
-from .types import MJ_MINVAL
+from .consts import MJ_MINMU
+from .consts import MJ_MINVAL
 from .types import Data
 from .types import GeomType
 from .types import Model

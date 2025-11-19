@@ -17,6 +17,9 @@ import warp as wp
 
 from . import support
 from . import types
+from .consts import MJ_MINIMP
+from .consts import MJ_MAXIMP
+from .consts import MJ_MINVAL
 from .types import ConstraintType
 from .types import vec5
 from .warp_util import event_scope
@@ -73,10 +76,10 @@ def _update_efc_row(
     if not refsafe:
         timeconst = wp.max(timeconst, 2.0 * timestep)
 
-    dmin = wp.clamp(dmin, types.MJ_MINIMP, types.MJ_MAXIMP)
-    dmax = wp.clamp(dmax, types.MJ_MINIMP, types.MJ_MAXIMP)
-    width = wp.max(types.MJ_MINVAL, width)
-    mid = wp.clamp(mid, types.MJ_MINIMP, types.MJ_MAXIMP)
+    dmin = wp.clamp(dmin, MJ_MINIMP, MJ_MAXIMP)
+    dmax = wp.clamp(dmax, MJ_MINIMP, MJ_MAXIMP)
+    width = wp.max(MJ_MINVAL, width)
+    mid = wp.clamp(mid, MJ_MINIMP, MJ_MAXIMP)
     power = wp.max(1.0, power)
 
     # See https://mujoco.readthedocs.io/en/latest/modeling.html#solver-parameters
@@ -96,7 +99,7 @@ def _update_efc_row(
 
     # Update constraints
     efc_D_out[worldid, efcid] = 1.0 / wp.max(invweight * (1.0 - imp) / imp,
-                                             types.MJ_MINVAL)
+                                             MJ_MINVAL)
     efc_vel_out[worldid, efcid] = vel
     efc_aref_out[worldid, efcid] = -k * imp * pos_aref - b * vel
     efc_pos_out[worldid, efcid] = pos_aref

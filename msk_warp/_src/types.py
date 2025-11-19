@@ -3,17 +3,6 @@ import enum
 
 import warp as wp
 
-MJ_MAXVAL = 10000000000.0
-MJ_MINIMP = 0.0001
-MJ_MAXIMP = 0.9999
-MJ_MINMU = 1e-05
-MJ_MINVAL = 1e-15
-MJ_MAXCONPAIR = 50
-# maximum size (by number of edges) of an horizon in EPA algorithm
-MJ_MAX_EPAHORIZON = 12
-# maximum average number of trianglarfaces EPA can insert at each iteration
-MJ_MAX_EPAFACES = 5
-
 TILE_SIZE_JTDAJ_SPARSE = 16
 TILE_SIZE_JTDAJ_DENSE = 16
 TILE_SIZE_SITE = 256
@@ -272,49 +261,6 @@ class Option:
 
 
 @wp.struct
-class MuscleConsts:
-    b11: float
-    b21: float
-    b31: float
-    b41: float
-    b12: float
-    b22: float
-    b32: float
-    b42: float
-    b13: float
-    b23: float
-    b33: float
-    b43: float
-    # Tendon force-length curve
-    c1: float
-    c2: float
-    c3: float
-    # Muscle force-velocity curve
-    d1: float
-    d2: float
-    d3: float
-    d4: float
-    # Muscle passive force-length curve
-    kPE: float
-    # Activation dynamics
-    activation_time_constant: float
-    deactivation_time_constant: float
-    activation_dynamics_smoothing: float
-
-    m_minNormFiberLength: float
-    m_maxNormFiberLength: float
-    m_minNormTendonForce: float
-    m_maxNormTendonForce: float
-    m_minPennationAngle: float
-    m_maxPennationAngle: float
-
-    # Muscle properties (todo: move to metadata)
-    active_force_width_scale: float
-    tendon_strain_at_one_norm_force: float
-    passive_fiber_strain_at_one_norm_force: float
-
-
-@wp.struct
 class ResidualResult:
     """
     Residual result from solving for muscle equilibrium.
@@ -342,6 +288,11 @@ class MuscleMetadata:
     optimal_pennation_angle: float
     fiber_damping: float
     v_max: float
+
+    min_norm_fiber_length: float
+    max_norm_fiber_length: float
+    min_activation: float
+    max_activation: float
 
 
 @wp.struct
@@ -554,9 +505,6 @@ class Model:
 
       site_bodyid: id of site's body                           (nsite,)
       site_pos: local position offset rel. to body             (nsite, 3)
-      site_cond_id: conditional site id                        (nsite_cond,)
-      site_cond_qadr: conditional site qpos address            (nsite_cond,)
-      site_cond_range: conditional site range (min, max)       (nsite_cond, 2)
 
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
@@ -582,7 +530,6 @@ class Model:
     nsite_cond: int
 
     opt: Option
-    muscle_consts: MuscleConsts
     muscle_metadata: wp.array(dtype=MuscleMetadata)
 
     qpos0: wp.array(dtype=float)
@@ -653,8 +600,6 @@ class Model:
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)
     muscle_pts_num: wp.array(dtype=int)
-    muscle_act_range: wp.array2d(dtype=wp.vec2)
-    muscle_state_range: wp.array2d(dtype=wp.vec2)
 
     # To be computed at model creation
     mean_inertia: float

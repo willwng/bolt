@@ -7,7 +7,7 @@ from scipy.spatial.transform import Rotation as R
 from .converted_objs import *
 from .osim_objs import (Model, ForceSet, Body, Joint, Collider, FunctionType,
                         Vector3, Quat, Inertia, AttachedGeometry,
-                        DummyJoint, _VOID_NAME)
+                        DummyJoint, Muscle, _VOID_NAME)
 
 
 @dataclass
@@ -650,7 +650,10 @@ def get_dof_limits(
 
 
 def get_muscle_metadata(
-        osim_model: CheckedModel
+        osim_model: CheckedModel,
+        max_pennation_angle,
+        min_norm_fiber_length,
+        max_norm_fiber_length,
 ) -> list[types.MuscleMetadata]:
     metadata = []
 
@@ -662,28 +665,34 @@ def get_muscle_metadata(
         muscle_meta.optimal_pennation_angle = muscle.pennation_angle_at_optimal
         muscle_meta.fiber_damping = 0.1
         muscle_meta.v_max = 12.0
+
+        fl_range = get_muscle_fl_range(
+            muscle,
+            max_pennation_angle=max_pennation_angle,
+            min_norm_fiber_length=min_norm_fiber_length,
+            max_norm_fiber_length=max_norm_fiber_length,
+        )
+        muscle_meta.min_norm_fiber_length = fl_range[0]
+        muscle_meta.max_norm_fiber_length = fl_range[1]
+        muscle_meta.min_activation = 0.0
+        muscle_meta.max_activation = 1.0
         metadata.append(muscle_meta)
 
     return metadata
 
 
-def get_muscle_fl_ranges(
-        osim_model: CheckedModel,
+def get_muscle_fl_range(
+        muscle: Muscle,
         max_pennation_angle,
         min_norm_fiber_length,
         max_norm_fiber_length,
-) -> list[tuple[float, float]]:
-    fl_ranges = []
+) -> tuple[float, float]:
+    optimal_pennation_angle = muscle.pennation_angle_at_optimal
 
-    for _, muscle in osim_model.iter_muscles():
-        optimal_pennation_angle = muscle.pennation_angle_at_optimal
-
-        if max_pennation_angle > 1e-8:
-            minimum_fiber_length = (np.sin(optimal_pennation_angle) / np.sin(
-                max_pennation_angle))
-        else:
-            minimum_fiber_length = 0.01
-        minimum_fiber_length = max(minimum_fiber_length, min_norm_fiber_length)
-        fl_ranges.append((minimum_fiber_length, max_norm_fiber_length))
-
-    return fl_ranges
+    if max_pennation_angle > 1e-8:
+        minimum_fiber_length = (np.sin(optimal_pennation_angle) / np.sin(
+            max_pennation_angle))
+    else:
+        minimum_fiber_length = 0.01
+    minimum_fiber_length = max(minimum_fiber_length, min_norm_fiber_length)
+    return minimum_fiber_length, max_norm_fiber_length

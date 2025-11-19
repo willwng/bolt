@@ -1,6 +1,6 @@
 import warp as wp
 
-from .types import MuscleConsts
+from . import consts
 
 wp.set_module_options({"enable_backward": False})
 
@@ -33,24 +33,21 @@ def calc_gaussian_like_curve_der(
 def calc_activation_derivative(
         activation: float,
         excitation: float,
-        mc: MuscleConsts
 ) -> float:
     time_const_fact = 0.5 + 1.5 * activation
-    tmp_act = 1.0 / (mc.activation_time_constant * time_const_fact)
-    tmp_deact = time_const_fact / mc.deactivation_time_constant
+    tmp_act = 1.0 / (consts.DGF_ACTIVATION_TIME_CONSTANT * time_const_fact)
+    tmp_deact = time_const_fact / consts.DGF_DEACTIVATION_TIME_CONSTANT
     f = 0.5 * wp.tanh(
-        mc.activation_dynamics_smoothing * (excitation - activation))
+        consts.DGF_ACTIVATION_DYNAMICS_SMOOTHING * (excitation - activation))
     time_const = tmp_act * (f + 0.5) + tmp_deact * (-f + 0.5)
     return time_const * (excitation - activation)
 
 
 ### --- Begin Pennation --- ###
 @wp.func
-def get_tendon_stiffness_parameter(
-        mc: MuscleConsts
-) -> float:
-    return wp.log((1.0 + mc.c3) / mc.c1) / \
-        (1.0 + mc.tendon_strain_at_one_norm_force - mc.c2)
+def get_tendon_stiffness_parameter() -> float:
+    return wp.log((1.0 + consts.DGF_C3) / consts.DGF_C1) / \
+        (1.0 + consts.TENDON_STRAIN_AT_ONE_NORM_FORCE - consts.DGF_C2)
 
 
 @wp.func
@@ -73,30 +70,22 @@ def get_max_contraction_velocity_in_meters_per_second(
 def is_fiber_state_clamped(
         norm_fiber_length: float,
         norm_fiber_velocity: float,
-        mc: MuscleConsts
+        min_norm_fiber_length: float,
 ) -> bool:
-    return (norm_fiber_length <= mc.m_minNormFiberLength and
+    return (norm_fiber_length <= min_norm_fiber_length and
             norm_fiber_velocity < 0.0) or \
-        (norm_fiber_length < mc.m_minNormFiberLength)
+        (norm_fiber_length < min_norm_fiber_length)
 
 
 @wp.func
 def clamp_fiber_length(
         norm_fiber_length: float,
-        optimal_pennation_angle: float,
-        mc: MuscleConsts
+        min_norm_fiber_length: float,
+        max_norm_fiber_length: float
 ) -> float:
-    if mc.m_maxPennationAngle > 1e-8:
-        minimum_fiber_length = wp.sin(optimal_pennation_angle) / wp.sin(
-            mc.m_maxPennationAngle)
-    else:
-        minimum_fiber_length = 0.01
-    minimum_fiber_length = max(minimum_fiber_length,
-                               mc.m_minNormFiberLength)
-
     return wp.clamp(norm_fiber_length,
-                    minimum_fiber_length,
-                    mc.m_maxNormFiberLength)
+                    min_norm_fiber_length,
+                    max_norm_fiber_length)
 
 
 @wp.func
@@ -104,24 +93,24 @@ def calc_pennation_angle(
         optimal_pennation_angle: float,
         optimal_fiber_length: float,
         norm_fiber_length: float,
-        mc: MuscleConsts
+        min_norm_fiber_length: float,
 ) -> float:
     phi = 0.0
 
     if optimal_pennation_angle > 1e-8:
-        if norm_fiber_length > mc.m_minNormFiberLength:
+        if norm_fiber_length > min_norm_fiber_length:
             parallelogram_height = get_fiber_width(
                 optimal_fiber_length,
                 optimal_pennation_angle)
-            max_sin_pennation_angle = wp.sin(mc.m_maxPennationAngle)
+            max_sin_pennation_angle = wp.sin(consts.M_MAX_PENNATION_ANGLE)
             fiber_length = norm_fiber_length * optimal_fiber_length
             sin_phi = parallelogram_height / fiber_length
             if sin_phi < max_sin_pennation_angle:
                 phi = wp.asin(sin_phi)
             else:
-                phi = mc.m_maxPennationAngle
+                phi = consts.M_MAX_PENNATION_ANGLE
         else:
-            phi = mc.m_maxPennationAngle
+            phi = consts.M_MAX_PENNATION_ANGLE
     return phi
 
 
@@ -167,76 +156,78 @@ def calc_tendon_velocity(
 @wp.func
 def calc_active_force_length_multiplier(
         norm_fiber_length: float,
-        mc: MuscleConsts
 ) -> float:
-    scale = mc.active_force_width_scale
+    scale = consts.ACTIVE_FORCE_WIDTH_SCALE
     x = (norm_fiber_length - 1.0) / scale + 1.0
-    return calc_gaussian_like_curve(x, mc.b11, mc.b21, mc.b31, mc.b41) + \
-        calc_gaussian_like_curve(x, mc.b12, mc.b22, mc.b32, mc.b42) + \
-        calc_gaussian_like_curve(x, mc.b13, mc.b23, mc.b33, mc.b43)
+    return calc_gaussian_like_curve(x, consts.DGF_B11, consts.DGF_B21,
+                                    consts.DGF_B31, consts.DGF_B41) + \
+        calc_gaussian_like_curve(x, consts.DGF_B12, consts.DGF_B22,
+                                 consts.DGF_B32, consts.DGF_B42) + \
+        calc_gaussian_like_curve(x, consts.DGF_B13, consts.DGF_B23,
+                                 consts.DGF_B33, consts.DGF_B43)
 
 
 @wp.func
 def calc_active_force_length_multiplier_derivative(
         norm_fiber_length: float,
-        mc: MuscleConsts
 ) -> float:
-    scale = mc.active_force_width_scale
+    scale = consts.ACTIVE_FORCE_WIDTH_SCALE
     x = (norm_fiber_length - 1.0) / scale + 1.0
     return (1.0 / scale) * (
-            calc_gaussian_like_curve_der(x, mc.b11, mc.b21, mc.b31, mc.b41) +
-            calc_gaussian_like_curve_der(x, mc.b12, mc.b22, mc.b32, mc.b42) +
-            calc_gaussian_like_curve_der(x, mc.b13, mc.b23, mc.b33, mc.b43)
+            calc_gaussian_like_curve_der(x, consts.DGF_B11, consts.DGF_B21,
+                                         consts.DGF_B31, consts.DGF_B41) +
+            calc_gaussian_like_curve_der(x, consts.DGF_B12, consts.DGF_B22,
+                                         consts.DGF_B32, consts.DGF_B42) +
+            calc_gaussian_like_curve_der(x, consts.DGF_B13, consts.DGF_B23,
+                                         consts.DGF_B33, consts.DGF_B43)
     )
 
 
 @wp.func
 def calc_force_velocity_multiplier(
         norm_fiber_velocity: float,
-        mc: MuscleConsts
 ) -> float:
-    temp_v = mc.d2 * norm_fiber_velocity + mc.d3
+    temp_v = consts.DGF_D2 * norm_fiber_velocity + consts.DGF_D3
     temp_log_arg = temp_v + wp.sqrt(temp_v ** 2.0 + 1.0)
-    return mc.d1 * wp.log(temp_log_arg) + mc.d4
+    return consts.DGF_D1 * wp.log(temp_log_arg) + consts.DGF_D4
 
 
 @wp.func
 def calc_force_velocity_multiplier_derivative(
         norm_fiber_velocity: float,
-        mc: MuscleConsts
 ) -> float:
-    temp_v = mc.d2 * norm_fiber_velocity + mc.d3
+    temp_v = consts.DGF_D2 * norm_fiber_velocity + consts.DGF_D3
     tmp = wp.sqrt(temp_v ** 2.0 + 1.0)
-    return (mc.d1 * mc.d2) / (temp_v + tmp) * (1.0 + temp_v / tmp)
+    return (consts.DGF_D1 * consts.DGF_D2) / (temp_v + tmp) * (
+            1.0 + temp_v / tmp)
 
 
 @wp.func
 def calc_force_velocity_multiplier_derivative(
         norm_fiber_velocity: float,
-        mc: MuscleConsts
 ) -> float:
-    temp_v = mc.d2 * norm_fiber_velocity + mc.d3
+    temp_v = consts.DGF_D2 * norm_fiber_velocity + consts.DGF_D3
     tmp = wp.sqrt(temp_v ** 2.0 + 1.0)
-    return (mc.d1 * mc.d2) / (temp_v + tmp) * (1.0 + temp_v / tmp)
+    return (consts.DGF_D1 * consts.DGF_D2 * tmp) / (
+            temp_v * tmp + temp_v ** 2.0 + 1.0)
 
 
 @wp.func
 def calc_force_velocity_inverse_curve(
         force_velocity_mult: float,
-        mc: MuscleConsts
 ) -> float:
-    return (wp.sinh(1.0 / mc.d1 * (
-            force_velocity_mult - mc.d4)) - mc.d3) / mc.d2
+    return (wp.sinh(1.0 / consts.DGF_D1 * (
+            force_velocity_mult - consts.DGF_D4)) - consts.DGF_D3) / consts.DGF_D2
 
 
 @wp.func
 def calc_passive_force_multiplier(
         norm_fiber_length: float,
-        mc: MuscleConsts
+        min_norm_fiber_length: float,
 ) -> float:
-    kPE = mc.kPE
-    e0 = mc.passive_fiber_strain_at_one_norm_force
-    offset = wp.exp(kPE * (mc.m_minNormFiberLength - 1.0) / e0)
+    kPE = consts.DGF_KPE
+    e0 = consts.PASSIVE_FIBER_STRAIN_AT_ONE_NORM_FORCE
+    offset = wp.exp(kPE * (min_norm_fiber_length - 1.0) / e0)
     denom = wp.exp(kPE) - offset
     return (wp.exp(kPE * (norm_fiber_length - 1.0) / e0) - offset) / denom
 
@@ -247,10 +238,9 @@ def calc_active_fiber_force(
         activation: float,
         norm_fiber_length: float,
         norm_fiber_velocity: float,
-        mc: MuscleConsts
 ) -> float:
-    fl = calc_active_force_length_multiplier(norm_fiber_length, mc)
-    fv = calc_force_velocity_multiplier(norm_fiber_velocity, mc)
+    fl = calc_active_force_length_multiplier(norm_fiber_length)
+    fv = calc_force_velocity_multiplier(norm_fiber_velocity)
     fiber_force = max_isometric_force * (activation * fl * fv)
     return fiber_force
 
@@ -261,9 +251,9 @@ def calc_passive_fiber_force(
         norm_fiber_length: float,
         norm_fiber_velocity: float,
         fiber_damping: float,
-        mc: MuscleConsts
+        min_norm_fiber_length: float,
 ) -> float:
-    fp = calc_passive_force_multiplier(norm_fiber_length, mc)
+    fp = calc_passive_force_multiplier(norm_fiber_length, min_norm_fiber_length)
     fd = fiber_damping * norm_fiber_velocity
     passive_force = max_isometric_force * (fp + fd)
     return passive_force
@@ -274,12 +264,13 @@ def calc_passive_fiber_force(
 def calc_tendon_force_multiplier(
         norm_tendon_length: float,
         clamped: bool,
-        mc: MuscleConsts
 ) -> float:
-    tmp = mc.c1 * wp.exp(get_tendon_stiffness_parameter(mc) *
-                         (norm_tendon_length - mc.c2)) - mc.c3
+    tmp = (consts.DGF_C1 *
+           wp.exp(get_tendon_stiffness_parameter() *
+                  (norm_tendon_length - consts.DGF_C2)) - consts.DGF_C3)
     if clamped:
-        return wp.clamp(tmp, mc.m_minNormTendonForce, mc.m_maxNormTendonForce)
+        return wp.clamp(tmp, consts.M_MIN_NORM_TENDON_FORCE,
+                        consts.M_MAX_NORM_TENDON_FORCE)
     else:
         return tmp
 
@@ -287,22 +278,20 @@ def calc_tendon_force_multiplier(
 @wp.func
 def calc_tendon_force_length_inverse_curve(
         norm_tendon_force: float,
-        mc: MuscleConsts
 ) -> float:
-    return wp.log((1.0 / mc.c1) * (norm_tendon_force + mc.c3)) / \
-        get_tendon_stiffness_parameter(mc) + mc.c2
+    return wp.log((1.0 / consts.DGF_C1) * (norm_tendon_force + consts.DGF_C3)) / \
+        get_tendon_stiffness_parameter() + consts.DGF_C2
 
 
 @wp.func
 def calc_tendon_force_length_inverse_curve_derivative(
         deriv_norm_tendon_force: float,
         norm_tendon_length: float,
-        mc: MuscleConsts
 ) -> float:
     return deriv_norm_tendon_force / (
-            mc.c1 * get_tendon_stiffness_parameter(mc)
-            * wp.exp(get_tendon_stiffness_parameter(mc) * (
-            norm_tendon_length - mc.c2)))
+            consts.DGF_C1 * get_tendon_stiffness_parameter()
+            * wp.exp(get_tendon_stiffness_parameter() * (
+            norm_tendon_length - consts.DGF_C2)))
 
 
 @wp.func
@@ -325,7 +314,6 @@ def calc_damped_norm_fiber_velocity(
         fse: float,
         beta: float,
         cos_phi: float,
-        mc: MuscleConsts
 ) -> tuple[float, float]:
     max_iter = 20
     tol = 1e-8 * f_iso
@@ -342,14 +330,14 @@ def calc_damped_norm_fiber_velocity(
         fse,
         max(cos_phi, 0.01)
     )
-    dlceN_dt = calc_force_velocity_inverse_curve(fv, mc)
+    dlceN_dt = calc_force_velocity_inverse_curve(fv)
 
     # approximation is poor beyond maximum velocities
     dlceN_dt = wp.clamp(dlceN_dt, -1.0, 1.0)
 
     for i in range(max_iter):
-        fv = calc_force_velocity_multiplier(dlceN_dt, mc)
-        fvDer = calc_force_velocity_multiplier_derivative(dlceN_dt, mc)
+        fv = calc_force_velocity_multiplier(dlceN_dt)
+        fvDer = calc_force_velocity_multiplier_derivative(dlceN_dt)
 
         fiber_force = f_iso * (a * fal * fv + fpe + beta * dlceN_dt)
         err = fiber_force * cos_phi - fse * f_iso

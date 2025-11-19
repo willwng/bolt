@@ -18,6 +18,7 @@ from typing import Any, Tuple
 import warp as wp
 
 from msk_warp._src import types
+from msk_warp._src import consts
 
 
 @wp.func
@@ -279,7 +280,7 @@ def closest_segment_to_segment_points(a0: wp.vec3, a1: wp.vec3, b0: wp.vec3, b1:
 
 @wp.func
 def safe_div(x: Any, y: Any) -> Any:
-  return x / wp.where(y != 0.0, y, types.MJ_MINVAL)
+  return x / wp.where(y != 0.0, y, consts.MJ_MINVAL)
 
 
 @wp.func

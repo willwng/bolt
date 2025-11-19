@@ -28,7 +28,7 @@ wp.set_module_options({"enable_backward": False})
 
 
 @event_scope
-def _compute_site_diffs(m: Model, d: Data):
+def compute_site_diffs(m: Model, d: Data):
     @nested_kernel(module="unique", enable_backward=False)
     def _compute_site_diffs_tiled(
             # Data in:
@@ -166,7 +166,7 @@ def muscle_path(m: Model, d: Data):
     d.muscle_velocity.zero_()
 
     # Compute diffs between active sites
-    _compute_site_diffs(m, d)
+    compute_site_diffs(m, d)
 
     # Now we can compute the path
     wp.launch(

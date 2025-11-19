@@ -20,11 +20,12 @@ from . import dgf
 from .types import Data
 from .types import Model
 from .types import ResidualResult
-from .types import MuscleConsts
 from .types import MuscleMetadata
 from .types import MuscleLengthInfo
 from .types import FiberVelocityInfo
 from .types import MuscleDynamicsInfo
+from .consts import M_MIN_NORM_TENDON_FORCE
+from .consts import M_MAX_NORM_TENDON_FORCE
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -37,11 +38,10 @@ def _calc_eq_residual(
         path_velocity: float,
         activation: float,
         mm: MuscleMetadata,
-        mc: MuscleConsts
 ) -> ResidualResult:
     # Retrieve tendon length from force
     norm_tendon_length = dgf.calc_tendon_force_length_inverse_curve(
-        norm_tendon_force, mc)
+        norm_tendon_force)
     tendon_length = norm_tendon_length * mm.tendon_slack_length
     # From path and tendon length compute fiber length
     fiber_width = dgf.get_fiber_width(mm.optimal_fiber_length,
@@ -61,7 +61,7 @@ def _calc_eq_residual(
     # Tendon velocity
     norm_tendon_velocity = (
         dgf.calc_tendon_force_length_inverse_curve_derivative(
-            0.0, norm_tendon_length, mc))
+            0.0, norm_tendon_length))
     tendon_velocity = mm.tendon_slack_length * norm_tendon_velocity
     # Fiber velocity
     fiber_velocity_along_tendon = path_velocity - tendon_velocity
@@ -72,10 +72,10 @@ def _calc_eq_residual(
     # Residual
     active_fiber_force = dgf.calc_active_fiber_force(
         mm.max_isometric_force, activation, norm_fiber_length,
-        norm_fiber_velocity, mc)
+        norm_fiber_velocity)
     passive_fiber_force = dgf.calc_passive_fiber_force(
         mm.max_isometric_force, norm_fiber_length, norm_fiber_velocity,
-        mm.fiber_damping, mc)
+        mm.fiber_damping, mm.min_norm_fiber_length)
     fiber_force = (active_fiber_force + passive_fiber_force)
     fiber_force_along_tendon = fiber_force * cos_pennation_angle
     residual = (norm_tendon_force -
@@ -98,7 +98,6 @@ def _calc_eq_residual(
 @wp.kernel
 def _equilibrate(
         # Model:
-        mc: MuscleConsts,
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
         muscle_length_in: wp.array2d(dtype=float),
@@ -109,8 +108,8 @@ def _equilibrate(
 ):
     worldid, muscle_id = wp.tid()
     # Bisection to solve for equilibrium
-    lower = mc.m_minNormTendonForce
-    upper = mc.m_maxNormTendonForce
+    lower = M_MIN_NORM_TENDON_FORCE
+    upper = M_MAX_NORM_TENDON_FORCE
     mid = 0.5 * (lower + upper)
     tol = 1e-8
     max_iters = 30
@@ -120,12 +119,12 @@ def _equilibrate(
     activation = act_in[worldid, muscle_id]
     metadata = muscle_metadata[muscle_id]
 
-    res_lower = _calc_eq_residual(
-        lower, path_length, path_velocity, activation, metadata, mc)
-    res_upper = _calc_eq_residual(
-        upper, path_length, path_velocity, activation, metadata, mc)
-    res_mid = _calc_eq_residual(
-        mid, path_length, path_velocity, activation, metadata, mc)
+    res_lower = _calc_eq_residual(lower, path_length, path_velocity,
+                                  activation, metadata)
+    res_upper = _calc_eq_residual(upper, path_length, path_velocity,
+                                  activation, metadata)
+    res_mid = _calc_eq_residual(mid, path_length, path_velocity,
+                                activation, metadata)
     res_best = res_lower if wp.abs(res_lower.residual) < wp.abs(
         res_upper.residual) else res_upper
 
@@ -141,8 +140,8 @@ def _equilibrate(
             upper = mid
         # New midpoint
         mid = 0.5 * (lower + upper)
-        res_mid = _calc_eq_residual(
-            mid, path_length, path_velocity, activation, metadata, mc)
+        res_mid = _calc_eq_residual(mid, path_length, path_velocity,
+                                    activation, metadata)
         # Update best
         if abs(res_mid.residual) < abs(res_best.residual):
             res_best = res_mid
@@ -150,15 +149,16 @@ def _equilibrate(
     # Set state
     fiber_length = res_best.fiber_length
     norm_fiber_length = fiber_length / metadata.optimal_fiber_length
+
     mstate_out[worldid, muscle_id] = dgf.clamp_fiber_length(
-        norm_fiber_length, metadata.optimal_pennation_angle, mc)
+        norm_fiber_length, metadata.min_norm_fiber_length,
+        metadata.max_norm_fiber_length)
     return
 
 
 @wp.kernel
 def _update_length_info(
         # Model:
-        mc: MuscleConsts,
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
         mstate_in: wp.array2d(dtype=float),
@@ -174,10 +174,12 @@ def _update_length_info(
 
     # Fiber
     fiber_length = norm_fiber_length * mm.optimal_fiber_length
+    min_norm_fiber_length = mm.min_norm_fiber_length
     # Pennation angle
     pennation_angle = dgf.calc_pennation_angle(mm.optimal_pennation_angle,
                                                mm.optimal_fiber_length,
-                                               norm_fiber_length, mc)
+                                               norm_fiber_length,
+                                               min_norm_fiber_length)
     cos_pennation_angle = wp.cos(pennation_angle)
     sin_pennation_angle = wp.sin(pennation_angle)
     fiber_length_along_tendon = fiber_length * cos_pennation_angle
@@ -187,11 +189,12 @@ def _update_length_info(
     tendon_strain = norm_tendon_length - 1.0
     # Force multipliers
     fiber_passive_force_length_multiplier = (
-        dgf.calc_passive_force_multiplier(norm_fiber_length, mc))
+        dgf.calc_passive_force_multiplier(norm_fiber_length,
+                                          min_norm_fiber_length))
     fiber_active_force_length_multiplier = (
-        dgf.calc_active_force_length_multiplier(norm_fiber_length, mc))
+        dgf.calc_active_force_length_multiplier(norm_fiber_length))
     force_multiplier = (
-        dgf.calc_tendon_force_multiplier(norm_tendon_length, True, mc))
+        dgf.calc_tendon_force_multiplier(norm_tendon_length, True))
 
     # Set info
     mli = muscle_length_info_out[worldid]
@@ -215,7 +218,6 @@ def _update_length_info(
 @wp.kernel
 def _update_velocity_info(
         # Model:
-        mc: MuscleConsts,
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
         act_in: wp.array2d(dtype=float),
@@ -240,8 +242,7 @@ def _update_velocity_info(
             mli.fiber_passive_force_length_multiplier,
             mli.tendon_force_multiplier,
             mm.fiber_damping,
-            mli.cos_pennation_angle,
-            mc)
+            mli.cos_pennation_angle)
         norm_fiber_velocity = dlceN_dt
         fiber_force_velocity_multiplier = fv
     else:
@@ -252,7 +253,7 @@ def _update_velocity_info(
             mli.tendon_force_multiplier,
             mli.cos_pennation_angle
         )
-        norm_fiber_velocity = dgf.calc_force_velocity_inverse_curve(fv, mc)
+        norm_fiber_velocity = dgf.calc_force_velocity_inverse_curve(fv)
         fiber_force_velocity_multiplier = fv
 
     fiber_velocity = (norm_fiber_velocity *
@@ -272,8 +273,9 @@ def _update_velocity_info(
     norm_tendon_velocity = tendon_velocity / mm.tendon_slack_length
 
     # Check to see whether the fiber length was clamped
+    min_norm_fiber_length = mm.min_norm_fiber_length
     mli.fiber_state_clamped = dgf.is_fiber_state_clamped(
-        mli.norm_fiber_length, norm_fiber_velocity, mc)
+        mli.norm_fiber_length, norm_fiber_velocity, min_norm_fiber_length)
     if mli.fiber_state_clamped:
         norm_fiber_velocity = 0.0
         fiber_velocity = 0.0
@@ -370,7 +372,7 @@ def muscle_equilibrate(m: Model, d: Data):
     wp.launch(
         _equilibrate,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_consts, m.muscle_metadata, d.muscle_length,
+        inputs=[m.muscle_metadata, d.muscle_length,
                 d.muscle_velocity, d.act],
         outputs=[d.mstate],
     )
@@ -385,15 +387,14 @@ def muscle_dynamics(m: Model, d: Data):
     wp.launch(
         _update_length_info,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_consts, m.muscle_metadata, d.mstate,
-                d.muscle_length, ],
+        inputs=[m.muscle_metadata, d.mstate, d.muscle_length, ],
         outputs=[d.muscle_length_info],
     )
     wp.launch(
         _update_velocity_info,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_consts, m.muscle_metadata, d.act,
-                d.muscle_length_info, d.muscle_velocity, ],
+        inputs=[m.muscle_metadata, d.act, d.muscle_length_info,
+                d.muscle_velocity, ],
         outputs=[d.muscle_velocity_info],
     )
     wp.launch(

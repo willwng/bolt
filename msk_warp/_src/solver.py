@@ -23,6 +23,7 @@ from . import math
 from . import smooth_acc
 from . import support
 from . import types
+from . import consts
 from .block_cholesky import create_blocked_cholesky_func
 from .block_cholesky import create_blocked_cholesky_solve_func
 from .warp_util import cache_kernel
@@ -1540,8 +1541,8 @@ def update_gradient_JTCJ(
             t = 0.0
         else:
             t = wp.sqrt(tt)
-        t = wp.max(t, types.MJ_MINVAL)
-        ttt = wp.max(t * t * t, types.MJ_MINVAL)
+        t = wp.max(t, consts.MJ_MINVAL)
+        ttt = wp.max(t * t * t, consts.MJ_MINVAL)
 
         efc_h = float(0.0)
 
@@ -1817,7 +1818,7 @@ def solve_beta(
         beta_den += efc_prev_grad_in[worldid, dofid] * prev_Mgrad
 
     efc_beta_out[worldid] = wp.max(0.0,
-                                   beta_num / wp.max(types.MJ_MINVAL, beta_den))
+                                   beta_num / wp.max(consts.MJ_MINVAL, beta_den))
 
 
 @wp.kernel
