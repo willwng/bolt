@@ -14250,7 +14250,7 @@
 					<!--Body name to connect the contact geometry to-->
 					<socket_frame>pelvis</socket_frame>
 					<!--Location of geometry center in the body frame-->
-					<location>-0.1 0.0 0.0</location>
+					<location>-0.06 0.0 0.0</location>
 					<!--Orientation of geometry in the body frame-->
 					<orientation>0 0 0</orientation>
 					<radius>0.05</radius>
