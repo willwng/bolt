@@ -368,10 +368,6 @@ def main():
 
         site_bodyid=to_warp_array(site_data.body_id, dtype=int),
         site_pos=to_warp_array(site_data.pos, dtype=wp.vec3),
-        site_cond_id=to_warp_array(site_data.conditional_ids, dtype=int),
-        site_cond_qadr=to_warp_array(site_data.conditional_qadr, dtype=int),
-        site_cond_range=to_warp_array(site_data.conditional_range,
-                                      dtype=wp.vec2),
 
         muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
@@ -432,10 +428,6 @@ def main():
         site_rpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xvel=make_zero((n_worlds, nsite), dtype=wp.vec3),
-        site_active=make_zero((n_worlds, nsite), dtype=bool),
-
-        muscle_active_sites=make_zero((n_worlds, nsite), dtype=int),
-        muscle_num_active=make_zero((n_worlds, nmuscle), dtype=int),
 
         site_diff_vec=make_zero((n_worlds, nsite - 1), dtype=wp.vec3),
         site_diff_len=make_zero((n_worlds, nsite - 1), dtype=float),
@@ -551,7 +543,7 @@ def main():
     forward.initialize(m, d)
 
     if not args.benchmark:
-        viewer = Viewer(viewer_type=ViewerType.USD)
+        viewer = Viewer(viewer_type=ViewerType.OPENGL)
         for _ in range(args.nstep):
             forward.step(m, d)
             viewer.render(m, d)

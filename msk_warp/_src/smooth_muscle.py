@@ -20,106 +20,84 @@ from . import math
 from . import support
 from .types import Data
 from .types import Model
+from .types import TILE_SIZE_SITE
 from .warp_util import event_scope
+from .warp_util import kernel as nested_kernel
 
 wp.set_module_options({"enable_backward": False})
 
 
-@wp.kernel
-def _init_sites_arr(
-        # Data out:
-        site_active_out: wp.array2d(dtype=bool),
-        muscle_active_sites_out: wp.array2d(dtype=int),
-):
-    worldid, site_id = wp.tid()
-    site_active_out[worldid, site_id] = True
-    muscle_active_sites_out[worldid, site_id] = -1
+@event_scope
+def _compute_site_diffs(m: Model, d: Data):
+    @nested_kernel(module="unique", enable_backward=False)
+    def _compute_site_diffs_tiled(
+            # Data in:
+            site_xpos_in: wp.array2d(dtype=wp.vec3),
+            site_xvel_in: wp.array2d(dtype=wp.vec3),
+            # Data out:
+            site_diff_vec_out: wp.array2d(dtype=wp.vec3),
+            site_diff_len_out: wp.array2d(dtype=float),
+            site_diff_vel_out: wp.array2d(dtype=float),
+    ):
+        worldid = wp.tid()
+        xpos_in = site_xpos_in[worldid]
+        xvel_in = site_xvel_in[worldid]
 
+        diff_vec_out = site_diff_vec_out[worldid]
+        diff_len_out = site_diff_len_out[worldid]
+        diff_vel_out = site_diff_vel_out[worldid]
 
-@wp.kernel
-def _conditional_sites(
-        # Model:
-        site_cond_id: wp.array(dtype=int),
-        site_cond_qadr: wp.array(dtype=int),
-        site_cond_range: wp.array(dtype=wp.vec2),
-        # Data in:
-        qpos_in: wp.array2d(dtype=float),
-        # Data out:
-        site_active_out: wp.array2d(dtype=bool),
-):
-    worldid, cond_site_id = wp.tid()
-    qadr = site_cond_qadr[cond_site_id]
-    q = qpos_in[worldid, qadr]
-    q_range = site_cond_range[cond_site_id]
+        n_diffs = wp.static(m.nsite - 1)
+        n_tiles = wp.static((n_diffs + TILE_SIZE_SITE - 1) // TILE_SIZE_SITE)
+        for i in range(n_tiles - 1):
+            offset = i * TILE_SIZE_SITE
+            p1 = wp.tile_load(xpos_in, TILE_SIZE_SITE, offset=offset)
+            p2 = wp.tile_load(xpos_in, TILE_SIZE_SITE, offset=offset + 1)
+            diff = wp.tile_map(wp.sub, p2, p1)
+            length = wp.tile_map(wp.length, diff)
+            vec = wp.tile_map(math.safe_div, diff, length)
 
-    if q < q_range[0] or q > q_range[1]:
-        site_id = site_cond_id[cond_site_id]
-        site_active_out[worldid, site_id] = False
+            wp.tile_store(diff_vec_out, vec, offset=offset)
+            wp.tile_store(diff_len_out, length, offset=offset)
 
+            # Velocity
+            v1 = wp.tile_load(xvel_in, TILE_SIZE_SITE, offset=offset)
+            v2 = wp.tile_load(xvel_in, TILE_SIZE_SITE, offset=offset + 1)
+            vel_diff = wp.tile_map(wp.sub, v2, v1)
+            vel_proj = wp.tile_map(wp.dot, vel_diff, vec)
+            wp.tile_store(diff_vel_out, vel_proj, offset=offset)
 
-@wp.kernel
-def _compact_active_sites(
-        # Model:
-        muscle_pts_num: wp.array(dtype=int),
-        muscle_pts_adr: wp.array(dtype=int),
-        # Data in:
-        sites_active_in: wp.array2d(dtype=bool),
-        # Data out:
-        muscle_active_sites_out: wp.array2d(dtype=int),
-        muscle_num_active: wp.array2d(dtype=int),
-):
-    worldid, muscle_id = wp.tid()
+        # Remaining elements
+        offset = wp.static((n_tiles - 1) * TILE_SIZE_SITE)
+        rem = wp.static(n_diffs - offset)
+        p1 = wp.tile_load(xpos_in, rem, offset=offset)
+        p2 = wp.tile_load(xpos_in, rem, offset=offset + 1)
+        diff = wp.tile_map(wp.sub, p2, p1)
+        length = wp.tile_map(wp.length, diff)
+        vec = wp.tile_map(math.safe_div, diff, length)
+        wp.tile_store(diff_vec_out, vec, offset=offset)
+        wp.tile_store(diff_len_out, length, offset=offset)
+        v1 = wp.tile_load(xvel_in, rem, offset=offset)
+        v2 = wp.tile_load(xvel_in, rem, offset=offset + 1)
+        vel_diff = wp.tile_map(wp.sub, v2, v1)
+        vel_proj = wp.tile_map(wp.dot, vel_diff, vec)
+        wp.tile_store(diff_vel_out, vel_proj, offset=offset)
 
-    n_sites = muscle_pts_num[muscle_id]
-    pts_adr = muscle_pts_adr[muscle_id]
-    num_active = int(0)
-    for i in range(n_sites):
-        site_id = pts_adr + i
-        if sites_active_in[worldid, site_id]:
-            muscle_active_sites_out[worldid, pts_adr + num_active] = site_id
-            num_active += 1
-
-    muscle_num_active[worldid, muscle_id] = num_active
-
-
-@wp.kernel
-def _compute_active_site_diffs(
-        # Data in:
-        muscle_active_sites_in: wp.array2d(dtype=int),
-        site_xpos_in: wp.array2d(dtype=wp.vec3),
-        site_xvel_in: wp.array2d(dtype=wp.vec3),
-        # Data out:
-        site_diff_vec_out: wp.array2d(dtype=wp.vec3),
-        site_diff_len_out: wp.array2d(dtype=float),
-        site_diff_vel_out: wp.array2d(dtype=float),
-):
-    worldid, site_diff_id = wp.tid()
-    # Get ids of the two sites
-    site_1 = muscle_active_sites_in[worldid, site_diff_id]
-    site_2 = muscle_active_sites_in[worldid, site_diff_id + 1]
-
-    # End of active sites
-    if site_1 == -1 or site_2 == -1:
-        return
-
-    p1, p2 = site_xpos_in[worldid, site_1], site_xpos_in[worldid, site_2]
-    v1, v2 = site_xvel_in[worldid, site_1], site_xvel_in[worldid, site_2]
-    vec, length = math.normalize_with_norm(p2 - p1)
-    site_diff_vec_out[worldid, site_diff_id] = vec
-    site_diff_len_out[worldid, site_diff_id] = length
-
-    if length > 1e-8:
-        site_diff_vel_out[worldid, site_diff_id] = wp.dot((v2 - v1), vec)
-    else:
-        site_diff_vel_out[worldid, site_diff_id] = 0.0
+    wp.launch_tiled(
+        _compute_site_diffs_tiled,
+        dim=(d.nworld,),
+        inputs=[d.site_xpos, d.site_xvel],
+        outputs=[d.site_diff_vec, d.site_diff_len, d.site_diff_vel],
+        block_dim=m.block_dim.site_diffs
+    )
 
 
 @wp.kernel
 def _compute_path(
         # Model:
         muscle_pts_adr: wp.array(dtype=int),
+        muscle_pts_num: wp.array(dtype=int),
         # Data in:
-        muscle_num_active: wp.array2d(dtype=int),
         site_diff_len_out: wp.array2d(dtype=float),
         site_diff_vel_out: wp.array2d(dtype=float),
         # Data out:
@@ -128,8 +106,8 @@ def _compute_path(
 ):
     worldid, muscle_id = wp.tid()
     pts_adr = muscle_pts_adr[muscle_id]
-    n_active = muscle_num_active[worldid, muscle_id]
-    for i in range(n_active - 1):
+    n_pts = muscle_pts_num[muscle_id]
+    for i in range(n_pts - 1):
         muscle_length_out[worldid, muscle_id] += site_diff_len_out[
             worldid, pts_adr + i]
         muscle_velocity_out[worldid, muscle_id] += site_diff_vel_out[
@@ -140,11 +118,10 @@ def _compute_path(
 def _xfrc_muscles(
         # Model:
         muscle_pts_adr: wp.array(dtype=int),
+        muscle_pts_num: wp.array(dtype=int),
         site_bodyid: wp.array(dtype=int),
         # Data in:
         muscle_actuation_in: wp.array2d(dtype=float),
-        muscle_num_active_in: wp.array2d(dtype=int),
-        muscle_active_sites_in: wp.array2d(dtype=int),
         site_diff_vec_in: wp.array2d(dtype=wp.vec3),
         site_diff_len_in: wp.array2d(dtype=float),
         xpos_in: wp.array2d(dtype=wp.vec3),
@@ -155,7 +132,7 @@ def _xfrc_muscles(
     worldid, muscle_id = wp.tid()
     actuation = muscle_actuation_in[worldid, muscle_id]
     pt_adr = muscle_pts_adr[muscle_id]
-    pt_num = muscle_num_active_in[worldid, muscle_id]
+    pt_num = muscle_pts_num[muscle_id]
 
     for i in range(pt_num - 1):
         length = site_diff_len_in[worldid, pt_adr + i]
@@ -163,8 +140,7 @@ def _xfrc_muscles(
             continue
 
         vec = site_diff_vec_in[worldid, pt_adr + i]
-        site1 = muscle_active_sites_in[worldid, pt_adr + i]
-        site2 = muscle_active_sites_in[worldid, pt_adr + i + 1]
+        site1, site2 = pt_adr + i, pt_adr + i + 1
         body1, body2 = site_bodyid[site1], site_bodyid[site2]
 
         p1, p2 = site_xpos_in[worldid, site1], site_xpos_in[worldid, site2]
@@ -189,43 +165,14 @@ def muscle_path(m: Model, d: Data):
     d.muscle_length.zero_()
     d.muscle_velocity.zero_()
 
-    # fill_ doesn't work with graph capture so we just launch a kernel
-    wp.launch(
-        _init_sites_arr,
-        dim=(d.nworld, m.nsite),
-        inputs=[],
-        outputs=[d.site_active, d.muscle_active_sites],
-    )
-
-    # Check whether conditional sites are active
-    wp.launch(
-        _conditional_sites,
-        dim=(d.nworld, m.nsite_cond),
-        inputs=[m.site_cond_id, m.site_cond_qadr, m.site_cond_range, d.qpos, ],
-        outputs=[d.site_active],
-    )
-
-    # Build "compacted" list of active sites for each muscle
-    wp.launch(
-        _compact_active_sites,
-        dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_pts_num, m.muscle_pts_adr, d.site_active, ],
-        outputs=[d.muscle_active_sites, d.muscle_num_active],
-    )
-
     # Compute diffs between active sites
-    wp.launch(
-        _compute_active_site_diffs,
-        dim=(d.nworld, m.nsite - 1),
-        inputs=[d.muscle_active_sites, d.site_xpos, d.site_xvel],
-        outputs=[d.site_diff_vec, d.site_diff_len, d.site_diff_vel],
-    )
+    _compute_site_diffs(m, d)
 
     # Now we can compute the path
     wp.launch(
         _compute_path,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_pts_adr, d.muscle_num_active, d.site_diff_len,
+        inputs=[m.muscle_pts_adr, m.muscle_pts_num, d.site_diff_len,
                 d.site_diff_vel],
         outputs=[d.muscle_length, d.muscle_velocity],
     )
@@ -239,10 +186,9 @@ def muscle_force(m: Model, d: Data):
             dim=(d.nworld, m.nmuscle),
             inputs=[
                 m.muscle_pts_adr,
+                m.muscle_pts_num,
                 m.site_bodyid,
                 d.muscle_actuation,
-                d.muscle_num_active,
-                d.muscle_active_sites,
                 d.site_diff_vec,
                 d.site_diff_len,
                 d.xpos,

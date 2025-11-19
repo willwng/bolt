@@ -95,8 +95,7 @@ class Viewer:
             # render muscles
             num_muscles = m.nmuscle
             muscle_pts_adr = m.muscle_pts_adr.numpy()
-            muscle_sites_active = d.muscle_active_sites.numpy()[0]
-            muscle_pts_active_num = d.muscle_num_active.numpy()[0]
+            muscle_pts_num = m.muscle_pts_num.numpy()
             site_xpos = d.site_xpos.numpy()[0]
             muscle_activations = d.act.numpy()[0]
 
@@ -114,11 +113,8 @@ class Viewer:
             for i in range(num_muscles):
                 # Gather all active site indices for this muscle
                 start_idx = muscle_pts_adr[i]
-                end_idx = start_idx + muscle_pts_active_num[i]
-                pt_inds = muscle_sites_active[start_idx:end_idx]
-
-                # Get the positions of these sites
-                pts = site_xpos[pt_inds]
+                end_idx = start_idx + muscle_pts_num[i]
+                pts = site_xpos[start_idx:end_idx]
 
                 muscle_color = activation_to_color(muscle_activations[i])
                 self.renderer.render_line_strip(

@@ -16,6 +16,7 @@ MJ_MAX_EPAFACES = 5
 
 TILE_SIZE_JTDAJ_SPARSE = 16
 TILE_SIZE_JTDAJ_DENSE = 16
+TILE_SIZE_SITE = 256
 
 
 # TODO(team): add check that all wp.launch_tiled 'block_dim' settings are configurable
@@ -31,7 +32,7 @@ class BlockDim:
     # forward
     euler_dense: int = 32
     actuator_velocity: int = 32
-    tendon_velocity: int = 32
+    site_diffs: int = 32
     # ray
     ray: int = 64
     # sensor
@@ -648,9 +649,6 @@ class Model:
     # Attachment sites (muscle path)
     site_bodyid: wp.array(dtype=int)
     site_pos: wp.array(dtype=wp.vec3)
-    site_cond_id: wp.array(dtype=int)
-    site_cond_qadr: wp.array(dtype=int)
-    site_cond_range: wp.array2d(dtype=wp.vec2)
 
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)
@@ -823,10 +821,6 @@ class Data:
     site_rpos: wp.array2d(dtype=wp.vec3)
     site_xpos: wp.array2d(dtype=wp.vec3)
     site_xvel: wp.array2d(dtype=wp.vec3)
-    site_active: wp.array2d(dtype=bool)
-
-    muscle_active_sites: wp.array2d(dtype=int)
-    muscle_num_active: wp.array2d(dtype=int)
 
     site_diff_vec: wp.array2d(dtype=wp.vec3)
     site_diff_len: wp.array2d(dtype=float)
