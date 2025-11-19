@@ -374,6 +374,7 @@ def _qfrc_smooth(
 def applied_forces(m: Model, d: Data):
     """ Compute all applied forces """
     d.xfrc_applied.zero_()
+    d.qfrc_applied.zero_()
     # dof actuators would go here
 
 
