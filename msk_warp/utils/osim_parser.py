@@ -251,6 +251,25 @@ def parse_conditional_path_point(
     )
 
 
+def parse_moving_path_point(
+        moving_path_point) -> MovingPathPoint:
+    name = moving_path_point.attrib["name"]
+    socket_parent_frame = moving_path_point.find(
+        "socket_parent_frame").text
+    location = to_vector3(moving_path_point.find("location").text)
+    return MovingPathPoint(
+        name=name,
+        socket_parent_frame=socket_parent_frame,
+        location=location,
+        socket_x_coordinate=None,  # TODO
+        socket_y_coordinate=None,  # TODO
+        socket_z_coordinate=None,  # TODO
+        x_location=None,  # TODO
+        y_location=None,  # TODO
+        z_location=None  # TODO
+    )
+
+
 def parse_path_point_set(path_point_set) -> PathPointSet:
     path_points = OrderedDict()
     path_point_set_objects = path_point_set.find("objects")
@@ -261,6 +280,9 @@ def parse_path_point_set(path_point_set) -> PathPointSet:
         elif child.tag == "ConditionalPathPoint":
             cpp_obj = parse_conditional_path_point(child)
             path_points[cpp_obj.name] = cpp_obj
+        elif child.tag == "MovingPathPoint":
+            mpp_obj = parse_moving_path_point(child)
+            path_points[mpp_obj.name] = mpp_obj
     return PathPointSet(path_points=path_points)
 
 

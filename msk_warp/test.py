@@ -52,6 +52,56 @@ def exclusive_scan(v, mark_empty: bool):
     return result
 
 
+def muscle_consts():
+    mc = types.MuscleConsts()
+    mc.b11 = 0.8150671134243542
+    mc.b21 = 1.055033428970575
+    mc.b31 = 0.162384573599574
+    mc.b41 = 0.063303448465465
+
+    mc.b12 = 0.433004984392647
+    mc.b22 = 0.716775413397760
+    mc.b32 = -0.029947116970696
+    mc.b42 = 0.200356847296188
+
+    mc.b13 = 0.1
+    mc.b23 = 1.0
+    mc.b33 = 0.353553390593274
+    mc.b43 = 0.0
+
+    # Tendon force-length curve
+    mc.c1 = 0.200
+    mc.c2 = 1.0
+    mc.c3 = 0.200
+
+    # Muscle force-velocity curve
+    mc.d1 = -0.3211346127989808
+    mc.d2 = -8.149
+    mc.d3 = -0.374
+    mc.d4 = 0.8825327733249912
+
+    # Muscle passive force-length curve
+    mc.kPE = 4.0
+
+    # Activation dynamics
+    mc.activation_time_constant = 0.015
+    mc.deactivation_time_constant = 0.060
+    mc.activation_dynamics_smoothing = 10.0
+
+    mc.m_minNormFiberLength = 0.2
+    mc.m_maxNormFiberLength = 1.8
+    mc.m_minNormTendonForce = 0.0
+    mc.m_maxNormTendonForce = 5.0
+    mc.m_minPennationAngle = 0.0
+    mc.m_maxPennationAngle = 1.47062891
+
+    # Muscle properties
+    mc.active_force_width_scale = 1.0
+    mc.tendon_strain_at_one_norm_force = 0.049
+    mc.passive_fiber_strain_at_one_norm_force = 0.6
+    return mc
+
+
 def to_warp_array(lst, dtype):
     arr = np.array(lst)
     # remove 2nd dimension if it exists
@@ -220,7 +270,7 @@ def main():
 
     # needs shapes
     opt = types.Option(
-        timestep=0.002,
+        timestep=0.001,
         impratio=1.0,
         tolerance=1e-8,
         ls_tolerance=0.01,
@@ -236,7 +286,15 @@ def main():
         graph_conditional=True
     )
 
-    mp = types.MuscleConsts()
+    muscle_data = get_muscle_metadata(osim_model)
+    mm = wp.array(muscle_data, dtype=types.MuscleMetadata)
+    mc = muscle_consts()
+
+    mstate_ranges = get_muscle_fl_ranges(
+        osim_model,
+        max_pennation_angle=mc.m_maxPennationAngle,
+        min_norm_fiber_length=mc.m_minNormFiberLength,
+        max_norm_fiber_length=mc.m_maxNormFiberLength)
 
     nsite = site_data.nsite
     nsite_cond = site_data.nsite_cond
@@ -255,7 +313,8 @@ def main():
         nsite_cond=nsite_cond,
 
         opt=opt,
-        mp=mp,
+        muscle_consts=mc,
+        muscle_metadata=mm,
 
         # warp arrays
         qpos0=to_warp_array(qpos0, dtype=float),
@@ -316,6 +375,8 @@ def main():
 
         muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
+        muscle_act_range=to_warp_array([(0.0, 1.0)] * nmuscle, dtype=wp.vec2),
+        muscle_state_range=to_warp_array(mstate_ranges, dtype=wp.vec2),
 
         dof_armature=to_warp_array(dof_armature, dtype=float),
         dof_damping=to_warp_array(dof_damping, dtype=float),
@@ -392,6 +453,13 @@ def main():
         muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
+
+        muscle_length_info=make_zero((n_worlds, nmuscle),
+                                     dtype=types.MuscleLengthInfo),
+        muscle_velocity_info=make_zero((n_worlds, nmuscle),
+                                       dtype=types.FiberVelocityInfo),
+        muscle_dynamics_info=make_zero((n_worlds, nmuscle),
+                                       dtype=types.MuscleDynamicsInfo),
 
         cvel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         cdof_dot=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
@@ -480,9 +548,10 @@ def main():
         wp.config.mode = "debug"
 
     init_model._model_init(m, d)
+    forward.initialize(m, d)
 
     if not args.benchmark:
-        viewer = Viewer(viewer_type=ViewerType.OPENGL)
+        viewer = Viewer(viewer_type=ViewerType.USD)
         for _ in range(args.nstep):
             forward.step(m, d)
             viewer.render(m, d)

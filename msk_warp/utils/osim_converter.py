@@ -1,11 +1,13 @@
 from collections import OrderedDict
+from typing import Optional
+
+import numpy as np
 from scipy.spatial.transform import Rotation as R
 
+from .converted_objs import *
 from .osim_objs import (Model, ForceSet, Body, Joint, Collider, FunctionType,
                         Vector3, Quat, Inertia, AttachedGeometry,
                         DummyJoint, _VOID_NAME)
-from .converted_objs import *
-from typing import Optional
 
 
 @dataclass
@@ -36,11 +38,15 @@ class CheckedModel:
         for body_name, full_desc in self.body_full_desc.items():
             yield body_name, full_desc.joint
 
+    def iter_muscles(self):
+        for muscle_id, muscle in enumerate(self.force_set.muscles.values()):
+            yield muscle_id, muscle
+
     def iter_path_points(self):
-        for muscle in self.force_set.muscles.values():
+        for muscle_id, muscle in self.iter_muscles():
             geom_path = muscle.geometry_path
             for path_point in geom_path.path_point_set.path_points.values():
-                yield path_point
+                yield muscle_id, path_point
 
     def iter_colliders(self):
         for body_name, full_desc in self.body_full_desc.items():
@@ -280,14 +286,14 @@ def get_site_data(model: CheckedModel) -> SiteData:
     Returns number of sites, and number of conditional sites
     """
     site_data = SiteData()
-    for i, path_point in enumerate(model.iter_path_points()):
+    for i, (muscle_id, path_point) in enumerate(model.iter_path_points()):
         # Body id
         parent_body_name = remove_prefix(path_point.socket_parent_frame)
         body_idx = model.get_body_index(parent_body_name)
+        site_data.body_id.append(body_idx)
+
         # Position
         loc = path_point.location
-
-        site_data.body_id.append(body_idx)
         site_data.pos.append([loc.x, loc.y, loc.z])
 
         # Check conditional
@@ -454,28 +460,9 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
     return collider_data
 
 
-def get_site_body_ids(model: CheckedModel) -> list[int]:
-    site_body_ids = []
-    for muscle in model.force_set.muscles.values():
-        for path_point in muscle.geometry_path.path_point_set.path_points.values():
-            parent_body_name = remove_prefix(path_point.socket_parent_frame)
-            body_idx = model.get_body_index(parent_body_name)
-            site_body_ids.append(body_idx)
-    return site_body_ids
-
-
-def get_site_pos(model: CheckedModel) -> list[list[float]]:
-    site_positions = []
-    for muscle in model.force_set.muscles.values():
-        for path_point in muscle.geometry_path.path_point_set.path_points.values():
-            loc = path_point.location
-            site_positions.append([loc.x, loc.y, loc.z])
-    return site_positions
-
-
 def get_muscle_num_pts(model: CheckedModel) -> list[int]:
     muscle_pts_counts = []
-    for muscle in model.force_set.muscles.values():
+    for _, muscle in model.iter_muscles():
         muscle_pts_counts.append(
             len(muscle.geometry_path.path_point_set.path_points))
     return muscle_pts_counts
@@ -660,3 +647,43 @@ def get_dof_limits(
                 dof_qadr.append(model.lookup_dof_idx(coord.name, True))
 
     return dof_ranges, dof_adr, dof_qadr
+
+
+def get_muscle_metadata(
+        osim_model: CheckedModel
+) -> list[types.MuscleMetadata]:
+    metadata = []
+
+    for _, muscle in osim_model.iter_muscles():
+        muscle_meta = types.MuscleMetadata()
+        muscle_meta.max_isometric_force = muscle.max_isometric_force
+        muscle_meta.optimal_fiber_length = muscle.optimal_fiber_length
+        muscle_meta.tendon_slack_length = muscle.tendon_slack_length
+        muscle_meta.optimal_pennation_angle = muscle.pennation_angle_at_optimal
+        muscle_meta.fiber_damping = 0.1
+        muscle_meta.v_max = 12.0
+        metadata.append(muscle_meta)
+
+    return metadata
+
+
+def get_muscle_fl_ranges(
+        osim_model: CheckedModel,
+        max_pennation_angle,
+        min_norm_fiber_length,
+        max_norm_fiber_length,
+) -> list[tuple[float, float]]:
+    fl_ranges = []
+
+    for _, muscle in osim_model.iter_muscles():
+        optimal_pennation_angle = muscle.pennation_angle_at_optimal
+
+        if max_pennation_angle > 1e-8:
+            minimum_fiber_length = (np.sin(optimal_pennation_angle) / np.sin(
+                max_pennation_angle))
+        else:
+            minimum_fiber_length = 0.01
+        minimum_fiber_length = max(minimum_fiber_length, min_norm_fiber_length)
+        fl_ranges.append((minimum_fiber_length, max_norm_fiber_length))
+
+    return fl_ranges

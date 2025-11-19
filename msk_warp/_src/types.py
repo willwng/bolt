@@ -270,52 +270,117 @@ class Option:
     graph_conditional: bool
 
 
-@dataclasses.dataclass
+@wp.struct
 class MuscleConsts:
-    b11: float = 0.8150671134243542
-    b21: float = 1.055033428970575
-    b31: float = 0.162384573599574
-    b41: float = 0.063303448465465
-    b12: float = 0.433004984392647
-    b22: float = 0.716775413397760
-    b32: float = -0.029947116970696
-    b42: float = 0.200356847296188
-    b13: float = 0.1
-    b23: float = 1.0
-    b33: float = 0.353553390593274
-    b43: float = 0.0
+    b11: float
+    b21: float
+    b31: float
+    b41: float
+    b12: float
+    b22: float
+    b32: float
+    b42: float
+    b13: float
+    b23: float
+    b33: float
+    b43: float
     # Tendon force-length curve
-    c1: float = 0.200
-    c2: float = 1.0
-    c3: float = 0.200
+    c1: float
+    c2: float
+    c3: float
     # Muscle force-velocity curve
-    d1: float = -0.3211346127989808
-    d2: float = -8.149
-    d3: float = -0.374
-    d4: float = 0.8825327733249912
+    d1: float
+    d2: float
+    d3: float
+    d4: float
     # Muscle passive force-length curve
-    kPE: float = 4.0
+    kPE: float
     # Activation dynamics
-    activation_time_constant: float = 0.015
-    deactivation_time_constant: float = 0.060
-    activation_dynamics_smoothing: float = 10.
+    activation_time_constant: float
+    deactivation_time_constant: float
+    activation_dynamics_smoothing: float
 
-    m_minNormFiberLength: float = 0.2
-    m_maxNormFiberLength: float = 1.8
-    m_minNormTendonForce: float = 0.0
-    m_maxNormTendonForce: float = 5.0
-    m_minPennationAngle: float = 0.0
-    m_maxPennationAngle: float = 1.47062891
+    m_minNormFiberLength: float
+    m_maxNormFiberLength: float
+    m_minNormTendonForce: float
+    m_maxNormTendonForce: float
+    m_minPennationAngle: float
+    m_maxPennationAngle: float
 
     # Muscle properties (todo: move to metadata)
-    active_force_width_scale: float = 1.
-    tendon_strain_at_one_norm_force: float = 0.049
-    passive_fiber_strain_at_one_norm_force: float = 0.6
+    active_force_width_scale: float
+    tendon_strain_at_one_norm_force: float
+    passive_fiber_strain_at_one_norm_force: float
 
 
-@dataclasses.dataclass
+@wp.struct
+class ResidualResult:
+    """
+    Residual result from solving for muscle equilibrium.
+    """
+    norm_tendon_force: float
+    residual: float
+
+    pennation_angle: float
+    fiber_length: float
+    norm_fiber_length: float
+    tendon_length: float
+    norm_tendon_length: float
+    norm_tendon_velocity: float
+    active_fiber_force: float
+    fiber_velocity: float
+    fiber_force_along_tendon: float
+
+
+@wp.struct
 class MuscleMetadata:
-    pass
+    """Muscle metadata. """
+    max_isometric_force: float
+    optimal_fiber_length: float
+    tendon_slack_length: float
+    optimal_pennation_angle: float
+    fiber_damping: float
+    v_max: float
+
+
+@wp.struct
+class MuscleLengthInfo:
+    fiber_length: float
+    fiber_length_along_tendon: float
+    norm_fiber_length: float
+    tendon_length: float
+    norm_tendon_length: float
+    tendon_strain: float
+    pennation_angle: float
+    cos_pennation_angle: float
+    sin_pennation_angle: float
+
+    fiber_passive_force_length_multiplier: float
+    fiber_active_force_length_multiplier: float
+    tendon_force_multiplier: float
+    fiber_state_clamped: bool
+
+
+@wp.struct
+class FiberVelocityInfo:
+    fiber_velocity: float
+    fiber_velocity_along_tendon: float
+    norm_fiber_velocity: float
+    pennation_angular_velocity: float
+    tendon_velocity: float
+    norm_tendon_velocity: float
+    fiber_force_velocity_multiplier: float
+
+
+@wp.struct
+class MuscleDynamicsInfo:
+    fiber_force: float
+    fiber_force_along_tendon: float
+    norm_fiber_force: float
+    active_fiber_force: float
+    passive_fiber_force: float
+    tendon_force: float
+    norm_tendon_force: float
 
 
 @dataclasses.dataclass
@@ -425,7 +490,8 @@ class Model:
       nsite_cond: number of conditional sites
 
       opt: physics options
-      mp: muscle properties
+      muscle_consts: muscle consts
+      muscle_metadata: muscle metadata                                      (nmuscle,)
 
       qpos0: qpos values at default pose                       (nq,)
       qpos_spring: reference pose for springs                  (nq,)
@@ -493,6 +559,8 @@ class Model:
 
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
+      muscle_act_range: activation range (min, max)            (nmuscle, 2)
+      muscle_state_range: state range (min, max)               (nmuscle, 2)
 
       mean_inertia: mean diagonal inertia                      ()
       body_invweight0: mean inv inert in qpos0 (trn, rot)      (nbody, 2)
@@ -513,7 +581,8 @@ class Model:
     nsite_cond: int
 
     opt: Option
-    mp: MuscleConsts
+    muscle_consts: MuscleConsts
+    muscle_metadata: wp.array(dtype=MuscleMetadata)
 
     qpos0: wp.array(dtype=float)
     qpos_spring: wp.array(dtype=float)
@@ -586,6 +655,8 @@ class Model:
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)
     muscle_pts_num: wp.array(dtype=int)
+    muscle_act_range: wp.array2d(dtype=wp.vec2)
+    muscle_state_range: wp.array2d(dtype=wp.vec2)
 
     # To be computed at model creation
     mean_inertia: float
@@ -773,6 +844,10 @@ class Data:
     muscle_length: wp.array2d(dtype=float)
     muscle_velocity: wp.array2d(dtype=float)
     muscle_actuation: wp.array2d(dtype=float)
+
+    muscle_length_info: wp.array2d(dtype=MuscleLengthInfo)
+    muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)
+    muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
 
     cvel: wp.array2d(dtype=wp.spatial_vector)
     cdof_dot: wp.array2d(dtype=wp.spatial_vector)
