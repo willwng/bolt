@@ -22,14 +22,13 @@ from .types import Data
 from .types import Model
 from .types import TILE_SIZE_SITE
 from .warp_util import event_scope
-from .warp_util import kernel as nested_kernel
 
 wp.set_module_options({"enable_backward": False})
 
 
 @event_scope
 def compute_site_diffs(m: Model, d: Data):
-    @nested_kernel(module="unique", enable_backward=False)
+    @wp.kernel
     def _compute_site_diffs_tiled(
             # Data in:
             site_xpos_in: wp.array2d(dtype=wp.vec3),
@@ -93,7 +92,7 @@ def compute_site_diffs(m: Model, d: Data):
 
 
 @wp.kernel
-def _compute_path(
+def _compute_path_kernel(
         # Model:
         muscle_pts_adr: wp.array(dtype=int),
         muscle_pts_num: wp.array(dtype=int),
@@ -112,6 +111,17 @@ def _compute_path(
             worldid, pts_adr + i]
         muscle_velocity_out[worldid, muscle_id] += site_diff_vel_out[
             worldid, pts_adr + i]
+
+
+@event_scope
+def compute_path(m: Model, d: Data):
+    wp.launch(
+        _compute_path_kernel,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[m.muscle_pts_adr, m.muscle_pts_num, d.site_diff_len,
+                d.site_diff_vel],
+        outputs=[d.muscle_length, d.muscle_velocity],
+    )
 
 
 @wp.kernel
@@ -169,13 +179,7 @@ def muscle_path(m: Model, d: Data):
     compute_site_diffs(m, d)
 
     # Now we can compute the path
-    wp.launch(
-        _compute_path,
-        dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_pts_adr, m.muscle_pts_num, d.site_diff_len,
-                d.site_diff_vel],
-        outputs=[d.muscle_length, d.muscle_velocity],
-    )
+    compute_path(m, d)
 
 
 @event_scope

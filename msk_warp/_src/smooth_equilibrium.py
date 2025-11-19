@@ -157,65 +157,6 @@ def _equilibrate(
 
 
 @wp.kernel
-def _update_length_info(
-        # Model:
-        muscle_metadata: wp.array(dtype=MuscleMetadata),
-        # Data in:
-        mstate_in: wp.array2d(dtype=float),
-        muscle_length_in: wp.array2d(dtype=float),
-        # Data out:
-        muscle_length_info_out: wp.array2d(dtype=MuscleLengthInfo),
-):
-    worldid, muscle_id = wp.tid()
-
-    mm = muscle_metadata[muscle_id]
-    norm_fiber_length = mstate_in[worldid, muscle_id]
-    path_length = muscle_length_in[worldid, muscle_id]
-
-    # Fiber
-    fiber_length = norm_fiber_length * mm.optimal_fiber_length
-    min_norm_fiber_length = mm.min_norm_fiber_length
-    # Pennation angle
-    pennation_angle = dgf.calc_pennation_angle(mm.optimal_pennation_angle,
-                                               mm.optimal_fiber_length,
-                                               norm_fiber_length,
-                                               min_norm_fiber_length)
-    cos_pennation_angle = wp.cos(pennation_angle)
-    sin_pennation_angle = wp.sin(pennation_angle)
-    fiber_length_along_tendon = fiber_length * cos_pennation_angle
-    # Tendon
-    tendon_length = path_length - fiber_length_along_tendon
-    norm_tendon_length = tendon_length / mm.tendon_slack_length
-    tendon_strain = norm_tendon_length - 1.0
-    # Force multipliers
-    fiber_passive_force_length_multiplier = (
-        dgf.calc_passive_force_multiplier(norm_fiber_length,
-                                          min_norm_fiber_length))
-    fiber_active_force_length_multiplier = (
-        dgf.calc_active_force_length_multiplier(norm_fiber_length))
-    force_multiplier = (
-        dgf.calc_tendon_force_multiplier(norm_tendon_length, True))
-
-    # Set info
-    mli = muscle_length_info_out[worldid]
-    mli[muscle_id].fiber_length = fiber_length
-    mli[muscle_id].pennation_angle = pennation_angle
-    mli[muscle_id].cos_pennation_angle = cos_pennation_angle
-    mli[muscle_id].sin_pennation_angle = sin_pennation_angle
-    mli[muscle_id].norm_fiber_length = norm_fiber_length
-    mli[muscle_id].fiber_length_along_tendon = fiber_length_along_tendon
-    mli[muscle_id].tendon_length = tendon_length
-    mli[muscle_id].norm_tendon_length = norm_tendon_length
-    mli[muscle_id].tendon_strain = tendon_strain
-    mli[muscle_id].fiber_passive_force_length_multiplier = (
-        fiber_passive_force_length_multiplier)
-    mli[muscle_id].fiber_active_force_length_multiplier = (
-        fiber_active_force_length_multiplier)
-    mli[muscle_id].tendon_force_multiplier = force_multiplier
-    return
-
-
-@wp.kernel
 def _update_velocity_info(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
@@ -298,6 +239,66 @@ def _update_velocity_info(
 
 
 @wp.kernel
+def _update_length_info(
+        # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
+        # Data in:
+        mstate_in: wp.array2d(dtype=float),
+        muscle_length_in: wp.array2d(dtype=float),
+        # Data out:
+        muscle_length_info_out: wp.array2d(dtype=MuscleLengthInfo),
+):
+    worldid, muscle_id = wp.tid()
+
+    mm = muscle_metadata[muscle_id]
+    norm_fiber_length = mstate_in[worldid, muscle_id]
+    path_length = muscle_length_in[worldid, muscle_id]
+
+    # Fiber
+    fiber_length = norm_fiber_length * mm.optimal_fiber_length
+    min_norm_fiber_length = mm.min_norm_fiber_length
+    # Pennation angle
+    pennation_angle = dgf.calc_pennation_angle(mm.optimal_pennation_angle,
+                                               mm.optimal_fiber_length,
+                                               norm_fiber_length,
+                                               min_norm_fiber_length)
+    cos_pennation_angle = wp.cos(pennation_angle)
+    sin_pennation_angle = wp.sin(pennation_angle)
+    fiber_length_along_tendon = fiber_length * cos_pennation_angle
+    # Tendon
+    tendon_length = path_length - fiber_length_along_tendon
+    norm_tendon_length = tendon_length / mm.tendon_slack_length
+    tendon_strain = norm_tendon_length - 1.0
+    # Force multipliers
+    fiber_passive_force_length_multiplier = (
+        dgf.calc_passive_force_multiplier(norm_fiber_length,
+                                          min_norm_fiber_length))
+    fiber_active_force_length_multiplier = (
+        dgf.calc_active_force_length_multiplier(norm_fiber_length))
+    force_multiplier = (
+        dgf.calc_tendon_force_multiplier(norm_tendon_length, True))
+
+    # Set info
+    mli = muscle_length_info_out[worldid]
+    mli[muscle_id].fiber_length = fiber_length
+    mli[muscle_id].pennation_angle = pennation_angle
+    mli[muscle_id].cos_pennation_angle = cos_pennation_angle
+    mli[muscle_id].sin_pennation_angle = sin_pennation_angle
+    mli[muscle_id].norm_fiber_length = norm_fiber_length
+    mli[muscle_id].fiber_length_along_tendon = fiber_length_along_tendon
+    mli[muscle_id].tendon_length = tendon_length
+    mli[muscle_id].norm_tendon_length = norm_tendon_length
+    mli[muscle_id].tendon_strain = tendon_strain
+    mli[muscle_id].fiber_passive_force_length_multiplier = (
+        fiber_passive_force_length_multiplier)
+    mli[muscle_id].fiber_active_force_length_multiplier = (
+        fiber_active_force_length_multiplier)
+    mli[muscle_id].tendon_force_multiplier = force_multiplier
+
+    return
+
+
+@wp.kernel
 def _update_dynamics_info(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
@@ -365,6 +366,38 @@ def _set_state(
 
 
 @event_scope
+def update_length_info(m: Model, d: Data):
+    wp.launch(
+        _update_length_info,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[m.muscle_metadata, d.mstate, d.muscle_length, ],
+        outputs=[d.muscle_length_info],
+    )
+
+
+@event_scope
+def update_velocity_info(m: Model, d: Data):
+    wp.launch(
+        _update_velocity_info,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[m.muscle_metadata, d.act, d.muscle_length_info,
+                d.muscle_velocity, ],
+        outputs=[d.muscle_velocity_info],
+    )
+
+
+@event_scope
+def update_dynamics_info(m: Model, d: Data):
+    wp.launch(
+        _update_dynamics_info,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[m.muscle_metadata, d.act,
+                d.muscle_length_info, d.muscle_velocity_info, ],
+        outputs=[d.muscle_dynamics_info],
+    )
+
+
+@event_scope
 def muscle_equilibrate(m: Model, d: Data):
     """ Equilibrate muscles """
     if not m.nmuscle:
@@ -384,26 +417,9 @@ def muscle_dynamics(m: Model, d: Data):
     if not m.nmuscle:
         return
 
-    wp.launch(
-        _update_length_info,
-        dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.mstate, d.muscle_length, ],
-        outputs=[d.muscle_length_info],
-    )
-    wp.launch(
-        _update_velocity_info,
-        dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.act, d.muscle_length_info,
-                d.muscle_velocity, ],
-        outputs=[d.muscle_velocity_info],
-    )
-    wp.launch(
-        _update_dynamics_info,
-        dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.act,
-                d.muscle_length_info, d.muscle_velocity_info, ],
-        outputs=[d.muscle_dynamics_info],
-    )
+    update_length_info(m, d)
+    update_velocity_info(m, d)
+    update_dynamics_info(m, d)
 
     # Set actuation and muscle state derivatives
     wp.launch(
