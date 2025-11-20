@@ -309,6 +309,15 @@ def transform_force(frc: wp.spatial_vector,
 
 
 @wp.func
+def transform_velocity(cvel: wp.spatial_vector,
+                       offset: wp.vec3) -> wp.spatial_vector:
+    ang = wp.spatial_top(cvel)
+    lin = wp.spatial_bottom(cvel)
+    pvel_lin = lin - wp.cross(offset, ang)
+    return wp.spatial_vector(ang, pvel_lin)
+
+
+@wp.func
 def jac(
         # Model:
         body_parentid: wp.array(dtype=int),
@@ -414,4 +423,3 @@ def jac_dot(
     jacr = cdof_dot_ang
 
     return jacp, jacr
-

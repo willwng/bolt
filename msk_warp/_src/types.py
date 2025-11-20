@@ -218,6 +218,16 @@ class SolverType(enum.IntEnum):
     NEWTON = 2
 
 
+class ContactType(enum.IntEnum):
+    """ Contact model type.
+    Attributes:
+        MUJOCO: MuJoCo contact model (constraint-based)
+        HUNT_CROSSLEY: Hunt-Crossley contact model (force-based)
+    """
+    MUJOCO = 1
+    HUNT_CROSSLEY = 2
+
+
 @dataclasses.dataclass
 class Option:
     """Physics options.
@@ -251,6 +261,7 @@ class Option:
     ccd_tolerance: float
     gravity: float
     solver: SolverType
+    contact_type: ContactType
     iterations: int
     ls_iterations: int
     ccd_iterations: int
