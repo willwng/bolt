@@ -68,7 +68,8 @@ def make_zero(shape, dtype):
 def main():
     raw_osim_model = parse_osim_file("data/osim/model.osim")
     checked_osim_model = to_checked_model(raw_osim_model)
-    osim_model = convert_y_up_z_up(checked_osim_model)
+    # osim_model = convert_y_up_z_up(checked_osim_model)
+    osim_model = checked_osim_model  # don't convert
 
     nb = num_bodies(osim_model)
 
@@ -92,7 +93,7 @@ def main():
     # qpos0 = get_default_positions(osim_model)
     # print(qpos0)
     qpos0 = [0.0] * nq
-    qpos0[0:3] = [0.0, 0.0, 1.5]  # Root pos
+    qpos0[0:3] = [0.0, 1.25, 0.0]  # Root pos
     qpos0[3] = 1  # root quat
 
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
@@ -221,13 +222,14 @@ def main():
 
     # needs shapes
     opt = types.Option(
-        timestep=0.001,
+        timestep=0.002,
         impratio=1.0,
         tolerance=1e-8,
         ls_tolerance=0.01,
         ccd_tolerance=1e-6,
         gravity=-9.81,
         solver=types.SolverType.CG,
+        contact_type=types.ContactType.MUJOCO,
         iterations=50,
         ls_iterations=100,
         ccd_iterations=50,

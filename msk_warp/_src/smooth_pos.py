@@ -139,7 +139,7 @@ def _kinematics_level(
         qloc_ = wp.quat(1.0, 0.0, 0.0, 0.0)
         xloc_ = wp.vec3(0.0, 0.0, 0.0)
         if jnt_type_ == JointType.HINGE:
-            hinge_axis = wp.vec3(0.0, -1.0, 0.0)
+            hinge_axis = wp.vec3(0.0, 0.0, 1.0)
             qloc_ = math.axis_angle_to_quat(hinge_axis, qpos[qadr])
             xaxis_out[worldid, bodyid, 0] = math.rot_vec_quat(
                 hinge_axis, jnt_rot)
@@ -157,7 +157,7 @@ def _kinematics_level(
 
         elif jnt_type_ == JointType.UNIVERSAL:
             axis1 = wp.vec3(1.0, 0.0, 0.0)
-            axis2 = wp.vec3(0.0, 0.0, 1.0)
+            axis2 = wp.vec3(0.0, 1.0, 0.0)
 
             qloc1 = math.axis_angle_to_quat(axis1, qpos[qadr + 0])
             qloc2 = math.axis_angle_to_quat(axis2, qpos[qadr + 1])

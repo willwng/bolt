@@ -19,7 +19,7 @@ class Viewer:
             self.renderer = wp.render.OpenGLRenderer(
                 title="warp-sim",
                 vsync=False,
-                up_axis='Z',
+                up_axis='Y',
                 screen_width=2000,
                 screen_height=1200,
                 camera_pos=(0.0, 2.0, 8.0),
@@ -27,7 +27,7 @@ class Viewer:
         elif viewer_type == ViewerType.USD:
             self.renderer = wp.render.UsdRenderer(
                 stage="msk_warp.usd",
-                up_axis='Z',
+                up_axis='Y',
                 scaling=100.0,
             )
         elif viewer_type == ViewerType.NONE:
@@ -89,7 +89,7 @@ class Viewer:
                         f"plane_{i}",
                         pos,
                         rot,
-                        extents=(5.0, 5.0, 0.01),
+                        extents=(5.0, 0.01, 5.0),
                     )
 
             # render muscles

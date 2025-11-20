@@ -99,14 +99,14 @@ def geom_collision_pair(
     geom1.pos = geom_xpos_in[worldid, g1]
     geom1.rot = geom_xmat_in[worldid, g1]
     geom1.size = geom_size[g1]
-    geom1.normal = wp.vec3(geom1.rot[0, 2], geom1.rot[1, 2],
-                           geom1.rot[2, 2])  # plane
+    geom1.normal = wp.vec3(geom1.rot[0, 1], geom1.rot[1, 1],
+                           geom1.rot[2, 1])  # plane
 
     geom2.pos = geom_xpos_in[worldid, g2]
     geom2.rot = geom_xmat_in[worldid, g2]
     geom2.size = geom_size[g2]
-    geom2.normal = wp.vec3(geom2.rot[0, 2], geom2.rot[1, 2],
-                           geom2.rot[2, 2])  # plane
+    geom2.normal = wp.vec3(geom2.rot[0, 1], geom2.rot[1, 1],
+                           geom2.rot[2, 1])  # plane
 
     geom1.index = -1
     geom2.index = -1

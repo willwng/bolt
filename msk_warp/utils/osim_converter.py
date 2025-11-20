@@ -432,9 +432,7 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         elif class_name == "ContactCapsule":
             geom_type = types.GeomType.CAPSULE
         elif class_name == "ContactHalfSpace":
-            # FIXME: conversion between rotations for geoms is a little wonky
             geom_type = types.GeomType.PLANE
-            collider.orientation = Quat(w=1.0, x=0.0, y=0.0, z=0.0)
         else:
             assert False, f"Unrecognized collider type {class_name}"
 

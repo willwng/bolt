@@ -36,7 +36,7 @@ def _cacc_world(
 ):
     worldid = wp.tid()
     cacc_out[worldid, 0] = (
-        wp.spatial_vector(wp.vec3(0.0), wp.vec3(0.0, 0.0, -gravity)))
+        wp.spatial_vector(wp.vec3(0.0), wp.vec3(0.0, -gravity, 0.0)))
 
 
 def _rne_cacc_world(m: Model, d: Data):

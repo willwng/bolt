@@ -338,11 +338,11 @@ class Collider:
 @dataclass
 class ContactHalfSpace(Collider):
     def size(self) -> list[float]:
-        return [0.0, 0.0, 0.05]
+        return [0.0, 0.05, 0.0]
 
     def get_aabb(self) -> list[float]:
-        center = [0.0, 0.0, -5e9]
-        size = [1e10, 1e10, 5e9]
+        center = [0.0, -5e9, 0.0]
+        size = [1e10, 5e9, 1e10]
         return center + size
 
     def get_rbound(self) -> float:
@@ -376,7 +376,7 @@ class ContactCapsule(Collider):
     def get_aabb(self) -> list[float]:
         center = [0.0, 0.0, 0.0]
         length = self.half_length * 2
-        size = [2 * self.radius, 2 * self.radius, length + 2 * self.radius]
+        size = [2 * self.radius, length + 2 * self.radius, 2 * self.radius]
         return center + size
 
     def get_rbound(self) -> float:
