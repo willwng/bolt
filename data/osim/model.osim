@@ -14055,7 +14055,7 @@
 					<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).-->
 					<socket_frame>/ground</socket_frame>
 					<!--Location of geometry center in the PhysicalFrame.-->
-					<location>0 0.065000000000000002 0</location>
+					<location>0 0 0</location>
 					<!--Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).-->
 					<orientation>0 0 0</orientation>
 					<!--Default appearance for this Geometry-->
