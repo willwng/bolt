@@ -44,8 +44,6 @@ def _zero_constraint_counts(
 def _update_efc_row(
         # In:
         worldid: int,
-        timestep: float,
-        refsafe: int,
         efcid: int,
         pos_aref: float,
         pos_imp: float,
@@ -71,10 +69,6 @@ def _update_efc_row(
     width = solimp[2]
     mid = solimp[3]
     power = solimp[4]
-
-    # TODO(team): wp.static?
-    if not refsafe:
-        timeconst = wp.max(timeconst, 2.0 * timestep)
 
     dmin = wp.clamp(dmin, MJ_MINIMP, MJ_MAXIMP)
     dmax = wp.clamp(dmax, MJ_MINIMP, MJ_MAXIMP)
@@ -111,7 +105,6 @@ def _update_efc_row(
 def _efc_dof_limit(
         # Model:
         nv: int,
-        opt_timestep: float,
         limit_dof_range: wp.array(dtype=wp.vec2),
         limit_dof_adr: wp.array(dtype=int),
         limit_dof_qadr: wp.array(dtype=int),
@@ -121,7 +114,6 @@ def _efc_dof_limit(
         qvel_in: wp.array2d(dtype=float),
         njmax_in: int,
         # In:
-        refsafe_in: int,
         # Data out:
         nl_out: wp.array(dtype=int),
         nefc_out: wp.array(dtype=int),
@@ -165,8 +157,6 @@ def _efc_dof_limit(
 
         _update_efc_row(
             worldid,
-            opt_timestep,
-            refsafe_in,
             efcid,
             pos,
             pos,
@@ -189,7 +179,6 @@ def _efc_dof_limit(
 def _efc_contact_elliptic(
         # Model:
         nv: int,
-        opt_timestep: float,
         opt_impratio: float,
         body_parentid: wp.array(dtype=int),
         body_rootid: wp.array(dtype=int),
@@ -203,7 +192,6 @@ def _efc_contact_elliptic(
         njmax_in: int,
         nacon_in: wp.array(dtype=int),
         # In:
-        refsafe_in: int,
         dist_in: wp.array(dtype=float),
         condim_in: wp.array(dtype=int),
         worldid_in: wp.array(dtype=int),
@@ -243,7 +231,6 @@ def _efc_contact_elliptic(
             contact_efc_address_out[conid, dimid] = -1
             return
 
-        timestep = opt_timestep
         impratio = opt_impratio
         contact_efc_address_out[conid, dimid] = efcid
 
@@ -318,8 +305,6 @@ def _efc_contact_elliptic(
 
         _update_efc_row(
             worldid,
-            timestep,
-            refsafe_in,
             efcid,
             pos_aref,
             pos,
@@ -363,15 +348,12 @@ def make_constraint(m: types.Model, d: types.Data):
         inputs=[d.nl, d.nefc],
     )
 
-    refsafe = 1
-
     # Individual DOF limits
     wp.launch(
         _efc_dof_limit,
         dim=(d.nworld, m.ndoflimit),
         inputs=[
             m.nv,
-            m.opt.timestep,
             m.limit_dof_range,
             m.limit_dof_adr,
             m.limit_dof_qadr,
@@ -379,7 +361,6 @@ def make_constraint(m: types.Model, d: types.Data):
             d.qpos,
             d.qvel,
             d.njmax,
-            refsafe,
         ],
         outputs=[
             d.nl,
@@ -401,7 +382,6 @@ def make_constraint(m: types.Model, d: types.Data):
             dim=(d.naconmax, 3),  # assuming max 3 dims per contact
             inputs=[
                 m.nv,
-                m.opt.timestep,
                 m.opt.impratio,
                 m.body_parentid,
                 m.body_rootid,
@@ -413,7 +393,6 @@ def make_constraint(m: types.Model, d: types.Data):
                 d.cdof,
                 d.njmax,
                 d.nacon,
-                refsafe,
                 d.contact.dist,
                 d.contact.dim,
                 d.contact.worldid,

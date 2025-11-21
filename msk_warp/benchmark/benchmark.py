@@ -35,9 +35,10 @@ def _sum(stack1, stack2):
 
 
 def benchmark(
-        fn: Callable[[Model, Data], None],
+        fn: Callable[[Model, Data, float], None],
         m: Model,
         d: Data,
+        dt: float,
         nstep: int,
         event_trace: bool = False,
         measure_alloc: bool = False,
@@ -49,6 +50,7 @@ def benchmark(
       fn: Function to benchmark.
       m: The model containing kinematic and dynamic information (device).
       d: The data object containing the current state and output information (device).
+      dt: Timestep.
       nstep: Number of timesteps.
       event_trace: If True, time routines decorated with @event_scope.
       measure_alloc: If True, record number of contacts and constraints.
@@ -70,7 +72,7 @@ def benchmark(
         # capture the whole function as a CUDA graph
         jit_beg = time.perf_counter()
         with wp.ScopedCapture() as capture:
-            fn(m, d)
+            fn(m, d, dt)
         jit_end = time.perf_counter()
         jit_duration = jit_end - jit_beg
 

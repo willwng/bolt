@@ -21,7 +21,10 @@ class BlockDim:
     # forward
     euler_dense: int = 32
     actuator_velocity: int = 32
-    site_diffs: int = 32
+    site_diffs: int = 128
+
+    error_step: int = 128
+
     # ray
     ray: int = 64
     # sensor
@@ -233,7 +236,6 @@ class Option:
     """Physics options.
 
     Attributes:
-      timestep: simulation timestep
       impratio: ratio of friction-to-normal contact impedance
       tolerance: main solver tolerance
       ls_tolerance: CG/Newton linesearch tolerance
@@ -244,8 +246,15 @@ class Option:
       ls_iterations: maximum number of CG/Newton linesearch iterations
       ccd_iterations: number of iterations in convex collision detection
 
+    variable-step size integrator:
+      safety:
+      min_shrink:
+      max_grow:
+      hysteresis_low:
+      hysteresis_high:
+      accuracy:
+
     warp only fields:
-      is_sparse: whether to use sparse representations
       ls_parallel: evaluate engine solver step sizes in parallel
       ls_parallel_min_step: minimum step size for solver linesearch
       graph_conditional: flag to use cuda graph conditional
@@ -254,7 +263,6 @@ class Option:
         zeros out the contacts at each step)
     """
 
-    timestep: float
     impratio: float
     tolerance: float
     ls_tolerance: float
@@ -266,6 +274,14 @@ class Option:
     ls_iterations: int
     ccd_iterations: int
     warm_start: bool
+
+    safety: float
+    min_shrink: float
+    max_grow: float
+    hysteresis_low: float
+    hysteresis_high: float
+    accuracy: float
+
     ls_parallel: bool
     ls_parallel_min_step: float
     graph_conditional: bool
@@ -662,6 +678,7 @@ class Data:
       nefc: number of constraints                                 (nworld,)
 
       time: simulation time                                       (nworld,)
+      next_time: target time for variable-step integrator         (nworld,)
       qpos: position                                              (nworld, nq)
       qvel: velocity                                              (nworld, nv)
       act: actuator activation                                    (nworld, nmuscles)
@@ -674,6 +691,7 @@ class Data:
       qacc_warmstart: acceleration used for warmstart             (nworld, nv)
       qfrc_applied: applied generalized force                     (nworld, nv)
       xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
+      grf: ground reaction force                                  (nworld, 6)
 
       xpos: Cartesian position of body frame                      (nworld, nbody, 3)
       xquat: Cartesian orientation of body frame                  (nworld, nbody, 4)
@@ -749,6 +767,8 @@ class Data:
     nefc: wp.array(dtype=int)
 
     time: wp.array(dtype=float)
+    next_time: wp.array(dtype=float)
+
     qpos: wp.array2d(dtype=float)
     qvel: wp.array2d(dtype=float)
     act: wp.array2d(dtype=float)
@@ -761,6 +781,7 @@ class Data:
     qacc_warmstart: wp.array2d(dtype=float)
     qfrc_applied: wp.array2d(dtype=float)
     xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
+    grf: wp.array2d(dtype=wp.spatial_vector)
 
     xpos: wp.array2d(dtype=wp.vec3)
     xquat: wp.array2d(dtype=wp.quat)
@@ -827,6 +848,15 @@ class Data:
     nacon: wp.array(dtype=int)
     nsolving: wp.array(dtype=int)
     subtree_bodyvel: wp.array2d(dtype=wp.spatial_vector)
+
+    # Variable-step size integrator
+    nintegrating: wp.array(dtype=int)
+    step_size: wp.array(dtype=float)
+    actual_step_size: wp.array(dtype=float)
+    artificially_limited: wp.array(dtype=bool)
+    error: wp.array(dtype=float)
+    step_accepted: wp.array(dtype=bool)
+    integration_done: wp.array(dtype=bool)
 
     # collision driver
     collision_pair: wp.array(dtype=wp.vec2i)

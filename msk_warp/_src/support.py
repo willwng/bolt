@@ -313,7 +313,7 @@ def transform_velocity(cvel: wp.spatial_vector,
                        offset: wp.vec3) -> wp.spatial_vector:
     ang = wp.spatial_top(cvel)
     lin = wp.spatial_bottom(cvel)
-    pvel_lin = lin - wp.cross(offset, ang)
+    pvel_lin = lin + wp.cross(ang, offset)
     return wp.spatial_vector(ang, pvel_lin)
 
 

@@ -22,7 +22,7 @@ from ._src.types import Data as Data
 # isort: on
 
 from ._src.constraint import make_constraint as make_constraint
-from ._src.forward import euler as euler
+# from ._src.forward import euler as euler
 from ._src.forward import forward as forward
 from ._src.forward import fwd_acceleration as fwd_acceleration
 from ._src.forward import fwd_forces as fwd_actuation

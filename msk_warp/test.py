@@ -65,8 +65,12 @@ def make_zero(shape, dtype):
     return wp.zeros(shape, dtype=dtype)
 
 
+def make_full(val, shape, dtype):
+    return wp.full(shape, val, dtype=dtype)
+
+
 def main():
-    raw_osim_model = parse_osim_file("data/osim/model.osim")
+    raw_osim_model = parse_osim_file("data/osim/sphere.osim")
     checked_osim_model = to_checked_model(raw_osim_model)
     # osim_model = convert_y_up_z_up(checked_osim_model)
     osim_model = checked_osim_model  # don't convert
@@ -93,7 +97,7 @@ def main():
     # qpos0 = get_default_positions(osim_model)
     # print(qpos0)
     qpos0 = [0.0] * nq
-    qpos0[0:3] = [0.0, 1.25, 0.0]  # Root pos
+    qpos0[0:3] = [0.0, 1.5, 0.0]  # Root pos
     qpos0[3] = 1  # root quat
 
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
@@ -222,18 +226,25 @@ def main():
 
     # needs shapes
     opt = types.Option(
-        timestep=0.002,
         impratio=1.0,
         tolerance=1e-8,
         ls_tolerance=0.01,
         ccd_tolerance=1e-6,
         gravity=-9.81,
         solver=types.SolverType.CG,
-        contact_type=types.ContactType.MUJOCO,
+        contact_type=types.ContactType.HUNT_CROSSLEY,
         iterations=50,
         ls_iterations=100,
         ccd_iterations=50,
         warm_start=True,
+
+        safety=0.9,
+        min_shrink=0.1,
+        max_grow=5.0,
+        hysteresis_low=0.9,
+        hysteresis_high=1.2,
+        accuracy=0.01,
+
         ls_parallel=False,
         ls_parallel_min_step=1e-8,
         graph_conditional=True
@@ -249,6 +260,7 @@ def main():
 
     nsite = site_data.nsite
     nsite_cond = site_data.nsite_cond
+    dt = 1.0 / 100.0
     m = types.Model(
         nbody=nb,
         nv=nv,
@@ -347,6 +359,7 @@ def main():
         nl=make_zero(n_worlds, dtype=int),
         nefc=make_zero(n_worlds, dtype=int),
         time=make_zero(n_worlds, dtype=float),
+        next_time=make_zero(n_worlds, dtype=float),
 
         qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
         qvel=make_zero((n_worlds, nv), dtype=float),
@@ -356,6 +369,7 @@ def main():
         qacc_warmstart=make_zero((n_worlds, nv), dtype=float),
         qfrc_applied=make_zero((n_worlds, nv), dtype=float),
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        grf=make_zero((n_worlds, ), dtype=wp.spatial_vector),
 
         qacc=make_zero((n_worlds, nv), dtype=float),
         act_dot=make_zero((n_worlds, nmuscle), dtype=float),
@@ -377,9 +391,9 @@ def main():
         site_xpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xvel=make_zero((n_worlds, nsite), dtype=wp.vec3),
 
-        site_diff_vec=make_zero((n_worlds, nsite - 1), dtype=wp.vec3),
-        site_diff_len=make_zero((n_worlds, nsite - 1), dtype=float),
-        site_diff_vel=make_zero((n_worlds, nsite - 1), dtype=float),
+        site_diff_vec=make_zero((n_worlds, max(0, nsite - 1)), dtype=wp.vec3),
+        site_diff_len=make_zero((n_worlds, max(0, nsite - 1)), dtype=float),
+        site_diff_vel=make_zero((n_worlds, max(0, nsite - 1)), dtype=float),
 
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
         cdof=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
@@ -475,6 +489,15 @@ def main():
         nsolving=make_zero(1, dtype=int),
         subtree_bodyvel=make_zero((n_worlds, nb), dtype=wp.vec3),
 
+        # Variable-step integrator
+        nintegrating=make_zero(1, dtype=int),
+        step_size=make_full(dt, (n_worlds,), dtype=float),
+        actual_step_size=make_zero((n_worlds,), dtype=float),
+        artificially_limited=make_zero((n_worlds,), dtype=bool),
+        error=make_zero((n_worlds,), dtype=float),
+        step_accepted=make_zero((n_worlds,), dtype=bool),
+        integration_done=make_zero((n_worlds,), dtype=bool),
+
         # collision driver
         collision_pair=wp.zeros((naconmax,), dtype=wp.vec2i),
         collision_pairid=wp.zeros((naconmax,), dtype=wp.vec2i),
@@ -492,14 +515,16 @@ def main():
 
     if not args.benchmark:
         viewer = Viewer(viewer_type=ViewerType.OPENGL)
-        for _ in range(args.nstep):
-            forward.step(m, d)
+        for i in range(args.nstep):
+            forward.step(m, d, dt)
             viewer.render(m, d)
+
         viewer.close()
 
     else:
         n_steps = args.nstep
-        res = benchmark(fn=forward.step, m=m, d=d, nstep=n_steps,
+        res = benchmark(fn=forward.step, m=m, d=d,
+                        dt=dt, nstep=n_steps,
                         event_trace=True, measure_alloc=True,
                         measure_solver_niter=True)
         jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res

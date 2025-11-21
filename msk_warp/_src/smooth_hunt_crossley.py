@@ -45,6 +45,7 @@ def _process_contacts_hc(
         friction_in: wp.array(dtype=vec5),
         # Data out:
         xfrc_applied_out: wp.array2d(dtype=wp.spatial_vector),
+        grf_out: wp.array(dtype=wp.spatial_vector)
 ):
     conid = wp.tid()
     if conid >= nacon_in[0]:
@@ -61,32 +62,38 @@ def _process_contacts_hc(
     cpos = pos_in[conid]
     frame = frame_in[conid]
 
-    # Compute velocities of bodies with contact as origin
+    # TODO: get these from material properties
+    stiffness1 = wp.pow(5e6, 2.0 / 3.0)
+    stiffness2 = wp.pow(5e6, 2.0 / 3.0)
+    dissipation1 = 1.0
+    dissipation2 = 1.0
+
+    # Adjust the contact location based on the relative stiffness
+    s1 = stiffness2 / (stiffness1 + stiffness2)
+    s2 = 1.0 - s1
+    location = cpos + depth * (0.5 - s1) * frame[0]
+
+    # Calculate the Hertz force. These are hard-coded for now
+    k = stiffness1 * s1
+    c = dissipation1 * s1 + dissipation2 * s2
+    radius = 0.2  # todo
+    fH = (4.0 / 3.0) * k * depth * wp.sqrt(radius * k * depth)
+
+    # Calculate the relative velocity of the two bodies at the contact point
     cvel1 = cvel_in[worldid, body1]
     cvel2 = cvel_in[worldid, body2]
     subtree_com1 = subtree_com_in[worldid, body_rootid[body1]]
     subtree_com2 = subtree_com_in[worldid, body_rootid[body2]]
-    dif1 = cpos - subtree_com1
-    dif2 = cpos - subtree_com2
+    dif1 = location - subtree_com1
+    dif2 = location - subtree_com2
     vel1 = support.transform_velocity(cvel1, dif1)
     vel2 = support.transform_velocity(cvel2, dif2)
-
     # Compute relative velocities of the bodies
     v = wp.spatial_bottom(vel1 - vel2)
-
     # Project into contact frame
     normal = frame[0]
     v_n = wp.dot(v, normal)
     v_t = v - (v_n * normal)
-
-    # Calculate the Hertz force. These are hard-coded for now
-    stiffness = 5e5
-    dissipation = 1.0
-
-    k = stiffness
-    c = dissipation
-    radius = 0.02
-    fH = (4.0 / 3.0) * k * depth * wp.sqrt(radius * k * depth)
 
     # Hunt-Crossley correction forces
     f = fH * (1.0 + 1.5 * c * v_n)
@@ -120,12 +127,16 @@ def _process_contacts_hc(
     com1, com2 = xpos_in[worldid, body1], xpos_in[worldid, body2]
     wp.atomic_add(xfrc_applied_out[worldid], body1,
                   support.transform_force(-frc_vec, com1 - cpos))
-    wp.atomic_sub(xfrc_applied_out[worldid], body2,
+    wp.atomic_add(xfrc_applied_out[worldid], body2,
                   support.transform_force(frc_vec, com2 - cpos))
+
+    # todo check for which body is ground
+    grf_out[worldid] += frc_vec
 
 
 @event_scope
 def contact_forces(m: Model, d: Data):
+    d.grf.zero_()
     wp.launch(
         _process_contacts_hc,
         dim=(d.naconmax),
@@ -145,6 +156,7 @@ def contact_forces(m: Model, d: Data):
         ],
         outputs=[
             d.xfrc_applied,
+            d.grf
         ],
     )
     return

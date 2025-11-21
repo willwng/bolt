@@ -141,6 +141,7 @@ def _xfrc_muscles(
 ):
     worldid, muscle_id = wp.tid()
     actuation = muscle_actuation_in[worldid, muscle_id]
+    actuation = 0.0
     pt_adr = muscle_pts_adr[muscle_id]
     pt_num = muscle_pts_num[muscle_id]
 

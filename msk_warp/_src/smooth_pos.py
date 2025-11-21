@@ -175,7 +175,7 @@ def _kinematics_level(
             txfm_fn = cst_txfm_fn[cst_adr]
 
             # First 3 are rotation
-            for i in range(3):
+            for i in range(wp.static(3)):
                 fn_eval = evaluate_txfm(
                     qpos,
                     txfm_fn[i],
@@ -192,7 +192,7 @@ def _kinematics_level(
                     qloc_, math.axis_angle_to_quat(txfm_axes[i], fn_eval[0]))
 
             # Next 3 are translation
-            for i in range(3, 6):
+            for i in range(wp.static(3), wp.static(6)):
                 fn_eval = evaluate_txfm(
                     qpos,
                     txfm_fn[i],
@@ -484,7 +484,7 @@ def _cdof(
             res[dofid + i] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
         # accumulate over all spatial txfm
-        for i in range(6):
+        for i in range(wp.static(6)):
             cst_jnt_adr = jnt_cst_adr[bodyid]
             dof_adr = cst_txfm_dofadr[cst_jnt_adr, i]
             if dof_adr == -1:  # not attached to a dof
