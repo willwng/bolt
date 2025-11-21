@@ -360,6 +360,7 @@ def write_contact(
         pos_in: wp.vec3,
         frame_in: wp.mat33,
         condim_in: int,
+        curvature_in: float,
         friction_in: vec5,
         geoms_in: wp.vec2i,
         pairid_in: wp.vec2i,
@@ -370,6 +371,7 @@ def write_contact(
         contact_frame_out: wp.array(dtype=wp.mat33),
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
+        contact_curvature_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -389,6 +391,7 @@ def write_contact(
         contact_geom_out[cid] = geoms_in
         contact_worldid_out[cid] = worldid_in
         contact_dim_out[cid] = condim_in
+        contact_curvature_out[cid] = curvature_in
         contact_friction_out[cid] = friction_in
         contact_geomcollisionid_out[cid] = id_
 
@@ -442,6 +445,7 @@ def plane_sphere_wrapper(
         contact_frame_out: wp.array(dtype=wp.mat33),
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
+        contact_curvature_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -450,6 +454,7 @@ def plane_sphere_wrapper(
     """Calculates contact between a sphere and a plane."""
     normal = plane.normal
     dist, pos = plane_sphere(normal, plane.pos, sphere.pos, sphere.size[0])
+    curvature = sphere.size[0]
 
     write_contact(
         naconmax_in,
@@ -458,6 +463,7 @@ def plane_sphere_wrapper(
         pos,
         make_frame(normal),
         condim,
+        curvature,
         friction,
         geoms,
         pairid,
@@ -467,6 +473,7 @@ def plane_sphere_wrapper(
         contact_frame_out,
         contact_friction_out,
         contact_dim_out,
+        contact_curvature_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -1274,18 +1281,18 @@ def box_box_wrapper(
 
 _PRIMITIVE_COLLISIONS = {
     (GeomType.PLANE, GeomType.SPHERE): plane_sphere_wrapper,
-    (GeomType.PLANE, GeomType.CAPSULE): plane_capsule_wrapper,
-    (GeomType.PLANE, GeomType.ELLIPSOID): plane_ellipsoid_wrapper,
-    (GeomType.PLANE, GeomType.CYLINDER): plane_cylinder_wrapper,
-    (GeomType.PLANE, GeomType.BOX): plane_box_wrapper,
-    (GeomType.PLANE, GeomType.MESH): plane_convex_wrapper,
-    (GeomType.SPHERE, GeomType.SPHERE): sphere_sphere_wrapper,
-    (GeomType.SPHERE, GeomType.CAPSULE): sphere_capsule_wrapper,
-    (GeomType.SPHERE, GeomType.CYLINDER): sphere_cylinder_wrapper,
-    (GeomType.SPHERE, GeomType.BOX): sphere_box_wrapper,
-    (GeomType.CAPSULE, GeomType.CAPSULE): capsule_capsule_wrapper,
-    (GeomType.CAPSULE, GeomType.BOX): capsule_box_wrapper,
-    (GeomType.BOX, GeomType.BOX): box_box_wrapper,
+    # (GeomType.PLANE, GeomType.CAPSULE): plane_capsule_wrapper,
+    # (GeomType.PLANE, GeomType.ELLIPSOID): plane_ellipsoid_wrapper,
+    # (GeomType.PLANE, GeomType.CYLINDER): plane_cylinder_wrapper,
+    # (GeomType.PLANE, GeomType.BOX): plane_box_wrapper,
+    # (GeomType.PLANE, GeomType.MESH): plane_convex_wrapper,
+    # (GeomType.SPHERE, GeomType.SPHERE): sphere_sphere_wrapper,
+    # (GeomType.SPHERE, GeomType.CAPSULE): sphere_capsule_wrapper,
+    # (GeomType.SPHERE, GeomType.CYLINDER): sphere_cylinder_wrapper,
+    # (GeomType.SPHERE, GeomType.BOX): sphere_box_wrapper,
+    # (GeomType.CAPSULE, GeomType.CAPSULE): capsule_capsule_wrapper,
+    # (GeomType.CAPSULE, GeomType.BOX): capsule_box_wrapper,
+    # (GeomType.BOX, GeomType.BOX): box_box_wrapper,
 }
 
 
@@ -1332,6 +1339,7 @@ def _create_narrowphase_kernel(primitive_collisions_types,
             contact_frame_out: wp.array(dtype=wp.mat33),
             contact_friction_out: wp.array(dtype=vec5),
             contact_dim_out: wp.array(dtype=int),
+            contact_curvature_out: wp.array(dtype=float),
             contact_geom_out: wp.array(dtype=wp.vec2i),
             contact_worldid_out: wp.array(dtype=int),
             contact_geomcollisionid_out: wp.array(dtype=int),
@@ -1382,6 +1390,7 @@ def _create_narrowphase_kernel(primitive_collisions_types,
                     contact_frame_out,
                     contact_friction_out,
                     contact_dim_out,
+                    contact_curvature_out,
                     contact_geom_out,
                     contact_worldid_out,
                     contact_geomcollisionid_out,
@@ -1445,6 +1454,7 @@ def primitive_narrowphase(m: Model, d: Data):
             d.contact.frame,
             d.contact.friction,
             d.contact.dim,
+            d.contact.curvature,
             d.contact.geom,
             d.contact.worldid,
             d.contact.geomcollisionid,

@@ -4,7 +4,6 @@ import msk_warp._src.math as math
 import msk_warp._src.consts as consts
 
 import warp as wp
-import numpy as np
 
 from msk_warp.utils.osim_parser import parse_osim_file
 from msk_warp.utils.osim_converter import *
@@ -70,7 +69,7 @@ def make_full(val, shape, dtype):
 
 
 def main():
-    raw_osim_model = parse_osim_file("data/osim/sphere.osim")
+    raw_osim_model = parse_osim_file("data/osim/model.osim")
     checked_osim_model = to_checked_model(raw_osim_model)
     # osim_model = convert_y_up_z_up(checked_osim_model)
     osim_model = checked_osim_model  # don't convert
@@ -97,8 +96,11 @@ def main():
     # qpos0 = get_default_positions(osim_model)
     # print(qpos0)
     qpos0 = [0.0] * nq
-    qpos0[0:3] = [0.0, 1.5, 0.0]  # Root pos
+    qpos0[0:3] = [0.0, 1.2, 0.0]  # Root pos
     qpos0[3] = 1  # root quat
+
+    qvel0 = [0.0] * nv  # Placeholder for initial velocities
+    # qvel0[0] = 10.0
 
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
 
@@ -260,7 +262,7 @@ def main():
 
     nsite = site_data.nsite
     nsite_cond = site_data.nsite_cond
-    dt = 1.0 / 100.0
+    dt = 1.0 / 60.0
     m = types.Model(
         nbody=nb,
         nv=nv,
@@ -362,14 +364,14 @@ def main():
         next_time=make_zero(n_worlds, dtype=float),
 
         qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
-        qvel=make_zero((n_worlds, nv), dtype=float),
+        qvel=wp.array(np.tile(qvel0, (n_worlds, 1)), dtype=float),
         act=make_zero((n_worlds, nmuscle), dtype=float),
         mstate=make_zero((n_worlds, nmuscle), dtype=float),
 
         qacc_warmstart=make_zero((n_worlds, nv), dtype=float),
         qfrc_applied=make_zero((n_worlds, nv), dtype=float),
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        grf=make_zero((n_worlds, ), dtype=wp.spatial_vector),
+        grf=make_zero((n_worlds, ), dtype=wp.vec3),
 
         qacc=make_zero((n_worlds, nv), dtype=float),
         act_dot=make_zero((n_worlds, nmuscle), dtype=float),
@@ -441,6 +443,7 @@ def main():
             frame=make_zero(naconmax, dtype=wp.mat33),
             friction=make_zero(naconmax, dtype=types.vec5),
             dim=make_zero(naconmax, dtype=int),
+            curvature=make_zero(naconmax, dtype=float),
             geom=make_zero(naconmax, dtype=wp.vec2i),
             efc_address=make_zero((naconmax, 4), dtype=int),
             # assuming condim_max = 3
@@ -514,10 +517,21 @@ def main():
     forward.initialize(m, d)
 
     if not args.benchmark:
-        viewer = Viewer(viewer_type=ViewerType.OPENGL)
+        bla = []
+        bla2 = []
+        viewer = Viewer(viewer_type=ViewerType.USD)
         for i in range(args.nstep):
             forward.step(m, d, dt)
             viewer.render(m, d)
+            bla.append(d.time.numpy()[0])
+            bla2.append(d.grf.numpy()[0, 1])
+
+        # Draw step size history
+        import matplotlib.pyplot as plt
+        plt.plot(bla, bla2)
+        plt.xlabel("Time (s)")
+        plt.ylabel("GRF (N)")
+        plt.show()
 
         viewer.close()
 

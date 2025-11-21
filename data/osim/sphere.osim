@@ -97,7 +97,7 @@
 					<!--The location (Vec3) of the mass center in the body frame.-->
 					<mass_center>0.0 0 0</mass_center>
 					<!--The elements of the inertia tensor (Vec6) as [Ixx Iyy Izz Ixy Ixz Iyz] measured about the mass_center and not the body origin.-->
-					<inertia>0.075601399999999999 0.075601399999999999 0.043285999999999998 0 0 0</inertia>
+					<inertia>0.256 0.256 0.256 0 0 0</inertia>
 				</Body>
 			<groups />
 			</objects>
@@ -347,7 +347,7 @@
 					<!--Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).-->
 					<orientation>0 0 0</orientation>
 					<!--Radius of the sphere (default: 0).-->
-					<radius>0.20</radius>
+					<radius>0.80</radius>
 				</ContactSphere>
 			</objects>
 			<groups />

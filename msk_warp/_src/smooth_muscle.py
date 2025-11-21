@@ -157,11 +157,11 @@ def _xfrc_muscles(
         p1, p2 = site_xpos_in[worldid, site1], site_xpos_in[worldid, site2]
         com1, com2 = xpos_in[worldid, body1], xpos_in[worldid, body2]
 
-        muscle_frc = wp.spatial_vector(wp.vec3(0.0, 0.0, 0.0), actuation * vec)
+        muscle_frc = actuation * vec
         wp.atomic_add(xfrc_applied_out[worldid], body1,
-                      support.transform_force(muscle_frc, com1 - p1))
+                      support.apply_force_at_point(muscle_frc, p1 - com1))
         wp.atomic_sub(xfrc_applied_out[worldid], body2,
-                      support.transform_force(muscle_frc, com2 - p2))
+                      support.apply_force_at_point(muscle_frc, p2 - com2))
 
 
 @event_scope

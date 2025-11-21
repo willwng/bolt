@@ -38,6 +38,7 @@ def _process_contacts_hc(
         nacon_in: wp.array(dtype=int),
         # In:
         dist_in: wp.array(dtype=float),
+        curvature_in: wp.array(dtype=float),
         worldid_in: wp.array(dtype=int),
         geom_in: wp.array(dtype=wp.vec2i),
         pos_in: wp.array(dtype=wp.vec3),
@@ -45,7 +46,7 @@ def _process_contacts_hc(
         friction_in: wp.array(dtype=vec5),
         # Data out:
         xfrc_applied_out: wp.array2d(dtype=wp.spatial_vector),
-        grf_out: wp.array(dtype=wp.spatial_vector)
+        grf_out: wp.array(dtype=wp.vec3)
 ):
     conid = wp.tid()
     if conid >= nacon_in[0]:
@@ -61,6 +62,7 @@ def _process_contacts_hc(
     body2 = geom_bodyid[geom[1]]
     cpos = pos_in[conid]
     frame = frame_in[conid]
+    radius = curvature_in[conid]
 
     # TODO: get these from material properties
     stiffness1 = wp.pow(5e6, 2.0 / 3.0)
@@ -76,7 +78,6 @@ def _process_contacts_hc(
     # Calculate the Hertz force. These are hard-coded for now
     k = stiffness1 * s1
     c = dissipation1 * s1 + dissipation2 * s2
-    radius = 0.2  # todo
     fH = (4.0 / 3.0) * k * depth * wp.sqrt(radius * k * depth)
 
     # Calculate the relative velocity of the two bodies at the contact point
@@ -123,15 +124,14 @@ def _process_contacts_hc(
         force += f_friction * (v_t / v_slip)
 
     # Apply forces to bodies
-    frc_vec = wp.spatial_vector(wp.vec3(0.0, 0.0, 0.0), force)
     com1, com2 = xpos_in[worldid, body1], xpos_in[worldid, body2]
     wp.atomic_add(xfrc_applied_out[worldid], body1,
-                  support.transform_force(-frc_vec, com1 - cpos))
+                  support.apply_force_at_point(-1.0 * force, location - com1))
     wp.atomic_add(xfrc_applied_out[worldid], body2,
-                  support.transform_force(frc_vec, com2 - cpos))
+                  support.apply_force_at_point(1.0 * force, location - com2))
 
     # todo check for which body is ground
-    grf_out[worldid] += frc_vec
+    grf_out[worldid] += force
 
 
 @event_scope
@@ -148,6 +148,7 @@ def contact_forces(m: Model, d: Data):
             d.subtree_com,
             d.nacon,
             d.contact.dist,
+            d.contact.curvature,
             d.contact.worldid,
             d.contact.geom,
             d.contact.pos,

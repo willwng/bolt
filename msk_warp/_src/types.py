@@ -23,7 +23,7 @@ class BlockDim:
     actuator_velocity: int = 32
     site_diffs: int = 128
 
-    error_step: int = 128
+    error_step: int = 64
 
     # ray
     ray: int = 64
@@ -649,6 +649,7 @@ class Contact:
       frame: normal is in [0-2], points from geom[0] to geom[1]        (naconmax, 3, 3)
       friction: tangent1, 2, spin, roll1, 2                            (naconmax, 5)
       dim: contact space dimensionality: 1, 3, 4 or 6                  (naconmax,)
+      curvature: effective radius of curvature                         (naconmax,)
       geom: geom ids; -1 for flex                                      (naconmax, 2)
       efc_address: address in efc; -1: not included                    (naconmax, ncondim)
       worldid: world id                                                (naconmax,)
@@ -662,6 +663,7 @@ class Contact:
     frame: wp.array(dtype=wp.mat33)
     friction: wp.array(dtype=vec5)
     dim: wp.array(dtype=int)
+    curvature: wp.array(dtype=float)
     geom: wp.array(dtype=wp.vec2i)
     efc_address: wp.array2d(dtype=int)
     worldid: wp.array(dtype=int)
@@ -781,7 +783,7 @@ class Data:
     qacc_warmstart: wp.array2d(dtype=float)
     qfrc_applied: wp.array2d(dtype=float)
     xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
-    grf: wp.array2d(dtype=wp.spatial_vector)
+    grf: wp.array2d(dtype=wp.vec3)
 
     xpos: wp.array2d(dtype=wp.vec3)
     xquat: wp.array2d(dtype=wp.quat)
