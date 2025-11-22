@@ -69,7 +69,7 @@ def make_full(val, shape, dtype):
 
 
 def main():
-    raw_osim_model = parse_osim_file("data/osim/sphere.osim")
+    raw_osim_model = parse_osim_file("data/osim/example_gait3d.osim")
     checked_osim_model = to_checked_model(raw_osim_model)
     # osim_model = convert_y_up_z_up(checked_osim_model)
     osim_model = checked_osim_model  # don't convert
@@ -96,8 +96,21 @@ def main():
     # qpos0 = get_default_positions(osim_model)
     # print(qpos0)
     qpos0 = [0.0] * nq
-    qpos0[0:3] = [0.0, 1.2, 0.0]  # Root pos
+    qpos0[0:3] = [0.0, 1.05, 0.0]  # Root pos
     qpos0[3] = 1  # root quat
+
+    # Torso -pi / 6
+    qpos0[9] = -15 * 3.14159 / 180.0
+    # Hip abduction, flexion, knee angle, ankle angle
+    qpos0[10] = -5 * 3.14159 / 180.0
+    qpos0[12] = 15 * 3.14159 / 180.0
+    qpos0[13] = -60 * 3.14159 / 180.0
+    qpos0[14] = 20 * 3.14159 / 180.0
+
+    qpos0[15] = -5 * 3.14159 / 180.0
+    qpos0[17] = 15 * 3.14159 / 180.0
+    qpos0[18] = -60 * 3.14159 / 180.0
+    qpos0[19] = 20 * 3.14159 / 180.0
 
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
     # qvel0[0] = 10.0
@@ -132,9 +145,9 @@ def main():
     muscle_pts_num = get_muscle_num_pts(osim_model)
     muscle_pts_adr = exclusive_scan(muscle_pts_num, False)
 
-    dof_armature = [0.01] * nv  # Placeholder for DOF armature
+    dof_armature = [0.0] * nv  # Placeholder for DOF armature
     dof_armature[0:6] = [0.0] * 6  # No armature for free joint
-    dof_damping = [1.0] * nv  # Placeholder for DOF
+    dof_damping = [0.1] * nv  # Placeholder for DOF
     dof_damping[0:6] = [0.0] * 6  # No damping for free joint
     jnt_stiffness = [0.0] * nb  # Placeholder for joint stiffness
 
@@ -262,7 +275,7 @@ def main():
 
     nsite = site_data.nsite
     nsite_cond = site_data.nsite_cond
-    dt = 1.0 / 60.0
+    dt = 1.0 / 6000.0
     m = types.Model(
         nbody=nb,
         nv=nv,
@@ -372,7 +385,7 @@ def main():
         qacc_warmstart=make_zero((n_worlds, nv), dtype=float),
         qfrc_applied=make_zero((n_worlds, nv), dtype=float),
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        grf=make_zero((n_worlds, ), dtype=wp.vec3),
+        grf=make_zero((n_worlds,), dtype=wp.vec3),
 
         qacc=make_zero((n_worlds, nv), dtype=float),
         act_dot=make_zero((n_worlds, nmuscle), dtype=float),
@@ -495,7 +508,7 @@ def main():
 
         # Variable-step integrator
         integrator_state=types.IntegratorState(
-            time= make_zero((n_worlds, n_int_states), dtype=float),
+            time=make_zero((n_worlds, n_int_states), dtype=float),
             qpos=make_zero((n_worlds, n_int_states, nq), dtype=float),
             qvel=make_zero((n_worlds, n_int_states, nv), dtype=float),
             mstate=make_zero((n_worlds, n_int_states, nmuscle), dtype=float),
@@ -503,7 +516,7 @@ def main():
         ),
         nintegrating=make_zero(1, dtype=int),
         step_size=make_full(dt, (n_worlds,), dtype=float),
-        actual_step_size=make_zero((n_worlds,), dtype=float),
+        actual_step_size=make_full(dt, (n_worlds,), dtype=float),
         artificially_limited=make_zero((n_worlds,), dtype=bool),
         error=make_zero((n_worlds,), dtype=float),
         step_accepted=make_zero((n_worlds,), dtype=bool),
@@ -529,7 +542,7 @@ def main():
         bla2 = []
         viewer = Viewer(viewer_type=ViewerType.OPENGL)
         for i in range(args.nstep):
-            forward.step(m, d, dt)
+            forward.step_fixed(m, d, dt)
             viewer.render(m, d)
             bla.append(d.time.numpy()[0])
             bla2.append(d.grf.numpy()[0, 1])
