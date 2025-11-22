@@ -381,7 +381,7 @@ def get_joint_types(model: CheckedModel) -> list[types.JointType]:
 
         class_name = joint.__class__.__name__
         if class_name == "PinJoint":
-            joint_types.append(types.JointType.HINGE)
+            joint_types.append(types.JointType.PIN)
         elif class_name == "UniversalJoint":
             joint_types.append(types.JointType.UNIVERSAL)
         elif class_name == "CustomJoint":

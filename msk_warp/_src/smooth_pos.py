@@ -138,7 +138,7 @@ def _kinematics_level(
         qadr = jnt_qposadr[bodyid]
         qloc_ = wp.quat(1.0, 0.0, 0.0, 0.0)
         xloc_ = wp.vec3(0.0, 0.0, 0.0)
-        if jnt_type_ == JointType.HINGE:
+        if jnt_type_ == JointType.PIN:
             hinge_axis = wp.vec3(0.0, 0.0, 1.0)
             qloc_ = math.axis_angle_to_quat(hinge_axis, qpos[qadr])
             xaxis_out[worldid, bodyid, 0] = math.rot_vec_quat(
@@ -469,7 +469,7 @@ def _cdof(
     elif jnt_type_ == JointType.SLIDE:
         xaxis = xaxis_in[worldid, bodyid, 0]
         res[dofid] = wp.spatial_vector(wp.vec3(0.0), xaxis)
-    elif jnt_type_ == JointType.HINGE:  # hinge
+    elif jnt_type_ == JointType.PIN:  # hinge
         xaxis = xaxis_in[worldid, bodyid, 0]
         res[dofid] = wp.spatial_vector(xaxis, wp.cross(xaxis, offset))
     elif jnt_type_ == JointType.UNIVERSAL:

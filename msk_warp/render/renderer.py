@@ -89,7 +89,7 @@ class Viewer:
                         f"plane_{i}",
                         pos,
                         rot,
-                        extents=(5.0, 0.01, 5.0),
+                        extents=(5.0, 0.001, 5.0),
                     )
 
             # render muscles

@@ -79,13 +79,14 @@ class JointType(enum.IntEnum):
       FREE:  global position and orientation (quat)       (7,)
       BALL:  orientation (quat) relative to parent        (4,)
       SLIDE: sliding distance along body-fixed axis       (1,)
-      HINGE: rotation angle (rad) around body-fixed axis  (1,)
+      PIN: rotation angle (rad) around joint z-axis       (1,)
+      UNIVERSAL: two rotation angles (rad) around joint x- and y-axes (2,)
     """
 
     FREE = 0
     BALL = 1
     SLIDE = 2
-    HINGE = 3
+    PIN = 3
     UNIVERSAL = 4
     CUSTOM = 5
     DUMMY = 6  # for ground

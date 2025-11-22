@@ -75,7 +75,7 @@ def _process_contacts_hc(
     s2 = 1.0 - s1
     location = cpos + depth * (0.5 - s1) * frame[0]
 
-    # Calculate the Hertz force. These are hard-coded for now
+    # Calculate the Hertz force.
     k = stiffness1 * s1
     c = dissipation1 * s1 + dissipation2 * s2
     fH = (4.0 / 3.0) * k * depth * wp.sqrt(radius * k * depth)
@@ -105,30 +105,27 @@ def _process_contacts_hc(
     # Friction cone
     v_slip = wp.length(v_t)
     if v_slip > MJ_MINVAL:
+        # TODO: hardcoded
         mu_s = 0.9
         mu_d = 0.6
         mu_v = 0.
-        # mu_s = friction_in[conid][0]
-        # mu_d = friction_in[conid][1]
-        # mu_v = friction_in[conid][2]
+        transition_velocity = 0.1
 
-        transition_velocity = 0.1  # TODO: hardcoded
         us = (2.0 * mu_s * mu_s) / (mu_s + mu_s) if mu_s != 0 else 0.0
         ud = (2.0 * mu_d * mu_d) / (mu_d + mu_d) if mu_d != 0 else 0.0
         uv = (2.0 * mu_v * mu_v) / (mu_v + mu_v) if mu_v != 0 else 0.0
 
         v_rel = v_slip / transition_velocity
-        f_friction = f * (wp.min(v_rel, 1.0) *
-                          (ud + 2.0 * (us - ud) /
-                           (1.0 + v_rel * v_rel)) + uv * v_slip)
-        force += f_friction * (v_t / v_slip)
+        f_friction = (f * (wp.min(v_rel, 1.0) * (ud + 2.0 * (us - ud) / (
+                1.0 + v_rel * v_rel)) + uv * v_slip))
+        force += f_friction * v_t / v_slip
 
     # Apply forces to bodies
     com1, com2 = xpos_in[worldid, body1], xpos_in[worldid, body2]
     wp.atomic_add(xfrc_applied_out[worldid], body1,
-                  support.apply_force_at_point(-1.0 * force, location - com1))
+                  support.force_at_point(-1.0 * force, location - com1))
     wp.atomic_add(xfrc_applied_out[worldid], body2,
-                  support.apply_force_at_point(1.0 * force, location - com2))
+                  support.force_at_point(1.0 * force, location - com2))
 
     # todo check for which body is ground
     grf_out[worldid] += force

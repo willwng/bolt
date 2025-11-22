@@ -159,9 +159,9 @@ def _xfrc_muscles(
 
         muscle_frc = actuation * vec
         wp.atomic_add(xfrc_applied_out[worldid], body1,
-                      support.apply_force_at_point(muscle_frc, p1 - com1))
+                      support.force_at_point(muscle_frc, p1 - com1))
         wp.atomic_sub(xfrc_applied_out[worldid], body2,
-                      support.apply_force_at_point(muscle_frc, p2 - com2))
+                      support.force_at_point(muscle_frc, p2 - com2))
 
 
 @event_scope

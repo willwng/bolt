@@ -295,13 +295,8 @@ def contact_force(
 
 
 @wp.func
-def compute_torque(frc: wp.vec3, offset: wp.vec3) -> wp.vec3:
-    return wp.cross(offset, frc)
-
-
-@wp.func
-def apply_force_at_point(frc: wp.vec3, offset: wp.vec3) -> wp.spatial_vector:
-    torque = compute_torque(frc, offset)
+def force_at_point(frc: wp.vec3, offset: wp.vec3) -> wp.spatial_vector:
+    torque = wp.cross(offset, frc)
     return wp.spatial_vector(frc, torque)
 
 
