@@ -69,7 +69,7 @@ def make_full(val, shape, dtype):
 
 
 def main():
-    raw_osim_model = parse_osim_file("data/osim/model.osim")
+    raw_osim_model = parse_osim_file("data/osim/sphere.osim")
     checked_osim_model = to_checked_model(raw_osim_model)
     # osim_model = convert_y_up_z_up(checked_osim_model)
     osim_model = checked_osim_model  # don't convert
@@ -355,6 +355,7 @@ def main():
         dof_invweight0=to_warp_array([0.0] * nv, dtype=float),  # TODO
     )
 
+    n_int_states = 2
     d = types.Data(
         solver_niter=make_zero(n_worlds, dtype=int),
 
@@ -493,6 +494,13 @@ def main():
         subtree_bodyvel=make_zero((n_worlds, nb), dtype=wp.vec3),
 
         # Variable-step integrator
+        integrator_state=types.IntegratorState(
+            time= make_zero((n_worlds, n_int_states), dtype=float),
+            qpos=make_zero((n_worlds, n_int_states, nq), dtype=float),
+            qvel=make_zero((n_worlds, n_int_states, nv), dtype=float),
+            mstate=make_zero((n_worlds, n_int_states, nmuscle), dtype=float),
+            act=make_zero((n_worlds, n_int_states, nmuscle), dtype=float),
+        ),
         nintegrating=make_zero(1, dtype=int),
         step_size=make_full(dt, (n_worlds,), dtype=float),
         actual_step_size=make_zero((n_worlds,), dtype=float),
@@ -519,7 +527,7 @@ def main():
     if not args.benchmark:
         bla = []
         bla2 = []
-        viewer = Viewer(viewer_type=ViewerType.USD)
+        viewer = Viewer(viewer_type=ViewerType.OPENGL)
         for i in range(args.nstep):
             forward.step(m, d, dt)
             viewer.render(m, d)

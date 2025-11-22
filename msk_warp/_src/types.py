@@ -671,6 +671,25 @@ class Contact:
 
 
 @dataclasses.dataclass
+class IntegratorState:
+    """
+    State saved for variable-step size integrator. Number of requested
+    saved states is configurable.
+    Attributes:
+        time: simulation time                       (nworld, nstates)
+        qpos: position                              (nworld, nstates, nq)
+        qvel: velocity                              (nworld, nstates, nv)
+        mstate: muscle state variable               (nworld, nstates, nmuscles)
+        act: actuator activation                   (nworld, nstates, nmuscles)
+    """
+    time: wp.array2d(dtype=float)
+    qpos: wp.array3d(dtype=float)
+    qvel: wp.array3d(dtype=float)
+    mstate: wp.array3d(dtype=float)
+    act: wp.array3d(dtype=float)
+
+
+@dataclasses.dataclass
 class Data:
     """Dynamic state that updates each step.
 
@@ -852,6 +871,7 @@ class Data:
     subtree_bodyvel: wp.array2d(dtype=wp.spatial_vector)
 
     # Variable-step size integrator
+    integrator_state: IntegratorState
     nintegrating: wp.array(dtype=int)
     step_size: wp.array(dtype=float)
     actual_step_size: wp.array(dtype=float)
