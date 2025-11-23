@@ -52,8 +52,21 @@ class Quat:
         qz = Quat.from_angle_axis(r.z, Vector3(0, 0, 1))
         return Quat.mul(qx, Quat.mul(qy, qz))
 
+    def normalize(self) -> "Quat":
+        norm = math.sqrt(self.w ** 2 + self.x ** 2 + self.y ** 2 + self.z ** 2)
+        if norm > 0:
+            self.w /= norm
+            self.x /= norm
+            self.y /= norm
+            self.z /= norm
+        return self
+
     def inv(self) -> "Quat":
         return Quat(w=self.w, x=-self.x, y=-self.y, z=-self.z)
+
+    def to_list(self) -> list[float]:
+        self.normalize()
+        return [float(self.w), float(self.x), float(self.y), float(self.z)]
 
 
 @dataclass
@@ -267,6 +280,25 @@ class UniversalJoint(Joint):
 
     def num_pos_dofs(self) -> int:
         return 2
+
+
+@dataclass
+class BallJoint(Joint):
+    @classmethod
+    def from_joint(cls, joint: Joint) -> "BallJoint":
+        return cls(
+            name=joint.name,
+            socket_parent_frame=joint.socket_parent_frame,
+            socket_child_frame=joint.socket_child_frame,
+            coordinates=joint.coordinates,
+            frames=joint.frames,
+        )
+
+    def num_dofs(self) -> int:
+        return 3
+
+    def num_pos_dofs(self) -> int:
+        return 4
 
 
 @dataclass

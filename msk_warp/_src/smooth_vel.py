@@ -73,8 +73,6 @@ def _comvel_level(
         cvel += cdof[dofid + 3] * qvel[dofid + 3]
         cvel += cdof[dofid + 4] * qvel[dofid + 4]
         cvel += cdof[dofid + 5] * qvel[dofid + 5]
-
-        dofid += 6
     elif jnttype == JointType.BALL:
         cdof_dot_out[worldid, dofid + 0] = math.motion_cross(cvel,
                                                              cdof[dofid + 0])
@@ -86,13 +84,20 @@ def _comvel_level(
         cvel += cdof[dofid + 0] * qvel[dofid + 0]
         cvel += cdof[dofid + 1] * qvel[dofid + 1]
         cvel += cdof[dofid + 2] * qvel[dofid + 2]
-
-        dofid += 3
-    else:
+    elif jnttype == JointType.PIN or jnttype == JointType.SLIDE:
         cdof_dot_out[worldid, dofid] = math.motion_cross(cvel, cdof[dofid])
         cvel += cdof[dofid] * qvel[dofid]
-
-        dofid += 1
+    elif jnttype == JointType.UNIVERSAL:
+        # The second transformation is dependent on the first
+        for i in range(2):
+            cdof_dot_out[worldid, dofid] = math.motion_cross(cvel, cdof[dofid])
+            cvel += cdof[dofid] * qvel[dofid]
+            dofid += 1
+    elif jnttype == JointType.CUSTOM:
+        # TODO: this is weird
+        pass
+    elif jnttype == JointType.DUMMY:
+        pass
 
     cvel_out[worldid, bodyid] = cvel
 

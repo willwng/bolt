@@ -700,7 +700,9 @@ class Data:
       nefc: number of constraints                                 (nworld,)
 
       time: simulation time                                       (nworld,)
-      next_time: target time for variable-step integrator         (nworld,)
+      time1: current target time for integrator (t1)              (nworld,)
+      next_time: final target time for integrator (tMax)          (nworld,)
+
       qpos: position                                              (nworld, nq)
       qvel: velocity                                              (nworld, nv)
       act: actuator activation                                    (nworld, nmuscles)
@@ -789,6 +791,7 @@ class Data:
     nefc: wp.array(dtype=int)
 
     time: wp.array(dtype=float)
+    time1: wp.array(dtype=float)
     next_time: wp.array(dtype=float)
 
     qpos: wp.array2d(dtype=float)
@@ -874,6 +877,7 @@ class Data:
     # Variable-step size integrator
     integrator_state: IntegratorState
     nintegrating: wp.array(dtype=int)
+
     step_size: wp.array(dtype=float)
     actual_step_size: wp.array(dtype=float)
     artificially_limited: wp.array(dtype=bool)

@@ -4,6 +4,7 @@ import msk_warp._src.math as math
 import msk_warp._src.consts as consts
 
 import warp as wp
+import numpy as np
 
 from msk_warp.utils.osim_parser import parse_osim_file
 from msk_warp.utils.osim_converter import *
@@ -100,17 +101,16 @@ def main():
     qpos0[3] = 1  # root quat
 
     # Torso -pi / 6
-    qpos0[9] = -15 * 3.14159 / 180.0
+    qpos0[7:11] = Quat.from_angle_axis(-np.pi / 6.0, Vector3(0, 0, 1)).to_list()
     # Hip abduction, flexion, knee angle, ankle angle
-    qpos0[10] = -5 * 3.14159 / 180.0
-    qpos0[12] = 15 * 3.14159 / 180.0
-    qpos0[13] = -60 * 3.14159 / 180.0
-    qpos0[14] = 20 * 3.14159 / 180.0
-
-    qpos0[15] = -5 * 3.14159 / 180.0
-    qpos0[17] = 15 * 3.14159 / 180.0
-    qpos0[18] = -60 * 3.14159 / 180.0
-    qpos0[19] = 20 * 3.14159 / 180.0
+    qpos0[11:15] = Quat(1.0, np.deg2rad(5.0), 0.0, np.deg2rad(15.0)).to_list()
+    qpos0[15] = float(np.deg2rad(-60.0))
+    qpos0[16] = float(np.deg2rad(20.0))
+    #
+    # # Hip abduction, flexion, knee angle, ankle angle
+    qpos0[17:21] = Quat(1.0, np.deg2rad(-5.0), 0.0, np.deg2rad(15.0)).to_list()
+    qpos0[21] = np.deg2rad(-60.0)
+    qpos0[22] = np.deg2rad(20.0)
 
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
     # qvel0[0] = 10.0
@@ -258,7 +258,7 @@ def main():
         max_grow=5.0,
         hysteresis_low=0.9,
         hysteresis_high=1.2,
-        accuracy=0.01,
+        accuracy=1.0,
 
         ls_parallel=False,
         ls_parallel_min_step=1e-8,
@@ -275,7 +275,7 @@ def main():
 
     nsite = site_data.nsite
     nsite_cond = site_data.nsite_cond
-    dt = 1.0 / 6000.0
+    dt = 1.0 / 100.0
     m = types.Model(
         nbody=nb,
         nv=nv,
@@ -375,6 +375,7 @@ def main():
         nl=make_zero(n_worlds, dtype=int),
         nefc=make_zero(n_worlds, dtype=int),
         time=make_zero(n_worlds, dtype=float),
+        time1=make_zero(n_worlds, dtype=float),
         next_time=make_zero(n_worlds, dtype=float),
 
         qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
@@ -515,8 +516,8 @@ def main():
             act=make_zero((n_worlds, n_int_states, nmuscle), dtype=float),
         ),
         nintegrating=make_zero(1, dtype=int),
-        step_size=make_full(dt, (n_worlds,), dtype=float),
-        actual_step_size=make_full(dt, (n_worlds,), dtype=float),
+        step_size=make_full(dt / 10.0, (n_worlds,), dtype=float),
+        actual_step_size=make_zero((n_worlds,), dtype=float),
         artificially_limited=make_zero((n_worlds,), dtype=bool),
         error=make_zero((n_worlds,), dtype=float),
         step_accepted=make_zero((n_worlds,), dtype=bool),
@@ -542,7 +543,7 @@ def main():
         bla2 = []
         viewer = Viewer(viewer_type=ViewerType.OPENGL)
         for i in range(args.nstep):
-            forward.step_fixed(m, d, dt)
+            forward.step(m, d, dt)
             viewer.render(m, d)
             bla.append(d.time.numpy()[0])
             bla2.append(d.grf.numpy()[0, 1])

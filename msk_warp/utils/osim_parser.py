@@ -144,6 +144,11 @@ def parse_pin_joint(joint) -> PinJoint:
     return PinJoint.from_joint(joint_base)
 
 
+def parse_ball_joint(joint) -> BallJoint:
+    joint_base = parse_joint_base(joint)
+    return BallJoint.from_joint(joint_base)
+
+
 def parse_universal_joint(joint) -> UniversalJoint:
     joint_base = parse_joint_base(joint)
     return UniversalJoint.from_joint(joint_base)
@@ -212,6 +217,8 @@ def parse_joint_set(joint_set) -> JointSet:
     for joint in joint_set_objects:
         if joint.tag == "CustomJoint":
             joint_obj = parse_custom_joint(joint)
+        elif joint.tag == "BallJoint":
+            joint_obj = parse_ball_joint(joint)
         elif joint.tag == "PinJoint":
             joint_obj = parse_pin_joint(joint)
         elif joint.tag == "UniversalJoint":

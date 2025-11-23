@@ -145,8 +145,8 @@ def _kinematics_level(
                 hinge_axis, jnt_rot)
 
         if jnt_type_ == JointType.BALL:
-            qloc_ = wp.quat(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2],
-                            qpos[qadr + 3])
+            qloc_ = wp.quat(qpos[qadr + 0], qpos[qadr + 1],
+                            qpos[qadr + 2], qpos[qadr + 3])
             qloc_ = wp.normalize(qloc_)
 
         elif jnt_type_ == JointType.SLIDE:
@@ -168,7 +168,6 @@ def _kinematics_level(
                 math.rot_vec_quat(axis1, jnt_rot))
             xaxis_out[worldid, bodyid, 1] = (
                 math.rot_vec_quat(axis2, math.mul_quat(jnt_rot, qloc1)))
-
         elif jnt_type_ == JointType.CUSTOM:
             cst_adr = jnt_cst_adr[bodyid]
             txfm_axes = cst_txfm_axis[cst_adr]
@@ -533,7 +532,6 @@ def com_pos(m: Model, d: Data):
                 d.subtree_com],
         outputs=[d.cinert],
     )
-    # Phi: todo
     wp.launch(
         _cdof,
         dim=(d.nworld, m.nbody),

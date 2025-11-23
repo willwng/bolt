@@ -52,13 +52,10 @@ def _cacc(
         jnt_dofadr: wp.array(dtype=int),
         # Data in:
         qvel_in: wp.array2d(dtype=float),
-        qacc_in: wp.array2d(dtype=float),
-        cdof_in: wp.array2d(dtype=wp.spatial_vector),
         cdof_dot_in: wp.array2d(dtype=wp.spatial_vector),
         cacc_in: wp.array2d(dtype=wp.spatial_vector),
         # In:
         body_tree_: wp.array(dtype=int),
-        flg_acc: bool,
         # Data out:
         cacc_out: wp.array2d(dtype=wp.spatial_vector),
 ):
@@ -73,20 +70,16 @@ def _cacc(
     for i in range(dofnum):
         local_cacc += cdof_dot_in[worldid, dofadr + i] * qvel_in[
             worldid, dofadr + i]
-        if flg_acc:
-            local_cacc += cdof_in[worldid, dofadr + i] * qacc_in[
-                worldid, dofadr + i]
     cacc_out[worldid, bodyid] = local_cacc
 
 
-def _rne_cacc_forward(m: Model, d: Data, flg_acc: bool = False):
+def _rne_cacc_forward(m: Model, d: Data):
     for body_tree in m.body_tree:
         wp.launch(
             _cacc,
             dim=(d.nworld, body_tree.size),
             inputs=[m.body_parentid, m.jnt_dofnum, m.jnt_dofadr, d.qvel,
-                    d.qacc, d.cdof, d.cdof_dot, d.cacc,
-                    body_tree, flg_acc],
+                    d.cdof_dot, d.cacc, body_tree],
             outputs=[d.cacc],
         )
 
@@ -97,29 +90,25 @@ def _cfrc(
         cinert_in: wp.array2d(dtype=vec10),
         cvel_in: wp.array2d(dtype=wp.spatial_vector),
         cacc_in: wp.array2d(dtype=wp.spatial_vector),
-        cfrc_ext_in: wp.array2d(dtype=wp.spatial_vector),
-        # In:
-        flg_cfrc_ext: bool,
         # Data out:
         cfrc_int_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, bodyid = wp.tid()
     bodyid += 1  # skip world body
+
     cacc = cacc_in[worldid, bodyid]
     cinert = cinert_in[worldid, bodyid]
     cvel = cvel_in[worldid, bodyid]
     frc = math.inert_vec(cinert, cacc)
     frc += math.motion_cross_force(cvel, math.inert_vec(cinert, cvel))
-    if flg_cfrc_ext:
-        frc -= cfrc_ext_in[worldid, bodyid]
 
     cfrc_int_out[worldid, bodyid] = frc
 
 
-def _rne_cfrc(m: Model, d: Data, flg_cfrc_ext: bool = False):
+def _rne_cfrc(m: Model, d: Data):
     wp.launch(
         _cfrc, dim=[d.nworld, m.nbody - 1],
-        inputs=[d.cinert, d.cvel, d.cacc, d.cfrc_ext, flg_cfrc_ext],
+        inputs=[d.cinert, d.cvel, d.cacc],
         outputs=[d.cfrc_int]
     )
 
@@ -168,19 +157,18 @@ def _qfrc_bias(
 
 
 @event_scope
-def rne(m: Model, d: Data, flg_acc: bool = False):
+def rne(m: Model, d: Data):
     """Computes inverse dynamics using the recursive Newton-Euler algorithm.
 
-    Computes the bias forces (`qfrc_bias`) and internal forces (`cfrc_int`) for the current state,
-    including the effects of gravity and optionally joint accelerations.
+    Computes the bias forces (`qfrc_bias`) and internal forces (`cfrc_int`)
+    for the current state, including the effects of gravity.
 
     Args:
       m: The model containing kinematic and dynamic information.
       d: The data object containing the current state and output arrays.
-      flg_acc: If True, includes joint accelerations in the computation.
     """
     _rne_cacc_world(m, d)
-    _rne_cacc_forward(m, d, flg_acc=flg_acc)
+    _rne_cacc_forward(m, d)
     _rne_cfrc(m, d)
     _rne_cfrc_backward(m, d)
     wp.launch(_qfrc_bias, dim=[d.nworld, m.nv],
