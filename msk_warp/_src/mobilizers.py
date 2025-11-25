@@ -248,15 +248,17 @@ def cvel_joint(
         for i in range(dof_num):
             res[dofid + i] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         # For custom joints, we need to process them in order of transformation
-        #  translations don't depend on previous transforms
+        #  translations don't depend on previous transforms, so do them first
         #  but each rotation depends on previous rotation
         # That's why we stored the intermediate cdof in cdof_tmp
         for i in range(wp.static(6)):
-            dof_adr = cst_txfm_dofadr[i]
+            j = i + 3 if i < 3 else i - 3  # translations first
+            dof_adr = cst_txfm_dofadr[j]
             if dof_adr == -1:
                 continue
-            res[dof_adr] += math.motion_cross(cvel, cdof_tmp[i])
-            cvel += cdof_tmp[i] * qvel[dof_adr]
+            res[dof_adr] += math.motion_cross(cvel, cdof_tmp[j])
+            cvel += cdof_tmp[j] * qvel[dof_adr]
+
     elif jnttype == JointType.DUMMY:
         pass
     return cvel
