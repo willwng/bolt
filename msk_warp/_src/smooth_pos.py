@@ -17,40 +17,16 @@
 import warp as wp
 
 from . import math
+from . import mobilizers
 from .types import Data
-from .types import JointType
 from .types import Model
 from .types import TileSet
-from .types import CustomFnType
 from .types import vec10
 from .warp_util import cache_kernel
 from .warp_util import event_scope
 from .warp_util import kernel as nested_kernel
 
 wp.set_module_options({"enable_backward": False})
-
-
-# returns f(x) and df(x)
-@wp.func
-def evaluate_txfm(
-        # data in
-        qpos_in: wp.array(dtype=float),
-        # in
-        txfm_fn_type: int,
-        txfm_fn_adr: int,
-        txfm_qadr: int,
-        # model in
-        const_fns: wp.array(dtype=float),
-        linear_fns: wp.array(dtype=wp.vec2),
-) -> wp.vec2:
-    if txfm_fn_type == CustomFnType.CONSTANT:
-        return wp.vec2(const_fns[txfm_fn_adr], 0.0)
-    elif txfm_fn_type == CustomFnType.LINEAR:
-        if txfm_qadr == -1:
-            return wp.vec2(0.0, 0.0)
-        lin_fn = linear_fns[txfm_fn_adr]
-        return wp.vec2(lin_fn[0] * qpos_in[txfm_qadr] + lin_fn[1], lin_fn[0])
-    return wp.vec2(0.0, 0.0)
 
 
 @wp.kernel
@@ -106,115 +82,24 @@ def _kinematics_level(
 ):
     worldid, nodeid = wp.tid()
     bodyid = body_tree_[nodeid]
-    qpos = qpos_in[worldid]
     jnt_type_ = jnt_type[bodyid]
 
-    if jnt_type_ == JointType.FREE:
-        # free joint: (x,y,z) + (qw,qx,qy,qz)
-        qadr = jnt_qposadr[bodyid]
-        xpos = wp.vec3(qpos[qadr], qpos[qadr + 1], qpos[qadr + 2])
-        xquat = wp.quat(qpos[qadr + 3], qpos[qadr + 4], qpos[qadr + 5],
-                        qpos[qadr + 6])
-        xquat = wp.normalize(xquat)
-
-        xanchor_out[worldid, bodyid] = xpos
-    else:
-        # Grab parent frame information
-        pid = body_parentid[bodyid]
-        p_pos = xpos_in[worldid, pid]
-        p_rot = xquat_in[worldid, pid]
-
-        # compute the joint frame
-        p_to_jnt = math.rot_vec_quat(jnt_rel_parent[bodyid], p_rot)
-        p_to_jnt_rot = jnt_rel_parent_rot[bodyid]
-        jnt_pos = p_pos + p_to_jnt
-        jnt_rot = math.mul_quat(p_rot, p_to_jnt_rot)
-
-        # joint to child information
-        jnt_to_c_rot = jnt_rel_child_rot[bodyid]
-        jnt_to_c = jnt_rel_child[bodyid]
-
-        # local joint transformation
-        qadr = jnt_qposadr[bodyid]
-        qloc_ = wp.quat(1.0, 0.0, 0.0, 0.0)
-        xloc_ = wp.vec3(0.0, 0.0, 0.0)
-        if jnt_type_ == JointType.PIN:
-            hinge_axis = wp.vec3(0.0, 0.0, 1.0)
-            qloc_ = math.axis_angle_to_quat(hinge_axis, qpos[qadr])
-            xaxis_out[worldid, bodyid, 0] = math.rot_vec_quat(
-                hinge_axis, jnt_rot)
-
-        if jnt_type_ == JointType.BALL:
-            qloc_ = wp.quat(qpos[qadr + 0], qpos[qadr + 1],
-                            qpos[qadr + 2], qpos[qadr + 3])
-            qloc_ = wp.normalize(qloc_)
-
-        elif jnt_type_ == JointType.SLIDE:
-            slide_axis = wp.vec3(1.0, 0.0, 0.0)
-            xloc_ = qpos[qadr] * slide_axis
-            xaxis_out[worldid, bodyid, 0] = math.rot_vec_quat(
-                slide_axis, jnt_rot)
-
-        elif jnt_type_ == JointType.UNIVERSAL:
-            axis1 = wp.vec3(1.0, 0.0, 0.0)
-            axis2 = wp.vec3(0.0, 1.0, 0.0)
-
-            qloc1 = math.axis_angle_to_quat(axis1, qpos[qadr + 0])
-            qloc2 = math.axis_angle_to_quat(axis2, qpos[qadr + 1])
-            qloc_ = math.mul_quat(qloc1, qloc2)
-
-            # Keep track of first rotation
-            xaxis_out[worldid, bodyid, 0] = (
-                math.rot_vec_quat(axis1, jnt_rot))
-            xaxis_out[worldid, bodyid, 1] = (
-                math.rot_vec_quat(axis2, math.mul_quat(jnt_rot, qloc1)))
-        elif jnt_type_ == JointType.CUSTOM:
-            cst_adr = jnt_cst_adr[bodyid]
-            txfm_axes = cst_txfm_axis[cst_adr]
-            txfm_fn = cst_txfm_fn[cst_adr]
-
-            # First 3 are rotation
-            for i in range(wp.static(3)):
-                fn_eval = evaluate_txfm(
-                    qpos,
-                    txfm_fn[i],
-                    cst_txfm_fn_adr[cst_adr, i],
-                    cst_txfm_qadr[cst_adr, i],
-                    const_fns,
-                    linear_fns,
-                )
-                # store intermediate rotated axes
-                xaxis_out[worldid, bodyid, i] = fn_eval[1] * math.rot_vec_quat(
-                    txfm_axes[i], math.mul_quat(jnt_rot, qloc_))
-
-                qloc_ = math.mul_quat(
-                    qloc_, math.axis_angle_to_quat(txfm_axes[i], fn_eval[0]))
-
-            # Next 3 are translation
-            for i in range(wp.static(3), wp.static(6)):
-                fn_eval = evaluate_txfm(
-                    qpos,
-                    txfm_fn[i],
-                    cst_txfm_fn_adr[cst_adr, i],
-                    cst_txfm_qadr[cst_adr, i],
-                    const_fns,
-                    linear_fns,
-                )
-                xloc_ += fn_eval[0] * txfm_axes[i]
-                # store intermediate rotated axes, with derivative
-                xaxis_out[worldid, bodyid, i] = fn_eval[1] * math.rot_vec_quat(
-                    txfm_axes[i], jnt_rot)
-
-        # world coordinates
-        xquat = math.mul_quat(jnt_rot, math.mul_quat(qloc_, jnt_to_c_rot))
-        xpos = (jnt_pos + math.rot_vec_quat(xloc_, jnt_rot) +
-                math.rot_vec_quat(jnt_to_c, xquat))
-
-        xanchor_out[worldid, bodyid] = jnt_pos
+    cst_adr = jnt_cst_adr[bodyid]
+    xpos, xquat, xanchor = mobilizers.fk_joint(
+        jnt_type_, jnt_qposadr[bodyid], qpos_in[worldid],
+        body_parentid[bodyid], xpos_in[worldid], xquat_in[worldid],
+        jnt_rel_parent[bodyid], jnt_rel_parent_rot[bodyid],
+        jnt_rel_child[bodyid], jnt_rel_child_rot[bodyid],
+        cst_txfm_axis[cst_adr], cst_txfm_fn[cst_adr],
+        cst_txfm_fn_adr[cst_adr], cst_txfm_qadr[cst_adr],
+        const_fns, linear_fns,
+        xaxis_out[worldid, bodyid]
+    )
 
     xpos_out[worldid, bodyid] = xpos
     xquat_out[worldid, bodyid] = wp.normalize(xquat)
     xmat_out[worldid, bodyid] = math.quat_to_mat(xquat)
+    xanchor_out[worldid, bodyid] = xanchor
 
     # inertial frame
     xipos_out[worldid, bodyid] = (
@@ -444,57 +329,18 @@ def _cdof(
     dofid = jnt_dofadr[bodyid]
     jnt_type_ = jnt_type[bodyid]
     xmat = wp.transpose(xmat_in[worldid, bodyid])
-
     joint_pos = xanchor_in[worldid, bodyid]
 
     # compute com-anchor vector
     root_com = subtree_com_in[worldid, body_rootid[bodyid]]
     offset = root_com - joint_pos
 
-    res = cdof_out[worldid]
-    if jnt_type_ == JointType.FREE:
-        res[dofid + 0] = wp.spatial_vector(0.0, 0.0, 0.0, 1.0, 0.0, 0.0)
-        res[dofid + 1] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
-        res[dofid + 2] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
-        # I_3 rotation in child frame (assume no subsequent rotations)
-        res[dofid + 3] = wp.spatial_vector(xmat[0], wp.cross(xmat[0], offset))
-        res[dofid + 4] = wp.spatial_vector(xmat[1], wp.cross(xmat[1], offset))
-        res[dofid + 5] = wp.spatial_vector(xmat[2], wp.cross(xmat[2], offset))
-    elif jnt_type_ == JointType.BALL:  # ball
-        # I_3 rotation in child frame (assume no subsequent rotations)
-        res[dofid + 0] = wp.spatial_vector(xmat[0], wp.cross(xmat[0], offset))
-        res[dofid + 1] = wp.spatial_vector(xmat[1], wp.cross(xmat[1], offset))
-        res[dofid + 2] = wp.spatial_vector(xmat[2], wp.cross(xmat[2], offset))
-    elif jnt_type_ == JointType.SLIDE:
-        xaxis = xaxis_in[worldid, bodyid, 0]
-        res[dofid] = wp.spatial_vector(wp.vec3(0.0), xaxis)
-    elif jnt_type_ == JointType.PIN:  # hinge
-        xaxis = xaxis_in[worldid, bodyid, 0]
-        res[dofid] = wp.spatial_vector(xaxis, wp.cross(xaxis, offset))
-    elif jnt_type_ == JointType.UNIVERSAL:
-        xaxis1 = xaxis_in[worldid, bodyid, 0]
-        xaxis2 = xaxis_in[worldid, bodyid, 1]
-
-        res[dofid + 0] = wp.spatial_vector(xaxis1, wp.cross(xaxis1, offset))
-        res[dofid + 1] = wp.spatial_vector(xaxis2, wp.cross(xaxis2, offset))
-    elif jnt_type_ == JointType.CUSTOM:
-        # initialize to zero
-        for i in range(jnt_dofnum[bodyid]):
-            res[dofid + i] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-
-        # accumulate over all spatial txfm
-        for i in range(wp.static(6)):
-            cst_jnt_adr = jnt_cst_adr[bodyid]
-            dof_adr = cst_txfm_dofadr[cst_jnt_adr, i]
-            if dof_adr == -1:  # not attached to a dof
-                continue
-
-            xaxis = xaxis_in[worldid, bodyid, i]
-            if i < 3:  # rotation
-                res[dof_adr] += wp.spatial_vector(xaxis,
-                                                  wp.cross(xaxis, offset))
-            else:  # translation
-                res[dof_adr] += wp.spatial_vector(wp.vec3(0.0), xaxis)
+    cst_jnt_adr = jnt_cst_adr[bodyid]
+    mobilizers.cdof_joint(
+        jnt_type_, dofid, xmat, offset, xaxis_in[worldid, bodyid],
+        jnt_dofnum[bodyid], cst_txfm_dofadr[cst_jnt_adr],
+        cdof_out[worldid]
+    )
 
 
 @event_scope

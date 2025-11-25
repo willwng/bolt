@@ -16,9 +16,8 @@
 
 import warp as wp
 
-from . import math
+from . import mobilizers
 from .types import Data
-from .types import JointType
 from .types import Model
 from .warp_util import event_scope
 
@@ -37,6 +36,7 @@ def _comvel_level(
         body_parentid: wp.array(dtype=int),
         jnt_dofadr: wp.array(dtype=int),
         jnt_type: wp.array(dtype=int),
+        jnt_dofnum: wp.array(dtype=int),
         # Data in:
         qvel_in: wp.array2d(dtype=float),
         cdof_in: wp.array2d(dtype=wp.spatial_vector),
@@ -54,51 +54,14 @@ def _comvel_level(
     pid = body_parentid[bodyid]
     cvel = cvel_in[worldid, pid]
 
+    # Contribution of mobilizer
     qvel = qvel_in[worldid]
     cdof = cdof_in[worldid]
     dofid = jnt_dofadr[bodyid]
     jnttype = jnt_type[bodyid]
-    if jnttype == JointType.FREE:
-        cvel += cdof[dofid + 0] * qvel[dofid + 0]
-        cvel += cdof[dofid + 1] * qvel[dofid + 1]
-        cvel += cdof[dofid + 2] * qvel[dofid + 2]
-
-        cdof_dot_out[worldid, dofid + 3] = math.motion_cross(cvel,
-                                                             cdof[dofid + 3])
-        cdof_dot_out[worldid, dofid + 4] = math.motion_cross(cvel,
-                                                             cdof[dofid + 4])
-        cdof_dot_out[worldid, dofid + 5] = math.motion_cross(cvel,
-                                                             cdof[dofid + 5])
-
-        cvel += cdof[dofid + 3] * qvel[dofid + 3]
-        cvel += cdof[dofid + 4] * qvel[dofid + 4]
-        cvel += cdof[dofid + 5] * qvel[dofid + 5]
-    elif jnttype == JointType.BALL:
-        cdof_dot_out[worldid, dofid + 0] = math.motion_cross(cvel,
-                                                             cdof[dofid + 0])
-        cdof_dot_out[worldid, dofid + 1] = math.motion_cross(cvel,
-                                                             cdof[dofid + 1])
-        cdof_dot_out[worldid, dofid + 2] = math.motion_cross(cvel,
-                                                             cdof[dofid + 2])
-
-        cvel += cdof[dofid + 0] * qvel[dofid + 0]
-        cvel += cdof[dofid + 1] * qvel[dofid + 1]
-        cvel += cdof[dofid + 2] * qvel[dofid + 2]
-    elif jnttype == JointType.PIN or jnttype == JointType.SLIDE:
-        cdof_dot_out[worldid, dofid] = math.motion_cross(cvel, cdof[dofid])
-        cvel += cdof[dofid] * qvel[dofid]
-    elif jnttype == JointType.UNIVERSAL:
-        # The second transformation is dependent on the first
-        for i in range(2):
-            cdof_dot_out[worldid, dofid] = math.motion_cross(cvel, cdof[dofid])
-            cvel += cdof[dofid] * qvel[dofid]
-            dofid += 1
-    elif jnttype == JointType.CUSTOM:
-        # TODO: this is weird
-        pass
-    elif jnttype == JointType.DUMMY:
-        pass
-
+    dof_num = jnt_dofnum[bodyid]
+    res = cdof_dot_out[worldid]
+    cvel = mobilizers.cvel_joint(cvel, cdof, qvel, jnttype, dofid, dof_num, res)
     cvel_out[worldid, bodyid] = cvel
 
 
@@ -116,8 +79,8 @@ def com_vel(m: Model, d: Data):
         wp.launch(
             _comvel_level,
             dim=(d.nworld, body_tree.size),
-            inputs=[m.body_parentid, m.jnt_dofadr, m.jnt_type, d.qvel, d.cdof,
-                    d.cvel,
+            inputs=[m.body_parentid, m.jnt_dofadr, m.jnt_type, m.jnt_dofnum,
+                    d.qvel, d.cdof, d.cvel,
                     body_tree],
             outputs=[d.cvel, d.cdof_dot],
         )

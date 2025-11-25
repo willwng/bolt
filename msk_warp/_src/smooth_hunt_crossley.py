@@ -129,9 +129,9 @@ def _process_contacts_hc(
 
     # todo check for which body is ground
     if body1 == 0:
-        grf_out[worldid] += -force
+        wp.atomic_add(grf_out, worldid, -force)
     elif body2 == 0:
-        grf_out[worldid] += force
+        wp.atomic_add(grf_out, worldid, force)
 
 
 

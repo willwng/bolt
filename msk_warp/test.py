@@ -260,7 +260,7 @@ def main():
         hysteresis_low=0.9,
         hysteresis_high=1.2,
         accuracy=0.01,
-        use_inf_norm=False,
+        use_inf_norm=True,
 
         qvel_weights=wp.full(nv, 1.0, dtype=float),
 
