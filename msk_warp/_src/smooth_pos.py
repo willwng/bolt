@@ -322,6 +322,7 @@ def _cdof(
         subtree_com_in: wp.array2d(dtype=wp.vec3),
         # Data out:
         cdof_out: wp.array2d(dtype=wp.spatial_vector),
+        cdof_tmp_out: wp.array3d(dtype=wp.spatial_vector),
 ):
     worldid, bodyid = wp.tid()
     if bodyid == 0:
@@ -339,7 +340,7 @@ def _cdof(
     mobilizers.cdof_joint(
         jnt_type_, dofid, xmat, offset, xaxis_in[worldid, bodyid],
         jnt_dofnum[bodyid], cst_txfm_dofadr[cst_jnt_adr],
-        cdof_out[worldid]
+        cdof_out[worldid], cdof_tmp_out[worldid, cst_jnt_adr]
     )
 
 
@@ -384,7 +385,7 @@ def com_pos(m: Model, d: Data):
         inputs=[m.body_rootid, m.jnt_type, m.jnt_dofadr, m.jnt_dofnum,
                 m.jnt_cst_adr, m.cst_txfm_dofadr, d.xmat, d.xanchor, d.xaxis,
                 d.subtree_com],
-        outputs=[d.cdof],
+        outputs=[d.cdof, d.cdof_tmp],
     )
 
 

@@ -418,6 +418,7 @@ def main():
 
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
         cdof=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
+        cdof_tmp=make_zero((n_worlds, n_custom_jnts, 6), dtype=wp.spatial_vector),
         cinert=make_zero((n_worlds, nb), dtype=types.vec10),
 
         crb=make_zero((n_worlds, nb), dtype=types.vec10),

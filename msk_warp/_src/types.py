@@ -748,6 +748,7 @@ class Data:
 
       subtree_com: center of mass of each subtree                 (nworld, nbody, 3)
       cdof: com-based motion axis of each dof (rot:lin)           (nworld, nv, 6)
+      cdof_tmp: cdof temporaries for custom joints                (nworld, njnts_cst, 6, 6)
       cinert: com-based body inertia and mass                     (nworld, nbody, 10)
 
       crb: com-based composite inertia and mass                   (nworld, nbody, 10)
@@ -834,6 +835,7 @@ class Data:
 
     subtree_com: wp.array2d(dtype=wp.vec3)
     cdof: wp.array2d(dtype=wp.spatial_vector)
+    cdof_tmp: wp.array3d(dtype=wp.spatial_vector)
     cinert: wp.array2d(dtype=vec10)
 
     crb: wp.array2d(dtype=vec10)

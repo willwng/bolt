@@ -37,9 +37,12 @@ def _comvel_level(
         jnt_dofadr: wp.array(dtype=int),
         jnt_type: wp.array(dtype=int),
         jnt_dofnum: wp.array(dtype=int),
+        jnt_cst_adr: wp.array(dtype=int),
+        cst_txfm_dofadr_in: wp.array2d(dtype=int),
         # Data in:
         qvel_in: wp.array2d(dtype=float),
         cdof_in: wp.array2d(dtype=wp.spatial_vector),
+        cdof_tmp_in: wp.array3d(dtype=wp.spatial_vector),
         cvel_in: wp.array2d(dtype=wp.spatial_vector),
         # In:
         body_tree_: wp.array(dtype=int),
@@ -59,9 +62,15 @@ def _comvel_level(
     cdof = cdof_in[worldid]
     dofid = jnt_dofadr[bodyid]
     jnttype = jnt_type[bodyid]
+
     dof_num = jnt_dofnum[bodyid]
+    cst_jnt_adr = jnt_cst_adr[bodyid]
+    cst_txfm_dofadr = cst_txfm_dofadr_in[cst_jnt_adr]
+    cdof_tmp = cdof_tmp_in[worldid, cst_jnt_adr]
+
     res = cdof_dot_out[worldid]
-    cvel = mobilizers.cvel_joint(cvel, cdof, qvel, jnttype, dofid, dof_num, res)
+    cvel = mobilizers.cvel_joint(cvel, cdof, qvel, jnttype, dofid, dof_num,
+                                 cst_txfm_dofadr, cdof_tmp, res)
     cvel_out[worldid, bodyid] = cvel
 
 
@@ -80,7 +89,8 @@ def com_vel(m: Model, d: Data):
             _comvel_level,
             dim=(d.nworld, body_tree.size),
             inputs=[m.body_parentid, m.jnt_dofadr, m.jnt_type, m.jnt_dofnum,
-                    d.qvel, d.cdof, d.cvel,
+                    m.jnt_cst_adr, m.cst_txfm_dofadr,
+                    d.qvel, d.cdof, d.cdof_tmp, d.cvel,
                     body_tree],
             outputs=[d.cvel, d.cdof_dot],
         )

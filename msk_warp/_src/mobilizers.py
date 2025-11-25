@@ -129,7 +129,7 @@ def fk_joint(
                 linear_fns,
             )
             xloc_ += fn_eval[0] * txfm_axes[i]
-            # store intermediate rotated axes, with derivative
+            # store the rotated linear axes, with derivative
             xaxis_out[i] = fn_eval[1] * math.rot_vec_quat(txfm_axes[i], jnt_rot)
     elif jnttype == JointType.DUMMY:
         pass
@@ -154,6 +154,7 @@ def cdof_joint(
         cst_txfm_dofadr: wp.array(dtype=int),
         # out
         res: wp.array(dtype=wp.spatial_vector),
+        cst_res_tmp: wp.array(dtype=wp.spatial_vector)
 ):
     if jnttype == JointType.FREE:
         res[dofid + 0] = wp.spatial_vector(0.0, 0.0, 0.0, 1.0, 0.0, 0.0)
@@ -181,22 +182,21 @@ def cdof_joint(
         res[dofid + 0] = wp.spatial_vector(xaxis1, wp.cross(xaxis1, offset))
         res[dofid + 1] = wp.spatial_vector(xaxis2, wp.cross(xaxis2, offset))
     elif jnttype == JointType.CUSTOM:
-        # initialize to zero
+        # Initialize to zero
         for i in range(dof_num):
             res[dofid + i] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-
-        # accumulate over all spatial txfm
+        # Accumulate over all spatial txfm
         for i in range(wp.static(6)):
             dof_adr = cst_txfm_dofadr[i]
             if dof_adr == -1:  # not attached to a dof
                 continue
-
             xaxis = xaxis_in[i]
             if i < 3:  # rotation
-                res[dof_adr] += wp.spatial_vector(xaxis,
-                                                  wp.cross(xaxis, offset))
+                c = wp.spatial_vector(xaxis, wp.cross(xaxis, offset))
             else:  # translation
-                res[dof_adr] += wp.spatial_vector(wp.vec3(0.0), xaxis)
+                c = wp.spatial_vector(wp.vec3(0.0), xaxis)
+            res[dof_adr] += c
+            cst_res_tmp[i] = c
     elif jnttype == JointType.DUMMY:
         pass
 
@@ -208,44 +208,55 @@ def cvel_joint(
         qvel: wp.array(dtype=float),
         jnttype: int,
         dofid: int,
+        # Custom joints
         dof_num: int,
-        cdof_dot_out: wp.array(dtype=wp.spatial_vector),
+        cst_txfm_dofadr: wp.array(dtype=int),
+        cdof_tmp: wp.array(dtype=wp.spatial_vector),
+        # Out
+        res: wp.array(dtype=wp.spatial_vector),
 ) -> wp.spatial_vector:
     if jnttype == JointType.FREE:
         cvel += cdof[dofid + 0] * qvel[dofid + 0]
         cvel += cdof[dofid + 1] * qvel[dofid + 1]
         cvel += cdof[dofid + 2] * qvel[dofid + 2]
 
-        cdof_dot_out[dofid + 3] = math.motion_cross(cvel, cdof[dofid + 3])
-        cdof_dot_out[dofid + 4] = math.motion_cross(cvel, cdof[dofid + 4])
-        cdof_dot_out[dofid + 5] = math.motion_cross(cvel, cdof[dofid + 5])
+        res[dofid + 3] = math.motion_cross(cvel, cdof[dofid + 3])
+        res[dofid + 4] = math.motion_cross(cvel, cdof[dofid + 4])
+        res[dofid + 5] = math.motion_cross(cvel, cdof[dofid + 5])
 
         cvel += cdof[dofid + 3] * qvel[dofid + 3]
         cvel += cdof[dofid + 4] * qvel[dofid + 4]
         cvel += cdof[dofid + 5] * qvel[dofid + 5]
     elif jnttype == JointType.BALL:
-        cdof_dot_out[dofid + 0] = math.motion_cross(cvel, cdof[dofid + 0])
-        cdof_dot_out[dofid + 1] = math.motion_cross(cvel, cdof[dofid + 1])
-        cdof_dot_out[dofid + 2] = math.motion_cross(cvel, cdof[dofid + 2])
+        res[dofid + 0] = math.motion_cross(cvel, cdof[dofid + 0])
+        res[dofid + 1] = math.motion_cross(cvel, cdof[dofid + 1])
+        res[dofid + 2] = math.motion_cross(cvel, cdof[dofid + 2])
 
         cvel += cdof[dofid + 0] * qvel[dofid + 0]
         cvel += cdof[dofid + 1] * qvel[dofid + 1]
         cvel += cdof[dofid + 2] * qvel[dofid + 2]
     elif jnttype == JointType.PIN or jnttype == JointType.SLIDE:
-        cdof_dot_out[dofid] = math.motion_cross(cvel, cdof[dofid])
+        res[dofid] = math.motion_cross(cvel, cdof[dofid])
         cvel += cdof[dofid] * qvel[dofid]
     elif jnttype == JointType.UNIVERSAL:
         # The second transformation is dependent on the first
         for i in range(2):
-            cdof_dot_out[dofid] = math.motion_cross(cvel, cdof[dofid])
-            cvel += cdof[dofid] * qvel[dofid]
-            dofid += 1
+            res[dofid + i] = math.motion_cross(cvel, cdof[dofid + i])
+            cvel += cdof[dofid + i] * qvel[dofid + i]
     elif jnttype == JointType.CUSTOM:
-        # TODO: This doesn't seem right, DOF ordering may be arbitrary
+        # Initialize to zero
         for i in range(dof_num):
-            cdof_dot_out[dofid] = math.motion_cross(cvel, cdof[dofid])
-            cvel += cdof[dofid] * qvel[dofid]
-            dofid += 1
+            res[dofid + i] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        # For custom joints, we need to process them in order of transformation
+        #  translations don't depend on previous transforms
+        #  but each rotation depends on previous rotation
+        # That's why we stored the intermediate cdof in cdof_tmp
+        for i in range(wp.static(6)):
+            dof_adr = cst_txfm_dofadr[i]
+            if dof_adr == -1:
+                continue
+            res[dof_adr] += math.motion_cross(cvel, cdof_tmp[i])
+            cvel += cdof_tmp[i] * qvel[dof_adr]
     elif jnttype == JointType.DUMMY:
         pass
     return cvel
