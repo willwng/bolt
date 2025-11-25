@@ -153,6 +153,7 @@ def main():
 
     dof_limit_ranges, dof_limit_adr, dof_limit_qadr = get_dof_limits(osim_model)
     n_limits = len(dof_limit_ranges)
+    n_limits = 0
 
     body_rootid = [1] * nb  # Placeholder for body root IDs
     body_tree = create_body_tree(osim_model)
@@ -258,7 +259,10 @@ def main():
         max_grow=5.0,
         hysteresis_low=0.9,
         hysteresis_high=1.2,
-        accuracy=1.0,
+        accuracy=0.01,
+        use_inf_norm=False,
+
+        qvel_weights=wp.full(nv, 1.0, dtype=float),
 
         ls_parallel=False,
         ls_parallel_min_step=1e-8,
@@ -517,9 +521,10 @@ def main():
         ),
         nintegrating=make_zero(1, dtype=int),
         step_size=make_full(dt / 10.0, (n_worlds,), dtype=float),
-        actual_step_size=make_zero((n_worlds,), dtype=float),
+        actual_step_size=make_full(dt, (n_worlds,), dtype=float),
         artificially_limited=make_zero((n_worlds,), dtype=bool),
         error=make_zero((n_worlds,), dtype=float),
+        qvel_scales=make_zero((n_worlds, nv), dtype=float),
         step_accepted=make_zero((n_worlds,), dtype=bool),
         integration_done=make_zero((n_worlds,), dtype=bool),
 
@@ -546,7 +551,7 @@ def main():
             forward.step(m, d, dt)
             viewer.render(m, d)
             bla.append(d.time.numpy()[0])
-            bla2.append(d.grf.numpy()[0, 1])
+            bla2.append(-d.grf.numpy()[0, 1] / (75.0 * 9.81))
 
         # Draw step size history
         import matplotlib.pyplot as plt

@@ -23,6 +23,7 @@ class BlockDim:
     actuator_velocity: int = 32
     site_diffs: int = 128
 
+    adjust_scales: int = 64
     error_step: int = 64
 
     # ray
@@ -282,6 +283,9 @@ class Option:
     hysteresis_low: float
     hysteresis_high: float
     accuracy: float
+    use_inf_norm: bool
+
+    qvel_weights: wp.array(dtype=float)
 
     ls_parallel: bool
     ls_parallel_min_step: float
@@ -882,6 +886,8 @@ class Data:
     actual_step_size: wp.array(dtype=float)
     artificially_limited: wp.array(dtype=bool)
     error: wp.array(dtype=float)
+    qvel_scales: wp.array2d(dtype=float)
+
     step_accepted: wp.array(dtype=bool)
     integration_done: wp.array(dtype=bool)
 

@@ -128,7 +128,11 @@ def _process_contacts_hc(
                   support.force_at_point(1.0 * force, location - com2))
 
     # todo check for which body is ground
-    grf_out[worldid] += force
+    if body1 == 0:
+        grf_out[worldid] += -force
+    elif body2 == 0:
+        grf_out[worldid] += force
+
 
 
 @event_scope
