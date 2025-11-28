@@ -1,25 +1,12 @@
-import msk_warp._src.init_model as init_model
-import msk_warp._src.forward as forward
-import msk_warp._src.math as math
-import msk_warp._src.consts as consts
-
 import warp as wp
-import numpy as np
+import torch
 
-from msk_warp.utils.osim_parser import parse_osim_file
+import msk_warp._src.consts as consts
+import msk_warp._src.forward as forward
+import msk_warp._src.init_model as init_model
+import msk_warp._src.math as math
 from msk_warp.utils.osim_converter import *
-from msk_warp.render.renderer import Viewer, ViewerType
-from msk_warp.benchmark.benchmark import benchmark
-
-import argparse
-
-arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument("--recompile", action="store_true")
-arg_parser.add_argument("--debug", action="store_true")
-arg_parser.add_argument("--benchmark", action="store_true")
-arg_parser.add_argument("--nworld", type=int, default=1)
-arg_parser.add_argument("--nstep", type=int, default=1000)
-args = arg_parser.parse_args()
+from msk_warp.utils.osim_parser import parse_osim_file
 
 
 def _print_trace(trace, indent, steps):
@@ -69,14 +56,13 @@ def make_full(val, shape, dtype):
     return wp.full(shape, val, dtype=dtype)
 
 
-def main():
-    raw_osim_model = parse_osim_file("data/osim/model.osim")
-    checked_osim_model = to_checked_model(raw_osim_model)
-    # osim_model = convert_y_up_z_up(checked_osim_model)
-    osim_model = checked_osim_model  # don't convert
+def load_model(
+        model_path: str, n_worlds: int
+) -> tuple[types.Model, types.Data]:
+    raw_osim_model = parse_osim_file(model_path)
+    osim_model = to_checked_model(raw_osim_model)
 
     nb = num_bodies(osim_model)
-
     joint_num_qdofs = get_joint_num_dofs(osim_model, vel_dofs=False)
     joint_num_vdofs = get_joint_num_dofs(osim_model, vel_dofs=True)
 
@@ -94,27 +80,11 @@ def main():
 
     ngeom = num_colliders(osim_model)
     site_data = get_site_data(osim_model)
-    # qpos0 = get_default_positions(osim_model)
-    # print(qpos0)
     qpos0 = [0.0] * nq
     qpos0[0:3] = [0.0, 1.05, 0.0]  # Root pos
     qpos0[3] = 1  # root quat
 
-    # Torso -pi / 6
-    qpos0[7:11] = Quat.from_angle_axis(-np.pi / 6.0, Vector3(0, 0, 1)).to_list()
-    # Hip abduction, flexion, knee angle, ankle angle
-    qpos0[11:15] = Quat(1.0, np.deg2rad(5.0), 0.0, np.deg2rad(15.0)).to_list()
-    qpos0[15] = float(np.deg2rad(-60.0))
-    qpos0[16] = float(np.deg2rad(20.0))
-    #
-    # # Hip abduction, flexion, knee angle, ankle angle
-    qpos0[17:21] = Quat(1.0, np.deg2rad(-5.0), 0.0, np.deg2rad(15.0)).to_list()
-    qpos0[21] = np.deg2rad(-60.0)
-    qpos0[22] = np.deg2rad(20.0)
-
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
-    # qvel0[0] = 10.0
-
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
 
     b_masses = body_masses(osim_model)
@@ -153,7 +123,6 @@ def main():
 
     dof_limit_ranges, dof_limit_adr, dof_limit_qadr = get_dof_limits(osim_model)
     n_limits = len(dof_limit_ranges)
-    # n_limits = 0
 
     body_rootid = [1] * nb  # Placeholder for body root IDs
     body_tree = create_body_tree(osim_model)
@@ -185,20 +154,6 @@ def main():
     txfm_qadr = txfm_qadr.reshape(n_custom_jnts, 6)
     txfm_dof_adr = txfm_dof_adr.reshape(n_custom_jnts, 6)
     txfm_axis = txfm_axis.reshape(n_custom_jnts, 6, 3)
-
-    #
-    # jnt_limited_slide_hinge_adr = wp.array(
-    #   np.nonzero(
-    #     mjm.jnt_limited & ((mjm.jnt_type == mujoco.mjtJoint.mjJNT_SLIDE) | (mjm.jnt_type == mujoco.mjtJoint.mjJNT_HINGE))
-    #   )[0],
-    #   dtype=int,
-    # ),
-    # jnt_limited_ball_adr=wp.array(
-    #   np.nonzero(mjm.jnt_limited & (mjm.jnt_type == mujoco.mjtJoint.mjJNT_BALL))[0],
-    #   dtype=int,
-    # ),
-
-    n_worlds = args.nworld
 
     # precalculated geom pairs
     geom1, geom2 = np.triu_indices(ngeom, k=1)
@@ -547,54 +502,23 @@ def main():
         ncollision=wp.zeros((1,), dtype=int),
     )
 
-    if args.recompile:
-        wp.clear_kernel_cache()
-    if args.debug:
-        wp.config.mode = "debug"
-
     init_model._model_init(m, d)
     forward.initialize(m, d)
 
-    if not args.benchmark:
-        bla = []
-        bla2 = []
-        viewer = Viewer(viewer_type=ViewerType.OPENGL)
-        for i in range(args.nstep):
-            forward.step(m, d, dt)
-            viewer.render(m, d)
-            bla.append(d.time.numpy()[0])
-            bla2.append(-d.grf.numpy()[0, 1] / (75.0 * 9.81))
-
-        # Draw step size history
-        import matplotlib.pyplot as plt
-        plt.plot(bla, bla2)
-        plt.xlabel("Time (s)")
-        plt.ylabel("GRF (N)")
-        plt.show()
-
-        viewer.close()
-
-    else:
-        n_steps = args.nstep
-        res = benchmark(fn=forward.step, m=m, d=d,
-                        dt=dt, nstep=n_steps,
-                        event_trace=True, measure_alloc=True,
-                        measure_solver_niter=True)
-        jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
-        steps = n_worlds * n_steps
-
-        print(f"""
-        Summary for {n_worlds} parallel rollouts
-
-        Total JIT time: {jit_time:.2f} s
-        Total simulation time: {run_time:.2f} s
-        Total steps per second: {steps / run_time:,.0f}
-        Total realtime factor: {steps * m.opt.timestep / run_time:,.2f} x
-        Total time per step: {1e9 * run_time / steps:.2f} ns
-        Total converged worlds: {nsuccess} / {d.nworld}""")
-
-        _print_trace(trace, 0, steps)
+    return m, d
 
 
-if __name__ == "__main__":
-    main()
+def get_time(d: types.Data) -> torch.tensor:
+    return wp.to_torch(d.time)
+
+
+def get_num_qpos(m: types.Model) -> int:
+    return m.nq
+
+
+def get_num_dofs(m: types.Model) -> int:
+    return m.nv
+
+
+def get_num_muscles(m: types.Model) -> int:
+    return m.nmuscle

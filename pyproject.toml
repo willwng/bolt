@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "msk_warp"
+version = "0.0.1"
+description = "MusculoSkeletal Warp"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = "Apache-2.0"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "warp-lang>=1.9.1",
+]
+
+[project.scripts]
+mskwarp-test = "msk_warp.test:main"
+
+[tool.setuptools.packages.find]
+include = ["msk_warp*"]
