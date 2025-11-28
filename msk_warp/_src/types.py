@@ -912,6 +912,7 @@ class Data:
     error: wp.array(dtype=float)
     qvel_scales: wp.array2d(dtype=float)
     qpos_diff: wp.array2d(dtype=float)
+    qpos_diff_scaled: wp.array2d(dtype=float)
     qvel_diff: wp.array2d(dtype=float)
     mstate_diff: wp.array2d(dtype=float)
     act_diff: wp.array2d(dtype=float)

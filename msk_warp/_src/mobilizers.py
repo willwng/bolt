@@ -279,7 +279,8 @@ def integrate(
         qpos_next: wp.array(dtype=float),
 ):
     if jnttype == JointType.FREE:
-        qpos_pos = wp.vec3(qpos[qpos_adr], qpos[qpos_adr + 1], qpos[qpos_adr + 2])
+        qpos_pos = wp.vec3(qpos[qpos_adr], qpos[qpos_adr + 1],
+                           qpos[qpos_adr + 2])
         qvel_lin = wp.vec3(qvel[dof_adr], qvel[dof_adr + 1], qvel[dof_adr + 2])
         qpos_new = qpos_pos + timestep * qvel_lin
 
@@ -287,7 +288,8 @@ def integrate(
             qpos[qpos_adr + 3], qpos[qpos_adr + 4],
             qpos[qpos_adr + 5], qpos[qpos_adr + 6],
         )
-        qvel_ang = wp.vec3(qvel[dof_adr + 3], qvel[dof_adr + 4], qvel[dof_adr + 5])
+        qvel_ang = wp.vec3(qvel[dof_adr + 3], qvel[dof_adr + 4],
+                           qvel[dof_adr + 5])
         dq_ang = math.calc_unnormalized_quaternion_N(qpos_quat) @ qvel_ang
 
         qpos_next[qpos_adr + 0] = qpos_new[0]
@@ -340,28 +342,24 @@ def multiply_by_N(
         # Out
         dq: wp.array(dtype=float),
 ):
+    """ Maps from u to q_dot (Nu = q_dot) """
     if jnttype == JointType.FREE:
-        # translation
+        # translation, nothing to do
         dq[qpos_adr + 0] = qvel[dof_adr + 0]
         dq[qpos_adr + 1] = qvel[dof_adr + 1]
         dq[qpos_adr + 2] = qvel[dof_adr + 2]
         # rotation
-        rot = wp.quat(
-            qpos[qpos_adr + 3], qpos[qpos_adr + 4],
-            qpos[qpos_adr + 5], qpos[qpos_adr + 6],
-        )
+        rot = wp.quat(qpos[qpos_adr + 3], qpos[qpos_adr + 4],
+                      qpos[qpos_adr + 5], qpos[qpos_adr + 6], )
         ang_v = wp.vec3(qvel[dof_adr + 3], qvel[dof_adr + 4], qvel[dof_adr + 5])
-        rot_N = math.calc_unnormalized_quaternion_N(rot)
-        dq_rot = rot_N @ ang_v
+        dq_rot = math.calc_unnormalized_quaternion_N(rot) @ ang_v
         dq[qpos_adr + 3] = dq_rot[0]
         dq[qpos_adr + 4] = dq_rot[1]
         dq[qpos_adr + 5] = dq_rot[2]
         dq[qpos_adr + 6] = dq_rot[3]
     elif jnttype == JointType.BALL:  # ball
-        rot = wp.quat(
-            qpos[qpos_adr + 0], qpos[qpos_adr + 1],
-            qpos[qpos_adr + 2], qpos[qpos_adr + 3],
-        )
+        rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1],
+                      qpos[qpos_adr + 2], qpos[qpos_adr + 3], )
         rot_N = math.calc_unnormalized_quaternion_N(rot)
         ang_v = wp.vec3(qvel[dof_adr + 0], qvel[dof_adr + 1], qvel[dof_adr + 2])
         dq_rot = rot_N @ ang_v
@@ -392,26 +390,20 @@ def multiply_by_N_inv(
         qvel_out[dof_adr + 1] = dq[qpos_adr + 1]
         qvel_out[dof_adr + 2] = dq[qpos_adr + 2]
         # rotation
-        rot = wp.quat(
-            qpos[qpos_adr + 3], qpos[qpos_adr + 4],
-            qpos[qpos_adr + 5], qpos[qpos_adr + 6],
-        )
+        rot = wp.quat(qpos[qpos_adr + 3], qpos[qpos_adr + 4],
+                      qpos[qpos_adr + 5], qpos[qpos_adr + 6], )
         dq_rot = wp.vec4(dq[qpos_adr + 3], dq[qpos_adr + 4],
                          dq[qpos_adr + 5], dq[qpos_adr + 6])
-        rot_N_inv = math.calc_unnormalized_quaternion_N_inv(rot)
-        qvel_rot = rot_N_inv @ dq_rot
+        qvel_rot = math.calc_unnormalized_quaternion_N_inv(rot) @ dq_rot
         qvel_out[dof_adr + 3] = qvel_rot[0]
         qvel_out[dof_adr + 4] = qvel_rot[1]
         qvel_out[dof_adr + 5] = qvel_rot[2]
     elif jnttype == JointType.BALL:  # ball
-        rot = wp.quat(
-            qpos[qpos_adr + 0], qpos[qpos_adr + 1],
-            qpos[qpos_adr + 2], qpos[qpos_adr + 3],
-        )
-        rot_N_inv = math.calc_unnormalized_quaternion_N_inv(rot)
+        rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1],
+                      qpos[qpos_adr + 2], qpos[qpos_adr + 3], )
         dq_rot = wp.vec4(dq[qpos_adr + 0], dq[qpos_adr + 1],
                          dq[qpos_adr + 2], dq[qpos_adr + 3])
-        qvel_rot = rot_N_inv @ dq_rot
+        qvel_rot = math.calc_unnormalized_quaternion_N_inv(rot) @ dq_rot
         qvel_out[dof_adr + 0] = qvel_rot[0]
         qvel_out[dof_adr + 1] = qvel_rot[1]
         qvel_out[dof_adr + 2] = qvel_rot[2]
@@ -458,9 +450,10 @@ def multiply_N_inv_kernel(
 def multiply_W(m: Model, d: Data):
     @wp.kernel
     def multiply_W_kernel(
+            # Model in:
+            qvel_weights: wp.array(dtype=float),
             # Data in:
             qvel_diff_in: wp.array2d(dtype=float),
-            qvel_scales_in: wp.array2d(dtype=float),
             # Out:
             ninv_dq_tmp_out: wp.array2d(dtype=float),
     ):
@@ -468,7 +461,7 @@ def multiply_W(m: Model, d: Data):
         nv = wp.static(m.nv)
 
         qvel_diff_tile = wp.tile_load(qvel_diff_in[worldid], nv)
-        qvel_scales_tile = wp.tile_load(qvel_scales_in[worldid], nv)
+        qvel_scales_tile = wp.tile_load(qvel_weights, nv)
         qvel_scaled_diff_tile = wp.tile_map(
             wp.mul, qvel_diff_tile, qvel_scales_tile)
 
@@ -478,7 +471,7 @@ def multiply_W(m: Model, d: Data):
     wp.launch_tiled(
         multiply_W_kernel,
         dim=d.nworld,
-        inputs=[d.ninv_dq_tmp, d.qvel_scales],
+        inputs=[m.opt.qvel_weights, d.ninv_dq_tmp, ],
         outputs=[d.ninv_dq_tmp, ],
         block_dim=m.block_dim.error_step,
     )
@@ -517,7 +510,12 @@ def multiply_N_kernel(
     return
 
 
-def scale_dq(m: Model, d: Data, dq: wp.array2d(dtype=float)):
+def scale_dq(
+        m: Model,
+        d: Data,
+        dq: wp.array2d(dtype=float),
+        dq_scaled: wp.array2d(dtype=float)
+):
     # The weights of u correspond to weights of q_dot
     # q_dot = N u (this is how we integrate qpos from qvel)
     # so u = N_inv q_dot (N_inv is pseudo-inverse of N)
@@ -545,6 +543,6 @@ def scale_dq(m: Model, d: Data, dq: wp.array2d(dtype=float)):
         dim=(d.nworld, m.nbody),
         inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
                 d.qpos, d.ninv_dq_tmp, ],
-        outputs=[d.qpos_diff, ],
+        outputs=[dq_scaled, ],
     )
     return

@@ -529,6 +529,7 @@ def main():
         error=make_zero((n_worlds,), dtype=float),
         qvel_scales=make_zero((n_worlds, nv), dtype=float),
         qpos_diff=make_zero((n_worlds, nq), dtype=float),
+        qpos_diff_scaled=make_zero((n_worlds, nq), dtype=float),
         qvel_diff=make_zero((n_worlds, nq), dtype=float),
         mstate_diff=make_zero((n_worlds, nmuscle), dtype=float),
         act_diff=make_zero((n_worlds, nmuscle), dtype=float),

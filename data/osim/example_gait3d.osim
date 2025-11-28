@@ -515,7 +515,7 @@
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="talus_l_offset">
 							<socket_parent>/bodyset/talus_l</socket_parent>
-							<translation>0.05123 -0.01195 -0.00792</translation>
+							<translation>0.0 -0.01195 0.0</translation>
 							<orientation>0 0 0 </orientation>
 						</PhysicalOffsetFrame>
 					</frames>
@@ -662,7 +662,7 @@
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="talus_r_offset">
 							<socket_parent>/bodyset/talus_r</socket_parent>
-							<translation>0.05123 -0.01195 0.00792</translation>
+							<translation>0.0 -0.01195 0.0</translation>
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
