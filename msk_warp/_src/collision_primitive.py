@@ -499,6 +499,7 @@ def sphere_sphere_wrapper(
         contact_frame_out: wp.array(dtype=wp.mat33),
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
+        contact_curvature_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -507,6 +508,7 @@ def sphere_sphere_wrapper(
     """Calculates contact between two spheres."""
     dist, pos, normal = sphere_sphere(sphere1.pos, sphere1.size[0], sphere2.pos,
                                       sphere2.size[0])
+    curvature = wp.sqrt(sphere1.size[0] * sphere2.size[0])
 
     write_contact(
         naconmax_in,
@@ -515,6 +517,7 @@ def sphere_sphere_wrapper(
         pos,
         make_frame(normal),
         condim,
+        curvature,
         friction,
         geoms,
         pairid,
@@ -524,6 +527,7 @@ def sphere_sphere_wrapper(
         contact_frame_out,
         contact_friction_out,
         contact_dim_out,
+        contact_curvature_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -549,6 +553,7 @@ def sphere_capsule_wrapper(
         contact_frame_out: wp.array(dtype=wp.mat33),
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
+        contact_curvature_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -560,6 +565,7 @@ def sphere_capsule_wrapper(
 
     dist, pos, normal = sphere_capsule(sphere.pos, sphere.size[0], cap.pos,
                                        axis, cap.size[0], cap.size[1])
+    curvature = wp.sqrt(sphere.size[0] * cap.size[0])
 
     write_contact(
         naconmax_in,
@@ -568,6 +574,7 @@ def sphere_capsule_wrapper(
         pos,
         make_frame(normal),
         condim,
+        curvature,
         friction,
         geoms,
         pairid,
@@ -577,6 +584,7 @@ def sphere_capsule_wrapper(
         contact_frame_out,
         contact_friction_out,
         contact_dim_out,
+        contact_curvature_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -602,6 +610,7 @@ def capsule_capsule_wrapper(
         contact_frame_out: wp.array(dtype=wp.mat33),
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
+        contact_curvature_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -611,6 +620,7 @@ def capsule_capsule_wrapper(
     # capsule axes
     cap1_axis = wp.vec3(cap1.rot[0, 2], cap1.rot[1, 2], cap1.rot[2, 2])
     cap2_axis = wp.vec3(cap2.rot[0, 2], cap2.rot[1, 2], cap2.rot[2, 2])
+    curvature = wp.sqrt(cap1.size[0] * cap2.size[0])
 
     dist, pos, normal = capsule_capsule(
         cap1.pos,
@@ -630,6 +640,7 @@ def capsule_capsule_wrapper(
         pos,
         make_frame(normal),
         condim,
+        curvature,
         friction,
         geoms,
         pairid,
@@ -639,6 +650,7 @@ def capsule_capsule_wrapper(
         contact_frame_out,
         contact_friction_out,
         contact_dim_out,
+        contact_curvature_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -664,6 +676,7 @@ def plane_capsule_wrapper(
         contact_frame_out: wp.array(dtype=wp.mat33),
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
+        contact_curvature_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -672,6 +685,7 @@ def plane_capsule_wrapper(
     """Calculates contacts between a capsule and a plane."""
     # capsule axis
     capsule_axis = wp.vec3(cap.rot[0, 2], cap.rot[1, 2], cap.rot[2, 2])
+    curvature = cap.size[0]
 
     dist, pos, frame = plane_capsule(
         plane.normal,
@@ -690,6 +704,7 @@ def plane_capsule_wrapper(
             pos[i],
             frame,
             condim,
+            curvature,
             friction,
             geoms,
             pairid,
@@ -699,6 +714,7 @@ def plane_capsule_wrapper(
             contact_frame_out,
             contact_friction_out,
             contact_dim_out,
+            contact_curvature_out,
             contact_geom_out,
             contact_worldid_out,
             contact_geomcollisionid_out,
@@ -1281,16 +1297,16 @@ def box_box_wrapper(
 
 _PRIMITIVE_COLLISIONS = {
     (GeomType.PLANE, GeomType.SPHERE): plane_sphere_wrapper,
-    # (GeomType.PLANE, GeomType.CAPSULE): plane_capsule_wrapper,
+    (GeomType.PLANE, GeomType.CAPSULE): plane_capsule_wrapper,
     # (GeomType.PLANE, GeomType.ELLIPSOID): plane_ellipsoid_wrapper,
     # (GeomType.PLANE, GeomType.CYLINDER): plane_cylinder_wrapper,
     # (GeomType.PLANE, GeomType.BOX): plane_box_wrapper,
     # (GeomType.PLANE, GeomType.MESH): plane_convex_wrapper,
-    # (GeomType.SPHERE, GeomType.SPHERE): sphere_sphere_wrapper,
-    # (GeomType.SPHERE, GeomType.CAPSULE): sphere_capsule_wrapper,
+    (GeomType.SPHERE, GeomType.SPHERE): sphere_sphere_wrapper,
+    (GeomType.SPHERE, GeomType.CAPSULE): sphere_capsule_wrapper,
     # (GeomType.SPHERE, GeomType.CYLINDER): sphere_cylinder_wrapper,
     # (GeomType.SPHERE, GeomType.BOX): sphere_box_wrapper,
-    # (GeomType.CAPSULE, GeomType.CAPSULE): capsule_capsule_wrapper,
+    (GeomType.CAPSULE, GeomType.CAPSULE): capsule_capsule_wrapper,
     # (GeomType.CAPSULE, GeomType.BOX): capsule_box_wrapper,
     # (GeomType.BOX, GeomType.BOX): box_box_wrapper,
 }
