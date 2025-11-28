@@ -37,6 +37,16 @@ def mul_quat(u: wp.quat, v: wp.quat) -> wp.quat:
 
 
 @wp.func
+def quat_normalize_in_place(q: wp.array(dtype=float), adr: int):
+    quat = wp.quat(q[adr], q[adr + 1], q[adr + 2], q[adr + 3])
+    quat = wp.normalize(quat)
+    q[adr] = quat[0]
+    q[adr + 1] = quat[1]
+    q[adr + 2] = quat[2]
+    q[adr + 3] = quat[3]
+
+
+@wp.func
 def quat_mul_axis(q: wp.quat, axis: wp.vec3f) -> wp.quat:
     """Multiplies a quaternion and an axis."""
     return wp.quat(
@@ -252,7 +262,7 @@ def closest_segment_point(a: wp.vec3, b: wp.vec3, pt: wp.vec3) -> wp.vec3:
 
 @wp.func
 def closest_segment_point_and_dist(a: wp.vec3, b: wp.vec3, pt: wp.vec3) -> \
-Tuple[wp.vec3, float]:
+        Tuple[wp.vec3, float]:
     """Returns closest point on the line segment and the distance squared."""
     closest = closest_segment_point(a, b, pt)
     dist = wp.dot((pt - closest), (pt - closest))
@@ -279,7 +289,7 @@ def closest_segment_to_segment_points(a0: wp.vec3, a1: wp.vec3, b0: wp.vec3,
     denom = 1.0 - dira_dot_dirb * dira_dot_dirb
 
     orig_t_a = (-dira_dot_trans + dira_dot_dirb * dirb_dot_trans) / (
-                denom + 1e-6)
+            denom + 1e-6)
     orig_t_b = dirb_dot_trans + orig_t_a * dira_dot_dirb
     t_a = wp.clamp(orig_t_a, -half_len_a, half_len_a)
     t_b = wp.clamp(orig_t_b, -half_len_b, half_len_b)
@@ -311,3 +321,26 @@ def upper_trid_index(n: int, i: int, j: int) -> int:
     if j < i:
         i, j = j, i
     return (i * (2 * n - i - 1)) // 2 + j
+
+
+@wp.func
+def calc_unnormalized_quaternion_N(q: wp.quat) -> types.mat43:
+    """ N*u = q_dot """
+    q0, q1, q2, q3 = 0.5 * q[0], 0.5 * q[1], 0.5 * q[2], 0.5 * q[3]
+    return types.mat43(
+        -q1, -q2, -q3,
+        q0, -q3, q2,
+        q3, q0, -q1,
+        -q2, q1, q0
+    )
+
+
+@wp.func
+def calc_unnormalized_quaternion_N_inv(q: wp.quat) -> types.mat34:
+    """ N*u = q_dot """
+    q0, q1, q2, q3 = 2.0 * q[0], 2.0 * q[1], 2.0 * q[2], 2.0 * q[3]
+    return types.mat34(
+        -q1, q0, q3, -q2,
+        -q2, -q3, q0, q1,
+        -q3, q2, -q1, q0
+    )

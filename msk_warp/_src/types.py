@@ -206,9 +206,19 @@ class vec10f(wp.types.vector(length=10, dtype=float)):
     pass
 
 
+class mat34f(wp.types.matrix(shape=(3, 4), dtype=float)):
+    pass
+
+
+class mat43f(wp.types.matrix(shape=(4, 3), dtype=float)):
+    pass
+
+
 vec5 = vec5f
 vec6 = vec6f
 vec10 = vec10f
+mat34 = mat34f
+mat43 = mat43f
 
 
 class SolverType(enum.IntEnum):
@@ -231,6 +241,16 @@ class ContactType(enum.IntEnum):
     """
     MUJOCO = 1
     HUNT_CROSSLEY = 2
+
+
+class IntegratorType(enum.IntEnum):
+    """ Integrator type.
+    Attributes:
+        EULER_FIXED: Fixed-step Euler (semi-implicit with implicit damping)
+        EULER_ADAPTIVE: Variable-step Euler (semi-implicit)
+    """
+    EULER_FIXED = 1
+    EULER_ADAPTIVE = 2
 
 
 @dataclasses.dataclass
@@ -272,6 +292,7 @@ class Option:
     gravity: float
     solver: SolverType
     contact_type: ContactType
+    integrator: IntegratorType
     iterations: int
     ls_iterations: int
     ccd_iterations: int
@@ -887,8 +908,16 @@ class Data:
     step_size: wp.array(dtype=float)
     actual_step_size: wp.array(dtype=float)
     artificially_limited: wp.array(dtype=bool)
+    # Variable-step size error
     error: wp.array(dtype=float)
     qvel_scales: wp.array2d(dtype=float)
+    qpos_diff: wp.array2d(dtype=float)
+    qvel_diff: wp.array2d(dtype=float)
+    mstate_diff: wp.array2d(dtype=float)
+    act_diff: wp.array2d(dtype=float)
+    qpos_error: wp.array(dtype=float)
+    qvel_error: wp.array(dtype=float)
+    ninv_dq_tmp: wp.array2d(dtype=float)
 
     step_accepted: wp.array(dtype=bool)
     integration_done: wp.array(dtype=bool)

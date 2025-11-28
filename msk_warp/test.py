@@ -249,6 +249,7 @@ def main():
         gravity=-9.81,
         solver=types.SolverType.CG,
         contact_type=types.ContactType.HUNT_CROSSLEY,
+        integrator=types.IntegratorType.EULER_ADAPTIVE,
         iterations=50,
         ls_iterations=100,
         ccd_iterations=50,
@@ -418,7 +419,8 @@ def main():
 
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
         cdof=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-        cdof_tmp=make_zero((n_worlds, n_custom_jnts, 6), dtype=wp.spatial_vector),
+        cdof_tmp=make_zero((n_worlds, n_custom_jnts, 6),
+                           dtype=wp.spatial_vector),
         cinert=make_zero((n_worlds, nb), dtype=types.vec10),
 
         crb=make_zero((n_worlds, nb), dtype=types.vec10),
@@ -526,6 +528,14 @@ def main():
         artificially_limited=make_zero((n_worlds,), dtype=bool),
         error=make_zero((n_worlds,), dtype=float),
         qvel_scales=make_zero((n_worlds, nv), dtype=float),
+        qpos_diff=make_zero((n_worlds, nq), dtype=float),
+        qvel_diff=make_zero((n_worlds, nq), dtype=float),
+        mstate_diff=make_zero((n_worlds, nmuscle), dtype=float),
+        act_diff=make_zero((n_worlds, nmuscle), dtype=float),
+        qpos_error=make_zero((n_worlds,), dtype=float),
+        qvel_error=make_zero((n_worlds,), dtype=float),
+        ninv_dq_tmp=make_zero((n_worlds, nv), dtype=float),
+
         step_accepted=make_zero((n_worlds,), dtype=bool),
         integration_done=make_zero((n_worlds,), dtype=bool),
 
