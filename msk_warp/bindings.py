@@ -9,6 +9,13 @@ from msk_warp.utils.osim_converter import *
 from msk_warp.utils.osim_parser import parse_osim_file
 
 
+@dataclass
+class ModelLoadResult:
+    model: types.Model
+    data: types.Data
+    body_id_lookup: dict[str, int]
+
+
 def _print_trace(trace, indent, steps):
     if indent == 0:
         print("\nEvent trace:\n")
@@ -56,9 +63,7 @@ def make_full(val, shape, dtype):
     return wp.full(shape, val, dtype=dtype)
 
 
-def load_model(
-        model_path: str, n_worlds: int
-) -> tuple[types.Model, types.Data]:
+def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
     raw_osim_model = parse_osim_file(model_path)
     osim_model = to_checked_model(raw_osim_model)
 
@@ -350,6 +355,7 @@ def load_model(
 
         qacc=make_zero((n_worlds, nv), dtype=float),
         act_dot=make_zero((n_worlds, nmuscle), dtype=float),
+        mexcitations=make_zero((n_worlds, nmuscle), dtype=float),
         mstate_dot=make_zero((n_worlds, nmuscle), dtype=float),
 
         xpos=make_zero((n_worlds, nb), dtype=wp.vec3),
@@ -395,6 +401,7 @@ def load_model(
                                        dtype=types.MuscleDynamicsInfo),
 
         cvel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        xvel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         cdof_dot=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
 
         qfrc_bias=make_zero((n_worlds, nv), dtype=float),
@@ -505,7 +512,11 @@ def load_model(
     init_model._model_init(m, d)
     forward.initialize(m, d)
 
-    return m, d
+    return ModelLoadResult(
+        model=m,
+        data=d,
+        body_id_lookup=get_body_id_lookup(osim_model)
+    )
 
 
 def get_time(d: types.Data) -> torch.tensor:
@@ -522,3 +533,39 @@ def get_num_dofs(m: types.Model) -> int:
 
 def get_num_muscles(m: types.Model) -> int:
     return m.nmuscle
+
+
+def muscle_excitations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.muscle_actuation)
+
+
+def body_positions(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.xpos)
+
+
+def body_rotations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.xquat)
+
+
+def body_velocities(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.xvel)
+
+
+def joint_positions(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qpos)
+
+
+def joint_velocities(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qvel)
+
+
+def muscle_activations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.act)
+
+
+def muscle_fiber_lengths(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.mstate)
+
+
+def muscle_fiber_velocities(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.mstate_dot)

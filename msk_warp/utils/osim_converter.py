@@ -697,3 +697,10 @@ def get_muscle_fl_range(
         minimum_fiber_length = 0.01
     minimum_fiber_length = max(minimum_fiber_length, min_norm_fiber_length)
     return minimum_fiber_length, max_norm_fiber_length
+
+
+def get_body_id_lookup(model: CheckedModel) -> dict[str, int]:
+    body_id_lookup = {}
+    for body_idx, (_, body) in enumerate(model.iter_bodies()):
+        body_id_lookup[body.name] = body_idx
+    return body_id_lookup

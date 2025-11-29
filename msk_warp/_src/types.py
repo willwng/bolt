@@ -735,6 +735,7 @@ class Data:
 
       qacc: acceleration                                          (nworld, nv)
       act_dot: time-derivative of actuator activation             (nworld, na)
+      m_excitations: muscle excitations                           (nworld, nmuscles)
       mstate_dot: time-derivative of muscle state variable        (nworld, nmuscles)
 
       qacc_warmstart: acceleration used for warmstart             (nworld, nv)
@@ -757,11 +758,6 @@ class Data:
       site_rpos: local position of site rel. to body              (nworld, nsite, 3)
       site_xpos: Cartesian site position                          (nworld, nsite, 3)
       site_xvel: Cartesian site velocity                          (nworld, nsite, 3)
-      site_active: whether site is active                         (nworld, nsite)
-
-      muscle_active_sites: "compacted" active sites               (nworld, nsite)
-       [ for muscle i, active sites indices are consecutive ]
-      muscle_num_active: number of active sites per muscle        (nworld, nmuscle)
 
       site_diff_vec: unit vector b/w consecutive active sites     (nworld, nsite-1, 3)
       site_diff_len: length b/w consecutive active sites          (nworld, nsite-1)
@@ -782,6 +778,7 @@ class Data:
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
 
       cvel: com-based velocity (rot:lin)                          (nworld, nbody, 6)
+      xvel: Cartesian body velocity (ang, vel)                    (nworld, nbody, 6)
       cdof_dot: time-derivative of cdof (rot:lin)                 (nworld, nv, 6)
 
       qfrc_bias: C(qpos,qvel)                                     (nworld, nv)
@@ -827,6 +824,7 @@ class Data:
 
     qacc: wp.array2d(dtype=float)
     act_dot: wp.array2d(dtype=float)
+    mexcitations: wp.array2d(dtype=float)
     mstate_dot: wp.array2d(dtype=float)
 
     qacc_warmstart: wp.array2d(dtype=float)
@@ -873,6 +871,7 @@ class Data:
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
 
     cvel: wp.array2d(dtype=wp.spatial_vector)
+    xvel: wp.array2d(dtype=wp.spatial_vector)
     cdof_dot: wp.array2d(dtype=wp.spatial_vector)
 
     qfrc_bias: wp.array2d(dtype=float)
