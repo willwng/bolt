@@ -53,6 +53,11 @@ class CheckedModel:
             for collider_name, collider in full_desc.colliders.items():
                 yield (body_name, collider_name), collider
 
+    def iter_visuals(self):
+        for body_name, desc in self.iter_descs():
+            for mesh in desc.body.attached_geometry.meshes:
+                yield body_name, mesh
+
     def iter_cst_joints(self):
         for _, jnt in self.iter_joints():
             if "ground" in jnt.socket_parent_frame:
@@ -459,6 +464,23 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         collider_data.rbound.append(rbound)
 
     return collider_data
+
+
+def get_visual_data(model: CheckedModel) -> VisualData:
+    visual_data = VisualData()
+
+    for body_name, mesh in model.iter_visuals():
+        body_id = model.get_body_index(body_name)
+        size = mesh.scale_factors
+        mesh_file = mesh.mesh_file
+
+        visual_data.body_id.append(body_id)
+        visual_data.pos.append([0.0, 0.0, 0.0])
+        visual_data.rot.append([1.0, 0.0, 0.0, 0.0])
+        visual_data.scale.append([size.x, size.y, size.z])
+        visual_data.file.append(mesh_file)
+
+    return visual_data
 
 
 def get_muscle_num_pts(model: CheckedModel) -> list[int]:

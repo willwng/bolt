@@ -6,6 +6,7 @@ from enum import Enum
 from scipy.spatial.transform import Rotation as R
 
 from msk_warp._src import types
+from .mesh import load_mesh
 
 
 class ViewerType(Enum):
@@ -49,12 +50,21 @@ class Viewer:
 
         self.viewer_type = viewer_type
         self.worlds = [0]
+        self.meshes = []
+        self.mesh_scales = []
 
     def fix_capsule_rot(self, quat) -> tuple:
         rot_input = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
         rot_result = self.rot_convert * rot_input
         quat_result = rot_result.as_quat()
         return quat_result[3], quat_result[0], quat_result[1], quat_result[2]
+
+    def load_meshes(self, mesh_loads: list[types.MeshLoadResult]):
+        for mesh_load in mesh_loads:
+            geom_mesh = load_mesh(mesh_load.file)
+            self.meshes.append(geom_mesh)
+            self.mesh_scales.append(mesh_load.scale)
+        return
 
     def setup_tiled_renderer(
             self,
@@ -119,6 +129,26 @@ class Viewer:
                         rot,
                         extents=(5.0, 0.001, 5.0),
                     )
+
+
+            # Visuals
+            visual_color = (0.82, 0.78, 0.74)
+            vis_xpos = d.vis_xpos.numpy()[world_id]
+            vis_xquat = d.vis_xquat.numpy()[world_id]
+            for i in range(m.nvis):
+                mesh = self.meshes[i]
+                scale = self.mesh_scales[i]
+                pos, rot = vis_xpos[i], vis_xquat[i]
+                rot = (rot[1], rot[2], rot[3], rot[0])
+                self.renderer.render_mesh(
+                    name=f"visual_{i}",
+                    points=mesh.points.numpy(),
+                    indices=mesh.indices.numpy(),
+                    pos=pos,
+                    rot=rot,
+                    scale=scale,
+                    colors=visual_color
+                )
 
             # render muscles
             num_muscles = m.nmuscle

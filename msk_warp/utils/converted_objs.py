@@ -46,3 +46,19 @@ class SiteData:
         self.conditional_ids = []
         self.conditional_qadr = []
         self.conditional_range = []
+
+
+@dataclass
+class VisualData:
+    body_id: list[int]
+    pos: list[list[float]]
+    rot: list[list[float]]
+    scale: list[list[float]]
+    file: list[str]
+
+    def __init__(self):
+        self.body_id = []
+        self.pos = []
+        self.rot = []
+        self.scale = []
+        self.file = []

@@ -312,6 +312,8 @@ class Option:
     ls_parallel_min_step: float
     graph_conditional: bool
 
+    visuals: bool
+
 
 @wp.struct
 class ResidualResult:
@@ -386,6 +388,12 @@ class MuscleDynamicsInfo:
     passive_fiber_force: float
     tendon_force: float
     norm_tendon_force: float
+
+
+@dataclasses.dataclass
+class MeshLoadResult:
+    file: str
+    scale: list[float]
 
 
 @dataclasses.dataclass
@@ -579,6 +587,7 @@ class Model:
     njnts_cst: int
 
     ngeom: int
+    nvis: int
     nsite: int
     nsite_cond: int
 
@@ -645,6 +654,11 @@ class Model:
     geom_pair_type_count: tuple[int, ...]
     nxn_geom_pair_filtered: wp.array(dtype=wp.vec2i)
     nxn_pairid_filtered: wp.array(dtype=wp.vec2i)
+
+    # Visual geometry
+    vis_pos: wp.array(dtype=wp.vec3)
+    vis_quat: wp.array(dtype=wp.quat)
+    vis_bodyid: wp.array(dtype=int)
 
     # Attachment sites (muscle path)
     site_bodyid: wp.array(dtype=int)
@@ -843,6 +857,9 @@ class Data:
     geom_xpos: wp.array2d(dtype=wp.vec3)
     geom_xquat: wp.array2d(dtype=wp.quat)
     geom_xmat: wp.array2d(dtype=wp.mat33)
+
+    vis_xpos: wp.array2d(dtype=wp.vec3)
+    vis_xquat: wp.array2d(dtype=wp.quat)
 
     site_rpos: wp.array2d(dtype=wp.vec3)
     site_xpos: wp.array2d(dtype=wp.vec3)

@@ -9,11 +9,13 @@ from msk_warp.utils.osim_converter import *
 from msk_warp.utils.osim_parser import parse_osim_file
 
 
+
 @dataclass
 class ModelLoadResult:
     model: types.Model
     data: types.Data
     body_id_lookup: dict[str, int]
+    visuals: list[types.MeshLoadResult]
 
 
 def _print_trace(trace, indent, steps):
@@ -84,6 +86,7 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
             n_conv_jnts += 1
 
     ngeom = num_colliders(osim_model)
+    nvis = num_visuals(osim_model)
     site_data = get_site_data(osim_model)
     qpos0 = [0.0] * nq
     qpos0[0:3] = [0.0, 1.05, 0.0]  # Root pos
@@ -116,6 +119,7 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
     jnt_rel_child_rot = get_joint_rel_rot(osim_model, parent=False)
 
     geom_data = get_collider_data(osim_model)
+    vis_data = get_visual_data(osim_model)
 
     muscle_pts_num = get_muscle_num_pts(osim_model)
     muscle_pts_adr = exclusive_scan(muscle_pts_num, False)
@@ -227,7 +231,9 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
 
         ls_parallel=False,
         ls_parallel_min_step=1e-8,
-        graph_conditional=True
+        graph_conditional=True,
+
+        visuals=True
     )
 
     muscle_data = get_muscle_metadata(
@@ -252,6 +258,7 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
         njnts_cst=n_custom_jnts,
 
         ngeom=ngeom,
+        nvis=nvis,
         nsite=nsite,
         nsite_cond=nsite_cond,
 
@@ -307,6 +314,10 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
         geom_pair_type_count=tuple(geom_type_pair_count),
         nxn_geom_pair_filtered=wp.array(nxn_geom_pair_filtered, dtype=wp.vec2i),
         nxn_pairid_filtered=wp.array(nxn_pairid_filtered, dtype=wp.vec2i),
+
+        vis_pos=to_warp_array(vis_data.pos, dtype=wp.vec3),
+        vis_quat=to_warp_array(vis_data.rot, dtype=wp.quat),
+        vis_bodyid=to_warp_array(vis_data.body_id, dtype=int),
 
         site_bodyid=to_warp_array(site_data.body_id, dtype=int),
         site_pos=to_warp_array(site_data.pos, dtype=wp.vec3),
@@ -369,6 +380,9 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
         geom_xpos=make_zero((n_worlds, ngeom), dtype=wp.vec3),
         geom_xquat=make_zero((n_worlds, ngeom), dtype=wp.quat),
         geom_xmat=make_zero((n_worlds, ngeom), dtype=wp.mat33),
+
+        vis_xpos=make_zero((n_worlds, nvis), dtype=wp.vec3),
+        vis_xquat=make_zero((n_worlds, nvis), dtype=wp.quat),
 
         site_rpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
@@ -512,10 +526,22 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
     init_model._model_init(m, d)
     forward.initialize(m, d)
 
+    mesh_load_results = []
+    for vis_idx in range(len(vis_data.file)):
+        mesh_file = vis_data.file[vis_idx]
+        mesh_scale = vis_data.scale[vis_idx]
+        mesh_load_results.append(
+            types.MeshLoadResult(
+                file=mesh_file,
+                scale=mesh_scale
+            )
+        )
+
     return ModelLoadResult(
         model=m,
         data=d,
-        body_id_lookup=get_body_id_lookup(osim_model)
+        body_id_lookup=get_body_id_lookup(osim_model),
+        visuals=mesh_load_results
     )
 
 

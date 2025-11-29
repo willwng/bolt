@@ -137,6 +137,31 @@ def _geom_local_to_global(
 
 
 @wp.kernel
+def _vis_local_to_global(
+        # Model:
+        vis_bodyid: wp.array(dtype=int),
+        vis_pos: wp.array(dtype=wp.vec3),
+        vis_quat: wp.array(dtype=wp.quat),
+        # Data in:
+        xpos_in: wp.array2d(dtype=wp.vec3),
+        xquat_in: wp.array2d(dtype=wp.quat),
+        # Data out:
+        vis_xpos_out: wp.array2d(dtype=wp.vec3),
+        vis_xquat_out: wp.array2d(dtype=wp.quat),
+):
+    worldid, visid = wp.tid()
+    bodyid = vis_bodyid[visid]
+
+    xpos = xpos_in[worldid, bodyid]
+    xquat = xquat_in[worldid, bodyid]
+
+    vis_xpos_out[worldid, visid] = (
+            xpos + math.rot_vec_quat(vis_pos[visid], xquat))
+    vis_xquat_out[worldid, visid] = (
+        math.mul_quat(xquat, vis_quat[visid]))
+
+
+@wp.kernel
 def _site_local_to_global(
         # Model:
         site_bodyid: wp.array(dtype=int),
@@ -200,6 +225,14 @@ def kinematics(m: Model, d: Data):
         inputs=[m.geom_bodyid, m.geom_pos, m.geom_quat, d.xpos, d.xquat],
         outputs=[d.geom_xpos, d.geom_xquat, d.geom_xmat],
     )
+
+    if wp.static(m.opt.visuals):
+        wp.launch(
+            _vis_local_to_global,
+            dim=(d.nworld, m.nvis),
+            inputs=[m.vis_bodyid, m.vis_pos, m.vis_quat, d.xpos, d.xquat],
+            outputs=[d.vis_xpos, d.vis_xquat],
+        )
 
     wp.launch(
         _site_local_to_global,
