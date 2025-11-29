@@ -35,10 +35,11 @@ def _sum(stack1, stack2):
 
 
 def benchmark(
-        fn: Callable[[Model, Data, float], None],
+        fn: Callable[[Model, Data, float, float], None],
         m: Model,
         d: Data,
         dt: float,
+        dt_sim: float,
         nstep: int,
         event_trace: bool = False,
         measure_alloc: bool = False,
@@ -72,7 +73,7 @@ def benchmark(
         # capture the whole function as a CUDA graph
         jit_beg = time.perf_counter()
         with wp.ScopedCapture() as capture:
-            fn(m, d, dt)
+            fn(m, d, dt, dt_sim)
         jit_end = time.perf_counter()
         jit_duration = jit_end - jit_beg
 

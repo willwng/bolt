@@ -74,8 +74,8 @@ def main():
     if args.debug:
         wp.config.mode = "debug"
 
-    dt = 1.0 / 100.0
-    dt_sim = 1.0 / 100.0
+    dt = 1.0 / 500.0
+    dt_sim = 1.0 / 500.0
     if not args.benchmark:
         bla = []
         bla2 = []
@@ -99,9 +99,10 @@ def main():
         viewer.close()
 
     else:
+        n_worlds = args.nworld
         n_steps = args.nstep
         res = benchmark(fn=forward.step_to, m=m, d=d,
-                        dt=dt, nstep=n_steps,
+                        dt=dt, dt_sim=dt_sim, nstep=n_steps,
                         event_trace=True, measure_alloc=True,
                         measure_solver_niter=True)
         jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
@@ -113,7 +114,7 @@ def main():
         Total JIT time: {jit_time:.2f} s
         Total simulation time: {run_time:.2f} s
         Total steps per second: {steps / run_time:,.0f}
-        Total realtime factor: {steps * m.opt.timestep / run_time:,.2f} x
+        Total realtime factor: {steps * dt / run_time:,.2f} x
         Total time per step: {1e9 * run_time / steps:.2f} ns
         Total converged worlds: {nsuccess} / {d.nworld}""")
 
