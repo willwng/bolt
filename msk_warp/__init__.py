@@ -6,7 +6,7 @@ from ._src.types import Model as Model
 from ._src.types import Data as Data
 # isort: on
 
-from ._src.forward import forward as forward
+from ._src.forward import fwd as fwd
 from ._src.types import Option as Option
 
 from .bindings import *

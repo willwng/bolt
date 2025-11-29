@@ -519,7 +519,13 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
     )
 
 
-def get_time(d: types.Data) -> torch.tensor:
+def create_renderer():
+    from msk_warp.render.renderer import Viewer, ViewerType
+    viewer = Viewer(viewer_type=ViewerType.OPENGL)
+    return viewer
+
+
+def time(d: types.Data) -> torch.tensor:
     return wp.to_torch(d.time)
 
 

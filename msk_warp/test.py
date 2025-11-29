@@ -1,18 +1,12 @@
-import msk_warp
-import msk_warp._src.init_model as init_model
-import msk_warp._src.forward as forward
-import msk_warp._src.math as math
-import msk_warp._src.consts as consts
+import argparse
 
 import warp as wp
-import numpy as np
 
-from msk_warp.utils.osim_parser import parse_osim_file
-from msk_warp.utils.osim_converter import *
-from msk_warp.render.renderer import Viewer, ViewerType
+import msk_warp
+import msk_warp._src.forward as forward
 from msk_warp.benchmark.benchmark import benchmark
-
-import argparse
+from msk_warp.render.renderer import Viewer, ViewerType
+from msk_warp.utils.osim_converter import *
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--recompile", action="store_true")
@@ -81,12 +75,16 @@ def main():
         wp.config.mode = "debug"
 
     dt = 1.0 / 100.0
+    dt_sim = 1.0 / 100.0
     if not args.benchmark:
         bla = []
         bla2 = []
         viewer = Viewer(viewer_type=ViewerType.OPENGL)
+        if viewer.viewer_type == ViewerType.TILED:
+            viewer.setup_tiled_renderer(m, list(range(min(args.nworld, 4))))
+
         for i in range(args.nstep):
-            forward.step_to(m, d, dt)
+            forward.step_to(m, d, dt, dt_sim)
             viewer.render(m, d)
             bla.append(d.time.numpy()[0])
             bla2.append(-d.grf.numpy()[0, 1] / (75.0 * 9.81))

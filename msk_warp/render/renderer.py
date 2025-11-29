@@ -1,3 +1,4 @@
+import numpy as np
 import warp as wp
 import warp.render
 
@@ -10,12 +11,22 @@ from msk_warp._src import types
 class ViewerType(Enum):
     NONE = 0
     OPENGL = 1
-    USD = 2
+    TILED = 2
+    USD = 3
 
 
 class Viewer:
     def __init__(self, viewer_type: ViewerType):
         if viewer_type == ViewerType.OPENGL:
+            self.renderer = wp.render.OpenGLRenderer(
+                title="warp-sim",
+                vsync=False,
+                up_axis='Y',
+                screen_width=2000,
+                screen_height=1200,
+                camera_pos=(0.0, 2.0, 8.0),
+            )
+        elif viewer_type == ViewerType.TILED:
             self.renderer = wp.render.OpenGLRenderer(
                 title="warp-sim",
                 vsync=False,
@@ -37,6 +48,7 @@ class Viewer:
         self.rot_convert = R.from_euler("z", -90, degrees=True)
 
         self.viewer_type = viewer_type
+        self.worlds = [0]
 
     def fix_capsule_rot(self, quat) -> tuple:
         rot_input = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
@@ -44,13 +56,27 @@ class Viewer:
         quat_result = rot_result.as_quat()
         return quat_result[3], quat_result[0], quat_result[1], quat_result[2]
 
+    def setup_tiled_renderer(
+            self,
+            m: types.Model,
+            worlds: list[int]
+    ):
+        assert self.viewer_type == ViewerType.TILED
+        num_tiles = len(worlds)
+        number_instances_per_world = m.ngeom
+        instance_ids = []
+        for i in range(num_tiles):
+            world_instances = list(range(
+                i * number_instances_per_world,
+                (i + 1) * number_instances_per_world))
+            instance_ids.append(world_instances)
+        self.renderer.setup_tiled_rendering(instances=instance_ids)
+        self.worlds = worlds
+
     def render(self, m: types.Model, d: types.Data):
-
-        def render_body():
-            # self.renderer.render_ground(size=1)
-
-            geom_xpos = d.geom_xpos.numpy()[0]
-            geom_xquat = d.geom_xquat.numpy()[0]
+        def render_body(world_id: int = 0):
+            geom_xpos = d.geom_xpos.numpy()[world_id]
+            geom_xquat = d.geom_xquat.numpy()[world_id]
             geom_types = m.geom_type.numpy()
             geom_sizes = m.geom_size.numpy()
 
@@ -60,9 +86,10 @@ class Viewer:
                 pos, rot = geom_xpos[i], geom_xquat[i]
                 rot = (rot[1], rot[2], rot[3], rot[0])  # xyzw to wxyz
 
+                offset = world_id * m.ngeom
                 if geom_types[i] == types.GeomType.SPHERE:
                     self.renderer.render_sphere(
-                        f"sphere_{i}",
+                        f"sphere_{i + offset}",
                         pos,
                         rot,
                         color=sphere_color,
@@ -70,13 +97,14 @@ class Viewer:
                     )
                 elif geom_types[i] == types.GeomType.CAPSULE:
                     # The capsule renderer is broken for z up axis in OpenGL
-                    if self.viewer_type == ViewerType.OPENGL:
+                    if self.viewer_type == ViewerType.OPENGL or \
+                            self.viewer_type == ViewerType.TILED:
                         rot = self.fix_capsule_rot(rot)
                         up_axis = 1
                     else:
                         up_axis = 2
                     self.renderer.render_capsule(
-                        f"capsule_{i}",
+                        f"capsule_{i + offset}",
                         pos,
                         rot,
                         radius=geom_sizes[i][0],
@@ -86,7 +114,7 @@ class Viewer:
                     )
                 elif geom_types[i] == types.GeomType.PLANE:
                     self.renderer.render_box(
-                        f"plane_{i}",
+                        f"plane_{i + offset}",
                         pos,
                         rot,
                         extents=(5.0, 0.001, 5.0),
@@ -96,8 +124,8 @@ class Viewer:
             num_muscles = m.nmuscle
             muscle_pts_adr = m.muscle_pts_adr.numpy()
             muscle_pts_num = m.muscle_pts_num.numpy()
-            site_xpos = d.site_xpos.numpy()[0]
-            muscle_activations = d.act.numpy()[0]
+            site_xpos = d.site_xpos.numpy()[world_id]
+            muscle_activations = d.act.numpy()[world_id]
 
             def activation_to_color(act: float) -> tuple:
                 # Map activation [0, 1] to color from blue to red
@@ -129,6 +157,14 @@ class Viewer:
             self.renderer.begin_frame(time)
             render_body()
             self.renderer.end_frame()
+
+        elif self.viewer_type == ViewerType.TILED:
+            time = self.renderer.clock_time
+            self.renderer.begin_frame(time)
+            for world_id in self.worlds:
+                render_body(world_id)
+
+            self.renderer.end_frame()
         elif self.viewer_type == ViewerType.USD:
             sim_time = d.time.numpy()[0]
             with wp.ScopedTimer("render"):
@@ -139,7 +175,8 @@ class Viewer:
             return
 
     def close(self):
-        if self.viewer_type == ViewerType.OPENGL:
+        if self.viewer_type == ViewerType.OPENGL or \
+                self.viewer_type == ViewerType.TILED:
             self.renderer.clear()
         elif self.viewer_type == ViewerType.USD:
             self.renderer.save()
