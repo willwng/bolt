@@ -426,6 +426,13 @@ def compute_state_derivative(
     fiber_velocity = (norm_fiber_velocity *
                       dgf.get_max_contraction_velocity_in_meters_per_second(
                           mm.v_max, mm.optimal_fiber_length))
+    # Check to see whether the fiber length was clamped
+    min_norm_fiber_length = mm.min_norm_fiber_length
+    fiber_state_clamped = dgf.is_fiber_state_clamped(
+        norm_fiber_length, norm_fiber_velocity, min_norm_fiber_length)
+    if fiber_state_clamped:
+        fiber_velocity = 0.0
+
     mstate_dot = fiber_velocity / mm.optimal_fiber_length
     return mstate_dot
 
