@@ -623,9 +623,25 @@ def get_txfm_fns(
 
     const_idx, linear_idx = 0, 0
     for axis in model.iter_transform_axes():
+        # function type
+        fn = axis.function
+        if fn.type() == FunctionType.LINEAR:
+            fn_types.append(CustomFnType.LINEAR)
+            fn_addresses.append(linear_idx)
+            linear_idx += 1
+            requires_dof = True
+        elif fn.type() == FunctionType.CONSTANT:
+            fn_types.append(CustomFnType.CONSTANT)
+            fn_addresses.append(const_idx)
+            const_idx += 1
+            requires_dof = False
+        else:
+            print(f"Warning: Unrecognized function type {fn.type()}")
+            assert False
+
         # coordinates
         coordinates = axis.coordinates
-        if coordinates is None:
+        if coordinates is None or not requires_dof:
             txfm_qpos_adr.append(-1)
             txfm_dof_adr.append(-1)
         else:
@@ -633,20 +649,6 @@ def get_txfm_fns(
             dof_adr = model.lookup_dof_idx(coordinates, False)
             txfm_qpos_adr.append(qpos_adr)
             txfm_dof_adr.append(dof_adr)
-
-        # function
-        fn = axis.function
-        if fn.type() == FunctionType.LINEAR:
-            fn_types.append(CustomFnType.LINEAR)
-            fn_addresses.append(linear_idx)
-            linear_idx += 1
-        elif fn.type() == FunctionType.CONSTANT:
-            fn_types.append(CustomFnType.CONSTANT)
-            fn_addresses.append(const_idx)
-            const_idx += 1
-        else:
-            print(f"Warning: Unrecognized function type {fn.type()}")
-            assert False
 
         # axes
         txfm_axes.append([axis.axis.x, axis.axis.y, axis.axis.z])
@@ -666,8 +668,8 @@ def get_dof_limits(
         for coord in joint.coordinates:
             if coord.clamped:
                 dof_ranges.append((coord.range.x, coord.range.y))
-                dof_adr.append(model.lookup_dof_idx(coord.name, False))
                 dof_qadr.append(model.lookup_dof_idx(coord.name, True))
+                dof_adr.append(model.lookup_dof_idx(coord.name, False))
 
     return dof_ranges, dof_adr, dof_qadr
 
