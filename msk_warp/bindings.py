@@ -9,7 +9,6 @@ from msk_warp.utils.osim_converter import *
 from msk_warp.utils.osim_parser import parse_osim_file
 
 
-
 @dataclass
 class ModelLoadResult:
     model: types.Model
@@ -411,7 +410,7 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_length_prev=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_velocity_prev = make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_velocity_prev=make_zero((n_worlds, nmuscle), dtype=float),
 
         muscle_length_info=make_zero((n_worlds, nmuscle),
                                      dtype=types.MuscleLengthInfo),
@@ -599,6 +598,10 @@ def joint_velocities(d: types.Data) -> torch.Tensor:
 
 def muscle_activations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.act)
+
+
+def muscle_excitations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.mexcitations)
 
 
 def muscle_fiber_lengths(d: types.Data) -> torch.Tensor:
