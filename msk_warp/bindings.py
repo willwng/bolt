@@ -572,10 +572,6 @@ def get_num_muscles(m: types.Model) -> int:
     return m.nmuscle
 
 
-def muscle_excitations(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.muscle_actuation)
-
-
 def body_positions(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.xpos)
 
