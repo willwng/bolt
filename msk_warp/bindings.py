@@ -89,7 +89,7 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
     nvis = num_visuals(osim_model)
     site_data = get_site_data(osim_model)
     qpos0 = [0.0] * nq
-    qpos0[0:3] = [0.0, 1.05, 0.0]  # Root pos
+    qpos0[0:3] = [0.0, 1.5, 0.0]  # Root pos
     qpos0[3] = 1  # root quat
 
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
@@ -132,6 +132,7 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
 
     dof_limit_ranges, dof_limit_adr, dof_limit_qadr = get_dof_limits(osim_model)
     n_limits = len(dof_limit_ranges)
+    # n_limits = 0
 
     body_rootid = [1] * nb  # Placeholder for body root IDs
     body_tree = create_body_tree(osim_model)
@@ -218,6 +219,8 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
         ls_iterations=100,
         ccd_iterations=50,
         warm_start=True,
+
+        muscle_dyn_substeps=15,
 
         safety=0.9,
         min_shrink=0.1,
@@ -367,6 +370,7 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
         qacc=make_zero((n_worlds, nv), dtype=float),
         act_dot=make_zero((n_worlds, nmuscle), dtype=float),
         mexcitations=make_zero((n_worlds, nmuscle), dtype=float),
+        # mexcitations=make_full(1.0, (n_worlds, nmuscle), dtype=float),
         mstate_dot=make_zero((n_worlds, nmuscle), dtype=float),
 
         xpos=make_zero((n_worlds, nb), dtype=wp.vec3),
@@ -406,6 +410,8 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
         muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_length_prev=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_velocity_prev = make_zero((n_worlds, nmuscle), dtype=float),
 
         muscle_length_info=make_zero((n_worlds, nmuscle),
                                      dtype=types.MuscleLengthInfo),

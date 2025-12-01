@@ -346,5 +346,3 @@ def jac(
     jacr = cdof_ang
 
     return jacp, jacr
-
-

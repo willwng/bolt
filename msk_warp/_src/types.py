@@ -267,6 +267,9 @@ class Option:
       iterations: number of main solver iterations
       ls_iterations: maximum number of CG/Newton linesearch iterations
       ccd_iterations: number of iterations in convex collision detection
+      warm_start: flag to enable warm starting of solver
+
+      muscle_dyn_substeps: number of substeps to take for muscle dynamics
 
     variable-step size integrator:
       safety:
@@ -297,6 +300,8 @@ class Option:
     ls_iterations: int
     ccd_iterations: int
     warm_start: bool
+
+    muscle_dyn_substeps: int
 
     safety: float
     min_shrink: float
@@ -569,8 +574,6 @@ class Model:
 
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
-      muscle_act_range: activation range (min, max)            (nmuscle, 2)
-      muscle_state_range: state range (min, max)               (nmuscle, 2)
 
       mean_inertia: mean diagonal inertia                      ()
       body_invweight0: mean inv inert in qpos0 (trn, rot)      (nbody, 2)
@@ -791,6 +794,10 @@ class Data:
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
 
+      * for substepping muscle dynamics *
+      muscle_length_prev: previous muscle lengths                 (nworld, nmuscle)
+      muscle_velocity_prev: previous muscle velocities            (nworld, nmuscle)
+
       cvel: com-based velocity (rot:lin)                          (nworld, nbody, 6)
       xvel: Cartesian body velocity (ang, vel)                    (nworld, nbody, 6)
       cdof_dot: time-derivative of cdof (rot:lin)                 (nworld, nv, 6)
@@ -882,6 +889,9 @@ class Data:
     muscle_length: wp.array2d(dtype=float)
     muscle_velocity: wp.array2d(dtype=float)
     muscle_actuation: wp.array2d(dtype=float)
+
+    muscle_length_prev: wp.array2d(dtype=float)
+    muscle_velocity_prev: wp.array2d(dtype=float)
 
     muscle_length_info: wp.array2d(dtype=MuscleLengthInfo)
     muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)

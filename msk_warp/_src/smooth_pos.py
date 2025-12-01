@@ -178,8 +178,9 @@ def _site_local_to_global(
     xpos = xpos_in[worldid, bodyid]
     xquat = xquat_in[worldid, bodyid]
     # Relative to body and world positions
-    site_rpos_out[worldid, siteid] = math.rot_vec_quat(site_pos[siteid], xquat)
-    site_xpos_out[worldid, siteid] = xpos + site_rpos_out[worldid, siteid]
+    rpos = math.rot_vec_quat(site_pos[siteid], xquat)
+    site_rpos_out[worldid, siteid] = rpos
+    site_xpos_out[worldid, siteid] = xpos + rpos
 
 
 @event_scope

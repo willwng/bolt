@@ -203,16 +203,6 @@ def calc_force_velocity_multiplier_derivative(
 
 
 @wp.func
-def calc_force_velocity_multiplier_derivative(
-        norm_fiber_velocity: float,
-) -> float:
-    temp_v = consts.DGF_D2 * norm_fiber_velocity + consts.DGF_D3
-    tmp = wp.sqrt(temp_v ** 2.0 + 1.0)
-    return (consts.DGF_D1 * consts.DGF_D2 * tmp) / (
-            temp_v * tmp + temp_v ** 2.0 + 1.0)
-
-
-@wp.func
 def calc_force_velocity_inverse_curve(
         force_velocity_mult: float,
 ) -> float:
@@ -318,7 +308,7 @@ def calc_damped_norm_fiber_velocity(
     max_iter = 20
     tol = 1e-8 * f_iso
     k_sig_real = 1e-6
-    prev_err = 1e10
+    prev_err = float(1e10)
     if tol < k_sig_real * 100.0:
         tol = k_sig_real * 100.0
 
@@ -331,7 +321,6 @@ def calc_damped_norm_fiber_velocity(
         max(cos_phi, 0.01)
     )
     dlceN_dt = calc_force_velocity_inverse_curve(fv)
-
     # approximation is poor beyond maximum velocities
     dlceN_dt = wp.clamp(dlceN_dt, -1.0, 1.0)
 
@@ -350,5 +339,9 @@ def calc_damped_norm_fiber_velocity(
             break
         if derr_d_dlceNdt < tol:
             break
+
+        delta = -err / derr_d_dlceNdt
+        dlceN_dt = dlceN_dt + delta
+        prev_err = err
 
     return dlceN_dt, fv

@@ -4,6 +4,7 @@ import warp as wp
 
 import msk_warp
 import msk_warp._src.forward as forward
+import msk_warp._src.fused_forward as forward_fused
 from msk_warp.benchmark.benchmark import benchmark
 from msk_warp.render.renderer import Viewer, ViewerType
 from msk_warp.utils.osim_converter import *
@@ -65,17 +66,17 @@ def make_full(val, shape, dtype):
 
 
 def main():
-    model = "data/osim/model.osim"
-    load_result = msk_warp.load_model(model, args.nworld)
-    m, d = load_result.model, load_result.data
-
     if args.recompile:
         wp.clear_kernel_cache()
     if args.debug:
         wp.config.mode = "debug"
 
-    dt = 1.0 / 500.0
-    dt_sim = 1.0 / 500.0
+    model = "data/osim/model.osim"
+    load_result = msk_warp.load_model(model, args.nworld)
+    m, d = load_result.model, load_result.data
+
+    dt = 1.0 / 300.0
+    dt_sim = 1.0 / 300.0
     if not args.benchmark:
         bla = []
         bla2 = []
@@ -84,9 +85,9 @@ def main():
         if viewer.viewer_type == ViewerType.TILED:
             viewer.setup_tiled_renderer(m, list(range(min(args.nworld, 4))))
 
-
         for i in range(args.nstep):
             forward.step_to(m, d, dt, dt_sim)
+            # forward_fused.step_to(m, d, dt, dt_sim)
             viewer.render(m, d)
             bla.append(d.time.numpy()[0])
             bla2.append(-d.grf.numpy()[0, 1] / (75.0 * 9.81))

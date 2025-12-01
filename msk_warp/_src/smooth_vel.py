@@ -123,8 +123,7 @@ def _site_velocity(
         # Model:
         site_bodyid: wp.array(dtype=int),
         # Data in:
-        site_xpos_in: wp.array2d(dtype=wp.vec3),
-        xpos_in: wp.array2d(dtype=wp.vec3),
+        site_rpos_in: wp.array2d(dtype=wp.vec3),
         xvel_in: wp.array2d(dtype=wp.spatial_vector),
         # Data out:
         site_xvel_out: wp.array2d(dtype=wp.vec3),
@@ -134,10 +133,8 @@ def _site_velocity(
     bodyid = site_bodyid[siteid]
     xvel = xvel_in[worldid, bodyid]
     # Transform to site
-    site_pos = site_xpos_in[worldid, siteid]
-    body_pos = xpos_in[worldid, bodyid]
-    dif = site_pos - body_pos
-    site_xvel = support.transform_velocity(xvel, dif)
+    site_rel_pos = site_rpos_in[worldid, siteid]
+    site_xvel = support.transform_velocity(xvel, site_rel_pos)
     site_xvel_out[worldid, siteid] = wp.spatial_bottom(site_xvel)
 
 
@@ -147,6 +144,6 @@ def site_velocity(m: Model, d: Data):
     wp.launch(
         _site_velocity,
         dim=(d.nworld, m.nsite),
-        inputs=[m.site_bodyid, d.site_xpos, d.xpos, d.xvel],
+        inputs=[m.site_bodyid, d.site_rpos, d.xvel],
         outputs=[d.site_xvel]
     )

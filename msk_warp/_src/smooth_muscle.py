@@ -15,6 +15,7 @@
 
 
 import warp as wp
+from click import clear
 
 from . import math
 from . import support
@@ -99,11 +100,25 @@ def _compute_path_kernel(
         # Data in:
         site_diff_len_out: wp.array2d(dtype=float),
         site_diff_vel_out: wp.array2d(dtype=float),
+        muscle_length_in: wp.array2d(dtype=float),
+        muscle_velocity_in: wp.array2d(dtype=float),
         # Data out:
         muscle_length_out: wp.array2d(dtype=float),
         muscle_velocity_out: wp.array2d(dtype=float),
+        muscle_length_prev_out: wp.array2d(dtype=float),
+        muscle_velocity_prev_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
+    # Store previous values
+    muscle_length_prev_out[worldid, muscle_id] = muscle_length_in[
+        worldid, muscle_id]
+    muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[
+        worldid, muscle_id]
+
+    # Compute current length and velocity
+    muscle_length_out[worldid, muscle_id] = 0.0
+    muscle_velocity_out[worldid, muscle_id] = 0.0
+
     pts_adr = muscle_pts_adr[muscle_id]
     n_pts = muscle_pts_num[muscle_id]
     for i in range(n_pts - 1):
@@ -119,8 +134,9 @@ def compute_path(m: Model, d: Data):
         _compute_path_kernel,
         dim=(d.nworld, m.nmuscle),
         inputs=[m.muscle_pts_adr, m.muscle_pts_num, d.site_diff_len,
-                d.site_diff_vel],
-        outputs=[d.muscle_length, d.muscle_velocity],
+                d.site_diff_vel, d.muscle_length, d.muscle_velocity],
+        outputs=[d.muscle_length, d.muscle_velocity,
+                 d.muscle_length_prev, d.muscle_velocity_prev],
     )
 
 
@@ -134,14 +150,12 @@ def _xfrc_muscles(
         muscle_actuation_in: wp.array2d(dtype=float),
         site_diff_vec_in: wp.array2d(dtype=wp.vec3),
         site_diff_len_in: wp.array2d(dtype=float),
-        xpos_in: wp.array2d(dtype=wp.vec3),
-        site_xpos_in: wp.array2d(dtype=wp.vec3),
+        site_rpos_in: wp.array2d(dtype=wp.vec3),
         # Data out:
         xfrc_applied_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, muscle_id = wp.tid()
     actuation = muscle_actuation_in[worldid, muscle_id]
-    actuation = 0.0
     pt_adr = muscle_pts_adr[muscle_id]
     pt_num = muscle_pts_num[muscle_id]
 
@@ -153,15 +167,13 @@ def _xfrc_muscles(
         vec = site_diff_vec_in[worldid, pt_adr + i]
         site1, site2 = pt_adr + i, pt_adr + i + 1
         body1, body2 = site_bodyid[site1], site_bodyid[site2]
-
-        p1, p2 = site_xpos_in[worldid, site1], site_xpos_in[worldid, site2]
-        com1, com2 = xpos_in[worldid, body1], xpos_in[worldid, body2]
+        p1, p2 = site_rpos_in[worldid, site1], site_rpos_in[worldid, site2]
 
         muscle_frc = actuation * vec
         wp.atomic_add(xfrc_applied_out[worldid], body1,
-                      support.force_at_point(muscle_frc, p1 - com1))
+                      support.force_at_point(muscle_frc, p1))
         wp.atomic_sub(xfrc_applied_out[worldid], body2,
-                      support.force_at_point(muscle_frc, p2 - com2))
+                      support.force_at_point(muscle_frc, p2))
 
 
 @event_scope
@@ -173,9 +185,6 @@ def muscle_path(m: Model, d: Data):
      """
     if not m.nmuscle:
         return
-    d.muscle_length.zero_()
-    d.muscle_velocity.zero_()
-
     # Compute diffs between active sites
     compute_site_diffs(m, d)
 
@@ -196,8 +205,7 @@ def muscle_force(m: Model, d: Data):
                 d.muscle_actuation,
                 d.site_diff_vec,
                 d.site_diff_len,
-                d.xpos,
-                d.site_xpos,
+                d.site_rpos,
             ],
             outputs=[d.xfrc_applied],
         )

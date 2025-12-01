@@ -41,6 +41,23 @@ def compute_act_dot(m: Model, d: Data):
     )
 
 
+@wp.kernel
+def _reset_prev_path(
+        # Data in:
+        muscle_length_in: wp.array2d(dtype=float),
+        muscle_velocity_in: wp.array2d(dtype=float),
+        # Data out:
+        muscle_length_prev_out: wp.array2d(dtype=float),
+        muscle_velocity_prev_out: wp.array2d(dtype=float),
+):
+    worldid, muscle_id = wp.tid()
+    muscle_length_prev_out[worldid, muscle_id] = muscle_length_in[
+        worldid, muscle_id]
+    muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[
+        worldid, muscle_id]
+    return
+
+
 @wp.func
 def _calc_eq_residual(
         norm_tendon_force: float,
@@ -353,6 +370,126 @@ def _update_dynamics_info(
     return
 
 
+@wp.func
+def compute_state_derivative(
+        mm: MuscleMetadata,
+        norm_fiber_length: float,
+        path_length: float,
+        path_velocity: float,
+        activation: float,
+) -> float:
+    # Fiber
+    fiber_length = norm_fiber_length * mm.optimal_fiber_length
+    min_norm_fiber_length = mm.min_norm_fiber_length
+    # Pennation angle
+    pennation_angle = dgf.calc_pennation_angle(mm.optimal_pennation_angle,
+                                               mm.optimal_fiber_length,
+                                               norm_fiber_length,
+                                               min_norm_fiber_length)
+    cos_pennation_angle = wp.cos(pennation_angle)
+    sin_pennation_angle = wp.sin(pennation_angle)
+    fiber_length_along_tendon = fiber_length * cos_pennation_angle
+    # Tendon
+    tendon_length = path_length - fiber_length_along_tendon
+    norm_tendon_length = tendon_length / mm.tendon_slack_length
+    tendon_strain = norm_tendon_length - 1.0
+    # Force multipliers
+    fiber_passive_force_length_multiplier = (
+        dgf.calc_passive_force_multiplier(norm_fiber_length,
+                                          min_norm_fiber_length))
+    fiber_active_force_length_multiplier = (
+        dgf.calc_active_force_length_multiplier(norm_fiber_length))
+    tendon_force_multiplier = (
+        dgf.calc_tendon_force_multiplier(norm_tendon_length, True))
+
+    # Compute fiber velocity multiplier
+    if mm.fiber_damping > 0.0:
+        dlceN_dt, fv = dgf.calc_damped_norm_fiber_velocity(
+            mm.max_isometric_force,
+            activation,
+            fiber_active_force_length_multiplier,
+            fiber_passive_force_length_multiplier,
+            tendon_force_multiplier,
+            mm.fiber_damping,
+            cos_pennation_angle)
+        norm_fiber_velocity = dlceN_dt
+    else:
+        fv = dgf.calc_undamped_fiber_force_velocity_multiplier(
+            activation,
+            fiber_active_force_length_multiplier,
+            fiber_passive_force_length_multiplier,
+            tendon_force_multiplier,
+            cos_pennation_angle
+        )
+        norm_fiber_velocity = dgf.calc_force_velocity_inverse_curve(fv)
+
+    fiber_velocity = (norm_fiber_velocity *
+                      dgf.get_max_contraction_velocity_in_meters_per_second(
+                          mm.v_max, mm.optimal_fiber_length))
+    mstate_dot = fiber_velocity / mm.optimal_fiber_length
+    return mstate_dot
+
+
+@event_scope
+def substep_fused(m: Model, d: Data):
+    @wp.kernel
+    def substep_fused_kernel(
+            # Model:
+            muscle_metadata: wp.array(dtype=MuscleMetadata),
+            # Data in:
+            act_in: wp.array2d(dtype=float),
+            mstate_in: wp.array2d(dtype=float),
+            muscle_length_in: wp.array2d(dtype=float),
+            muscle_velocity_in: wp.array2d(dtype=float),
+            muscle_length_prev_in: wp.array2d(dtype=float),
+            muscle_velocity_prev_in: wp.array2d(dtype=float),
+            actual_step_size_in: wp.array(dtype=float),
+            # Data out:
+            mstate_out: wp.array2d(dtype=float),
+    ):
+        worldid, muscle_id = wp.tid()
+
+        mm = muscle_metadata[muscle_id]
+        prev_path_length = muscle_length_prev_in[worldid, muscle_id]
+        prev_path_velocity = muscle_velocity_prev_in[worldid, muscle_id]
+        path_length = muscle_length_in[worldid, muscle_id]
+        path_velocity = muscle_velocity_in[worldid, muscle_id]
+        activation = act_in[worldid, muscle_id]
+        norm_fiber_length = mstate_in[worldid, muscle_id]
+
+        # Substep integration
+        num_substeps = wp.static(m.opt.muscle_dyn_substeps)
+        h = actual_step_size_in[0] / float(num_substeps)
+        for i in range(num_substeps):
+            # Interpolate path length and velocity
+            frac = (float(i) / float(num_substeps))
+            c_path_length = prev_path_length + frac * (
+                    path_length - prev_path_length)
+            c_path_velocity = prev_path_velocity + frac * (
+                    path_velocity - prev_path_velocity)
+            # Integrate
+            mstate_dot = compute_state_derivative(
+                mm, norm_fiber_length, c_path_length, c_path_velocity,
+                activation)
+            norm_fiber_length += h * mstate_dot
+            norm_fiber_length = dgf.clamp_fiber_length(
+                norm_fiber_length, mm.min_norm_fiber_length,
+                mm.max_norm_fiber_length)
+
+        # Store updated state
+        mstate_out[worldid, muscle_id] = norm_fiber_length
+
+    wp.launch(
+        substep_fused_kernel,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[m.muscle_metadata, d.act, d.mstate,
+                d.muscle_length, d.muscle_velocity,
+                d.muscle_length_prev, d.muscle_velocity_prev,
+                d.actual_step_size],
+        outputs=[d.mstate],
+    )
+
+
 @wp.kernel
 def _update_info_fused(
         # Model:
@@ -577,6 +714,15 @@ def muscle_equilibrate(m: Model, d: Data):
     """ Equilibrate muscles """
     if not m.nmuscle:
         return
+    # Set the previous length/velocity to current
+    wp.launch(
+        _reset_prev_path,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[d.muscle_length, d.muscle_velocity],
+        outputs=[d.muscle_length_prev, d.muscle_velocity_prev],
+    )
+
+    # Equilibrate (bisection)
     wp.launch(
         _equilibrate,
         dim=(d.nworld, m.nmuscle),
@@ -591,6 +737,10 @@ def muscle_dynamics(m: Model, d: Data):
     """ Muscle dynamics """
     if not m.nmuscle:
         return
+
+    # Substep integration of elastic tendon dynamics
+    if wp.static(m.opt.muscle_dyn_substeps > 0):
+        substep_fused(m, d)
 
     # update_length_info(m, d)
     # update_velocity_info(m, d)
