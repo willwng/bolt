@@ -1,19 +1,3 @@
-# Copyright 2025 The Newton Developers
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
-
 import warp as wp
 
 from . import dgf
@@ -29,6 +13,32 @@ from .consts import M_MAX_NORM_TENDON_FORCE
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
+
+
+@wp.kernel
+def _compute_activation_dot(
+        # Data in:
+        mexcitation_in: wp.array2d(dtype=float),
+        act_in: wp.array2d(dtype=float),
+        # Data out:
+        act_dot_out: wp.array2d(dtype=float),
+):
+    worldid, muscle_id = wp.tid()
+    excitation = mexcitation_in[worldid, muscle_id]
+    activation = act_in[worldid, muscle_id]
+    act_dot = dgf.calc_activation_derivative(activation, excitation)
+    act_dot_out[worldid, muscle_id] = act_dot
+    return
+
+
+@event_scope
+def compute_act_dot(m: Model, d: Data):
+    wp.launch(
+        _compute_activation_dot,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[d.mexcitations, d.act],
+        outputs=[d.act_dot],
+    )
 
 
 @wp.func

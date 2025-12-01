@@ -749,7 +749,7 @@ class Data:
 
       qacc: acceleration                                          (nworld, nv)
       act_dot: time-derivative of actuator activation             (nworld, na)
-      m_excitations: muscle excitations                           (nworld, nmuscles)
+      mexcitations: muscle excitations                           (nworld, nmuscles)
       mstate_dot: time-derivative of muscle state variable        (nworld, nmuscles)
 
       qacc_warmstart: acceleration used for warmstart             (nworld, nv)
