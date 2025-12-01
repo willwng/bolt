@@ -5,7 +5,9 @@ MSK Warp
 
 ```bash
 pip install warp-lang
+pip install -e .
 ```
+
 
 # Example
 ```bash
