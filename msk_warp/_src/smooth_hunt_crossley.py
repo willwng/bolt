@@ -32,7 +32,7 @@ def _process_contacts_hc(
         body_rootid: wp.array(dtype=int),
         geom_bodyid: wp.array(dtype=int),
         # Data in:
-        xpos_in: wp.array2d(dtype=wp.vec3),
+        xipos_in: wp.array2d(dtype=wp.vec3),
         cvel_in: wp.array2d(dtype=wp.spatial_vector),
         subtree_com_in: wp.array2d(dtype=wp.vec3),
         nacon_in: wp.array(dtype=int),
@@ -121,7 +121,7 @@ def _process_contacts_hc(
         force += f_friction * v_t / v_slip
 
     # Apply forces to bodies
-    com1, com2 = xpos_in[worldid, body1], xpos_in[worldid, body2]
+    com1, com2 = xipos_in[worldid, body1], xipos_in[worldid, body2]
     wp.atomic_add(xfrc_applied_out[worldid], body1,
                   support.force_at_point(-1.0 * force, location - com1))
     wp.atomic_add(xfrc_applied_out[worldid], body2,
@@ -144,7 +144,7 @@ def contact_forces(m: Model, d: Data):
         inputs=[
             m.body_rootid,
             m.geom_bodyid,
-            d.xpos,
+            d.xipos,
             d.cvel,
             d.subtree_com,
             d.nacon,

@@ -25,7 +25,8 @@ class Viewer:
                 up_axis='Y',
                 screen_width=2000,
                 screen_height=1200,
-                camera_pos=(0.0, 2.0, 8.0),
+                camera_pos=(5.0, 1.5, 5.0),
+                camera_front=(-1.0, 0.0, -1.0),
             )
         elif viewer_type == ViewerType.TILED:
             self.renderer = wp.render.OpenGLRenderer(
@@ -34,7 +35,8 @@ class Viewer:
                 up_axis='Y',
                 screen_width=2000,
                 screen_height=1200,
-                camera_pos=(0.0, 2.0, 8.0),
+                camera_pos=(5.0, 1.5, 5.0),
+                camera_front=(-1.0, 0.0, -1.0),
             )
         elif viewer_type == ViewerType.USD:
             self.renderer = wp.render.UsdRenderer(

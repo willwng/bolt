@@ -27,7 +27,7 @@ def evaluate_txfm(
         return wp.vec2(const_fns[txfm_fn_adr], 0.0)
     elif txfm_fn_type == CustomFnType.LINEAR:
         if txfm_qadr == -1:
-            return wp.vec2(0.0, 0.0)
+            return wp.vec2(0.0, 0.0)  # this should be impossible
         lin_fn = linear_fns[txfm_fn_adr]
         return wp.vec2(lin_fn[0] * qpos_in[txfm_qadr] + lin_fn[1], lin_fn[0])
     return wp.vec2(0.0, 0.0)

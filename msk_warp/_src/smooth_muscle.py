@@ -15,7 +15,6 @@
 
 
 import warp as wp
-from click import clear
 
 from . import math
 from . import support
@@ -150,7 +149,8 @@ def _xfrc_muscles(
         muscle_actuation_in: wp.array2d(dtype=float),
         site_diff_vec_in: wp.array2d(dtype=wp.vec3),
         site_diff_len_in: wp.array2d(dtype=float),
-        site_rpos_in: wp.array2d(dtype=wp.vec3),
+        site_xpos_in: wp.array2d(dtype=wp.vec3),
+        xipos_in: wp.array2d(dtype=wp.vec3),
         # Data out:
         xfrc_applied_out: wp.array2d(dtype=wp.spatial_vector),
 ):
@@ -167,13 +167,14 @@ def _xfrc_muscles(
         vec = site_diff_vec_in[worldid, pt_adr + i]
         site1, site2 = pt_adr + i, pt_adr + i + 1
         body1, body2 = site_bodyid[site1], site_bodyid[site2]
-        p1, p2 = site_rpos_in[worldid, site1], site_rpos_in[worldid, site2]
+        p1, p2 = site_xpos_in[worldid, site1], site_xpos_in[worldid, site2]
+        com1, com2 = xipos_in[worldid, body1], xipos_in[worldid, body2]
 
         muscle_frc = actuation * vec
         wp.atomic_add(xfrc_applied_out[worldid], body1,
-                      support.force_at_point(muscle_frc, p1))
+                      support.force_at_point(muscle_frc, p1 - com1))
         wp.atomic_sub(xfrc_applied_out[worldid], body2,
-                      support.force_at_point(muscle_frc, p2))
+                      support.force_at_point(muscle_frc, p2 - com2))
 
 
 @event_scope
@@ -205,7 +206,8 @@ def muscle_force(m: Model, d: Data):
                 d.muscle_actuation,
                 d.site_diff_vec,
                 d.site_diff_len,
-                d.site_rpos,
+                d.site_xpos,
+                d.xipos,
             ],
             outputs=[d.xfrc_applied],
         )
