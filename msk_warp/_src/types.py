@@ -3,7 +3,6 @@ import enum
 
 import warp as wp
 
-TILE_SIZE_JTDAJ_SPARSE = 16
 TILE_SIZE_JTDAJ_DENSE = 16
 TILE_SIZE_SITE = 256
 
@@ -37,6 +36,7 @@ class BlockDim:
     cholesky_factorize_solve: int = 32
     # solver
     update_gradient_cholesky: int = 64
+    update_gradient_cholesky_blocked: int = 32
     update_gradient_JTDAJ_sparse: int = 64
     update_gradient_JTDAJ_dense: int = 96
     # support
@@ -219,6 +219,20 @@ vec6 = vec6f
 vec10 = vec10f
 mat34 = mat34f
 mat43 = mat43f
+
+
+def array(*args) -> wp.array:
+    """A wrapper around wp.array that adds extra metadata to ease type introspection.
+
+    Format is array(dim_1, dim_2, ..., dtype).  dim may be a constant int, or reference a size from
+    Model or Data (e.g. "nq" or "nworld").  dim may also be "*", which means any nonzero size.
+    """
+    shape, dtype = args[:-1], args[-1]
+
+    arr = wp.array(ndim=len(shape), dtype=dtype)
+    arr.shape = shape
+
+    return arr
 
 
 class SolverType(enum.IntEnum):
@@ -439,39 +453,39 @@ class Constraint:
       done: solver done                                 (nworld,)
     """
 
-    type: wp.array2d(dtype=int)
-    id: wp.array2d(dtype=int)
-    J: wp.array3d(dtype=float)
-    pos: wp.array2d(dtype=float)
-    margin: wp.array2d(dtype=float)
-    D: wp.array2d(dtype=float)
-    vel: wp.array2d(dtype=float)
-    aref: wp.array2d(dtype=float)
-    frictionloss: wp.array2d(dtype=float)
-    force: wp.array2d(dtype=float)
-    Jaref: wp.array2d(dtype=float)
-    Ma: wp.array2d(dtype=float)
-    grad: wp.array2d(dtype=float)
-    cholesky_L_tmp: wp.array3d(dtype=float)
-    cholesky_y_tmp: wp.array2d(dtype=float)
-    grad_dot: wp.array(dtype=float)
-    Mgrad: wp.array2d(dtype=float)
-    search: wp.array2d(dtype=float)
-    search_dot: wp.array(dtype=float)
-    gauss: wp.array(dtype=float)
-    cost: wp.array(dtype=float)
-    prev_cost: wp.array(dtype=float)
-    state: wp.array2d(dtype=int)
-    mv: wp.array2d(dtype=float)
-    jv: wp.array2d(dtype=float)
-    quad: wp.array2d(dtype=wp.vec3)
-    quad_gauss: wp.array(dtype=wp.vec3)
-    h: wp.array3d(dtype=float)
-    alpha: wp.array(dtype=float)
-    prev_grad: wp.array2d(dtype=float)
-    prev_Mgrad: wp.array2d(dtype=float)
-    beta: wp.array(dtype=float)
-    done: wp.array(dtype=bool)
+    type: array("nworld", "njmax", int)
+    id: array("nworld", "njmax", int)
+    J: array("nworld", "njmax_pad", "nv", float)
+    pos: array("nworld", "njmax", float)
+    margin: array("nworld", "njmax", float)
+    D: array("nworld", "njmax_pad", float)
+    vel: array("nworld", "njmax", float)
+    aref: array("nworld", "njmax", float)
+    frictionloss: array("nworld", "njmax", float)
+    force: array("nworld", "njmax", float)
+    Jaref: array("nworld", "njmax", float)
+    Ma: array("nworld", "nv", float)
+    grad: array("nworld", "nv", float)
+    cholesky_L_tmp: array("nworld", "nv", "nv", float)
+    cholesky_y_tmp: array("nworld", "nv", "nv", float)
+    grad_dot: array("nworld", float)
+    Mgrad: array("nworld", "nv", float)
+    search: array("nworld", "nv", float)
+    search_dot: array("nworld", float)
+    gauss: array("nworld", float)
+    cost: array("nworld", float)
+    prev_cost: array("nworld", float)
+    state: array("nworld", "njmax_pad", int)
+    mv: array("nworld", "nv", float)
+    jv: array("nworld", "njmax", float)
+    quad: array("nworld", "njmax", wp.vec3)
+    quad_gauss: array("nworld", wp.vec3)
+    h: array("nworld", "nv", "nv", float)
+    alpha: array("nworld", float)
+    prev_grad: array("nworld", "nv", float)
+    prev_Mgrad: array("nworld", "nv", float)
+    beta: array("nworld", float)
+    done: array("nworld", bool)
 
 
 @dataclasses.dataclass
@@ -519,9 +533,6 @@ class Model:
       body_inertia: diagonal inertia in ipos/iquat frame       (nbody, 3)
       body_ipos: local position of center of mass              (nbody, 3)
       body_iquat: local orientation of inertia ellipsoid       (nbody, 4)
-
-      body_geomnum: number of geoms                            (nbody,)
-      body_geomadr: start addr of geoms; -1: no geoms          (nbody,)
 
       body_rootid: id of root above body                       (nbody,)
       body_parentid: id of body's parent                       (nbody,)
@@ -595,36 +606,33 @@ class Model:
     nsite_cond: int
 
     opt: Option
-    muscle_metadata: wp.array(dtype=MuscleMetadata)
+    muscle_metadata: array("nmuscle", float)
 
-    qpos0: wp.array(dtype=float)
-    qpos_spring: wp.array(dtype=float)
+    qpos0: array("nq", float)
+    qpos_spring: array("nq", float)
 
-    body_mass: wp.array(dtype=float)
-    body_subtreemass: wp.array(dtype=float)
-    body_inertia: wp.array(dtype=wp.vec3)
-    body_ipos: wp.array(dtype=wp.vec3)
-    body_iquat: wp.array(dtype=wp.quat)
+    body_mass: array("nbody", float)
+    body_subtreemass: array("nbody", float)
+    body_inertia: array("nbody", wp.vec3)
+    body_ipos: array("nbody", wp.vec3)
+    body_iquat: array("nbody", wp.quat)
 
-    body_geomnum: wp.array(dtype=int)
-    body_geomadr: wp.array(dtype=int)
-
-    body_rootid: wp.array(dtype=int)
-    body_parentid: wp.array(dtype=int)
+    body_rootid: array("nbody", int)
+    body_parentid: array("nbody", int)
     body_tree: tuple[wp.array(dtype=int), ...]
 
-    jnt_type: wp.array(dtype=int)
-    jnt_stiffness: wp.array(dtype=float)
-    jnt_qposadr: wp.array(dtype=int)
-    jnt_dofnum: wp.array(dtype=int)
-    jnt_dofadr: wp.array(dtype=int)
-    jnt_rel_parent: wp.array(dtype=wp.vec3)
-    jnt_rel_child: wp.array(dtype=wp.vec3)
-    jnt_rel_parent_rot: wp.array(dtype=wp.quat)
-    jnt_rel_child_rot: wp.array(dtype=wp.quat)
+    jnt_type: array("nbody", int)
+    jnt_stiffness: array("nbody", float)
+    jnt_qposadr: array("nbody", int)
+    jnt_dofnum: array("nbody", int)
+    jnt_dofadr: array("nbody", int)
+    jnt_rel_parent: array("nbody", wp.vec3)
+    jnt_rel_child: array("nbody", wp.vec3)
+    jnt_rel_parent_rot: array("nbody", wp.quat)
+    jnt_rel_child_rot: array("nbody", wp.quat)
 
     # Custom joint data
-    jnt_cst_adr: wp.array(dtype=int)
+    jnt_cst_adr: array("nbody", int)
     const_fns: wp.array(dtype=float)
     linear_fns: wp.array(dtype=wp.vec2)
     cst_txfm_axis: wp.array2d(dtype=wp.vec3)
