@@ -522,7 +522,6 @@ class Model:
       nsite_cond: number of conditional sites
 
       opt: physics options
-      muscle_consts: muscle consts
       muscle_metadata: muscle metadata                                      (nmuscle,)
 
       qpos0: qpos values at default pose                       (nq,)
@@ -582,6 +581,9 @@ class Model:
 
       site_bodyid: id of site's body                           (nsite,)
       site_pos: local position offset rel. to body             (nsite, 3)
+      site_cond_id: conditional site id                        (nsite_cond,)
+      site_cond_qadr: conditional site qpos address            (nsite_cond,)
+      site_cond_range: conditional site range (min, max)       (nsite_cond, 2)
 
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
@@ -674,6 +676,9 @@ class Model:
     # Attachment sites (muscle path)
     site_bodyid: wp.array(dtype=int)
     site_pos: wp.array(dtype=wp.vec3)
+    site_cond_id: wp.array(dtype=int)
+    site_cond_qadr: wp.array(dtype=int)
+    site_cond_range: wp.array2d(dtype=wp.vec2)
 
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)
@@ -783,6 +788,11 @@ class Data:
       site_rpos: local position of site rel. to body              (nworld, nsite, 3)
       site_xpos: Cartesian site position                          (nworld, nsite, 3)
       site_xvel: Cartesian site velocity                          (nworld, nsite, 3)
+      site_active: whether site is active                         (nworld, nsite)
+
+      muscle_active_sites: "compacted" active sites               (nworld, nsite)
+       [ for muscle i, active sites indices are consecutive ]
+      muscle_num_active: number of active sites per muscle        (nworld, nmuscle)
 
       site_diff_vec: unit vector b/w consecutive active sites     (nworld, nsite-1, 3)
       site_diff_len: length b/w consecutive active sites          (nworld, nsite-1)
@@ -879,6 +889,10 @@ class Data:
     site_rpos: wp.array2d(dtype=wp.vec3)
     site_xpos: wp.array2d(dtype=wp.vec3)
     site_xvel: wp.array2d(dtype=wp.vec3)
+    site_active: wp.array2d(dtype=bool)
+
+    muscle_active_sites: wp.array2d(dtype=int)
+    muscle_num_active: wp.array2d(dtype=int)
 
     site_diff_vec: wp.array2d(dtype=wp.vec3)
     site_diff_len: wp.array2d(dtype=float)

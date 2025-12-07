@@ -8,5 +8,6 @@ from ._src.types import Data as Data
 
 from ._src.forward import fwd as fwd
 from ._src.types import Option as Option
+from .render.renderer import RendererType as RendererType
 
 from .bindings import *

@@ -4,9 +4,8 @@ import warp as wp
 
 import msk_warp
 import msk_warp._src.forward as forward
-import msk_warp._src.fused_forward as forward_fused
 from msk_warp.benchmark.benchmark import benchmark
-from msk_warp.render.renderer import Viewer, ViewerType
+from msk_warp.render.renderer import RendererType
 from msk_warp.utils.osim_converter import *
 
 arg_parser = argparse.ArgumentParser()
@@ -80,13 +79,14 @@ def main():
     if not args.benchmark:
         bla = []
         bla2 = []
-        viewer = Viewer(
-            viewer_type=ViewerType.OPENGL,
-            draw_colliders=False,
+        viewer = msk_warp.create_renderer(
+            load_result=load_result,
+            renderer_type=RendererType.OPENGL,
             draw_visuals=True,
-            draw_muscles=True)
-        viewer.load_meshes(load_result.visuals)
-        if viewer.viewer_type == ViewerType.TILED:
+            draw_colliders=False,
+            draw_muscles=True
+        )
+        if viewer.viewer_type == RendererType.TILED:
             viewer.setup_tiled_renderer(m, list(range(min(args.nworld, 4))))
 
         for i in range(args.nstep):

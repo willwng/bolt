@@ -5,6 +5,7 @@ import msk_warp._src.consts as consts
 import msk_warp._src.forward as forward
 import msk_warp._src.init_model as init_model
 import msk_warp._src.math as math
+from msk_warp.render.renderer import Renderer, RendererType
 from msk_warp.utils.osim_converter import *
 from msk_warp.utils.osim_parser import parse_osim_file
 
@@ -123,7 +124,7 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
     muscle_pts_num = get_muscle_num_pts(osim_model)
     muscle_pts_adr = exclusive_scan(muscle_pts_num, False)
 
-    dof_armature = [0.0] * nv  # Placeholder for DOF armature
+    dof_armature = [0.03] * nv  # Placeholder for DOF armature
     dof_armature[0:6] = [0.0] * 6  # No armature for free joint
     dof_damping = [0.1] * nv  # Placeholder for DOF
     dof_damping[0:6] = [0.0] * 6  # No damping for free joint
@@ -131,8 +132,6 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
 
     dof_limit_ranges, dof_limit_adr, dof_limit_qadr = get_dof_limits(osim_model)
     n_limits = len(dof_limit_ranges)
-    # n_limits = 0
-
     body_rootid = [1] * nb  # Placeholder for body root IDs
     body_tree = create_body_tree(osim_model)
     body_tree_warp = tuple([wp.array(bt, dtype=int) for bt in body_tree])
@@ -276,9 +275,6 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
         body_ipos=to_warp_array(body_local_com, dtype=wp.vec3),
         body_iquat=to_warp_array(body_local_rot, dtype=wp.quat),
 
-        body_geomnum=to_warp_array(body_num_colliders, dtype=int),
-        body_geomadr=to_warp_array(body_collider_offset, dtype=int),
-
         body_rootid=to_warp_array(body_rootid, dtype=int),
         body_parentid=to_warp_array(body_parent_ids, dtype=int),
         jnt_type=to_warp_array(joint_types, dtype=int),
@@ -323,6 +319,10 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
 
         site_bodyid=to_warp_array(site_data.body_id, dtype=int),
         site_pos=to_warp_array(site_data.pos, dtype=wp.vec3),
+        site_cond_id=to_warp_array(site_data.conditional_ids, dtype=int),
+        site_cond_qadr=to_warp_array(site_data.conditional_qadr, dtype=int),
+        site_cond_range=to_warp_array(site_data.conditional_range,
+                                      dtype=wp.vec2),
 
         muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
@@ -390,6 +390,10 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
         site_rpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xvel=make_zero((n_worlds, nsite), dtype=wp.vec3),
+        site_active=make_zero((n_worlds, nsite), dtype=bool),
+
+        muscle_active_sites=make_zero((n_worlds, nsite), dtype=int),
+        muscle_num_active=make_zero((n_worlds, nmuscle), dtype=int),
 
         site_diff_vec=make_zero((n_worlds, max(0, nsite - 1)), dtype=wp.vec3),
         site_diff_len=make_zero((n_worlds, max(0, nsite - 1)), dtype=float),
@@ -550,9 +554,18 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
     )
 
 
-def create_renderer():
-    from msk_warp.render.renderer import Viewer, ViewerType
-    viewer = Viewer(viewer_type=ViewerType.OPENGL)
+def create_renderer(
+        load_result: ModelLoadResult,
+        renderer_type: RendererType,
+        draw_colliders: bool,
+        draw_visuals: bool,
+        draw_muscles: bool
+):
+    viewer = Renderer(renderer_type=renderer_type,
+                      draw_colliders=draw_colliders,
+                      draw_visuals=draw_visuals,
+                      draw_muscles=draw_muscles)
+    viewer.load_meshes(load_result.visuals)
     return viewer
 
 

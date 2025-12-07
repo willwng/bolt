@@ -2225,7 +2225,7 @@
 						</TransformAxis>
 					</SpatialTransform>
 				</CustomJoint>
-				<CustomJoint name="knee_r">
+				<PinJoint name="knee_r">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>femur_r_offset</socket_parent_frame>
 					<!--Path to a Component that satisfies the Socket 'child_frame' of type PhysicalFrame (description: The child frame for the joint.).-->
@@ -2282,77 +2282,7 @@
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
-					<!--Defines how the child body moves with respect to the parent as a function of the generalized coordinates.-->
-					<SpatialTransform>
-						<!--3 Axes for rotations are listed first.-->
-						<TransformAxis name="rotation1">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates>knee_angle_r</coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>0 0 1</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<LinearFunction name="function">
-								<coefficients> 1 0</coefficients>
-							</LinearFunction>
-						</TransformAxis>
-						<TransformAxis name="rotation2">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates></coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>0 1 0</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<Constant name="function">
-								<value>0</value>
-							</Constant>
-						</TransformAxis>
-						<TransformAxis name="rotation3">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates></coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>1 0 0</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<Constant name="function">
-								<value>0</value>
-							</Constant>
-						</TransformAxis>
-						<!--3 Axes for translations are listed next.-->
-						<TransformAxis name="translation1">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates>knee_angle_r</coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>1 0 0</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<Constant name="function">
-								<value>0</value>
-							</Constant>
-						</TransformAxis>
-						<TransformAxis name="translation2">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates>knee_angle_r</coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>0 1 0</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<Constant name="function">
-								<value>0</value>
-							</Constant>
-						</TransformAxis>
-						<TransformAxis name="translation3">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates></coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>0 0 1</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<MultiplierFunction name="function">
-								<function>
-									<Constant>
-										<value>0</value>
-									</Constant>
-								</function>
-								<scale>0.857848623732687</scale>
-							</MultiplierFunction>
-						</TransformAxis>
-					</SpatialTransform>
-				</CustomJoint>
+				</PinJoint>
 				<CustomJoint name="ankle_r">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>tibia_r_offset</socket_parent_frame>
@@ -3282,7 +3212,7 @@
 						</TransformAxis>
 					</SpatialTransform>
 				</CustomJoint>
-				<CustomJoint name="knee_l">
+				<PinJoint name="knee_l">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>femur_l_offset</socket_parent_frame>
 					<!--Path to a Component that satisfies the Socket 'child_frame' of type PhysicalFrame (description: The child frame for the joint.).-->
@@ -3340,76 +3270,7 @@
 						</PhysicalOffsetFrame>
 					</frames>
 					<!--Defines how the child body moves with respect to the parent as a function of the generalized coordinates.-->
-					<SpatialTransform>
-						<!--3 Axes for rotations are listed first.-->
-						<TransformAxis name="rotation1">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates>knee_angle_l</coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>0 0 1</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<LinearFunction name="function">
-								<coefficients> 1 0</coefficients>
-							</LinearFunction>
-						</TransformAxis>
-						<TransformAxis name="rotation2">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates></coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>0 1 0</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<Constant name="function">
-								<value>0</value>
-							</Constant>
-						</TransformAxis>
-						<TransformAxis name="rotation3">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates></coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>1 0 0</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<Constant name="function">
-								<value>0</value>
-							</Constant>
-						</TransformAxis>
-						<!--3 Axes for translations are listed next.-->
-						<TransformAxis name="translation1">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates>knee_angle_l</coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>1 0 0</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<Constant name="function">
-								<value>0</value>
-							</Constant>
-						</TransformAxis>
-						<TransformAxis name="translation2">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates>knee_angle_l</coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>0 1 0</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<Constant name="function">
-								<value>0</value>
-							</Constant>
-						</TransformAxis>
-						<TransformAxis name="translation3">
-							<!--Names of the coordinates that serve as the independent variables         of the transform function.-->
-							<coordinates></coordinates>
-							<!--Rotation or translation axis for the transform.-->
-							<axis>0 0 1</axis>
-							<!--Transform function of the generalized coordinates used to        represent the amount of displacement along a specified axis.-->
-							<MultiplierFunction name="function">
-								<function>
-									<Constant>
-										<value>0</value>
-									</Constant>
-								</function>
-								<scale>0.857848623732687</scale>
-							</MultiplierFunction>
-						</TransformAxis>
-					</SpatialTransform>
-				</CustomJoint>
+				</PinJoint>
 				<CustomJoint name="ankle_l">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>tibia_l_offset</socket_parent_frame>
