@@ -165,7 +165,7 @@ def load_model(
         ls_tolerance=0.01,
         ccd_tolerance=1e-6,
         gravity=-9.81,
-        solver=types.SolverType.CG,
+        solver=types.SolverType.NEWTON,
         contact_type=types.ContactType.MUJOCO,
         integrator=types.IntegratorType.EULER_FIXED,
         iterations=50,
@@ -576,6 +576,16 @@ def get_dof_num(m: types.Model, body_id: int) -> torch.Tensor:
 def muscle_metadata(m: types.Model) -> list[types.MuscleMetadata]:
     return m.muscle_data
 
+
+def use_newton_solver(m: types.Model):
+    m.opt.solver = types.SolverType.NEWTON
+
+
+def use_cg_solver(m: types.Model):
+    m.opt.solver = types.SolverType.CG
+
+def set_muscle_dynamics_substeps(m: types.Model, substeps: int):
+    m.opt.muscle_dyn_substeps = substeps
 
 # --- Data Fields ---
 def time(d: types.Data) -> torch.tensor:
