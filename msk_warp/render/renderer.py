@@ -1,8 +1,7 @@
-import numpy as np
+from enum import Enum
+
 import warp as wp
 import warp.render
-
-from enum import Enum
 from scipy.spatial.transform import Rotation as R
 
 from msk_warp._src import types
@@ -17,7 +16,13 @@ class ViewerType(Enum):
 
 
 class Viewer:
-    def __init__(self, viewer_type: ViewerType):
+    def __init__(
+            self,
+            viewer_type: ViewerType,
+            draw_colliders: bool,
+            draw_visuals: bool,
+            draw_muscles: bool,
+    ):
         if viewer_type == ViewerType.OPENGL:
             self.renderer = wp.render.OpenGLRenderer(
                 title="warp-sim",
@@ -54,6 +59,10 @@ class Viewer:
         self.worlds = [0]
         self.meshes = []
         self.mesh_scales = []
+
+        self.draw_colliders = draw_colliders
+        self.draw_visuals = draw_visuals
+        self.draw_muscles = draw_muscles
 
     def fix_capsule_rot(self, quat) -> tuple:
         rot_input = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
@@ -95,6 +104,8 @@ class Viewer:
             sphere_color = (0.7, 0.5, 0.5)
             capsule_color = (0.5, 0.5, 0.5)
             for i in range(m.ngeom):
+                if not self.draw_colliders:
+                    break
                 pos, rot = geom_xpos[i], geom_xquat[i]
                 rot = (rot[1], rot[2], rot[3], rot[0])  # xyzw to wxyz
 
@@ -124,20 +135,22 @@ class Viewer:
                         up_axis=up_axis,
                         color=capsule_color,
                     )
-                elif geom_types[i] == types.GeomType.PLANE:
-                    self.renderer.render_box(
-                        f"plane_{i + offset}",
-                        pos,
-                        rot,
-                        extents=(5.0, 0.001, 5.0),
-                    )
-
+                # elif geom_types[i] == types.GeomType.PLANE:
+                #     self.renderer.render_box(
+                #         f"plane_{i + offset}",
+                #         pos,
+                #         rot,
+                #         extents=(5.0, 0.001, 5.0),
+                #     )
+            self.renderer.render_ground()
 
             # Visuals
             visual_color = (0.82, 0.78, 0.74)
             vis_xpos = d.vis_xpos.numpy()[world_id]
             vis_xquat = d.vis_xquat.numpy()[world_id]
             for i in range(m.nvis):
+                if not self.draw_visuals:
+                    break
                 mesh = self.meshes[i]
                 scale = self.mesh_scales[i]
                 pos, rot = vis_xpos[i], vis_xquat[i]
@@ -171,6 +184,8 @@ class Viewer:
             )
 
             for i in range(num_muscles):
+                if not self.draw_muscles:
+                    break
                 # Gather all active site indices for this muscle
                 start_idx = muscle_pts_adr[i]
                 end_idx = start_idx + muscle_pts_num[i]

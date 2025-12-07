@@ -80,7 +80,11 @@ def main():
     if not args.benchmark:
         bla = []
         bla2 = []
-        viewer = Viewer(viewer_type=ViewerType.OPENGL)
+        viewer = Viewer(
+            viewer_type=ViewerType.OPENGL,
+            draw_colliders=False,
+            draw_visuals=True,
+            draw_muscles=True)
         viewer.load_meshes(load_result.visuals)
         if viewer.viewer_type == ViewerType.TILED:
             viewer.setup_tiled_renderer(m, list(range(min(args.nworld, 4))))
