@@ -609,6 +609,7 @@ class Model:
 
     opt: Option
     muscle_metadata: array("nmuscle", float)
+    muscle_data: list[MuscleMetadata]
 
     qpos0: array("nq", float)
     qpos_spring: array("nq", float)

@@ -8,6 +8,8 @@ import msk_warp._src.math as math
 from msk_warp.render.renderer import Renderer, RendererType
 from msk_warp.utils.osim_converter import *
 from msk_warp.utils.osim_parser import parse_osim_file
+from msk_warp.utils.load_utils import (
+    exclusive_scan, to_warp_array, make_zero, make_full)
 
 
 @dataclass
@@ -18,54 +20,10 @@ class ModelLoadResult:
     visuals: list[types.MeshLoadResult]
 
 
-def _print_trace(trace, indent, steps):
-    if indent == 0:
-        print("\nEvent trace:\n")
-    for k, v in trace.items():
-        times, sub_trace = v
-        if len(times) == 1:
-            print("  " * indent + f"{k}: {1e6 * times[0] / steps:.2f}")
-        else:
-            print("  " * indent + f"{k}: [ ", end="")
-            for i in range(len(times)):
-                print(f"{1e6 * times[i] / steps:.2f}", end="")
-                print(", " if i < len(times) - 1 else " ", end="")
-            print("]")
-        _print_trace(sub_trace, indent + 1, steps)
-
-
-def exclusive_scan(v, mark_empty: bool):
-    result = [0] * (len(v) + 1)
-    for i in range(1, len(result)):
-        result[i] = result[i - 1] + v[i - 1]
-    # Remove the last element to return the exclusive scan
-    result = result[:-1]
-
-    if mark_empty:
-        for i in range(len(v)):
-            if v[i] == 0:
-                result[i] = -1
-
-    return result
-
-
-def to_warp_array(lst, dtype):
-    arr = np.array(lst)
-    # remove 2nd dimension if it exists
-    if arr.ndim == 2 and arr.shape[1] == 1:
-        arr = arr.squeeze(axis=1)
-    return wp.from_numpy(arr, dtype=dtype)
-
-
-def make_zero(shape, dtype):
-    return wp.zeros(shape, dtype=dtype)
-
-
-def make_full(val, shape, dtype):
-    return wp.full(shape, val, dtype=dtype)
-
-
-def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
+def load_model(
+        model_path: str,
+        n_worlds: int
+) -> ModelLoadResult:
     raw_osim_model = parse_osim_file(model_path)
     osim_model = to_checked_model(raw_osim_model)
 
@@ -99,9 +57,6 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
     inertias = get_body_inertias(osim_model)
     body_local_com = get_local_body_com_pos(osim_model)
     body_local_rot = get_local_body_rot(osim_model)
-    body_num_colliders = get_body_num_colliders(osim_model)
-    body_collider_offset = exclusive_scan(body_num_colliders, True)
-
     body_parent_ids = get_body_parent_ids(osim_model)
 
     # Custom joints: compute address of joint -> custom joint
@@ -265,6 +220,7 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
 
         opt=opt,
         muscle_metadata=mm,
+        muscle_data=muscle_data,
 
         # warp arrays
         qpos0=to_warp_array(qpos0, dtype=float),
@@ -554,6 +510,19 @@ def load_model(model_path: str, n_worlds: int) -> ModelLoadResult:
     )
 
 
+def reinitialize_model(
+        m: types.Model,
+        d: types.Data,
+):
+    """ Re-initialize the model (ie any parameters have changed). """
+    # Ensure the muscle metadata is up to date
+    mm = wp.array(m.muscle_data, dtype=types.MuscleMetadata)
+    m.muscle_metadata = mm
+
+    init_model._model_init(m, d)
+    forward.initialize(m, d)
+
+
 def create_renderer(
         load_result: ModelLoadResult,
         renderer_type: RendererType,
@@ -569,8 +538,17 @@ def create_renderer(
     return viewer
 
 
-def time(d: types.Data) -> torch.tensor:
-    return wp.to_torch(d.time)
+# --- Model Fields ---
+def damping(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.dof_damping)
+
+
+def armature(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.dof_armature)
+
+
+def stiffness(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.jnt_stiffness)
 
 
 def get_num_qpos(m: types.Model) -> int:
@@ -583,6 +561,25 @@ def get_num_dofs(m: types.Model) -> int:
 
 def get_num_muscles(m: types.Model) -> int:
     return m.nmuscle
+
+
+def get_dof_adr(m: types.Model, body_id: int) -> torch.Tensor:
+    jnt_dof_adr = wp.to_torch(m.jnt_dofadr)
+    return jnt_dof_adr[body_id]
+
+
+def get_dof_num(m: types.Model, body_id: int) -> torch.Tensor:
+    jnt_dof_num = wp.to_torch(m.jnt_dofnum)
+    return jnt_dof_num[body_id]
+
+
+def muscle_metadata(m: types.Model) -> list[types.MuscleMetadata]:
+    return m.muscle_data
+
+
+# --- Data Fields ---
+def time(d: types.Data) -> torch.tensor:
+    return wp.to_torch(d.time)
 
 
 def body_positions(d: types.Data) -> torch.Tensor:

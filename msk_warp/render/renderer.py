@@ -71,7 +71,6 @@ class Renderer:
             "mesh": (0.82, 0.78, 0.74),
             "sphere": (0.7, 0.5, 0.5),
             "capsule": (0.5, 0.5, 0.5),
-            "site_active": (0.2, 0.2, 0.7),
             "site_inactive": (0.3, 0.3, 0.3),
         }
 
@@ -175,6 +174,7 @@ class Renderer:
             # Muscles
             if self.draw_muscles:
                 num_muscles = m.nmuscle
+                muscle_data = m.muscle_data
                 muscle_pts_adr = m.muscle_pts_adr.numpy()
                 muscle_sites_active = d.muscle_active_sites.numpy()[0]
                 muscle_pts_active_num = d.muscle_num_active.numpy()[0]
@@ -182,26 +182,13 @@ class Renderer:
                 site_active = d.site_active.numpy()[wid]
                 muscle_activations = d.act.numpy()[wid]
 
-                ind_active = np.where(site_active == 1)[0]
-                ind_inactive = np.where(site_active == 0)[0]
-
-                # Render all muscle sites (gray if inactive)
-                self.renderer.render_points(
-                    "muscle_points_active",
-                    site_xpos[ind_active],
-                    radius=0.005,
-                    colors=self.colors["site_active"]
-                )
-                self.renderer.render_points(
-                    "muscle_points_inactive",
-                    site_xpos[ind_inactive],
-                    radius=0.005,
-                    colors=self.colors["site_inactive"]
-                )
-
                 for i in range(num_muscles):
                     if not self.draw_muscles:
                         break
+                    # Muscle radius
+                    mm = muscle_data[i]
+                    radius = np.sqrt(mm.max_isometric_force) / 8000.0
+
                     # Gather all active site indices for this muscle
                     start_idx = muscle_pts_adr[i]
                     end_idx = start_idx + muscle_pts_active_num[i]
@@ -209,11 +196,27 @@ class Renderer:
 
                     # Get the positions of these sites
                     pts = site_xpos[pt_inds]
+                    color = self.activation_to_color(muscle_activations[i])
                     self.renderer.render_line_strip(
                         f"muscle_{i}",
                         pts,
-                        color=self.activation_to_color(muscle_activations[i]),
-                        radius=0.005,
+                        color=color,
+                        radius=radius,
+                    )
+                    # Render active sites
+                    self.renderer.render_points(
+                        f"muscle_{i}_active_sites",
+                        pts,
+                        radius=radius,
+                        colors=color,
+                    )
+                    # Render inactive sites
+                    inactive_pts = pts[site_active[pt_inds] == 0]
+                    self.renderer.render_points(
+                        f"muscle_{i}_inactive_sites",
+                        inactive_pts,
+                        radius=radius,
+                        colors=self.colors["site_inactive"],
                     )
 
         # Render based on viewer type

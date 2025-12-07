@@ -6,7 +6,6 @@ import msk_warp
 import msk_warp._src.forward as forward
 from msk_warp.benchmark.benchmark import benchmark
 from msk_warp.render.renderer import RendererType
-from msk_warp.utils.osim_converter import *
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--recompile", action="store_true")
@@ -33,37 +32,6 @@ def _print_trace(trace, indent, steps):
         _print_trace(sub_trace, indent + 1, steps)
 
 
-def exclusive_scan(v, mark_empty: bool):
-    result = [0] * (len(v) + 1)
-    for i in range(1, len(result)):
-        result[i] = result[i - 1] + v[i - 1]
-    # Remove the last element to return the exclusive scan
-    result = result[:-1]
-
-    if mark_empty:
-        for i in range(len(v)):
-            if v[i] == 0:
-                result[i] = -1
-
-    return result
-
-
-def to_warp_array(lst, dtype):
-    arr = np.array(lst)
-    # remove 2nd dimension if it exists
-    if arr.ndim == 2 and arr.shape[1] == 1:
-        arr = arr.squeeze(axis=1)
-    return wp.from_numpy(arr, dtype=dtype)
-
-
-def make_zero(shape, dtype):
-    return wp.zeros(shape, dtype=dtype)
-
-
-def make_full(val, shape, dtype):
-    return wp.full(shape, val, dtype=dtype)
-
-
 def main():
     if args.recompile:
         wp.clear_kernel_cache()
@@ -77,8 +45,6 @@ def main():
     dt = 1.0 / 300.0
     dt_sim = 1.0 / 300.0
     if not args.benchmark:
-        bla = []
-        bla2 = []
         viewer = msk_warp.create_renderer(
             load_result=load_result,
             renderer_type=RendererType.OPENGL,
@@ -93,16 +59,6 @@ def main():
             forward.step_to(m, d, dt, dt_sim)
             # forward_fused.step_to(m, d, dt, dt_sim)
             viewer.render(m, d)
-            bla.append(d.time.numpy()[0])
-            bla2.append(-d.grf.numpy()[0, 1] / (75.0 * 9.81))
-
-        # Draw step size history
-        import matplotlib.pyplot as plt
-        plt.plot(bla, bla2)
-        plt.xlabel("Time (s)")
-        plt.ylabel("GRF (N)")
-        plt.show()
-
         viewer.close()
 
     else:
