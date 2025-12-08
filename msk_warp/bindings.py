@@ -155,8 +155,9 @@ def load_model(
         if nxn_pairid_contact[i] > -2 or nxn_pairid_collision[i] > -1
     ], minlength=len(types.GeomType) * (len(types.GeomType) + 1) // 2, )
 
-    naconmax = 262144
+    # todo: don't hard code
     njmax = 128
+    naconmax = max(512, n_worlds * 32)
 
     # needs shapes
     opt = types.Option(
