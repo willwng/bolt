@@ -205,8 +205,7 @@ class Renderer:
                     start_idx = muscle_pts_adr[i]
                     end_idx = start_idx + muscle_pts_active_num[i]
                     pt_inds = muscle_sites_active[start_idx:end_idx]
-
-                    # Get the positions of these sites
+                    # Line segment connecting active points
                     pts = site_xpos[pt_inds]
                     color = self.activation_to_color(muscle_activations[i])
                     self.renderer.render_line_strip(
@@ -214,21 +213,6 @@ class Renderer:
                         pts,
                         color=color,
                         radius=radius,
-                    )
-                    # Render active sites
-                    self.renderer.render_points(
-                        f"muscle_{i}_active_sites",
-                        pts,
-                        radius=radius,
-                        colors=color,
-                    )
-                    # Render inactive sites
-                    inactive_pts = pts[site_active[pt_inds] == 0]
-                    self.renderer.render_points(
-                        f"muscle_{i}_inactive_sites",
-                        inactive_pts,
-                        radius=radius,
-                        colors=self.colors["site_inactive"],
                     )
 
         # Render based on viewer type
