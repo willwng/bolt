@@ -818,7 +818,8 @@ class Data:
       muscle_velocity_prev: previous muscle velocities            (nworld, nmuscle)
 
       cvel: com-based velocity (rot:lin)                          (nworld, nbody, 6)
-      xvel: Cartesian body velocity (ang, vel)                    (nworld, nbody, 6)
+      xvel: Cartesian body velocity in body frame (ang, vel)      (nworld, nbody, 6)
+      xivel: Cartesian body velocity in body-com frame            (nworld, nbody, 6)
       cdof_dot: time-derivative of cdof (rot:lin)                 (nworld, nv, 6)
 
       qfrc_bias: C(qpos,qvel)                                     (nworld, nv)
@@ -922,6 +923,7 @@ class Data:
 
     cvel: wp.array2d(dtype=wp.spatial_vector)
     xvel: wp.array2d(dtype=wp.spatial_vector)
+    xivel: wp.array2d(dtype=wp.spatial_vector)
     cdof_dot: wp.array2d(dtype=wp.spatial_vector)
 
     qfrc_bias: wp.array2d(dtype=float)

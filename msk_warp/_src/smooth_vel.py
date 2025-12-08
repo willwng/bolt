@@ -27,12 +27,12 @@ wp.set_module_options({"enable_backward": False})
 
 @wp.kernel
 def _comvel_root(
-        cvel_out: wp.array2d(dtype=wp.spatial_vector),
         xvel_out: wp.array2d(dtype=wp.spatial_vector),
+        cvel_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, elementid = wp.tid()
-    cvel_out[worldid, 0][elementid] = 0.0
     xvel_out[worldid, 0][elementid] = 0.0
+    cvel_out[worldid, 0][elementid] = 0.0
 
 
 @wp.kernel
@@ -51,12 +51,14 @@ def _comvel_level(
         cdof_tmp_in: wp.array3d(dtype=wp.spatial_vector),
         cvel_in: wp.array2d(dtype=wp.spatial_vector),
         xpos_in: wp.array2d(dtype=wp.vec3),
+        xipos_in: wp.array2d(dtype=wp.vec3),
         subtree_com_in: wp.array2d(dtype=wp.vec3),
         # In:
         body_tree_: wp.array(dtype=int),
         # Data out:
         cvel_out: wp.array2d(dtype=wp.spatial_vector),
         xvel_out: wp.array2d(dtype=wp.spatial_vector),
+        xivel_out: wp.array2d(dtype=wp.spatial_vector),
         cdof_dot_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, nodeid = wp.tid()
@@ -85,10 +87,15 @@ def _comvel_level(
     cvel_out[worldid, bodyid] = cvel
 
     # Cartesian velocity
-    pos = xpos_in[worldid, bodyid]
     subtree_com = subtree_com_in[worldid, body_rootid[bodyid]]
-    dif = pos - subtree_com
+
+    # Velocity at body frame
+    dif = xpos_in[worldid, bodyid] - subtree_com
     xvel_out[worldid, bodyid] = support.transform_velocity(cvel, dif)
+
+    # Velocity at body COM
+    dif_com = xipos_in[worldid, bodyid] - subtree_com
+    xivel_out[worldid, bodyid] = support.transform_velocity(cvel, dif_com)
 
 
 @event_scope
@@ -112,9 +119,9 @@ def com_vel(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[m.body_parentid, m.jnt_dofadr, m.jnt_type, m.jnt_dofnum,
                     m.jnt_cst_adr, m.cst_txfm_dofadr, m.body_rootid,
-                    d.qvel, d.cdof, d.cdof_tmp, d.cvel, d.xpos, d.subtree_com,
-                    body_tree],
-            outputs=[d.cvel, d.xvel, d.cdof_dot],
+                    d.qvel, d.cdof, d.cdof_tmp, d.cvel, d.xpos, d.xipos,
+                    d.subtree_com, body_tree],
+            outputs=[d.cvel, d.xvel, d.xivel, d.cdof_dot],
         )
 
 

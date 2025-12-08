@@ -44,20 +44,29 @@ def main():
 
     dt = 1.0 / 300.0
     dt_sim = 1.0 / 300.0
+    is_cuda = wp.get_device().is_cuda
     if not args.benchmark:
         viewer = msk_warp.create_renderer(
             load_result=load_result,
-            renderer_type=RendererType.OPENGL,
+            renderer_type=RendererType.TILED,
             draw_visuals=True,
             draw_colliders=False,
             draw_muscles=True
         )
         if viewer.viewer_type == RendererType.TILED:
-            viewer.setup_tiled_renderer(m, list(range(min(args.nworld, 4))))
+            viewer.setup_tiled_renderer(list(range(min(args.nworld, 4))))
+
+        if is_cuda:
+            with wp.ScopedCapture() as capture:
+                forward.step_to(m, d, dt, dt_sim)
+            graph = capture.graph
 
         for i in range(args.nstep):
-            forward.step_to(m, d, dt, dt_sim)
-            # forward_fused.step_to(m, d, dt, dt_sim)
+            if is_cuda:
+                wp.capture_launch(graph)
+            else:
+                forward.step_to(m, d, dt, dt_sim)
+                # forward_fused.step_to(m, d, dt, dt_sim)
             viewer.render(m, d)
         viewer.close()
 

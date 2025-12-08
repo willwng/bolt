@@ -382,6 +382,7 @@ def load_model(
 
         cvel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xvel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        xivel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         cdof_dot=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
 
         qfrc_bias=make_zero((n_worlds, nv), dtype=float),
@@ -531,10 +532,13 @@ def create_renderer(
         draw_visuals: bool,
         draw_muscles: bool
 ):
-    viewer = Renderer(renderer_type=renderer_type,
-                      draw_colliders=draw_colliders,
-                      draw_visuals=draw_visuals,
-                      draw_muscles=draw_muscles)
+    viewer = Renderer(
+        m=load_result.model,
+        renderer_type=renderer_type,
+        draw_colliders=draw_colliders,
+        draw_visuals=draw_visuals,
+        draw_muscles=draw_muscles
+    )
     viewer.load_meshes(load_result.visuals)
     return viewer
 
@@ -585,8 +589,10 @@ def use_newton_solver(m: types.Model):
 def use_cg_solver(m: types.Model):
     m.opt.solver = types.SolverType.CG
 
+
 def set_muscle_dynamics_substeps(m: types.Model, substeps: int):
     m.opt.muscle_dyn_substeps = substeps
+
 
 # --- Data Fields ---
 def time(d: types.Data) -> torch.tensor:
@@ -603,6 +609,10 @@ def body_rotations(d: types.Data) -> torch.Tensor:
 
 def body_velocities(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.xvel)
+
+
+def body_com_velocities(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.xivel)
 
 
 def joint_positions(d: types.Data) -> torch.Tensor:

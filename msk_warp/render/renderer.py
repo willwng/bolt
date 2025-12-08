@@ -19,6 +19,7 @@ class RendererType(Enum):
 class Renderer:
     def __init__(
             self,
+            m: types.Model,
             renderer_type: RendererType,
             draw_colliders: bool,
             draw_visuals: bool,
@@ -74,6 +75,13 @@ class Renderer:
             "site_inactive": (0.3, 0.3, 0.3),
         }
 
+        number_instances_per_world = 0
+        if self.draw_visuals:
+            number_instances_per_world += m.nvis
+        if self.draw_colliders:
+            number_instances_per_world += m.ngeom
+        self.num_instances_per_world = number_instances_per_world
+
     def load_meshes(self, mesh_loads: list[types.MeshLoadResult]):
         for mesh_load in mesh_loads:
             geom_mesh = load_mesh(mesh_load.file)
@@ -83,18 +91,17 @@ class Renderer:
 
     def setup_tiled_renderer(
             self,
-            m: types.Model,
             worlds: list[int]
     ):
         assert self.viewer_type == RendererType.TILED
         num_tiles = len(worlds)
-        number_instances_per_world = m.ngeom
         instance_ids = []
         for i in range(num_tiles):
             world_instances = list(range(
-                i * number_instances_per_world,
-                (i + 1) * number_instances_per_world))
+                i * self.num_instances_per_world,
+                (i + 1) * self.num_instances_per_world))
             instance_ids.append(world_instances)
+
         self.renderer.setup_tiled_rendering(instances=instance_ids)
         self.worlds = worlds
 
@@ -111,24 +118,25 @@ class Renderer:
 
     def render(self, m: types.Model, d: types.Data):
         def render_body(wid: int = 0):
+            obj_id = wid * self.num_instances_per_world
+
             # Ground
             self.renderer.render_ground()
 
             # Colliders
             if self.draw_colliders:
-                geom_xpos = d.geom_xpos.numpy()[wid]
-                geom_xquat = d.geom_xquat.numpy()[wid]
                 geom_types = m.geom_type.numpy()
                 geom_sizes = m.geom_size.numpy()
+                geom_xpos = d.geom_xpos.numpy()[wid]
+                geom_xquat = d.geom_xquat.numpy()[wid]
 
                 for i in range(m.ngeom):
                     pos, rot = geom_xpos[i], geom_xquat[i]
                     rot = (rot[1], rot[2], rot[3], rot[0])  # xyzw to wxyz
 
-                    offset = wid * m.ngeom
                     if geom_types[i] == types.GeomType.SPHERE:
                         self.renderer.render_sphere(
-                            f"sphere_{i + offset}",
+                            f"sphere_{obj_id}",
                             pos,
                             rot,
                             color=self.colors["sphere"],
@@ -143,7 +151,7 @@ class Renderer:
                         else:
                             up_axis = 2
                         self.renderer.render_capsule(
-                            f"capsule_{i + offset}",
+                            f"capsule_{obj_id}",
                             pos,
                             rot,
                             radius=geom_sizes[i][0],
@@ -151,6 +159,8 @@ class Renderer:
                             up_axis=up_axis,
                             color=self.colors["capsule"],
                         )
+
+                    obj_id += 1
 
             # Visuals
             if self.draw_visuals:
@@ -162,7 +172,7 @@ class Renderer:
                     pos, rot = vis_xpos[i], vis_xquat[i]
                     rot = (rot[1], rot[2], rot[3], rot[0])
                     self.renderer.render_mesh(
-                        name=f"visual_{i}",
+                        name=f"visual_{obj_id}",
                         points=mesh.points.numpy(),
                         indices=mesh.indices.numpy(),
                         pos=pos,
@@ -170,14 +180,16 @@ class Renderer:
                         scale=scale,
                         colors=self.colors["mesh"],
                     )
+                    obj_id += 1
 
             # Muscles
             if self.draw_muscles:
                 num_muscles = m.nmuscle
                 muscle_data = m.muscle_data
                 muscle_pts_adr = m.muscle_pts_adr.numpy()
-                muscle_sites_active = d.muscle_active_sites.numpy()[0]
-                muscle_pts_active_num = d.muscle_num_active.numpy()[0]
+
+                muscle_sites_active = d.muscle_active_sites.numpy()[wid]
+                muscle_pts_active_num = d.muscle_num_active.numpy()[wid]
                 site_xpos = d.site_xpos.numpy()[wid]
                 site_active = d.site_active.numpy()[wid]
                 muscle_activations = d.act.numpy()[wid]
