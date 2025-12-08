@@ -1,4 +1,5 @@
 import warp as wp
+import numpy as np
 import torch
 
 import msk_warp._src.consts as consts
@@ -564,6 +565,14 @@ def get_num_dofs(m: types.Model) -> int:
     return m.nv
 
 
+def get_num_visuals(m: types.Model) -> int:
+    return m.nvis
+
+
+def get_num_colliders(m: types.Model) -> int:
+    return m.ngeom
+
+
 def get_num_muscles(m: types.Model) -> int:
     return m.nmuscle
 
@@ -623,6 +632,11 @@ def joint_velocities(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qvel)
 
 
+def subtree_com_positions(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.subtree_com)
+
+
+# -- Muscles ---
 def muscle_activations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.act)
 
@@ -631,9 +645,67 @@ def muscle_excitations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.mexcitations)
 
 
+def muscle_actuations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.muscle_actuation)
+
+
+def muscle_path_lengths(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.muscle_length)
+
+
+def muscle_path_velocities(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.muscle_velocity)
+
+
 def muscle_fiber_lengths(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.mstate)
 
 
 def muscle_fiber_velocities(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.mstate_dot)
+
+
+def muscle_metadata_np(m: types.Model) -> np.ndarray:
+    return m.muscle_metadata.numpy()
+
+
+def muscle_length_info_np(d: types.Data) -> np.ndarray:
+    return d.muscle_length_info.numpy()
+
+
+def site_positions(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.site_xpos)
+
+
+def muscle_site_adr(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.muscle_pts_adr)
+
+
+def muscle_site_num(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.muscle_pts_num)
+
+
+# -- Visuals ---
+def get_visual_positions(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.vis_xpos)
+
+
+def get_visual_rotations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.vis_xquat)
+
+
+# --- Colliders ---
+def get_collider_types(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.geom_type)
+
+
+def get_collider_sizes(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.geom_size)
+
+
+def get_collider_positions(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.geom_xpos)
+
+
+def get_collider_rotations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.geom_xquat)

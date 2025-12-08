@@ -608,7 +608,7 @@ class Model:
     nsite_cond: int
 
     opt: Option
-    muscle_metadata: array("nmuscle", float)
+    muscle_metadata: array("nmuscle", MuscleMetadata)
     muscle_data: list[MuscleMetadata]
 
     qpos0: array("nq", float)
