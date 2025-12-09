@@ -548,7 +548,7 @@ def create_renderer(
 
 def set_reset(d: types.Data, reset_worlds: torch.Tensor):
     d_reset_torch = wp.to_torch(d.world_reset)
-    d_reset_torch[:] = reset_worlds
+    d_reset_torch[:] = reset_worlds.ravel()
 
 
 # --- Model Fields ---
