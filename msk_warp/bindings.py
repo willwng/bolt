@@ -48,7 +48,7 @@ def load_model(
     nvis = num_visuals(osim_model)
     site_data = get_site_data(osim_model)
     qpos0 = [0.0] * nq
-    qpos0[0:3] = [0.0, 1.5, 0.0]  # Root pos
+    qpos0[0:3] = [0.0, 1.0, 0.0]  # Root pos
     qpos0[3] = 1  # root quat
 
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
@@ -175,7 +175,7 @@ def load_model(
         ccd_iterations=50,
         warm_start=True,
 
-        muscle_dyn_substeps=15,
+        muscle_dyn_substeps=30,
 
         safety=0.9,
         min_shrink=0.1,
@@ -306,6 +306,8 @@ def load_model(
 
     n_int_states = 2
     d = types.Data(
+        world_reset=make_full(True, n_worlds, dtype=bool),
+
         solver_niter=make_zero(n_worlds, dtype=int),
 
         nl=make_zero(n_worlds, dtype=int),
@@ -492,7 +494,7 @@ def load_model(
     )
 
     init_model._model_init(m, d)
-    forward.initialize(m, d)
+    forward.reset(m, d)
 
     mesh_load_results = []
     for vis_idx in range(len(vis_data.file)):
@@ -523,7 +525,7 @@ def reinitialize_model(
     m.muscle_metadata = mm
 
     init_model._model_init(m, d)
-    forward.initialize(m, d)
+    forward.reset(m, d)
 
 
 def create_renderer(
@@ -542,6 +544,11 @@ def create_renderer(
     )
     viewer.load_meshes(load_result.visuals)
     return viewer
+
+
+def set_reset(d: types.Data, reset_worlds: torch.Tensor):
+    d_reset_torch = wp.to_torch(d.world_reset)
+    d_reset_torch[:] = reset_worlds
 
 
 # --- Model Fields ---

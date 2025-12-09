@@ -1,6 +1,7 @@
 import warp as wp
 
 from . import math
+from . import support
 from .types import Data
 from .types import Model
 from .warp_util import event_scope
@@ -119,6 +120,47 @@ def _compute_path(
             worldid, pts_adr + i]
 
 
+@wp.kernel
+def _xfrc_muscles(
+        # Model:
+        muscle_pts_adr: wp.array(dtype=int),
+        site_bodyid: wp.array(dtype=int),
+        # Data in:
+        muscle_actuation_in: wp.array2d(dtype=float),
+        muscle_num_active_in: wp.array2d(dtype=int),
+        muscle_active_sites_in: wp.array2d(dtype=int),
+        site_diff_vec_in: wp.array2d(dtype=wp.vec3),
+        site_diff_len_in: wp.array2d(dtype=float),
+        xipos_in: wp.array2d(dtype=wp.vec3),
+        site_xpos_in: wp.array2d(dtype=wp.vec3),
+        # Data out:
+        xfrc_applied_out: wp.array2d(dtype=wp.spatial_vector),
+):
+    worldid, muscle_id = wp.tid()
+    actuation = muscle_actuation_in[worldid, muscle_id]
+    pt_adr = muscle_pts_adr[muscle_id]
+    pt_num = muscle_num_active_in[worldid, muscle_id]
+
+    for i in range(pt_num - 1):
+        length = site_diff_len_in[worldid, pt_adr + i]
+        if length < 1e-8:
+            continue
+
+        vec = site_diff_vec_in[worldid, pt_adr + i]
+        site1 = muscle_active_sites_in[worldid, pt_adr + i]
+        site2 = muscle_active_sites_in[worldid, pt_adr + i + 1]
+        body1, body2 = site_bodyid[site1], site_bodyid[site2]
+
+        p1, p2 = site_xpos_in[worldid, site1], site_xpos_in[worldid, site2]
+        com1, com2 = xipos_in[worldid, body1], xipos_in[worldid, body2]
+
+        muscle_frc = actuation * vec
+        wp.atomic_add(xfrc_applied_out[worldid], body1,
+                      support.force_at_point(muscle_frc, p1 - com1))
+        wp.atomic_sub(xfrc_applied_out[worldid], body2,
+                      support.force_at_point(muscle_frc, p2 - com2))
+
+
 @event_scope
 def muscle_path(m: Model, d: Data):
     """
@@ -171,3 +213,24 @@ def muscle_path(m: Model, d: Data):
                 d.site_diff_vel],
         outputs=[d.muscle_length, d.muscle_velocity],
     )
+
+
+@event_scope
+def muscle_force(m: Model, d: Data):
+    if m.nmuscle:
+        wp.launch(
+            _xfrc_muscles,
+            dim=(d.nworld, m.nmuscle),
+            inputs=[
+                m.muscle_pts_adr,
+                m.site_bodyid,
+                d.muscle_actuation,
+                d.muscle_num_active,
+                d.muscle_active_sites,
+                d.site_diff_vec,
+                d.site_diff_len,
+                d.xipos,
+                d.site_xpos,
+            ],
+            outputs=[d.xfrc_applied],
+        )

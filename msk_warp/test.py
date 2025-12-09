@@ -4,6 +4,7 @@ import warp as wp
 
 import msk_warp
 import msk_warp._src.forward as forward
+import msk_warp._src.step as step
 from msk_warp.benchmark.benchmark import benchmark
 from msk_warp.render.renderer import RendererType
 
@@ -58,14 +59,14 @@ def main():
 
         if is_cuda:
             with wp.ScopedCapture() as capture:
-                forward.step_to(m, d, dt, dt_sim)
+                step.step_to(m, d, dt, dt_sim)
             graph = capture.graph
 
         for i in range(args.nstep):
             if is_cuda:
                 wp.capture_launch(graph)
             else:
-                forward.step_to(m, d, dt, dt_sim)
+                step.step_to(m, d, dt, dt_sim)
                 # forward_fused.step_to(m, d, dt, dt_sim)
             viewer.render(m, d)
         viewer.close()
@@ -73,7 +74,7 @@ def main():
     else:
         n_worlds = args.nworld
         n_steps = args.nstep
-        res = benchmark(fn=forward.step_to, m=m, d=d,
+        res = benchmark(fn=step.step_to, m=m, d=d,
                         dt=dt, dt_sim=dt_sim, nstep=n_steps,
                         event_trace=True, measure_alloc=True,
                         measure_solver_niter=True)

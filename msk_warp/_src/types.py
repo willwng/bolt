@@ -751,6 +751,8 @@ class Data:
     """Dynamic state that updates each step.
 
     Attributes:
+      world_reset: whether to reset the world                     (nworld,)
+
       solver_niter: number of solver iterations                   (nworld,)
       nl: number of limit constraints                             (nworld,)
       nefc: number of constraints                                 (nworld,)
@@ -766,7 +768,7 @@ class Data:
 
       qacc: acceleration                                          (nworld, nv)
       act_dot: time-derivative of actuator activation             (nworld, na)
-      mexcitations: muscle excitations                           (nworld, nmuscles)
+      mexcitations: muscle excitations                            (nworld, nmuscles)
       mstate_dot: time-derivative of muscle state variable        (nworld, nmuscles)
 
       qacc_warmstart: acceleration used for warmstart             (nworld, nv)
@@ -849,6 +851,7 @@ class Data:
       nsolving: number of unconverged worlds                      (1,)
       subtree_bodyvel: subtree body velocity (ang, vel)           (nworld, nbody, 6)
     """
+    world_reset: array("nworld", bool)
 
     solver_niter: wp.array(dtype=int)
     nl: wp.array(dtype=int)

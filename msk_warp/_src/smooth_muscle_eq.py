@@ -44,6 +44,7 @@ def compute_act_dot(m: Model, d: Data):
 @wp.kernel
 def _reset_prev_path(
         # Data in:
+        world_reset_in: wp.array(dtype=bool),
         muscle_length_in: wp.array2d(dtype=float),
         muscle_velocity_in: wp.array2d(dtype=float),
         # Data out:
@@ -51,10 +52,11 @@ def _reset_prev_path(
         muscle_velocity_prev_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
-    muscle_length_prev_out[worldid, muscle_id] = muscle_length_in[
-        worldid, muscle_id]
-    muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[
-        worldid, muscle_id]
+    if world_reset_in[worldid]:
+        muscle_length_prev_out[worldid, muscle_id] = muscle_length_in[
+            worldid, muscle_id]
+        muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[
+            worldid, muscle_id]
     return
 
 
@@ -127,6 +129,7 @@ def _equilibrate(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
+        world_reset_in: wp.array(dtype=bool),
         muscle_length_in: wp.array2d(dtype=float),
         muscle_velocity_in: wp.array2d(dtype=float),
         act_in: wp.array2d(dtype=float),
@@ -134,6 +137,11 @@ def _equilibrate(
         mstate_out: wp.array2d(dtype=float)
 ):
     worldid, muscle_id = wp.tid()
+
+    # Only equilibrate if the world was reset
+    if not world_reset_in[worldid]:
+        return
+
     # Bisection to solve for equilibrium
     lower = M_MIN_NORM_TENDON_FORCE
     upper = M_MAX_NORM_TENDON_FORCE
@@ -438,7 +446,7 @@ def compute_state_derivative(
 
 
 @event_scope
-def substep_fused(m: Model, d: Data):
+def substep_fused(m: Model, d: Data, scale: float):
     @wp.kernel
     def substep_fused_kernel(
             # Model:
@@ -466,7 +474,7 @@ def substep_fused(m: Model, d: Data):
 
         # Substep integration
         num_substeps = wp.static(m.opt.muscle_dyn_substeps)
-        h = actual_step_size_in[0] / float(num_substeps)
+        h = (scale * actual_step_size_in[0]) / float(num_substeps)
         for i in range(num_substeps):
             # Interpolate path length and velocity
             frac = (float(i) / float(num_substeps))
@@ -725,7 +733,7 @@ def muscle_equilibrate(m: Model, d: Data):
     wp.launch(
         _reset_prev_path,
         dim=(d.nworld, m.nmuscle),
-        inputs=[d.muscle_length, d.muscle_velocity],
+        inputs=[d.world_reset, d.muscle_length, d.muscle_velocity],
         outputs=[d.muscle_length_prev, d.muscle_velocity_prev],
     )
 
@@ -733,25 +741,26 @@ def muscle_equilibrate(m: Model, d: Data):
     wp.launch(
         _equilibrate,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.muscle_length,
+        inputs=[m.muscle_metadata, d.world_reset, d.muscle_length,
                 d.muscle_velocity, d.act],
         outputs=[d.mstate],
     )
 
 
 @event_scope
-def muscle_dynamics(m: Model, d: Data):
+def muscle_substep(m: Model, d: Data, scale: float):
+    """ Substep integration of muscle dynamics """
+    if not m.nmuscle:
+        return
+    substep_fused(m, d, scale)
+
+
+@event_scope
+def realize_muscle_state(m: Model, d: Data):
     """ Muscle dynamics """
     if not m.nmuscle:
         return
 
-    # Substep integration of elastic tendon dynamics
-    if wp.static(m.opt.muscle_dyn_substeps > 0):
-        substep_fused(m, d)
-
-    # update_length_info(m, d)
-    # update_velocity_info(m, d)
-    # update_dynamics_info(m, d)
     update_info_fused(m, d)
 
     # Set actuation and muscle state derivatives
