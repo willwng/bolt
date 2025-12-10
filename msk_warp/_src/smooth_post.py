@@ -59,6 +59,43 @@ def contact_force_fn(
     return force
 
 
+@wp.func
+def joint_limit_torque_fn(
+        # Data in:
+        dof_lim_efc_address_in: wp.array2d(dtype=int),
+        efc_force_in: wp.array2d(dtype=float),
+        # In:
+        worldid: int,
+        dof_limit_id: int,
+) -> float:
+    efc_address = dof_lim_efc_address_in[worldid, dof_limit_id]
+    if efc_address >= 0:
+        torque = efc_force_in[worldid, efc_address]
+    else:
+        torque = 0.0
+
+    return torque
+
+
+@wp.kernel
+def joint_limit_torque_kernel(
+        # Data in:
+        dof_lim_efc_address_in: wp.array2d(dtype=int),
+        efc_force_in: wp.array2d(dtype=float),
+        # Data out:
+        dof_lim_torque: wp.array2d(dtype=float)
+):
+    worldid, limitdofid = wp.tid()
+    torque = joint_limit_torque_fn(
+        dof_lim_efc_address_in,
+        efc_force_in,
+        worldid,
+        limitdofid,
+    )
+    dof_lim_torque[worldid, limitdofid] = torque
+    return
+
+
 @wp.kernel
 def compute_grf_kernel(
         # Model:
@@ -111,6 +148,8 @@ def compute_grf(m: Model, d: Data):
         return
 
     d.grf.zero_()
+    d.dof_lim_torque.zero_()
+
     wp.launch(
         compute_grf_kernel,
         dim=(d.naconmax),
@@ -122,5 +161,15 @@ def compute_grf(m: Model, d: Data):
             True,  # to_world_frame
         ],
         outputs=[d.grf],
+    )
+
+    wp.launch(
+        joint_limit_torque_kernel,
+        dim=(d.nworld, m.ndoflimit),
+        inputs=[
+            d.dof_lim_efc_address,
+            d.efc.force,
+        ],
+        outputs=[d.dof_lim_torque],
     )
     return

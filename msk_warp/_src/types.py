@@ -843,6 +843,9 @@ class Data:
       contact: contact data
       efc: constraint data
 
+      dof_lim_efc_address: dof limit efc adr. -1: not limited     (nworld, ndoflimit)
+      dof_lim_torque: computed dof limit torque                   (nworld, ndoflimit)
+
     warp only fields:
       nworld: number of worlds
       naconmax: maximum number of contacts (shared across all worlds)
@@ -946,6 +949,9 @@ class Data:
     cfrc_ext: wp.array2d(dtype=wp.spatial_vector)
     contact: Contact
     efc: Constraint
+
+    dof_lim_efc_address: wp.array2d(dtype=int)
+    dof_lim_torque: wp.array2d(dtype=float)
 
     #
     nworld: int

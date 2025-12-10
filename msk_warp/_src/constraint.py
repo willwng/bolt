@@ -113,10 +113,10 @@ def _efc_dof_limit(
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
         njmax_in: int,
-        # In:
         # Data out:
         nl_out: wp.array(dtype=int),
         nefc_out: wp.array(dtype=int),
+        dof_lim_efc_address_out: wp.array2d(dtype=int),
         efc_type_out: wp.array2d(dtype=int),
         efc_id_out: wp.array2d(dtype=int),
         efc_J_out: wp.array3d(dtype=float),
@@ -126,6 +126,7 @@ def _efc_dof_limit(
         efc_aref_out: wp.array2d(dtype=float),
 ):
     worldid, limitdofid = wp.tid()
+    dof_lim_efc_address_out[worldid, limitdofid] = -1
 
     dof_range = limit_dof_range[limitdofid]
     dof_adr = limit_dof_adr[limitdofid]
@@ -140,6 +141,7 @@ def _efc_dof_limit(
     if active:
         wp.atomic_add(nl_out, worldid, 1)
         efcid = wp.atomic_add(nefc_out, worldid, 1)
+        dof_lim_efc_address_out[worldid, limitdofid] = efcid
 
         if efcid >= njmax_in:
             return
@@ -365,6 +367,7 @@ def make_constraint(m: types.Model, d: types.Data):
         outputs=[
             d.nl,
             d.nefc,
+            d.dof_lim_efc_address,
             d.efc.type,
             d.efc.id,
             d.efc.J,

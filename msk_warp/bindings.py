@@ -453,6 +453,9 @@ def load_model(
             beta=make_zero(n_worlds, dtype=float),
             done=make_zero(n_worlds, dtype=bool),
         ),
+        dof_lim_efc_address=make_zero((n_worlds, n_limits), dtype=int),
+        dof_lim_torque=make_zero((n_worlds, n_limits), dtype=float),
+
         nworld=n_worlds,
         naconmax=naconmax,
         njmax=njmax,
@@ -724,3 +727,7 @@ def get_collider_rotations(d: types.Data) -> torch.Tensor:
 
 def grf(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.grf)
+
+
+def limit_torques(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.dof_lim_torque)
