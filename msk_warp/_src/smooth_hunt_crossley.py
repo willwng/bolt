@@ -65,10 +65,10 @@ def _process_contacts_hc(
     radius = curvature_in[conid]
 
     # TODO: get these from material properties
-    stiffness1 = wp.pow(5e6, 2.0 / 3.0)
-    stiffness2 = wp.pow(5e6, 2.0 / 3.0)
-    dissipation1 = 1.0
-    dissipation2 = 1.0
+    stiffness1 = wp.pow(1.6e6, 2.0 / 3.0)
+    stiffness2 = wp.pow(1.6e6, 2.0 / 3.0)
+    dissipation1 = 0.072
+    dissipation2 = 0.072
 
     # Adjust the contact location based on the relative stiffness
     s1 = stiffness2 / (stiffness1 + stiffness2)
@@ -106,10 +106,10 @@ def _process_contacts_hc(
     v_slip = wp.length(v_t)
     if v_slip > MJ_MINVAL:
         # TODO: hardcoded
-        mu_s = 0.9
-        mu_d = 0.6
-        mu_v = 0.
-        transition_velocity = 0.1
+        mu_s = 0.95
+        mu_d = 0.3
+        mu_v = 0.3
+        transition_velocity = 0.001
 
         us = (2.0 * mu_s * mu_s) / (mu_s + mu_s) if mu_s != 0 else 0.0
         ud = (2.0 * mu_d * mu_d) / (mu_d + mu_d) if mu_d != 0 else 0.0
@@ -127,11 +127,10 @@ def _process_contacts_hc(
     wp.atomic_add(xfrc_applied_out[worldid], body2,
                   support.force_at_point(1.0 * force, location - com2))
 
-    # todo check for which body is ground
     if body1 == 0:
-        wp.atomic_add(grf_out, worldid, -force)
-    elif body2 == 0:
         wp.atomic_add(grf_out, worldid, force)
+    elif body2 == 0:
+        wp.atomic_add(grf_out, worldid, -force)
 
 
 

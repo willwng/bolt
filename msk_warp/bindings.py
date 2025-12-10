@@ -720,3 +720,7 @@ def get_collider_positions(d: types.Data) -> torch.Tensor:
 
 def get_collider_rotations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.geom_xquat)
+
+
+def grf(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.grf)
