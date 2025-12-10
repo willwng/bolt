@@ -195,8 +195,6 @@ class Renderer:
                 muscle_activations = d.act.numpy()[wid]
 
                 for i in range(num_muscles):
-                    if not self.draw_muscles:
-                        break
                     # Muscle radius
                     mm = muscle_data[i]
                     radius = np.sqrt(mm.max_isometric_force) / 8000.0
@@ -209,11 +207,12 @@ class Renderer:
                     pts = site_xpos[pt_inds]
                     color = self.activation_to_color(muscle_activations[i])
                     self.renderer.render_line_strip(
-                        f"muscle_{i}",
+                        f"muscle_{obj_id}",
                         pts,
                         color=color,
                         radius=radius,
                     )
+                    obj_id += 1
 
         # Render based on viewer type
         if self.viewer_type == RendererType.OPENGL:

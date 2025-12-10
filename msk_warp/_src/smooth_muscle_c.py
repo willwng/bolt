@@ -99,18 +99,28 @@ def _compute_active_site_diffs(
 
 
 @wp.kernel
-def _compute_path(
+def _compute_path_kernel(
         # Model:
         muscle_pts_adr: wp.array(dtype=int),
         # Data in:
         muscle_num_active: wp.array2d(dtype=int),
         site_diff_len_out: wp.array2d(dtype=float),
         site_diff_vel_out: wp.array2d(dtype=float),
+        muscle_length_in: wp.array2d(dtype=float),
+        muscle_velocity_in: wp.array2d(dtype=float),
         # Data out:
         muscle_length_out: wp.array2d(dtype=float),
         muscle_velocity_out: wp.array2d(dtype=float),
+        muscle_length_prev_out: wp.array2d(dtype=float),
+        muscle_velocity_prev_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
+    # Store previous values
+    muscle_length_prev_out[worldid, muscle_id] = muscle_length_in[
+        worldid, muscle_id]
+    muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[
+        worldid, muscle_id]
+
     pts_adr = muscle_pts_adr[muscle_id]
     n_active = muscle_num_active[worldid, muscle_id]
     for i in range(n_active - 1):
@@ -138,17 +148,17 @@ def _xfrc_muscles(
 ):
     worldid, muscle_id = wp.tid()
     actuation = muscle_actuation_in[worldid, muscle_id]
-    pt_adr = muscle_pts_adr[muscle_id]
-    pt_num = muscle_num_active_in[worldid, muscle_id]
 
-    for i in range(pt_num - 1):
-        length = site_diff_len_in[worldid, pt_adr + i]
+    pts_adr = muscle_pts_adr[muscle_id]
+    n_active = muscle_num_active_in[worldid, muscle_id]
+    for i in range(n_active - 1):
+        length = site_diff_len_in[worldid, pts_adr + i]
         if length < 1e-8:
             continue
 
-        vec = site_diff_vec_in[worldid, pt_adr + i]
-        site1 = muscle_active_sites_in[worldid, pt_adr + i]
-        site2 = muscle_active_sites_in[worldid, pt_adr + i + 1]
+        vec = site_diff_vec_in[worldid, pts_adr + i]
+        site1 = muscle_active_sites_in[worldid, pts_adr + i]
+        site2 = muscle_active_sites_in[worldid, pts_adr + i + 1]
         body1, body2 = site_bodyid[site1], site_bodyid[site2]
 
         p1, p2 = site_xpos_in[worldid, site1], site_xpos_in[worldid, site2]
@@ -207,11 +217,13 @@ def muscle_path(m: Model, d: Data):
 
     # Now we can compute the path
     wp.launch(
-        _compute_path,
+        _compute_path_kernel,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_pts_adr, d.muscle_num_active, d.site_diff_len,
-                d.site_diff_vel],
-        outputs=[d.muscle_length, d.muscle_velocity],
+        inputs=[m.muscle_pts_adr, d.muscle_num_active,
+                d.site_diff_len, d.site_diff_vel,
+                d.muscle_length, d.muscle_velocity],
+        outputs=[d.muscle_length, d.muscle_velocity,
+                 d.muscle_length_prev, d.muscle_velocity_prev],
     )
 
 

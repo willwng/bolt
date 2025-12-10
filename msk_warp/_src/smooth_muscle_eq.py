@@ -383,7 +383,6 @@ def compute_state_derivative(
         mm: MuscleMetadata,
         norm_fiber_length: float,
         path_length: float,
-        path_velocity: float,
         activation: float,
 ) -> float:
     # Fiber
@@ -395,12 +394,10 @@ def compute_state_derivative(
                                                norm_fiber_length,
                                                min_norm_fiber_length)
     cos_pennation_angle = wp.cos(pennation_angle)
-    sin_pennation_angle = wp.sin(pennation_angle)
     fiber_length_along_tendon = fiber_length * cos_pennation_angle
     # Tendon
     tendon_length = path_length - fiber_length_along_tendon
     norm_tendon_length = tendon_length / mm.tendon_slack_length
-    tendon_strain = norm_tendon_length - 1.0
     # Force multipliers
     fiber_passive_force_length_multiplier = (
         dgf.calc_passive_force_multiplier(norm_fiber_length,
@@ -445,6 +442,15 @@ def compute_state_derivative(
     return mstate_dot
 
 
+@wp.func
+def lerp(
+        a: float,
+        b: float,
+        f: float,
+) -> float:
+    return a + f * (b - a)
+
+
 @event_scope
 def substep_fused(m: Model, d: Data, scale: float):
     @wp.kernel
@@ -455,9 +461,7 @@ def substep_fused(m: Model, d: Data, scale: float):
             act_in: wp.array2d(dtype=float),
             mstate_in: wp.array2d(dtype=float),
             muscle_length_in: wp.array2d(dtype=float),
-            muscle_velocity_in: wp.array2d(dtype=float),
             muscle_length_prev_in: wp.array2d(dtype=float),
-            muscle_velocity_prev_in: wp.array2d(dtype=float),
             actual_step_size_in: wp.array(dtype=float),
             # Data out:
             mstate_out: wp.array2d(dtype=float),
@@ -466,30 +470,37 @@ def substep_fused(m: Model, d: Data, scale: float):
 
         mm = muscle_metadata[muscle_id]
         prev_path_length = muscle_length_prev_in[worldid, muscle_id]
-        prev_path_velocity = muscle_velocity_prev_in[worldid, muscle_id]
         path_length = muscle_length_in[worldid, muscle_id]
-        path_velocity = muscle_velocity_in[worldid, muscle_id]
         activation = act_in[worldid, muscle_id]
         norm_fiber_length = mstate_in[worldid, muscle_id]
 
         # Substep integration
         num_substeps = wp.static(m.opt.muscle_dyn_substeps)
         h = (scale * actual_step_size_in[0]) / float(num_substeps)
-        for i in range(num_substeps):
+        hh = 0.5 * h
+        for i in range(wp.static(num_substeps)):
             # Interpolate path length and velocity
-            frac = (float(i) / float(num_substeps))
-            c_path_length = prev_path_length + frac * (
-                    path_length - prev_path_length)
-            c_path_velocity = prev_path_velocity + frac * (
-                    path_velocity - prev_path_velocity)
-            # Integrate
-            mstate_dot = compute_state_derivative(
-                mm, norm_fiber_length, c_path_length, c_path_velocity,
-                activation)
+            frac0 = (float(i) / float(num_substeps))
+            frac1 = ((float(i) + 0.5) / float(num_substeps))
+            frac2 = ((float(i) + 1.0) / float(num_substeps))
+
+            c_path_length0 = lerp(prev_path_length, path_length, frac0)
+            c_path_length1 = lerp(prev_path_length, path_length, frac1)
+            c_path_length2 = lerp(prev_path_length, path_length, frac2)
+
+            k1 = compute_state_derivative(
+                mm, norm_fiber_length, c_path_length0, activation)
+            k2 = compute_state_derivative(
+                mm, norm_fiber_length + hh * k1, c_path_length1, activation)
+            k3 = compute_state_derivative(
+                mm, norm_fiber_length + hh * k2, c_path_length1, activation)
+            k4 = compute_state_derivative(
+                mm, norm_fiber_length + h * k3, c_path_length2, activation)
+            mstate_dot = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
+
             norm_fiber_length += h * mstate_dot
             norm_fiber_length = dgf.clamp_fiber_length(
-                norm_fiber_length, mm.min_norm_fiber_length,
-                mm.max_norm_fiber_length)
+                norm_fiber_length, mm.min_norm_fiber_length, mm.max_norm_fiber_length)
 
         # Store updated state
         mstate_out[worldid, muscle_id] = norm_fiber_length
@@ -498,8 +509,7 @@ def substep_fused(m: Model, d: Data, scale: float):
         substep_fused_kernel,
         dim=(d.nworld, m.nmuscle),
         inputs=[m.muscle_metadata, d.act, d.mstate,
-                d.muscle_length, d.muscle_velocity,
-                d.muscle_length_prev, d.muscle_velocity_prev,
+                d.muscle_length, d.muscle_length_prev,
                 d.actual_step_size],
         outputs=[d.mstate],
     )
@@ -745,14 +755,6 @@ def muscle_equilibrate(m: Model, d: Data):
                 d.muscle_velocity, d.act],
         outputs=[d.mstate],
     )
-
-
-@event_scope
-def muscle_substep(m: Model, d: Data, scale: float):
-    """ Substep integration of muscle dynamics """
-    if not m.nmuscle:
-        return
-    substep_fused(m, d, scale)
 
 
 @event_scope

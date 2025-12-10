@@ -91,12 +91,6 @@ def _next_muscle_activation(
         wp.clamp(act, mm.min_activation, mm.max_activation))
 
 
-@event_scope
-def next_muscle_state(m: Model, d: Data, scale: float):
-    smooth_muscle_eq.muscle_substep(m, d, scale)
-    return
-
-
 @wp.kernel
 def _next_time(
         # Data in:
@@ -122,7 +116,6 @@ def _advance(m: Model, d: Data, scale: float):
                 d.actual_step_size, scale],
         outputs=[d.act],
     )
-    # next_muscle_state(m, d, scale)
 
     # Velocity, position
     wp.launch(

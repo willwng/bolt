@@ -619,6 +619,10 @@ def body_positions(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.xpos)
 
 
+def body_com_positions(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.xipos)
+
+
 def body_rotations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.xquat)
 
