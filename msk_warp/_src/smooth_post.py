@@ -148,8 +148,6 @@ def compute_grf(m: Model, d: Data):
         return
 
     d.grf.zero_()
-    d.dof_lim_torque.zero_()
-
     wp.launch(
         compute_grf_kernel,
         dim=(d.naconmax),
@@ -162,6 +160,12 @@ def compute_grf(m: Model, d: Data):
         ],
         outputs=[d.grf],
     )
+    return
+
+
+@event_scope
+def compute_limit_torques(m: Model, d: Data):
+    d.dof_lim_torque.zero_()
 
     wp.launch(
         joint_limit_torque_kernel,
