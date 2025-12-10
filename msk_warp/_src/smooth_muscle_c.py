@@ -121,6 +121,10 @@ def _compute_path_kernel(
     muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[
         worldid, muscle_id]
 
+    # Compute current length and velocity
+    muscle_length_out[worldid, muscle_id] = 0.0
+    muscle_velocity_out[worldid, muscle_id] = 0.0
+
     pts_adr = muscle_pts_adr[muscle_id]
     n_active = muscle_num_active[worldid, muscle_id]
     for i in range(n_active - 1):
@@ -180,8 +184,6 @@ def muscle_path(m: Model, d: Data):
      """
     if not m.nmuscle:
         return
-    d.muscle_length.zero_()
-    d.muscle_velocity.zero_()
 
     # fill_ doesn't work with graph capture so we just launch a kernel
     wp.launch(
