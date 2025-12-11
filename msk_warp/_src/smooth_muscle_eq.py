@@ -431,12 +431,12 @@ def compute_state_derivative(
     fiber_velocity = (norm_fiber_velocity *
                       dgf.get_max_contraction_velocity_in_meters_per_second(
                           mm.v_max, mm.optimal_fiber_length))
+
     # Check to see whether the fiber length was clamped
     min_norm_fiber_length = mm.min_norm_fiber_length
     fiber_state_clamped = dgf.is_fiber_state_clamped(
         norm_fiber_length, norm_fiber_velocity, min_norm_fiber_length)
-    if fiber_state_clamped:
-        fiber_velocity = 0.0
+    fiber_velocity = wp.where(fiber_state_clamped, 0.0, fiber_velocity)
 
     mstate_dot = fiber_velocity / mm.optimal_fiber_length
     return mstate_dot
@@ -477,27 +477,14 @@ def substep_fused(m: Model, d: Data, scale: float):
         # Substep integration
         num_substeps = wp.static(m.opt.muscle_dyn_substeps)
         h = (scale * actual_step_size_in[0]) / float(num_substeps)
-        hh = 0.5 * h
         for i in range(wp.static(num_substeps)):
             # Interpolate path length and velocity
-            frac0 = (float(i) / float(num_substeps))
-            frac1 = ((float(i) + 0.5) / float(num_substeps))
-            frac2 = ((float(i) + 1.0) / float(num_substeps))
-
-            c_path_length0 = lerp(prev_path_length, path_length, frac0)
-            c_path_length1 = lerp(prev_path_length, path_length, frac1)
-            c_path_length2 = lerp(prev_path_length, path_length, frac2)
-
-            k1 = compute_state_derivative(
-                mm, norm_fiber_length, c_path_length0, activation)
-            k2 = compute_state_derivative(
-                mm, norm_fiber_length + hh * k1, c_path_length1, activation)
-            k3 = compute_state_derivative(
-                mm, norm_fiber_length + hh * k2, c_path_length1, activation)
-            k4 = compute_state_derivative(
-                mm, norm_fiber_length + h * k3, c_path_length2, activation)
-            mstate_dot = (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
-
+            frac = (float(i) / float(num_substeps))
+            c_path_length = lerp(prev_path_length, path_length, frac)
+            # Compute state derivative
+            mstate_dot = compute_state_derivative(
+                mm, norm_fiber_length, c_path_length, activation)
+            # Integrate
             norm_fiber_length += h * mstate_dot
             norm_fiber_length = dgf.clamp_fiber_length(
                 norm_fiber_length, mm.min_norm_fiber_length, mm.max_norm_fiber_length)

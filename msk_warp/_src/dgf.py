@@ -105,10 +105,8 @@ def calc_pennation_angle(
             max_sin_pennation_angle = wp.sin(consts.M_MAX_PENNATION_ANGLE)
             fiber_length = norm_fiber_length * optimal_fiber_length
             sin_phi = parallelogram_height / fiber_length
-            if sin_phi < max_sin_pennation_angle:
-                phi = wp.asin(sin_phi)
-            else:
-                phi = consts.M_MAX_PENNATION_ANGLE
+            phi = wp.where(sin_phi < max_sin_pennation_angle,
+                           wp.asin(sin_phi), consts.M_MAX_PENNATION_ANGLE)
         else:
             phi = consts.M_MAX_PENNATION_ANGLE
     return phi
@@ -121,10 +119,8 @@ def calc_pennation_angular_velocity(
         fiber_velocity: float,
         tan_pennation_angle: float
 ) -> float:
-    d_phi = 0.0
-    if optimal_pennation_angle > 1e-8:
-        d_phi = -(fiber_velocity / fiber_length) * tan_pennation_angle
-    return d_phi
+    d_phi = -(fiber_velocity / fiber_length) * tan_pennation_angle
+    return wp.where(optimal_pennation_angle > 1e-8, d_phi, 0.0)
 
 
 @wp.func
@@ -255,14 +251,10 @@ def calc_tendon_force_multiplier(
         norm_tendon_length: float,
         clamped: bool,
 ) -> float:
-    tmp = (consts.DGF_C1 *
-           wp.exp(get_tendon_stiffness_parameter() *
-                  (norm_tendon_length - consts.DGF_C2)) - consts.DGF_C3)
-    if clamped:
-        return wp.clamp(tmp, consts.M_MIN_NORM_TENDON_FORCE,
-                        consts.M_MAX_NORM_TENDON_FORCE)
-    else:
-        return tmp
+    tmp = (consts.DGF_C1 * wp.exp(get_tendon_stiffness_parameter() *
+                                  (norm_tendon_length - consts.DGF_C2)) - consts.DGF_C3)
+    return wp.where(clamped, wp.clamp(tmp, consts.M_MIN_NORM_TENDON_FORCE,
+                                      consts.M_MAX_NORM_TENDON_FORCE), tmp)
 
 
 @wp.func
@@ -305,25 +297,23 @@ def calc_damped_norm_fiber_velocity(
         beta: float,
         cos_phi: float,
 ) -> tuple[float, float]:
-    max_iter = 20
-    tol = 1e-8 * f_iso
     k_sig_real = 1e-6
+    tol = wp.max(1e-8 * f_iso, k_sig_real * 100.0)
     prev_err = float(1e10)
-    if tol < k_sig_real * 100.0:
-        tol = k_sig_real * 100.0
 
     # use undamped estimate as initial guess
     fv = calc_undamped_fiber_force_velocity_multiplier(
-        max(a, 0.01),
-        max(fal, 0.01),
+        wp.max(a, 0.01),
+        wp.max(fal, 0.01),
         fpe,
         fse,
-        max(cos_phi, 0.01)
+        wp.max(cos_phi, 0.01)
     )
     dlceN_dt = calc_force_velocity_inverse_curve(fv)
     # approximation is poor beyond maximum velocities
     dlceN_dt = wp.clamp(dlceN_dt, -1.0, 1.0)
 
+    max_iter = wp.static(20)
     for i in range(max_iter):
         fv = calc_force_velocity_multiplier(dlceN_dt)
         fvDer = calc_force_velocity_multiplier_derivative(dlceN_dt)
