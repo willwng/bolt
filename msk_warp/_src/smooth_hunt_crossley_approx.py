@@ -4,7 +4,6 @@ from . import support
 from .types import Data
 from .types import Model
 from .types import vec5
-from .consts import MJ_MINVAL
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -47,29 +46,9 @@ def _process_contacts_hc(
     cpos = pos_in[conid]
     frame = frame_in[conid]
     radius = curvature_in[conid]
-    normal = frame[0]
-
-    # TODO: get these from material properties
-    stiffness1 = wp.pow(1.6e6, 2.0 / 3.0)
-    stiffness2 = wp.pow(1.6e6, 2.0 / 3.0)
-    dissipation1 = 0.072
-    dissipation2 = 0.072
-    us1, us2 = 0.95, 0.95
-    ud1, ud2 = 0.3, 0.3
-    uv1, uv2 = 0.3, 0.3
-    transition_velocity = 0.001
-
-    # Adjust the contact location based on the relative stiffness
-    s1 = stiffness2 / (stiffness1 + stiffness2)
-    s2 = 1.0 - s1
-    location = cpos + depth * (0.5 - s1) * frame[0]
-
-    # Calculate the Hertz force.
-    k = stiffness1 * s1
-    c = dissipation1 * s1 + dissipation2 * s2
-    fH = (4.0 / 3.0) * k * depth * wp.sqrt(radius * k * depth)
 
     # Calculate the relative velocity of the two bodies at the contact point
+    location = cpos
     cvel1 = cvel_in[worldid, body1]
     cvel2 = cvel_in[worldid, body2]
     subtree_com1 = subtree_com_in[worldid, body_rootid[body1]]
@@ -81,29 +60,42 @@ def _process_contacts_hc(
     # Compute relative velocities of the bodies
     v = wp.spatial_bottom(vel1 - vel2)
     # Project into contact frame
+    normal = frame[0]
     v_n = wp.dot(v, normal)
     v_t = v - (v_n * normal)
 
-    # Hunt-Crossley correction forces
-    f = fH * (1.0 + 1.5 * c * v_n)
-    if f <= 0:
-        return
-    force = f * normal
+    stiffness = 1.6e6
+    dissipation = 0.072
 
-    # Friction cone
-    v_slip = wp.length(v_t)
-    if v_slip != MJ_MINVAL:
-        has_static = (us1 != 0.0 or us2 != 0.0)
-        has_dynamic = (ud1 != 0.0 or ud2 != 0.0)
-        has_viscous = (uv1 != 0.0 or uv2 != 0.0)
-        us = (2.0 * us1 * us2) / (us1 + us2) if has_static else 0.0
-        ud = (2.0 * ud1 * ud2) / (ud1 + ud2) if has_dynamic else 0.0
-        uv = (2.0 * uv1 * uv2) / (uv1 + uv2) if has_viscous else 0.0
+    # Calculate the hertz force
+    k = 0.5 * wp.pow(stiffness, 2.0 / 3.0)
+    indentation = depth
+    cf = 1e-5
+    bd = 300.0
+    fh_pos = (4.0 / 3.0) * k * wp.sqrt(radius * k) * wp.pow(
+        wp.sqrt(indentation * indentation + cf), 3. / 2.)
+    fh_smooth = fh_pos * (1.0 / 2.0 + (1.0 / 2.0) * wp.tanh(bd * indentation))
 
-        v_rel = v_slip / transition_velocity
-        f_friction = f * (wp.min(v_rel, 1.0) * (ud + 2.0 * (us - ud) / (1.0 + v_rel * v_rel)) + uv * v_slip)
+    # Calculate the Hunt-Crossley force
+    c = dissipation
+    bv = 50.0
+    fhc_pos = fh_smooth * (1.0 + (3.0 / 2.0) * c * v_n)
+    fhc_smooth = fhc_pos * (
+            1. / 2. + (1. / 2.) * wp.tanh(bv * (v_n + (2.0 / (3.0 * c)))))
+    force = fhc_smooth * normal
 
-        force += f_friction * v_t / v_slip
+    # Calculate the friction force.
+    us = 0.95
+    ud = 0.3
+    uv = 0.3
+    vt = 0.001
+
+    aux = wp.length_sq(v_t) + cf
+    vslip = wp.pow(aux, 1.0 / 2.0)
+    vrel = vslip / vt
+    ff = fhc_smooth * (wp.min(vrel, 1.0) * (
+                ud + 2.0 * (us - ud) / (1.0 + vrel * vrel)) + uv * vslip)
+    force += ff * v_t / vslip
 
     # Apply forces to bodies
     com1, com2 = xipos_in[worldid, body1], xipos_in[worldid, body2]
