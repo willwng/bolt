@@ -1719,30 +1719,31 @@ def _update_gradient(m: types.Model, d: types.Data):
 
         nblocks_perblock = int((d.naconmax + dim_block - 1) / dim_block)
 
-        wp.launch(
-            update_gradient_JTCJ,
-            dim=(dim_block, m.dof_tri_row.size),
-            inputs=[
-                m.opt.impratio,
-                m.dof_tri_row,
-                m.dof_tri_col,
-                d.contact.dist,
-                d.contact.friction,
-                d.contact.dim,
-                d.contact.efc_address,
-                d.contact.worldid,
-                d.efc.J,
-                d.efc.D,
-                d.efc.Jaref,
-                d.efc.state,
-                d.efc.done,
-                d.naconmax,
-                d.nacon,
-                nblocks_perblock,
-                dim_block,
-            ],
-            outputs=[d.efc.h],
-        )
+        if wp.static(m.opt.contact_type == types.ContactType.MUJOCO):
+            wp.launch(
+                update_gradient_JTCJ,
+                dim=(dim_block, m.dof_tri_row.size),
+                inputs=[
+                    m.opt.impratio,
+                    m.dof_tri_row,
+                    m.dof_tri_col,
+                    d.contact.dist,
+                    d.contact.friction,
+                    d.contact.dim,
+                    d.contact.efc_address,
+                    d.contact.worldid,
+                    d.efc.J,
+                    d.efc.D,
+                    d.efc.Jaref,
+                    d.efc.state,
+                    d.efc.done,
+                    d.naconmax,
+                    d.nacon,
+                    nblocks_perblock,
+                    dim_block,
+                ],
+                outputs=[d.efc.h],
+            )
 
         # TODO(team): Define good threshold for blocked vs non-blocked cholesky
         if m.nv < 32:

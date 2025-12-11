@@ -145,7 +145,7 @@ def compute_grf_kernel(
 @event_scope
 def compute_grf(m: Model, d: Data):
     if wp.static(m.opt.contact_type == ContactType.HUNT_CROSSLEY):
-        return
+        return  # already handled
 
     d.grf.zero_()
     wp.launch(

@@ -601,12 +601,28 @@ def muscle_metadata(m: types.Model) -> list[types.MuscleMetadata]:
     return m.muscle_data
 
 
+def subtree_mass(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.body_subtreemass)
+
+
+def gravity(m: types.Model) -> float:
+    return m.opt.gravity
+
+
 def use_newton_solver(m: types.Model):
     m.opt.solver = types.SolverType.NEWTON
 
 
 def use_cg_solver(m: types.Model):
     m.opt.solver = types.SolverType.CG
+
+
+def use_hunt_crossley_contact(m: types.Model):
+    m.opt.contact_type = types.ContactType.HUNT_CROSSLEY
+
+
+def use_mujoco_contact(m: types.Model):
+    m.opt.contact_type = types.ContactType.MUJOCO
 
 
 def set_muscle_dynamics_substeps(m: types.Model, substeps: int):
