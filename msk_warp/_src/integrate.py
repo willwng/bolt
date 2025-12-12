@@ -4,11 +4,11 @@ import warp as wp
 from . import forward
 from . import math
 from . import mobilizers
-from . import smooth_muscle_eq
 from .consts import MJ_MINVAL
 from .types import Data
 from .types import Model
 from .types import MuscleMetadata
+from .types import ActuatorMetadata
 from .types import TileSet
 from .warp_util import cache_kernel
 from .warp_util import event_scope
@@ -92,6 +92,30 @@ def _next_muscle_activation(
 
 
 @wp.kernel
+def _next_actuator_activation(
+        # Model:
+        actuator_metadata: wp.array(dtype=ActuatorMetadata),
+        # Data in:
+        act_in: wp.array2d(dtype=float),
+        act_dot_in: wp.array2d(dtype=float),
+        actual_step_size_in: wp.array(dtype=float),
+        # In:
+        scale: float,
+        # Data out:
+        act_out: wp.array2d(dtype=float),
+):
+    worldid, actuator_id = wp.tid()
+    am = actuator_metadata[actuator_id]
+    step_size = actual_step_size_in[worldid] * scale
+
+    # advance muscle activation
+    act = act_in[worldid, actuator_id] + act_dot_in[
+        worldid, actuator_id] * step_size
+    act_out[worldid, actuator_id] = (
+        wp.clamp(act, am.min_activation, am.max_activation))
+
+
+@wp.kernel
 def _next_time(
         # Data in:
         time_in: wp.array(dtype=float),
@@ -108,14 +132,25 @@ def _next_time(
 
 def _advance(m: Model, d: Data, scale: float):
     """Advance state and time given state derivatives"""
-    # Muscles
-    wp.launch(
-        _next_muscle_activation,
-        dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.act, d.act_dot,
-                d.actual_step_size, scale],
-        outputs=[d.act],
-    )
+    if m.nmuscle:
+        # Muscles
+        wp.launch(
+            _next_muscle_activation,
+            dim=(d.nworld, m.nmuscle),
+            inputs=[m.muscle_metadata, d.m_act, d.m_act_dot,
+                    d.actual_step_size, scale],
+            outputs=[d.m_act],
+        )
+
+    if m.nactuator:
+        # Actuators
+        wp.launch(
+            _next_actuator_activation,
+            dim=(d.nworld, m.nactuator),
+            inputs=[m.actuator_metadata, d.a_act, d.a_act_dot,
+                    d.actual_step_size, scale],
+            outputs=[d.a_act],
+        )
 
     # Velocity, position
     wp.launch(
@@ -395,7 +430,7 @@ def _save_state(m: Model, d: Data, save_id: int, ):
     wp.launch_tiled(
         save_state,
         dim=d.nworld,
-        inputs=[d.time, d.qpos, d.qvel, d.mstate, d.act, save_id],
+        inputs=[d.time, d.qpos, d.qvel, d.m_state, d.m_act, save_id],
         outputs=[d.integrator_state.time, d.integrator_state.qpos,
                  d.integrator_state.qvel, d.integrator_state.mstate,
                  d.integrator_state.act],
@@ -451,7 +486,7 @@ def _restore_state(m: Model, d: Data, restore_id: int, reject_only: bool):
         inputs=[d.integrator_state.time, d.integrator_state.qpos,
                 d.integrator_state.qvel, d.integrator_state.mstate,
                 d.integrator_state.act, d.step_accepted, restore_id],
-        outputs=[d.time, d.qpos, d.qvel, d.mstate, d.act],
+        outputs=[d.time, d.qpos, d.qvel, d.m_state, d.m_act],
         block_dim=m.block_dim.error_step,
     )
 

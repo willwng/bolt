@@ -36,9 +36,22 @@ def compute_act_dot(m: Model, d: Data):
     wp.launch(
         _compute_activation_dot,
         dim=(d.nworld, m.nmuscle),
-        inputs=[d.mexcitations, d.act],
-        outputs=[d.act_dot],
+        inputs=[d.m_excitations, d.m_act],
+        outputs=[d.m_act_dot],
     )
+
+
+@wp.kernel
+def _reset_act(
+        # Data in:
+        world_reset_in: wp.array(dtype=bool),
+        # Data out:
+        m_act_out: wp.array2d(dtype=float),
+):
+    worldid, muscle_id = wp.tid()
+    if world_reset_in[worldid]:
+        m_act_out[worldid, muscle_id] = 0.0
+    return
 
 
 @wp.kernel
@@ -495,10 +508,10 @@ def substep_fused(m: Model, d: Data, scale: float):
     wp.launch(
         substep_fused_kernel,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.act, d.mstate,
+        inputs=[m.muscle_metadata, d.m_act, d.m_state,
                 d.muscle_length, d.muscle_length_prev,
                 d.actual_step_size],
-        outputs=[d.mstate],
+        outputs=[d.m_state],
     )
 
 
@@ -682,7 +695,7 @@ def update_length_info(m: Model, d: Data):
     wp.launch(
         _update_length_info,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.mstate, d.muscle_length, ],
+        inputs=[m.muscle_metadata, d.m_state, d.muscle_length, ],
         outputs=[d.muscle_length_info],
     )
 
@@ -692,7 +705,7 @@ def update_velocity_info(m: Model, d: Data):
     wp.launch(
         _update_velocity_info,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.act, d.muscle_length_info,
+        inputs=[m.muscle_metadata, d.m_act, d.muscle_length_info,
                 d.muscle_velocity, ],
         outputs=[d.muscle_velocity_info],
     )
@@ -703,7 +716,7 @@ def update_dynamics_info(m: Model, d: Data):
     wp.launch(
         _update_dynamics_info,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.act,
+        inputs=[m.muscle_metadata, d.m_act,
                 d.muscle_length_info, d.muscle_velocity_info, ],
         outputs=[d.muscle_dynamics_info],
     )
@@ -714,7 +727,7 @@ def update_info_fused(m: Model, d: Data):
     wp.launch(
         _update_info_fused,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.act, d.mstate,
+        inputs=[m.muscle_metadata, d.m_act, d.m_state,
                 d.muscle_length, d.muscle_velocity, ],
         outputs=[d.muscle_length_info, d.muscle_velocity_info,
                  d.muscle_dynamics_info],
@@ -722,10 +735,18 @@ def update_info_fused(m: Model, d: Data):
 
 
 @event_scope
-def muscle_equilibrate(m: Model, d: Data):
+def muscle_reset(m: Model, d: Data):
     """ Equilibrate muscles """
     if not m.nmuscle:
         return
+    # Reset activation
+    wp.launch(
+        _reset_act,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[d.world_reset],
+        outputs=[d.m_act],
+    )
+
     # Set the previous length/velocity to current
     wp.launch(
         _reset_prev_path,
@@ -739,8 +760,8 @@ def muscle_equilibrate(m: Model, d: Data):
         _equilibrate,
         dim=(d.nworld, m.nmuscle),
         inputs=[m.muscle_metadata, d.world_reset, d.muscle_length,
-                d.muscle_velocity, d.act],
-        outputs=[d.mstate],
+                d.muscle_velocity, d.m_act],
+        outputs=[d.m_state],
     )
 
 
@@ -758,5 +779,5 @@ def realize_muscle_state(m: Model, d: Data):
         dim=(d.nworld, m.nmuscle),
         inputs=[m.muscle_metadata, d.muscle_velocity_info,
                 d.muscle_dynamics_info],
-        outputs=[d.mstate_dot, d.muscle_actuation],
+        outputs=[d.m_state_dot, d.muscle_actuation],
     )

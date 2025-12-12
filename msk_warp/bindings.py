@@ -35,6 +35,7 @@ def load_model(
     nv = sum(joint_num_vdofs)
     nq = sum(joint_num_qdofs)
     nmuscle = num_muscles(osim_model)
+    nactuators = num_actuators(osim_model)
 
     joint_types = get_joint_types(osim_model)
     n_conv_jnts, n_custom_jnts = 0, 0
@@ -202,6 +203,9 @@ def load_model(
     )
     mm = wp.array(muscle_data, dtype=types.MuscleMetadata)
 
+    actuator_data = get_actuator_metadata(osim_model)
+    am = wp.array(actuator_data, dtype=types.ActuatorMetadata)
+
     nsite = site_data.nsite
     nsite_cond = site_data.nsite_cond
     dt = 1.0 / 500.0
@@ -210,6 +214,7 @@ def load_model(
         nv=nv,
         nq=nq,
         nmuscle=nmuscle,
+        nactuator=nactuators,
         ndoflimit=n_limits,
 
         njnts_conv=n_conv_jnts,
@@ -223,6 +228,8 @@ def load_model(
         opt=opt,
         muscle_metadata=mm,
         muscle_data=muscle_data,
+
+        actuator_metadata=am,
 
         # warp arrays
         qpos0=to_warp_array(qpos0, dtype=float),
@@ -318,8 +325,9 @@ def load_model(
 
         qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
         qvel=wp.array(np.tile(qvel0, (n_worlds, 1)), dtype=float),
-        act=make_zero((n_worlds, nmuscle), dtype=float),
-        mstate=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act=make_zero((n_worlds, nactuators), dtype=float),
+        m_state=make_zero((n_worlds, nmuscle), dtype=float),
 
         qacc_warmstart=make_zero((n_worlds, nv), dtype=float),
         qfrc_applied=make_zero((n_worlds, nv), dtype=float),
@@ -327,10 +335,11 @@ def load_model(
         grf=make_zero((n_worlds,), dtype=wp.vec3),
 
         qacc=make_zero((n_worlds, nv), dtype=float),
-        act_dot=make_zero((n_worlds, nmuscle), dtype=float),
-        mexcitations=make_zero((n_worlds, nmuscle), dtype=float),
-        # mexcitations=make_full(1.0, (n_worlds, nmuscle), dtype=float),
-        mstate_dot=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_dot=make_zero((n_worlds, nactuators), dtype=float),
+        m_excitations=make_zero((n_worlds, nmuscle), dtype=float),
+        a_excitations=make_zero((n_worlds, nactuators), dtype=float),
+        m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
 
         xpos=make_zero((n_worlds, nb), dtype=wp.vec3),
         xquat=make_zero((n_worlds, nb), dtype=wp.quat),
@@ -586,6 +595,9 @@ def get_num_colliders(m: types.Model) -> int:
 def get_num_muscles(m: types.Model) -> int:
     return m.nmuscle
 
+def get_num_actuators(m: types.Model) -> int:
+    return m.nactuator
+
 
 def get_dof_adr(m: types.Model, body_id: int) -> torch.Tensor:
     jnt_dof_adr = wp.to_torch(m.jnt_dofadr)
@@ -668,11 +680,11 @@ def subtree_com_positions(d: types.Data) -> torch.Tensor:
 
 # -- Muscles ---
 def muscle_activations(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.act)
+    return wp.to_torch(d.m_act)
 
 
 def muscle_excitations(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.mexcitations)
+    return wp.to_torch(d.m_excitations)
 
 
 def muscle_actuations(d: types.Data) -> torch.Tensor:
@@ -688,11 +700,11 @@ def muscle_path_velocities(d: types.Data) -> torch.Tensor:
 
 
 def muscle_fiber_lengths(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.mstate)
+    return wp.to_torch(d.m_state)
 
 
 def muscle_fiber_velocities(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.mstate_dot)
+    return wp.to_torch(d.m_state_dot)
 
 
 def muscle_metadata_np(m: types.Model) -> np.ndarray:
@@ -715,7 +727,16 @@ def muscle_site_num(m: types.Model) -> torch.Tensor:
     return wp.to_torch(m.muscle_pts_num)
 
 
-# -- Visuals ---
+# --- Actuators ---
+def actuator_activations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.a_act)
+
+
+def actuator_excitations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.a_excitations)
+
+
+# --- Visuals ---
 def get_visual_positions(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.vis_xpos)
 

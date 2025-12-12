@@ -325,10 +325,14 @@ def parse_actuator(actuator) -> Actuator:
     name = actuator.attrib["name"]
     optimal_force = float(actuator.find("optimal_force").text)
     coordinate = actuator.find("coordinate").text
+    activation_time_constant = float(actuator.find("activation_time_constant").text)
+    default_activation = float(actuator.find("default_activation").text)
     return Actuator(
         name=name,
         optimal_force=optimal_force,
-        coordinate=coordinate
+        coordinate=coordinate,
+        activation_time_constant=activation_time_constant,
+        default_activation=default_activation
     )
 
 

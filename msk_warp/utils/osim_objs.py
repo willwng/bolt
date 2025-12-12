@@ -489,6 +489,8 @@ class Muscle:
 class Actuator:
     name: str
     optimal_force: float
+    activation_time_constant: float
+    default_activation: float
     coordinate: str
 
 

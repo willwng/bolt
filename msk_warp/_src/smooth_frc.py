@@ -359,7 +359,7 @@ def _qfrc_smooth(
 
 
 @event_scope
-def applied_forces(m: Model, d: Data):
+def reset_applied_forces(m: Model, d: Data):
     """ Compute all applied forces """
     d.xfrc_applied.zero_()
     d.qfrc_applied.zero_()

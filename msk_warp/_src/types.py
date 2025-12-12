@@ -370,6 +370,17 @@ class MuscleMetadata:
 
 
 @wp.struct
+class ActuatorMetadata:
+    """Muscle metadata. """
+    optimal_force: float
+    activation_time_constant: float
+    coordinate: int
+    default_activation: float
+
+    min_activation: float
+    max_activation: float
+
+@wp.struct
 class MuscleLengthInfo:
     fiber_length: float
     fiber_length_along_tendon: float
@@ -511,7 +522,8 @@ class Model:
       nbody: number of bodies
       nq: number of generalized coordinates
       nv: number of degrees of freedom
-      nmuscle: number of tendons
+      nmuscle: number of muscles
+      nactuator: number of "ideal" actuators
       ndoflimit: number of dofs with limits
 
       njnts_conv: number of conventional joints
@@ -522,7 +534,10 @@ class Model:
       nsite_cond: number of conditional sites
 
       opt: physics options
-      muscle_metadata: muscle metadata                                      (nmuscle,)
+      muscle_metadata: muscle metadata                         (nmuscle,)
+      muscle_data: same as above, but for modification
+
+      actuator_metadata: actuator metadata                     (nactuator,)
 
       qpos0: qpos values at default pose                       (nq,)
       qpos_spring: reference pose for springs                  (nq,)
@@ -597,6 +612,7 @@ class Model:
     nq: int
     nv: int
     nmuscle: int
+    nactuator: int
     ndoflimit: int
 
     njnts_conv: int
@@ -610,6 +626,8 @@ class Model:
     opt: Option
     muscle_metadata: array("nmuscle", MuscleMetadata)
     muscle_data: list[MuscleMetadata]
+
+    actuator_metadata: array("nactuator", ActuatorMetadata)
 
     qpos0: array("nq", float)
     qpos_spring: array("nq", float)
@@ -763,13 +781,15 @@ class Data:
 
       qpos: position                                              (nworld, nq)
       qvel: velocity                                              (nworld, nv)
-      act: actuator activation                                    (nworld, nmuscles)
-      mstate: muscle state variable                               (nworld, nmuscles)
+      m_act: muscle activation                                    (nworld, nmuscles)
+      a_act: actuator activation                                  (nworld, nactuator)
+      m_state: muscle state variable                               (nworld, nmuscles)
 
       qacc: acceleration                                          (nworld, nv)
-      act_dot: time-derivative of actuator activation             (nworld, na)
-      mexcitations: muscle excitations                            (nworld, nmuscles)
-      mstate_dot: time-derivative of muscle state variable        (nworld, nmuscles)
+      m_act_dot: time-derivative of actuator activation           (nworld, na)
+      a_act_dot: time-derivative of actuator activation           (nworld, nactuator)
+      m_excitations: muscle excitations                            (nworld, nmuscles)
+      m_state_dot: time-derivative of muscle state variable        (nworld, nmuscles)
 
       qacc_warmstart: acceleration used for warmstart             (nworld, nv)
       qfrc_applied: applied generalized force                     (nworld, nv)
@@ -866,13 +886,16 @@ class Data:
 
     qpos: wp.array2d(dtype=float)
     qvel: wp.array2d(dtype=float)
-    act: wp.array2d(dtype=float)
-    mstate: wp.array2d(dtype=float)
+    m_act: wp.array2d(dtype=float)
+    a_act: wp.array2d(dtype=float)
+    m_state: wp.array2d(dtype=float)
 
     qacc: wp.array2d(dtype=float)
-    act_dot: wp.array2d(dtype=float)
-    mexcitations: wp.array2d(dtype=float)
-    mstate_dot: wp.array2d(dtype=float)
+    m_act_dot: wp.array2d(dtype=float)
+    a_act_dot: wp.array2d(dtype=float)
+    m_excitations: wp.array2d(dtype=float)
+    a_excitations: wp.array2d(dtype=float)
+    m_state_dot: wp.array2d(dtype=float)
 
     qacc_warmstart: wp.array2d(dtype=float)
     qfrc_applied: wp.array2d(dtype=float)

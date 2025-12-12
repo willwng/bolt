@@ -192,7 +192,7 @@ class Renderer:
                 muscle_pts_active_num = d.muscle_num_active.numpy()[wid]
                 site_xpos = d.site_xpos.numpy()[wid]
                 site_active = d.site_active.numpy()[wid]
-                muscle_activations = d.act.numpy()[wid]
+                muscle_activations = d.m_act.numpy()[wid]
 
                 for i in range(num_muscles):
                     # Muscle radius

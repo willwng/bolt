@@ -42,6 +42,10 @@ class CheckedModel:
         for muscle_id, muscle in enumerate(self.force_set.muscles.values()):
             yield muscle_id, muscle
 
+    def iter_actuators(self):
+        for actuator_id, actuator in enumerate(self.force_set.actuators.values()):
+            yield actuator_id, actuator
+
     def iter_path_points(self):
         for muscle_id, muscle in self.iter_muscles():
             geom_path = muscle.geometry_path
@@ -271,6 +275,10 @@ def get_joint_num_dofs(model: CheckedModel, vel_dofs: bool) -> list[int]:
 
 def num_muscles(model: CheckedModel) -> int:
     return len(model.force_set.muscles)
+
+
+def num_actuators(model: CheckedModel) -> int:
+    return len(model.force_set.actuators)
 
 
 def num_colliders(model: CheckedModel) -> int:
@@ -702,6 +710,23 @@ def get_muscle_metadata(
         muscle_meta.min_activation = 0.0
         muscle_meta.max_activation = 1.0
         metadata.append(muscle_meta)
+
+    return metadata
+
+
+def get_actuator_metadata(osim_model: CheckedModel) -> list[types.ActuatorMetadata]:
+    metadata = []
+
+    for _, actuator in osim_model.iter_actuators():
+        am = types.ActuatorMetadata()
+        am.optimal_force = actuator.optimal_force
+        am.activation_time_constant = actuator.activation_time_constant
+        am.coordinate = osim_model.lookup_dof_idx(actuator.coordinate, False)
+        am.default_activation = actuator.default_activation
+
+        am.min_activation = 0.0
+        am.max_activation = 1.0
+        metadata.append(am)
 
     return metadata
 
