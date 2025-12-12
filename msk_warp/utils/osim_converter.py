@@ -753,3 +753,10 @@ def get_body_id_lookup(model: CheckedModel) -> dict[str, int]:
     for body_idx, (_, body) in enumerate(model.iter_bodies()):
         body_id_lookup[body.name] = body_idx
     return body_id_lookup
+
+
+def get_muscle_id_lookup(model: CheckedModel) -> dict[str, int]:
+    muscle_id_lookup = {}
+    for muscle_idx, (_, muscle) in enumerate(model.iter_muscles()):
+        muscle_id_lookup[muscle.name] = muscle_idx
+    return muscle_id_lookup

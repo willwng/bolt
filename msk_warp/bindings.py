@@ -18,6 +18,7 @@ class ModelLoadResult:
     model: types.Model
     data: types.Data
     body_id_lookup: dict[str, int]
+    muscle_id_lookup: dict[str, int]
     visuals: list[types.MeshLoadResult]
 
 
@@ -523,6 +524,7 @@ def load_model(
         model=m,
         data=d,
         body_id_lookup=get_body_id_lookup(osim_model),
+        muscle_id_lookup=get_muscle_id_lookup(osim_model),
         visuals=mesh_load_results
     )
 
