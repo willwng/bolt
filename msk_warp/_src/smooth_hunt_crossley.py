@@ -92,7 +92,7 @@ def _process_contacts_hc(
 
     # Friction cone
     v_slip = wp.length(v_t)
-    if v_slip != MJ_MINVAL:
+    if v_slip > MJ_MINVAL:
         has_static = (us1 != 0.0 or us2 != 0.0)
         has_dynamic = (ud1 != 0.0 or ud2 != 0.0)
         has_viscous = (uv1 != 0.0 or uv2 != 0.0)
