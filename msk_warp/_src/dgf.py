@@ -184,7 +184,15 @@ def calc_force_velocity_multiplier(
         norm_fiber_velocity: float,
 ) -> float:
     temp_v = consts.DGF_D2 * norm_fiber_velocity + consts.DGF_D3
-    temp_log_arg = temp_v + wp.sqrt(temp_v ** 2.0 + 1.0)
+
+    # Original code (numerically imprecise for negative temp_v)
+    #   temp_log_arg = temp_v + wp.sqrt(temp_v ** 2.0 + 1.0)
+    sqrt_term = wp.sqrt(temp_v * temp_v + 1.0)
+    temp_log_arg = wp.where(
+        temp_v >= 0.0,
+        temp_v + sqrt_term,
+        1.0 / (sqrt_term - temp_v)
+    )
     return consts.DGF_D1 * wp.log(temp_log_arg) + consts.DGF_D4
 
 
@@ -193,9 +201,11 @@ def calc_force_velocity_multiplier_derivative(
         norm_fiber_velocity: float,
 ) -> float:
     temp_v = consts.DGF_D2 * norm_fiber_velocity + consts.DGF_D3
-    tmp = wp.sqrt(temp_v ** 2.0 + 1.0)
-    return (consts.DGF_D1 * consts.DGF_D2) / (temp_v + tmp) * (
-            1.0 + temp_v / tmp)
+
+    # Original code
+    # tmp = wp.sqrt(temp_v ** 2.0 + 1.0)
+    # return (consts.DGF_D1 * consts.DGF_D2) / (temp_v + tmp) * (1.0 + temp_v / tmp)
+    return (consts.DGF_D1 * consts.DGF_D2) / wp.sqrt(temp_v * temp_v + 1.0)
 
 
 @wp.func
