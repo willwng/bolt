@@ -19,6 +19,7 @@ class ModelLoadResult:
     data: types.Data
     body_id_lookup: dict[str, int]
     muscle_id_lookup: dict[str, int]
+    actuator_id_lookup: dict[str, int]
     visuals: list[types.MeshLoadResult]
 
 
@@ -525,6 +526,7 @@ def load_model(
         data=d,
         body_id_lookup=get_body_id_lookup(osim_model),
         muscle_id_lookup=get_muscle_id_lookup(osim_model),
+        actuator_id_lookup=get_actuator_id_lookup(osim_model),
         visuals=mesh_load_results
     )
 
@@ -596,6 +598,7 @@ def get_num_colliders(m: types.Model) -> int:
 
 def get_num_muscles(m: types.Model) -> int:
     return m.nmuscle
+
 
 def get_num_actuators(m: types.Model) -> int:
     return m.nactuator
@@ -736,6 +739,10 @@ def actuator_activations(d: types.Data) -> torch.Tensor:
 
 def actuator_excitations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.a_excitations)
+
+
+def actuator_metadata_np(m: types.Model) -> np.ndarray:
+    return m.actuator_metadata.numpy()
 
 
 # --- Visuals ---
