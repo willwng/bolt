@@ -8,20 +8,6 @@ from .warp_util import event_scope
 wp.set_module_options({"enable_backward": False})
 
 
-@wp.kernel
-def _reset_actuator(
-        # Model in:
-        actuator_metadata: wp.array(dtype=ActuatorMetadata),
-        # Data in:
-        world_reset_in: wp.array(dtype=bool),
-        # Data out:
-        act_out: wp.array2d(dtype=float),
-):
-    worldid, actuator_id = wp.tid()
-    if world_reset_in[worldid]:
-        act_out[worldid, actuator_id] = actuator_metadata[actuator_id].default_activation
-    return
-
 
 @wp.kernel
 def _compute_activation_dot(
@@ -59,16 +45,6 @@ def _qfrc_actuators(
 
 
 @event_scope
-def actuator_reset(m: Model, d: Data):
-    wp.launch(
-        _reset_actuator,
-        dim=(d.nworld, m.nactuator),
-        inputs=[m.actuator_metadata, d.world_reset],
-        outputs=[d.a_act],
-    )
-
-
-@event_scope
 def compute_act_dot(m: Model, d: Data):
     wp.launch(
         _compute_activation_dot,
@@ -79,7 +55,7 @@ def compute_act_dot(m: Model, d: Data):
 
 
 @event_scope
-def actuator_force(m: Model, d: Data):
+def apply_actuator_force(m: Model, d: Data):
     wp.launch(
         _qfrc_actuators,
         dim=(d.nworld, m.nactuator),

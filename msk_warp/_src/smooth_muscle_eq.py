@@ -42,19 +42,6 @@ def compute_act_dot(m: Model, d: Data):
 
 
 @wp.kernel
-def _reset_act(
-        # Data in:
-        world_reset_in: wp.array(dtype=bool),
-        # Data out:
-        m_act_out: wp.array2d(dtype=float),
-):
-    worldid, muscle_id = wp.tid()
-    if world_reset_in[worldid]:
-        m_act_out[worldid, muscle_id] = 0.0
-    return
-
-
-@wp.kernel
 def _reset_prev_path(
         # Data in:
         world_reset_in: wp.array(dtype=bool),
@@ -739,13 +726,6 @@ def muscle_reset(m: Model, d: Data):
     """ Equilibrate muscles """
     if not m.nmuscle:
         return
-    # Reset activation
-    wp.launch(
-        _reset_act,
-        dim=(d.nworld, m.nmuscle),
-        inputs=[d.world_reset],
-        outputs=[d.m_act],
-    )
 
     # Set the previous length/velocity to current
     wp.launch(

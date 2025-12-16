@@ -119,7 +119,7 @@ def _process_contacts_hc(
 
 
 @event_scope
-def contact_forces(m: Model, d: Data):
+def apply_contact_forces(m: Model, d: Data):
     d.grf.zero_()
     wp.launch(
         _process_contacts_hc,

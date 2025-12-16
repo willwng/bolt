@@ -310,7 +310,7 @@ def _qfrc_passive(
 
 
 @event_scope
-def passive(m: Model, d: Data):
+def apply_passive_forces(m: Model, d: Data):
     """Adds all passive forces."""
     wp.launch(
         _spring_damper_dof_passive,
