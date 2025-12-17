@@ -458,7 +458,9 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         loc, rot = collider.location, collider.orientation
         pos = [loc.x, loc.y, loc.z]
         rot = [rot.w, rot.x, rot.y, rot.z]
-        friction = [0.95, 0.95, 0.95]  # default friction values
+        # MuJoCo: sliding, torsional, rolling friction
+        # Hunt-Crossley: static, dynamic, viscous
+        friction = [0.95, 0.3, 0.3]  # default friction values
         aabb = collider.get_aabb()
         rbound = collider.get_rbound()
 
@@ -760,3 +762,10 @@ def get_muscle_id_lookup(model: CheckedModel) -> dict[str, int]:
     for muscle_idx, (_, muscle) in enumerate(model.iter_muscles()):
         muscle_id_lookup[muscle.name] = muscle_idx
     return muscle_id_lookup
+
+
+def get_actuator_id_lookup(model: CheckedModel) -> dict[str, int]:
+    actuator_id_lookup = {}
+    for actuator_idx, (_, actuator) in enumerate(model.iter_actuators()):
+        actuator_id_lookup[actuator.name] = actuator_idx
+    return actuator_id_lookup
