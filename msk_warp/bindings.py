@@ -541,6 +541,7 @@ def reinitialize_model(
     m.muscle_metadata = mm
 
     init_model._model_init(m, d)
+    d.world_reset.fill_(True)
     forward.reset(m, d)
 
 
@@ -679,6 +680,10 @@ def joint_velocities(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qvel)
 
 
+def joint_accelerations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qacc)
+
+
 def subtree_com_positions(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.subtree_com)
 
@@ -686,6 +691,10 @@ def subtree_com_positions(d: types.Data) -> torch.Tensor:
 # -- Muscles ---
 def muscle_activations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.m_act)
+
+
+def muscle_activations_dot(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.m_act_dot)
 
 
 def muscle_excitations(d: types.Data) -> torch.Tensor:
