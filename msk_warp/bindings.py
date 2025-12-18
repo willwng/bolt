@@ -607,9 +607,19 @@ def get_num_actuators(m: types.Model) -> int:
     return m.nactuator
 
 
+def get_qpos_adr(m: types.Model, body_id: int) -> torch.Tensor:
+    jnt_qpos_adr = wp.to_torch(m.jnt_qposadr)
+    return jnt_qpos_adr[body_id]
+
+
 def get_dof_adr(m: types.Model, body_id: int) -> torch.Tensor:
     jnt_dof_adr = wp.to_torch(m.jnt_dofadr)
     return jnt_dof_adr[body_id]
+
+
+def get_qpos_num(m: types.Model, body_id: int) -> torch.Tensor:
+    jnt_qpos_num = wp.to_torch(m.jnt_dofnum)
+    return jnt_qpos_num[body_id]
 
 
 def get_dof_num(m: types.Model, body_id: int) -> torch.Tensor:
