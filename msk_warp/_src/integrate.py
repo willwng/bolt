@@ -92,6 +92,30 @@ def _next_muscle_activation(
 
 
 @wp.kernel
+def _next_muscle_state(
+        # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
+        # Data in:
+        m_state_in: wp.array2d(dtype=float),
+        m_state_dot_in: wp.array2d(dtype=float),
+        actual_step_size_in: wp.array(dtype=float),
+        # In:
+        scale: float,
+        # Data out:
+        m_state_out: wp.array2d(dtype=float),
+):
+    worldid, muscle_id = wp.tid()
+    mm = muscle_metadata[muscle_id]
+    step_size = actual_step_size_in[worldid] * scale
+
+    norm_fiber_length = m_state_in[worldid, muscle_id]
+    norm_fiber_length += step_size * m_state_dot_in[worldid, muscle_id]
+    norm_fiber_length = wp.clamp(
+        norm_fiber_length, mm.min_norm_fiber_length, mm.max_norm_fiber_length)
+    m_state_out[worldid, muscle_id] = norm_fiber_length
+
+
+@wp.kernel
 def _next_actuator_activation(
         # Model:
         actuator_metadata: wp.array(dtype=ActuatorMetadata),
@@ -141,6 +165,15 @@ def _advance(m: Model, d: Data, scale: float):
                     d.actual_step_size, scale],
             outputs=[d.m_act],
         )
+
+        if wp.static(m.opt.muscle_dyn_substeps) == 0:
+            wp.launch(
+                _next_muscle_state,
+                dim=(d.nworld, m.nmuscle),
+                inputs=[m.muscle_metadata, d.m_state, d.m_state_dot,
+                        d.actual_step_size, scale],
+                outputs=[d.m_state],
+            )
 
     if m.nactuator:
         # Actuators
