@@ -757,6 +757,26 @@ def get_body_id_lookup(model: CheckedModel) -> dict[str, int]:
     return body_id_lookup
 
 
+def get_dof_id_lookup(model: CheckedModel) -> dict[str, tuple[int, int]]:
+    dof_id_lookup = {}
+    for _, joint in model.iter_joints():
+        for coord in joint.coordinates:
+            qpos_idx = model.lookup_dof_idx(coord.name, True)
+            dof_idx = model.lookup_dof_idx(coord.name, False)
+            # Ignore root
+            if qpos_idx <= 6:
+                continue
+            dof_id_lookup[coord.name] = (qpos_idx, dof_idx)
+    dof_id_lookup["pelvis_tx"] = (0, 0)
+    dof_id_lookup["pelvis_ty"] = (1, 1)
+    dof_id_lookup["pelvis_tz"] = (2, 2)
+    dof_id_lookup["pelvis_rw"] = (3, -1)
+    dof_id_lookup["pelvis_rx"] = (4, -1)
+    dof_id_lookup["pelvis_ry"] = (5, -1)
+    dof_id_lookup["pelvis_rz"] = (6, -1)
+    return dof_id_lookup
+
+
 def get_muscle_id_lookup(model: CheckedModel) -> dict[str, int]:
     muscle_id_lookup = {}
     for muscle_idx, (_, muscle) in enumerate(model.iter_muscles()):
