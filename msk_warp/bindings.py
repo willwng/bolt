@@ -176,8 +176,8 @@ def load_model(
         ccd_tolerance=1e-6,
         gravity=-9.81,
         solver=types.SolverType.NEWTON,
-        contact_type=types.ContactType.MUJOCO,
-        limit_type=types.LimitType.MUJOCO,
+        contact_type=types.ContactType.HUNT_CROSSLEY,
+        limit_type=types.LimitType.EXPONENTIAL,
         integrator=types.IntegratorType.EULER_FIXED,
         iterations=50,
         ls_iterations=100,
@@ -666,11 +666,11 @@ def use_mujoco_contact(m: types.Model):
     m.opt.contact_type = types.ContactType.MUJOCO
 
 
-def use_exponential_limits(m: types.Model):
+def use_exponential_limit(m: types.Model):
     m.opt.limit_type = types.LimitType.EXPONENTIAL
 
 
-def use_mujoco_limits(m: types.Model):
+def use_mujoco_limit(m: types.Model):
     m.opt.limit_type = types.LimitType.MUJOCO
 
 
