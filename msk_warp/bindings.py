@@ -799,3 +799,7 @@ def grf(d: types.Data) -> torch.Tensor:
 
 def limit_torques(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.dof_lim_torque)
+
+
+def joint_moments(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.joint_moments)
