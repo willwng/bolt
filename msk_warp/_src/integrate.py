@@ -154,7 +154,7 @@ def _next_time(
     time_out[worldid] = time_in[worldid] + step_size
 
 
-def _advance(m: Model, d: Data, scale: float):
+def _advance(m: Model, d: Data, qacc: wp.array, scale: float):
     """Advance state and time given state derivatives"""
     if m.nmuscle:
         # Muscles
@@ -189,7 +189,7 @@ def _advance(m: Model, d: Data, scale: float):
     wp.launch(
         _next_velocity,
         dim=(d.nworld, m.nv),
-        inputs=[d.qvel, d.qacc, d.actual_step_size, scale],
+        inputs=[d.qvel, qacc, d.actual_step_size, scale],
         outputs=[d.qvel],
     )
     wp.launch(
@@ -262,7 +262,7 @@ def euler(m: Model, d: Data, dt: float):
             outputs=[qacc],
             block_dim=m.block_dim.euler_dense,
         )
-    _advance(m, d, 1.0)
+    _advance(m, d, qacc, 1.0)
 
 
 @wp.kernel
@@ -676,16 +676,16 @@ def attempt_step(m: Model, d: Data):
     _save_state(m, d, save_id=0)
 
     # Big step using full current step size, store y_1
-    _advance(m, d, 1.0)
+    _advance(m, d, d.qacc, 1.0)
     _save_state(m, d, save_id=1)
 
     # Restore y_0. Note: advance doesn't modify state derivatives (except qvel)
     # so we can reuse y_0'
     _restore_state(m, d, restore_id=0, reject_only=False)
-    _advance(m, d, 0.5)
+    _advance(m, d, d.qacc, 0.5)
     # Half-step 2: y_1* = y_{1/2} + dt/2 * y_{1/2}'
     forward.fwd(m, d)
-    _advance(m, d, 0.5)
+    _advance(m, d, d.qacc, 0.5)
 
     # Compute error with y_1 from big step
     _compute_error(m, d, compare_id=1)
