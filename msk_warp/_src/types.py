@@ -247,6 +247,16 @@ class ContactType(enum.IntEnum):
     HUNT_CROSSLEY = 2
 
 
+class LimitType(enum.IntEnum):
+    """ Contact model type.
+    Attributes:
+        MUJOCO: MuJoCo limit model (constraint-based)
+        EXPONENTIAL: Exponential Spring Function
+    """
+    MUJOCO = 1
+    EXPONENTIAL = 2
+
+
 class IntegratorType(enum.IntEnum):
     """ Integrator type.
     Attributes:
@@ -299,6 +309,7 @@ class Option:
     gravity: float
     solver: SolverType
     contact_type: ContactType
+    limit_type: LimitType
     integrator: IntegratorType
     iterations: int
     ls_iterations: int
@@ -372,6 +383,7 @@ class ActuatorMetadata:
 
     min_activation: float
     max_activation: float
+
 
 @wp.struct
 class MuscleLengthInfo:
@@ -665,6 +677,9 @@ class Model:
     limit_dof_range: wp.array2d(dtype=wp.vec2)
     limit_dof_adr: wp.array(dtype=int)
     limit_dof_qadr: wp.array(dtype=int)
+    # For exponential-force limits
+    limit_dof_forces: wp.array2d(dtype=wp.vec2)
+    limit_dof_shapes: wp.array2d(dtype=wp.vec2)
 
     # Collision geometry
     geom_type: wp.array(dtype=int)

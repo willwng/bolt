@@ -92,6 +92,10 @@ def load_model(
 
     dof_limit_ranges, dof_limit_adr, dof_limit_qadr = get_dof_limits(osim_model)
     n_limits = len(dof_limit_ranges)
+    # todo: make these user-editable
+    dof_limit_forces = [(50.0, 20.0)] * n_limits  # Placeholder for limit forces
+    dof_limit_shapes = [(75.0, 25.0)] * n_limits  # Placeholder for limit shapes
+
     body_rootid = [1] * nb  # Placeholder for body root IDs
     body_tree = create_body_tree(osim_model)
     body_tree_warp = tuple([wp.array(bt, dtype=int) for bt in body_tree])
@@ -173,6 +177,7 @@ def load_model(
         gravity=-9.81,
         solver=types.SolverType.NEWTON,
         contact_type=types.ContactType.MUJOCO,
+        limit_type=types.LimitType.MUJOCO,
         integrator=types.IntegratorType.EULER_FIXED,
         iterations=50,
         ls_iterations=100,
@@ -270,6 +275,8 @@ def load_model(
         limit_dof_range=to_warp_array(dof_limit_ranges, dtype=wp.vec2),
         limit_dof_adr=to_warp_array(dof_limit_adr, dtype=int),
         limit_dof_qadr=to_warp_array(dof_limit_qadr, dtype=int),
+        limit_dof_forces=to_warp_array(dof_limit_forces, dtype=wp.vec2),
+        limit_dof_shapes=to_warp_array(dof_limit_shapes, dtype=wp.vec2),
 
         geom_type=to_warp_array(geom_types, dtype=int),
         geom_bodyid=to_warp_array(geom_data.body_id, dtype=int),
@@ -657,6 +664,14 @@ def use_hunt_crossley_contact(m: types.Model):
 
 def use_mujoco_contact(m: types.Model):
     m.opt.contact_type = types.ContactType.MUJOCO
+
+
+def use_exponential_limits(m: types.Model):
+    m.opt.limit_type = types.LimitType.EXPONENTIAL
+
+
+def use_mujoco_limits(m: types.Model):
+    m.opt.limit_type = types.LimitType.MUJOCO
 
 
 def set_muscle_dynamics_substeps(m: types.Model, substeps: int):

@@ -18,6 +18,7 @@ import warp as wp
 
 from . import support
 from .types import ContactType
+from .types import LimitType
 from .types import Data
 from .types import Model
 from .warp_util import event_scope
@@ -182,6 +183,8 @@ def compute_limit_torques(m: Model, d: Data):
 
 @event_scope
 def compute_joint_moments(m: Model, d: Data):
+    if wp.static(m.opt.limit_type == LimitType.EXPONENTIAL):
+        return  # already handled
     d.joint_moments.zero_()
     support.mul_m(m, d, d.joint_moments, d.qacc)
     return

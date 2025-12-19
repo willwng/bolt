@@ -348,34 +348,35 @@ def make_constraint(m: types.Model, d: types.Data):
     )
 
     # Individual DOF limits
-    wp.launch(
-        _efc_dof_limit,
-        dim=(d.nworld, m.ndoflimit),
-        inputs=[
-            m.nv,
-            m.limit_dof_range,
-            m.limit_dof_adr,
-            m.limit_dof_qadr,
-            m.dof_invweight0,
-            d.qpos,
-            d.qvel,
-            d.njmax,
-            m.opt.solref,
-            m.opt.solimp,
-        ],
-        outputs=[
-            d.nl,
-            d.nefc,
-            d.dof_lim_efc_address,
-            d.efc.type,
-            d.efc.id,
-            d.efc.J,
-            d.efc.pos,
-            d.efc.D,
-            d.efc.vel,
-            d.efc.aref,
-        ],
-    )
+    if wp.static(m.opt.limit_type == types.LimitType.MUJOCO):
+        wp.launch(
+            _efc_dof_limit,
+            dim=(d.nworld, m.ndoflimit),
+            inputs=[
+                m.nv,
+                m.limit_dof_range,
+                m.limit_dof_adr,
+                m.limit_dof_qadr,
+                m.dof_invweight0,
+                d.qpos,
+                d.qvel,
+                d.njmax,
+                m.opt.solref,
+                m.opt.solimp,
+            ],
+            outputs=[
+                d.nl,
+                d.nefc,
+                d.dof_lim_efc_address,
+                d.efc.type,
+                d.efc.id,
+                d.efc.J,
+                d.efc.pos,
+                d.efc.D,
+                d.efc.vel,
+                d.efc.aref,
+            ],
+        )
 
     # contact
     if wp.static(m.opt.contact_type == types.ContactType.MUJOCO):
