@@ -16,6 +16,7 @@
 
 import warp as wp
 
+from . import support
 from .types import ContactType
 from .types import Data
 from .types import Model
@@ -176,4 +177,11 @@ def compute_limit_torques(m: Model, d: Data):
         ],
         outputs=[d.dof_lim_torque],
     )
+    return
+
+
+@event_scope
+def compute_joint_moments(m: Model, d: Data):
+    d.joint_moments.zero_()
+    support.mul_m(m, d, d.joint_moments, d.qacc)
     return

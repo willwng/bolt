@@ -336,6 +336,7 @@ def load_model(
         qfrc_applied=make_zero((n_worlds, nv), dtype=float),
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         grf=make_zero((n_worlds,), dtype=wp.vec3),
+        joint_moments=make_zero((n_worlds, nv), dtype=float),
 
         qacc=make_zero((n_worlds, nv), dtype=float),
         m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),

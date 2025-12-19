@@ -795,6 +795,7 @@ class Data:
       qfrc_applied: applied generalized force                     (nworld, nv)
       xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
       grf: ground reaction force                                  (nworld, 6)
+      joint_moments: joint moments                                (nworld, nv)
 
       xpos: Cartesian position of body frame                      (nworld, nbody, 3)
       xquat: Cartesian orientation of body frame                  (nworld, nbody, 4)
@@ -901,6 +902,7 @@ class Data:
     qfrc_applied: wp.array2d(dtype=float)
     xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
     grf: wp.array2d(dtype=wp.vec3)
+    joint_moments: wp.array2d(dtype=float)
 
     xpos: wp.array2d(dtype=wp.vec3)
     xquat: wp.array2d(dtype=wp.quat)
