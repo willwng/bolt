@@ -189,6 +189,9 @@ def load_model(
         accuracy=0.01,
         use_inf_norm=True,
 
+        solref=wp.vec2(0.02, 1.0),
+        solimp=types.vec5(0.9, 0.95, 0.001, 0.5, 2.0),
+
         qvel_weights=wp.full(nv, 1.0, dtype=float),
 
         ls_parallel=False,
@@ -658,6 +661,10 @@ def use_mujoco_contact(m: types.Model):
 
 def set_muscle_dynamics_substeps(m: types.Model, substeps: int):
     m.opt.muscle_dyn_substeps = substeps
+
+
+def set_solref(m: types.Model, solref: tuple[float, float]):
+    m.opt.solref = wp.vec2(solref[0], solref[1])
 
 
 # --- Data Fields ---

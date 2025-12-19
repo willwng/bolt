@@ -113,6 +113,9 @@ def _efc_dof_limit(
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
         njmax_in: int,
+        # In:
+        solref: wp.vec2,
+        solimp: vec5,
         # Data out:
         nl_out: wp.array(dtype=int),
         nefc_out: wp.array(dtype=int),
@@ -153,17 +156,13 @@ def _efc_dof_limit(
         efc_J_out[worldid, efcid, dof_adr] = J
         Jqvel = J * qvel_in[worldid, dof_adr]
 
-        # ref = solref_in[conid]
-        ref = wp.vec2(0.02, 1.0)
-        solimp = vec5(0.9, 0.95, 0.001, 0.5, 2.0)
-
         _update_efc_row(
             worldid,
             efcid,
             pos,
             pos,
             dof_invweight0[dof_adr],
-            ref,
+            solref,
             solimp,
             Jqvel,
             ConstraintType.LIMIT_JOINT,
@@ -187,6 +186,8 @@ def _efc_contact_elliptic(
         body_invweight0: wp.array(dtype=wp.vec2),
         dof_bodyid: wp.array(dtype=int),
         geom_bodyid: wp.array(dtype=int),
+        solref: wp.vec2,
+        solimp: vec5,
         # Data in:
         qvel_in: wp.array2d(dtype=float),
         subtree_com_in: wp.array2d(dtype=wp.vec3),
@@ -281,10 +282,6 @@ def _efc_contact_elliptic(
             Jqvel += J * qvel_in[worldid, i]
 
         invweight = body_invweight0[body1][0] + body_invweight0[body2][0]
-
-        # ref = solref_in[conid]
-        ref = wp.vec2(0.02, 1.0)
-        solimp = vec5(0.9, 0.95, 0.001, 0.5, 2.0)
         pos_aref = pos
 
         if dimid > 0:
@@ -311,7 +308,7 @@ def _efc_contact_elliptic(
             pos_aref,
             pos,
             invweight,
-            ref,
+            solref,
             solimp,
             Jqvel,
             efc_type,
@@ -363,6 +360,8 @@ def make_constraint(m: types.Model, d: types.Data):
             d.qpos,
             d.qvel,
             d.njmax,
+            m.opt.solref,
+            m.opt.solimp,
         ],
         outputs=[
             d.nl,
@@ -391,6 +390,8 @@ def make_constraint(m: types.Model, d: types.Data):
                 m.body_invweight0,
                 m.dof_bodyid,
                 m.geom_bodyid,
+                m.opt.solref,
+                m.opt.solimp,
                 d.qvel,
                 d.subtree_com,
                 d.cdof,

@@ -139,24 +139,14 @@ class ConstraintType(enum.IntEnum):
     """Type of constraint.
 
     Attributes:
-      EQUALITY: equality constraint
-      FRICTION_DOF: dof friction
-      FRICTION_TENDON: tendon friction
       LIMIT_JOINT: joint limit
-      LIMIT_TENDON: tendon limit
       CONTACT_FRICTIONLESS: frictionless contact
-      CONTACT_PYRAMIDAL: frictional contact, pyramidal friction cone
       CONTACT_ELLIPTIC: frictional contact, elliptic friction cone
     """
 
-    EQUALITY = 0
-    FRICTION_DOF = 1
-    FRICTION_TENDON = 2
-    LIMIT_JOINT = 3
-    LIMIT_TENDON = 4
-    CONTACT_FRICTIONLESS = 5
-    CONTACT_PYRAMIDAL = 6
-    CONTACT_ELLIPTIC = 7
+    LIMIT_JOINT = 0
+    CONTACT_FRICTIONLESS = 1
+    CONTACT_ELLIPTIC = 2
 
 
 class EqType(enum.IntEnum):
@@ -326,6 +316,9 @@ class Option:
     use_inf_norm: bool
 
     qvel_weights: wp.array(dtype=float)
+
+    solref: wp.vec2
+    solimp: vec5
 
     ls_parallel: bool
     ls_parallel_min_step: float
