@@ -35,7 +35,7 @@ def _fix_limits(
         limit_dof_range: wp.array(dtype=wp.vec2),
         limit_dof_qadr: wp.array(dtype=int),
         # Data in:
-        world_reset_in: wp.array(dtype=int),
+        world_reset_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         # Data out:
         qpos_out: wp.array2d(dtype=float),
