@@ -60,8 +60,8 @@ def fix_qpos_limits(m: Model, d: Data):
         inputs=[
             m.limit_dof_range,
             m.limit_dof_qadr,
-            d.qpos,
             d.world_reset,
+            d.qpos,
         ],
         outputs=[
             d.qpos,
