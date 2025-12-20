@@ -35,17 +35,19 @@ def _fix_limits(
         limit_dof_range: wp.array(dtype=wp.vec2),
         limit_dof_qadr: wp.array(dtype=int),
         # Data in:
+        world_reset_in: wp.array(dtype=int),
         qpos_in: wp.array2d(dtype=float),
         # Data out:
         qpos_out: wp.array2d(dtype=float),
 ):
     worldid, limitdofid = wp.tid()
-    dof_range = limit_dof_range[limitdofid]
-    dof_qadr = limit_dof_qadr[limitdofid]
-    qpos = qpos_in[worldid, dof_qadr]
+    if world_reset_in[worldid]:
+        dof_range = limit_dof_range[limitdofid]
+        dof_qadr = limit_dof_qadr[limitdofid]
+        qpos = qpos_in[worldid, dof_qadr]
 
-    qpos_clamped = wp.clamp(qpos, dof_range[0], dof_range[1])
-    qpos_out[worldid, dof_qadr] = qpos_clamped
+        qpos_clamped = wp.clamp(qpos, dof_range[0], dof_range[1])
+        qpos_out[worldid, dof_qadr] = qpos_clamped
     return
 
 
@@ -59,6 +61,7 @@ def fix_qpos_limits(m: Model, d: Data):
             m.limit_dof_range,
             m.limit_dof_qadr,
             d.qpos,
+            d.world_reset,
         ],
         outputs=[
             d.qpos,
