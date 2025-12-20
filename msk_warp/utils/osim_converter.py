@@ -38,6 +38,16 @@ class CheckedModel:
         for body_name, full_desc in self.body_full_desc.items():
             yield body_name, full_desc.joint
 
+    def iter_dof_limits(self):
+        for _, joint in self.iter_joints():
+            # No joint limits for free joints. FIXME check for free joints better
+            if joint.connects_to_ground():
+                continue
+
+            for coord in joint.coordinates:
+                if coord.clamped:
+                    yield coord
+
     def iter_muscles(self):
         for muscle_id, muscle in enumerate(self.force_set.muscles.values()):
             yield muscle_id, muscle
@@ -670,16 +680,10 @@ def get_dof_limits(
 ) -> tuple[list[tuple[float, float]], list[int], list[int]]:
     dof_ranges = []
     dof_adr, dof_qadr = [], []
-    for _, joint in model.iter_joints():
-        # No joint limits for free joints. FIXME check for free joints better
-        if joint.connects_to_ground():
-            continue
-
-        for coord in joint.coordinates:
-            if coord.clamped:
-                dof_ranges.append((coord.range.x, coord.range.y))
-                dof_qadr.append(model.lookup_dof_idx(coord.name, True))
-                dof_adr.append(model.lookup_dof_idx(coord.name, False))
+    for coord in model.iter_dof_limits():
+        dof_ranges.append((coord.range.x, coord.range.y))
+        dof_qadr.append(model.lookup_dof_idx(coord.name, True))
+        dof_adr.append(model.lookup_dof_idx(coord.name, False))
 
     return dof_ranges, dof_adr, dof_qadr
 
@@ -789,3 +793,12 @@ def get_actuator_id_lookup(model: CheckedModel) -> dict[str, int]:
     for actuator_idx, (_, actuator) in enumerate(model.iter_actuators()):
         actuator_id_lookup[actuator.name] = actuator_idx
     return actuator_id_lookup
+
+
+def get_limit_id_lookup(model: CheckedModel) -> dict[str, int]:
+    limit_id_lookup = {}
+    limit_idx = 0
+    for coord in model.iter_dof_limits():
+        limit_id_lookup[coord.name] = limit_idx
+        limit_idx += 1
+    return limit_id_lookup

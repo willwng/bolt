@@ -167,6 +167,8 @@ def compute_grf(m: Model, d: Data):
 
 @event_scope
 def compute_limit_torques(m: Model, d: Data):
+    if wp.static(m.opt.limit_type == LimitType.EXPONENTIAL):
+        return  # already handled
     d.dof_lim_torque.zero_()
 
     wp.launch(
@@ -183,8 +185,6 @@ def compute_limit_torques(m: Model, d: Data):
 
 @event_scope
 def compute_joint_moments(m: Model, d: Data):
-    if wp.static(m.opt.limit_type == LimitType.EXPONENTIAL):
-        return  # already handled
     d.joint_moments.zero_()
     support.mul_m(m, d, d.joint_moments, d.qacc)
     return

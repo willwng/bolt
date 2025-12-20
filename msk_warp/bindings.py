@@ -19,6 +19,7 @@ class ModelLoadResult:
     data: types.Data
     body_id_lookup: dict[str, int]
     dof_id_lookup: dict[str, tuple[int, int]]
+    limit_id_lookup: dict[str, int]
     muscle_id_lookup: dict[str, int]
     actuator_id_lookup: dict[str, int]
     visuals: list[types.MeshLoadResult]
@@ -538,6 +539,7 @@ def load_model(
         data=d,
         body_id_lookup=get_body_id_lookup(osim_model),
         dof_id_lookup=get_dof_id_lookup(osim_model),
+        limit_id_lookup=get_limit_id_lookup(osim_model),
         muscle_id_lookup=get_muscle_id_lookup(osim_model),
         actuator_id_lookup=get_actuator_id_lookup(osim_model),
         visuals=mesh_load_results
@@ -680,6 +682,14 @@ def set_muscle_dynamics_substeps(m: types.Model, substeps: int):
 
 def set_solref(m: types.Model, solref: tuple[float, float]):
     m.opt.solref = wp.vec2(solref[0], solref[1])
+
+
+def exp_limit_forces(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.limit_dof_forces)
+
+
+def exp_limit_shapes(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.limit_dof_shapes)
 
 
 # --- Data Fields ---
