@@ -30,6 +30,44 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
+def _fix_limits(
+        # Model in:
+        limit_dof_range: wp.array(dtype=wp.vec2),
+        limit_dof_qadr: wp.array(dtype=int),
+        # Data in:
+        qpos_in: wp.array2d(dtype=float),
+        # Data out:
+        qpos_out: wp.array2d(dtype=float),
+):
+    worldid, limitdofid = wp.tid()
+    dof_range = limit_dof_range[limitdofid]
+    dof_qadr = limit_dof_qadr[limitdofid]
+    qpos = qpos_in[worldid, dof_qadr]
+
+    qpos_clamped = wp.clamp(qpos, dof_range[0], dof_range[1])
+    qpos_out[worldid, dof_qadr] = qpos_clamped
+    return
+
+
+@event_scope
+def fix_qpos_limits(m: Model, d: Data):
+    """Clamps qpos values to joint limits."""
+    wp.launch(
+        _fix_limits,
+        dim=(d.nworld, m.ndoflimit),
+        inputs=[
+            m.limit_dof_range,
+            m.limit_dof_qadr,
+            d.qpos,
+        ],
+        outputs=[
+            d.qpos,
+        ],
+    )
+    return
+
+
+@wp.kernel
 def _kinematics_root(
         # Data out:
         xpos_out: wp.array2d(dtype=wp.vec3),
