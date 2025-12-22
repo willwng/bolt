@@ -517,13 +517,13 @@ def _update_info_fused(
         muscle_dynamics_info_out: wp.array2d(dtype=MuscleDynamicsInfo),
 ):
     worldid, muscle_id = wp.tid()
-
     mm = muscle_metadata[muscle_id]
     norm_fiber_length = mstate_in[worldid, muscle_id]
     path_length = muscle_length_in[worldid, muscle_id]
     path_velocity = muscle_velocity_in[worldid, muscle_id]
     activation = act_in[worldid, muscle_id]
 
+    ### --- LENGTH INFO ---
     # Fiber
     fiber_length = norm_fiber_length * mm.optimal_fiber_length
     min_norm_fiber_length = mm.min_norm_fiber_length
@@ -540,14 +540,11 @@ def _update_info_fused(
     norm_tendon_length = tendon_length / mm.tendon_slack_length
     tendon_strain = norm_tendon_length - 1.0
     # Force multipliers
-    fiber_passive_force_length_multiplier = (
-        dgf.calc_passive_force_multiplier(norm_fiber_length,
-                                          min_norm_fiber_length))
-    fiber_active_force_length_multiplier = (
-        dgf.calc_active_force_length_multiplier(norm_fiber_length))
-    tendon_force_multiplier = (
-        dgf.calc_tendon_force_multiplier(norm_tendon_length, True))
+    fiber_passive_force_length_multiplier = dgf.calc_passive_force_multiplier(norm_fiber_length, min_norm_fiber_length)
+    fiber_active_force_length_multiplier = dgf.calc_active_force_length_multiplier(norm_fiber_length)
+    tendon_force_multiplier = dgf.calc_tendon_force_multiplier(norm_tendon_length, True)
 
+    ### --- VELOCITY INFO ---
     # Compute fiber velocity multiplier
     if mm.fiber_damping > 0.0:
         dlceN_dt, fv = dgf.calc_damped_norm_fiber_velocity(
@@ -600,6 +597,7 @@ def _update_info_fused(
         norm_tendon_velocity = tendon_velocity / mm.tendon_slack_length
         fiber_force_velocity_multiplier = 1.0  # consistent w fiber vel 0
 
+    ### --- DYNAMICS INFO ---
     fm, aFm, p1Fm, p2Fm, pFm, fmAT = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     fse = tendon_force_multiplier
 
