@@ -99,14 +99,11 @@ def calc_pennation_angle(
 
     if optimal_pennation_angle > 1e-8:
         if norm_fiber_length > min_norm_fiber_length:
-            parallelogram_height = get_fiber_width(
-                optimal_fiber_length,
-                optimal_pennation_angle)
+            parallelogram_height = get_fiber_width(optimal_fiber_length, optimal_pennation_angle)
             max_sin_pennation_angle = wp.sin(consts.M_MAX_PENNATION_ANGLE)
             fiber_length = norm_fiber_length * optimal_fiber_length
             sin_phi = parallelogram_height / fiber_length
-            phi = wp.where(sin_phi < max_sin_pennation_angle,
-                           wp.asin(sin_phi), consts.M_MAX_PENNATION_ANGLE)
+            phi = wp.where(sin_phi < max_sin_pennation_angle, wp.asin(sin_phi), consts.M_MAX_PENNATION_ANGLE)
         else:
             phi = consts.M_MAX_PENNATION_ANGLE
     return phi
@@ -307,9 +304,10 @@ def calc_damped_norm_fiber_velocity(
         beta: float,
         cos_phi: float,
 ) -> tuple[float, float]:
-    k_sig_real = 1e-6
-    tol = wp.max(1e-8 * f_iso, k_sig_real * 100.0)
-    prev_err = float(1e10)
+    max_iter = wp.static(20)
+    tol = wp.max(1e-10 * f_iso, consts.MJ_SIG_REAL * 100.0)
+    err = float(1e10)
+    i = int(0)
 
     # use undamped estimate as initial guess
     fv = calc_undamped_fiber_force_velocity_multiplier(
@@ -323,25 +321,23 @@ def calc_damped_norm_fiber_velocity(
     # approximation is poor beyond maximum velocities
     dlceN_dt = wp.clamp(dlceN_dt, -1.0, 1.0)
 
-    max_iter = wp.static(20)
-    for i in range(max_iter):
+    while wp.abs(err) > 10 and i < max_iter:
         fv = calc_force_velocity_multiplier(dlceN_dt)
         fvDer = calc_force_velocity_multiplier_derivative(dlceN_dt)
-
         fiber_force = f_iso * (a * fal * fv + fpe + beta * dlceN_dt)
+
         err = fiber_force * cos_phi - fse * f_iso
         df_d_dlceNdt = f_iso * (a * fal * fvDer + beta)
         derr_d_dlceNdt = df_d_dlceNdt * cos_phi
 
-        if abs(err) < tol:
-            break
-        if abs(prev_err) - abs(err) < tol:
-            break
-        if derr_d_dlceNdt < tol:
-            break
-
-        delta = -err / derr_d_dlceNdt
-        dlceN_dt = dlceN_dt + delta
-        prev_err = err
+        if wp.abs(err) > tol and wp.abs(derr_d_dlceNdt) > consts.MJ_SIG_REAL:
+            delta = -err / derr_d_dlceNdt
+            dlceN_dt = dlceN_dt + delta
+        elif wp.abs(derr_d_dlceNdt) < consts.MJ_SIG_REAL:
+            # Perturb the solution if we lost rank
+            state = wp.rand_init(0)
+            perturbation = 2.0 * wp.randf(state) - 1.0
+            dlceN_dt = dlceN_dt + perturbation * 0.05
+        i += 1
 
     return dlceN_dt, fv

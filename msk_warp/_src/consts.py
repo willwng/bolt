@@ -9,6 +9,7 @@ MJ_MAXIMP = 0.9999
 MJ_MINMU = 1e-05
 MJ_MINVAL = 1e-15
 MJ_MAXCONPAIR = 50
+MJ_SIG_REAL = 1e-6
 # maximum size (by number of edges) of an horizon in EPA algorithm
 MJ_MAX_EPAHORIZON = 12
 # maximum average number of trianglarfaces EPA can insert at each iteration
