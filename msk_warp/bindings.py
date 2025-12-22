@@ -684,6 +684,10 @@ def set_solref(m: types.Model, solref: tuple[float, float]):
     m.opt.solref = wp.vec2(solref[0], solref[1])
 
 
+def joint_limit_ranges(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.limit_dof_range)
+
+
 def exp_limit_forces(m: types.Model) -> torch.Tensor:
     return wp.to_torch(m.limit_dof_forces)
 
