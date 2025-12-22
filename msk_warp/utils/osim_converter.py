@@ -774,10 +774,10 @@ def get_dof_id_lookup(model: CheckedModel) -> dict[str, tuple[int, int]]:
     dof_id_lookup["pelvis_tx"] = (0, 0)
     dof_id_lookup["pelvis_ty"] = (1, 1)
     dof_id_lookup["pelvis_tz"] = (2, 2)
-    dof_id_lookup["pelvis_rw"] = (3, -1)
-    dof_id_lookup["pelvis_rx"] = (4, -1)
-    dof_id_lookup["pelvis_ry"] = (5, -1)
-    dof_id_lookup["pelvis_rz"] = (6, -1)
+    dof_id_lookup["pelvis_rot_w"] = (3, -1)
+    dof_id_lookup["pelvis_rot_x"] = (4, 3)
+    dof_id_lookup["pelvis_rot_y"] = (5, 4)
+    dof_id_lookup["pelvis_rot_z"] = (6, 5)
     return dof_id_lookup
 
 
