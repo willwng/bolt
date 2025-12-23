@@ -283,7 +283,7 @@ class Option:
       ccd_iterations: number of iterations in convex collision detection
       warm_start: flag to enable warm starting of solver
 
-      muscle_dyn_substeps: number of substeps to take for muscle dynamics
+      muscle_dyn_substeps: number of substeps to take for muscle dynamics. 0 = no substeps but still integrate
 
     variable-step size integrator:
       safety:

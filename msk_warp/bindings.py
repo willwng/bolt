@@ -596,6 +596,10 @@ def stiffness(m: types.Model) -> torch.Tensor:
     return wp.to_torch(m.jnt_stiffness)
 
 
+def body_mass(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.body_mass)
+
+
 def get_num_qpos(m: types.Model) -> int:
     return m.nq
 
