@@ -50,10 +50,11 @@ def _process_contacts_hc(
     normal = frame[0]
 
     # TODO: get these from material properties
-    stiffness1 = wp.pow(1.6e6, 2.0 / 3.0)
-    stiffness2 = wp.pow(1.6e6, 2.0 / 3.0)
-    dissipation1 = 0.072
-    dissipation2 = 0.072
+    s_opt = 1602213.464769315
+    stiffness1 = wp.pow(s_opt, 2.0 / 3.0)
+    stiffness2 = wp.pow(s_opt, 2.0 / 3.0)
+    dissipation1 = 0.0725
+    dissipation2 = 0.0725
     us1, us2 = 0.95, 0.95
     ud1, ud2 = 0.3, 0.3
     uv1, uv2 = 0.3, 0.3
