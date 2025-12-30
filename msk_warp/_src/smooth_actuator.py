@@ -8,7 +8,6 @@ from .warp_util import event_scope
 wp.set_module_options({"enable_backward": False})
 
 
-
 @wp.kernel
 def _compute_activation_dot(
         # Model in:
@@ -17,13 +16,19 @@ def _compute_activation_dot(
         a_excitation_in: wp.array2d(dtype=float),
         act_in: wp.array2d(dtype=float),
         # Data out:
+        act_out: wp.array2d(dtype=float),
         act_dot_out: wp.array2d(dtype=float),
 ):
     worldid, actuator_id = wp.tid()
     excitation = a_excitation_in[worldid, actuator_id]
     activation = act_in[worldid, actuator_id]
     tau = actuator_metadata[actuator_id].activation_time_constant
-    act_dot_out[worldid, actuator_id] = (excitation - activation) / tau
+
+    if tau == 0.0:  # zero time constant (instantaneous activation)
+        act_out[worldid, actuator_id] = excitation
+        act_dot_out[worldid, actuator_id] = 0.0
+    else:
+        act_dot_out[worldid, actuator_id] = (excitation - activation) / tau
     return
 
 
@@ -50,7 +55,7 @@ def compute_act_dot(m: Model, d: Data):
         _compute_activation_dot,
         dim=(d.nworld, m.nactuator),
         inputs=[m.actuator_metadata, d.a_excitations, d.a_act],
-        outputs=[d.a_act_dot],
+        outputs=[d.a_act, d.a_act_dot],
     )
 
 
