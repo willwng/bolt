@@ -53,7 +53,8 @@ class CheckedModel:
             yield muscle_id, muscle
 
     def iter_actuators(self):
-        for actuator_id, actuator in enumerate(self.force_set.actuators.values()):
+        for actuator_id, actuator in enumerate(
+                self.force_set.actuators.values()):
             yield actuator_id, actuator
 
     def iter_path_points(self):
@@ -503,6 +504,13 @@ def get_visual_data(model: CheckedModel) -> VisualData:
     return visual_data
 
 
+def get_muscle_names(model: CheckedModel) -> list[str]:
+    muscle_names = []
+    for _, muscle in model.iter_muscles():
+        muscle_names.append(muscle.name)
+    return muscle_names
+
+
 def get_muscle_num_pts(model: CheckedModel) -> list[int]:
     muscle_pts_counts = []
     for _, muscle in model.iter_muscles():
@@ -720,7 +728,8 @@ def get_muscle_metadata(
     return metadata
 
 
-def get_actuator_metadata(osim_model: CheckedModel) -> list[types.ActuatorMetadata]:
+def get_actuator_metadata(osim_model: CheckedModel) -> list[
+    types.ActuatorMetadata]:
     metadata = []
 
     for _, actuator in osim_model.iter_actuators():

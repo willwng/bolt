@@ -1,16 +1,16 @@
-import warp as wp
-import numpy as np
+import json
 import torch
+import warp as wp
 
 import msk_warp._src.consts as consts
 import msk_warp._src.forward as forward
 import msk_warp._src.init_model as init_model
 import msk_warp._src.math as math
 from msk_warp.render.renderer import Renderer, RendererType
-from msk_warp.utils.osim_converter import *
-from msk_warp.utils.osim_parser import parse_osim_file
 from msk_warp.utils.load_utils import (
     exclusive_scan, to_warp_array, make_zero, make_full)
+from msk_warp.utils.osim_converter import *
+from msk_warp.utils.osim_parser import parse_osim_file
 
 
 @dataclass
@@ -27,10 +27,14 @@ class ModelLoadResult:
 
 def load_model(
         model_path: str,
-        n_worlds: int
+        n_worlds: int,
+        polynomial_data_path: str = None,
 ) -> ModelLoadResult:
     raw_osim_model = parse_osim_file(model_path)
     osim_model = to_checked_model(raw_osim_model)
+
+    # Lookups
+    dof_id_lookup = get_dof_id_lookup(osim_model)
 
     nb = num_bodies(osim_model)
     joint_num_qdofs = get_joint_num_dofs(osim_model, vel_dofs=False)
@@ -84,6 +88,38 @@ def load_model(
 
     muscle_pts_num = get_muscle_num_pts(osim_model)
     muscle_pts_adr = exclusive_scan(muscle_pts_num, False)
+
+    # Muscle polynomial path
+    use_fn_path = False
+    poly_coeffs, poly_adr, poly_order = [], [], []
+    poly_dep_dof_num, poly_dep_dof_adr = [], []
+    poly_qpos_adr, poly_dof_adr = [], []
+    max_dep_dof = 0
+    if polynomial_data_path is not None:
+        use_fn_path = True
+        with open(polynomial_data_path, "r") as f:
+            poly_data = json.load(f)
+
+        # check that every muscle has polynomial data
+        muscle_names = get_muscle_names(osim_model)
+        total_poly_dofs = 0
+        for muscle in muscle_names:
+            assert muscle in poly_data, \
+                f"Missing polynomial data for muscle: {muscle}"
+            coeff = poly_data[muscle]["coeff"]
+            order = poly_data[muscle]["order"]
+            poly_dofs = poly_data[muscle]["dof"]
+
+            poly_adr.append(len(poly_coeffs))
+            poly_coeffs.extend(coeff)
+            poly_order.append(order)
+
+            poly_qpos_adr.extend([dof_id_lookup[d][0] for d in poly_dofs])
+            poly_dof_adr.extend([dof_id_lookup[d][1] for d in poly_dofs])
+            poly_dep_dof_num.append(len(poly_dofs))
+            poly_dep_dof_adr.append(total_poly_dofs)
+            total_poly_dofs += len(poly_dofs)
+            max_dep_dof = max(max_dep_dof, len(poly_dofs))
 
     dof_armature = [0.03] * nv  # Placeholder for DOF armature
     dof_armature[0:6] = [0.0] * 6  # No armature for free joint
@@ -186,6 +222,7 @@ def load_model(
         warm_start=True,
 
         muscle_dyn_substeps=30,
+        use_fn_path=use_fn_path,
 
         safety=0.9,
         min_shrink=0.1,
@@ -305,6 +342,13 @@ def load_model(
 
         muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
+        muscle_poly_coeffs=to_warp_array(poly_coeffs, dtype=float),
+        muscle_poly_adr=to_warp_array(poly_adr, dtype=int),
+        muscle_poly_order=to_warp_array(poly_order, dtype=int),
+        muscle_poly_qpos_adr=to_warp_array(poly_qpos_adr, dtype=int),
+        muscle_poly_dof_adr=to_warp_array(poly_dof_adr, dtype=int),
+        muscle_dep_dof_num=to_warp_array(poly_dep_dof_num, dtype=int),
+        muscle_dep_dof_adr=to_warp_array(poly_dep_dof_adr, dtype=int),
 
         dof_armature=to_warp_array(dof_armature, dtype=float),
         dof_damping=to_warp_array(dof_damping, dtype=float),
@@ -378,6 +422,7 @@ def load_model(
 
         muscle_active_sites=make_zero((n_worlds, nsite), dtype=int),
         muscle_num_active=make_zero((n_worlds, nmuscle), dtype=int),
+        muscle_moment_arm=make_zero((n_worlds, nmuscle, nv), dtype=float),
 
         site_diff_vec=make_zero((n_worlds, max(0, nsite - 1)), dtype=wp.vec3),
         site_diff_len=make_zero((n_worlds, max(0, nsite - 1)), dtype=float),
@@ -533,12 +578,11 @@ def load_model(
                 scale=mesh_scale
             )
         )
-
     return ModelLoadResult(
         model=m,
         data=d,
         body_id_lookup=get_body_id_lookup(osim_model),
-        dof_id_lookup=get_dof_id_lookup(osim_model),
+        dof_id_lookup=dof_id_lookup,
         limit_id_lookup=get_limit_id_lookup(osim_model),
         muscle_id_lookup=get_muscle_id_lookup(osim_model),
         actuator_id_lookup=get_actuator_id_lookup(osim_model),
