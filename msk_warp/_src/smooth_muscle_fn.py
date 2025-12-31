@@ -38,14 +38,13 @@ def _compute_path_kernel(
     muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[
         worldid, muscle_id]
 
-    # Fetch polynomial data
+    # Fetch polynomial data: address into coeffs, order
     poly_adr = muscle_poly_adr[muscle_id]
     order = muscle_poly_order[muscle_id]
-    # Number of dependent DOFs
+    # Number of dependent DOFs, and address into dep DOF array
     n_dof = muscle_poly_dep_dof_num[muscle_id]
     dep_adr = muscle_poly_dep_dof_adr[muscle_id]
-
-    # Pre-fetch the qpos and qvel values
+    # Pre-fetch the dependent qpos and qvel values
     poly_tmp_q = wp.vec4f(0.0)
     poly_tmp_qv = wp.vec4f(0.0)
     for i in range(n_dof):
@@ -94,6 +93,7 @@ def _compute_path_kernel(
 
                     coeff_idx += 1
 
+    # l = f(q), v = dl/dq * qv, moment_arm = -dl/dq
     muscle_length_out[worldid, muscle_id] = length
     muscle_velocity_out[worldid, muscle_id] = wp.dot(df_dq, poly_tmp_qv)
     for i in range(n_dof):
