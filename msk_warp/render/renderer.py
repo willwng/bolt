@@ -190,6 +190,13 @@ class Renderer:
 
                 muscle_sites_active = d.muscle_active_sites.numpy()[wid]
                 muscle_pts_active_num = d.muscle_num_active.numpy()[wid]
+                # Function based path: all are drawn
+                if m.opt.use_fn_path:
+                    muscle_pts_num = m.muscle_pts_num.numpy()
+                    num_pts = muscle_pts_num.sum()
+                    muscle_sites_active[:] = np.arange(num_pts)
+                    muscle_pts_active_num[:] = muscle_pts_num
+
                 site_xpos = d.site_xpos.numpy()[wid]
                 site_active = d.site_active.numpy()[wid]
                 muscle_activations = d.m_act.numpy()[wid]

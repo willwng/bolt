@@ -204,11 +204,16 @@ class mat43f(wp.types.matrix(shape=(4, 3), dtype=float)):
     pass
 
 
+class mat411f(wp.types.matrix(shape=(4, 11), dtype=float)):
+    pass
+
+
 vec5 = vec5f
 vec6 = vec6f
 vec10 = vec10f
 mat34 = mat34f
 mat43 = mat43f
+mat411 = mat411f
 
 
 def array(*args) -> wp.array:
@@ -284,6 +289,7 @@ class Option:
       warm_start: flag to enable warm starting of solver
 
       muscle_dyn_substeps: number of substeps to take for muscle dynamics. 0 = no substeps but still integrate
+      use_fn_path: flag to use muscle path functions
 
     variable-step size integrator:
       safety:
@@ -317,6 +323,7 @@ class Option:
     warm_start: bool
 
     muscle_dyn_substeps: int
+    use_fn_path: bool
 
     safety: float
     min_shrink: float
@@ -710,6 +717,14 @@ class Model:
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)
     muscle_pts_num: wp.array(dtype=int)
+    # Polynomial/function paths
+    muscle_poly_coeffs: array("npoly_coeffs", float)
+    muscle_poly_adr: array("nmuscle", int)
+    muscle_poly_order: array("nmuscle", int)
+    muscle_poly_qpos_adr: array("total_order", int)
+    muscle_poly_dof_adr: array("total_order", int)
+    muscle_dep_dof_num: array("nmuscle", int)
+    muscle_dep_dof_adr: array("nmuscle", int)
 
     # To be computed at model creation
     mean_inertia: float
@@ -934,6 +949,7 @@ class Data:
 
     muscle_active_sites: wp.array2d(dtype=int)
     muscle_num_active: wp.array2d(dtype=int)
+    muscle_moment_arm: wp.array3d(dtype=float)
 
     site_diff_vec: wp.array2d(dtype=wp.vec3)
     site_diff_len: wp.array2d(dtype=float)
