@@ -270,6 +270,7 @@ class IntegratorType(enum.IntEnum):
     """
     EULER_FIXED = 1
     EULER_ADAPTIVE = 2
+    RK4_FIXED = 3
 
 
 @dataclasses.dataclass

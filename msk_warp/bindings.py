@@ -700,28 +700,24 @@ def gravity(m: types.Model) -> float:
     return m.opt.gravity
 
 
-def use_newton_solver(m: types.Model):
-    m.opt.solver = types.SolverType.NEWTON
+def set_solver_type(m: types.Model, solver_type: types.SolverType):
+    m.opt.solver = solver_type
 
 
-def use_cg_solver(m: types.Model):
-    m.opt.solver = types.SolverType.CG
-
-
-def use_hunt_crossley_contact(m: types.Model):
-    m.opt.contact_type = types.ContactType.HUNT_CROSSLEY
-
-
-def use_mujoco_contact(m: types.Model):
-    m.opt.contact_type = types.ContactType.MUJOCO
+def set_contact_type(m: types.Model, contact_type: types.ContactType):
+    m.opt.contact_type = contact_type
 
 
 def use_exponential_limit(m: types.Model):
     m.opt.limit_type = types.LimitType.EXPONENTIAL
 
 
-def use_mujoco_limit(m: types.Model):
-    m.opt.limit_type = types.LimitType.MUJOCO
+def set_limit_type(m: types.Model, limit_type: types.LimitType):
+    m.opt.limit_type = limit_type
+
+
+def set_integrator_type(m: types.Model, integrator_type: types.IntegratorType):
+    m.opt.integrator = integrator_type
 
 
 def set_muscle_dynamics_substeps(m: types.Model, substeps: int):
