@@ -221,6 +221,8 @@ def load_model(
         ccd_iterations=50,
         warm_start=True,
 
+        enable_drag=True,
+
         muscle_dyn_substeps=30,
         use_fn_path=use_fn_path,
 
@@ -698,6 +700,10 @@ def subtree_mass(m: types.Model) -> torch.Tensor:
 
 def gravity(m: types.Model) -> float:
     return m.opt.gravity
+
+
+def set_drag_enabled(m: types.Model, enabled: bool):
+    m.opt.enable_drag = enabled
 
 
 def set_solver_type(m: types.Model, solver_type: types.SolverType):

@@ -250,6 +250,7 @@ class ContactType(enum.IntEnum):
     """
     MUJOCO = 1
     HUNT_CROSSLEY = 2
+    HUNT_CROSSLEY_SMOOTH = 3
 
 
 class LimitType(enum.IntEnum):
@@ -322,6 +323,8 @@ class Option:
     ls_iterations: int
     ccd_iterations: int
     warm_start: bool
+
+    enable_drag: bool
 
     muscle_dyn_substeps: int
     use_fn_path: bool
