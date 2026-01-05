@@ -427,7 +427,7 @@ def rungekutta4(m: Model, d: Data):
         a, b = float(A[i]), B[i + 1]
         # Realize state, compute next derivative
         _rk_perturb_state(m, d, a, qpos_t0, qvel_t0, m_act_t0, m_state_t0, a_act_t0)
-        forward.fwd(m, d)
+        forward.fwd(m, d, run_post=False)
         _rk_accumulate(m, d, b, qvel_rk, qacc_rk, m_act_dot_rk, m_state_dot_rk, a_act_dot_rk)
 
     # Restore initial state, set accumulated derivatives
@@ -442,6 +442,7 @@ def rungekutta4(m: Model, d: Data):
         wp.copy(d.a_act, a_act_t0)
         wp.copy(d.a_act_dot, a_act_dot_rk)
     _advance(m, d, qacc_rk, qvel_rk, 1.0)
+    wp.copy(d.qacc, qacc_rk)  # copy acceleration for post-step analysis
     return
 
 
@@ -960,6 +961,7 @@ def euler_fixed(m: Model, d: Data, dt: float, dt_sim: float):
     )
     for _step in range(int(num_substeps)):
         euler(m, d, dt)
+        forward.post(m, d)
         forward.fwd(m, d)
 
 
@@ -975,4 +977,5 @@ def rk4_fixed(m: Model, d: Data, dt: float, dt_sim: float):
     )
     for _step in range(int(num_substeps)):
         rungekutta4(m, d)
-        forward.fwd(m, d)
+        forward.post(m, d)
+        forward.fwd(m, d)  # realize for next step
