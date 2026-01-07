@@ -738,6 +738,10 @@ def joint_limit_ranges(m: types.Model) -> torch.Tensor:
     return wp.to_torch(m.limit_dof_range)
 
 
+def joint_limit_qadr(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.limit_dof_qadr)
+
+
 def exp_limit_forces(m: types.Model) -> torch.Tensor:
     return wp.to_torch(m.limit_dof_forces)
 
