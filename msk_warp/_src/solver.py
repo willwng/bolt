@@ -133,7 +133,7 @@ def _eval_elliptic(
                 0.5 * dm * (N - mu * T) * (N - mu * T),
                 dm * (N - mu * T) * (N1 - mu * T1),
                 dm * ((N1 - mu * T1) * (N1 - mu * T1) + (N - mu * T) * (
-                            -mu * T2)),
+                        -mu * T2)),
             )
 
             return cost
@@ -392,7 +392,7 @@ def linesearch_iterative(
         # if we did not adjust the interval, we are done
         # also done if either low or hi slope is nearly flat
         ls_done = (not swap_lo and not swap_hi) or (
-                    lo[1] < 0 and lo[1] > -gtol) or (hi[1] > 0 and hi[1] < gtol)
+                lo[1] < 0 and lo[1] > -gtol) or (hi[1] > 0 and hi[1] < gtol)
 
         # update alpha if we have an improvement
         improved = lo[0] < p0[0] or hi[0] < p0[0]
@@ -719,7 +719,7 @@ def linesearch_prepare_gauss(
     for i in range(nv):
         search = efc_search_in[worldid, i]
         quad_gauss_1 += search * (
-                    efc_Ma_in[worldid, i] - qfrc_smooth_in[worldid, i])
+                efc_Ma_in[worldid, i] - qfrc_smooth_in[worldid, i])
         quad_gauss_2 += 0.5 * search * efc_mv_in[worldid, i]
 
     efc_quad_gauss_out[worldid] = wp.vec3(quad_gauss_0, quad_gauss_1,
@@ -1371,7 +1371,7 @@ def update_gradient_JTDAJ_dense_tiled(nv: int, tile_size: int, njmax: int):
             # force unused elements to be zero
             tid_tile = wp.tile_arange(TILE_SIZE_K, dtype=int)
             threshold_tile = wp.tile_ones(shape=TILE_SIZE_K, dtype=int) * (
-                        nefc - k)
+                    nefc - k)
 
             active_tile = wp.tile_map(active_check, tid_tile, threshold_tile)
             D_k = wp.tile_map(wp.mul, active_tile, D_k)
@@ -1737,7 +1737,7 @@ def solve_beta(
     for dofid in range(nv):
         prev_Mgrad = efc_prev_Mgrad_in[worldid][dofid]
         beta_num += efc_grad_in[worldid, dofid] * (
-                    efc_Mgrad_in[worldid, dofid] - prev_Mgrad)
+                efc_Mgrad_in[worldid, dofid] - prev_Mgrad)
         beta_den += efc_prev_grad_in[worldid, dofid] * prev_Mgrad
 
     efc_beta_out[worldid] = wp.max(0.0,
@@ -1935,6 +1935,11 @@ def solve_zero(
 ):
     wp.copy(d.qacc, d.qacc_smooth)
     d.solver_niter.fill_(0)
+
+    # Euler needs M*a for implicit damping
+    if m.opt.integrator == types.IntegratorType.EULER_FIXED or \
+            m.opt.integrator == types.IntegratorType.EULER_ADAPTIVE:
+        support.mul_m(m, d, d.efc.Ma, d.qacc, skip=d.efc.done)
 
 
 @event_scope
