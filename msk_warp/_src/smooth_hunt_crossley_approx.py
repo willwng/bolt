@@ -12,12 +12,11 @@ wp.set_module_options({"enable_backward": False})
 @wp.kernel
 def _process_contacts_hc(
         # Model:
-        body_rootid: wp.array(dtype=int),
         geom_bodyid: wp.array(dtype=int),
         # Data in:
         xipos_in: wp.array2d(dtype=wp.vec3),
-        cvel_in: wp.array2d(dtype=wp.spatial_vector),
-        subtree_com_in: wp.array2d(dtype=wp.vec3),
+        xpos_in: wp.array2d(dtype=wp.vec3),
+        xvel_in: wp.array2d(dtype=wp.spatial_vector),
         nacon_in: wp.array(dtype=int),
         # In:
         dist_in: wp.array(dtype=float),
@@ -36,8 +35,8 @@ def _process_contacts_hc(
         return
 
     depth = -dist_in[conid]
-    if depth < 0.0:
-        return
+    # if depth < 0.0:
+    #     return
 
     worldid = worldid_in[conid]
     geom = geom_in[conid]
@@ -49,14 +48,12 @@ def _process_contacts_hc(
 
     # Calculate the relative velocity of the two bodies at the contact point
     location = cpos
-    cvel1 = cvel_in[worldid, body1]
-    cvel2 = cvel_in[worldid, body2]
-    subtree_com1 = subtree_com_in[worldid, body_rootid[body1]]
-    subtree_com2 = subtree_com_in[worldid, body_rootid[body2]]
-    dif1 = location - subtree_com1
-    dif2 = location - subtree_com2
-    vel1 = support.transform_velocity(cvel1, dif1)
-    vel2 = support.transform_velocity(cvel2, dif2)
+    xvel1 = xvel_in[worldid, body1]
+    xvel2 = xvel_in[worldid, body2]
+    dif1 = location - xpos_in[worldid, body1]
+    dif2 = location - xpos_in[worldid, body2]
+    vel1 = support.transform_velocity(xvel1, dif1)
+    vel2 = support.transform_velocity(xvel2, dif2)
     # Compute relative velocities of the bodies
     v = wp.spatial_bottom(vel1 - vel2)
     # Project into contact frame
@@ -64,11 +61,12 @@ def _process_contacts_hc(
     v_n = wp.dot(v, normal)
     v_t = v - (v_n * normal)
 
-    stiffness = 1.6e6
-    dissipation = 0.072
+    # stiffness = 1602213.464769315
+    dissipation = 0.0725
 
     # Calculate the hertz force
-    k = 0.5 * wp.pow(stiffness, 2.0 / 3.0)
+    # k = 0.5 * wp.pow(stiffness, 2.0 / 3.0)
+    k = 6846.210618960885
     indentation = depth
     cf = 1e-5
     bd = 300.0
@@ -81,7 +79,7 @@ def _process_contacts_hc(
     bv = 50.0
     fhc_pos = fh_smooth * (1.0 + (3.0 / 2.0) * c * v_n)
     fhc_smooth = fhc_pos * (
-            1. / 2. + (1. / 2.) * wp.tanh(bv * (v_n + (2.0 / (3.0 * c)))))
+            1.0 / 2.0 + (1.0 / 2.0) * wp.tanh(bv * (v_n + (2.0 / (3.0 * c)))))
     force = fhc_smooth * normal
 
     # Calculate the friction force.
@@ -94,7 +92,7 @@ def _process_contacts_hc(
     vslip = wp.pow(aux, 1.0 / 2.0)
     vrel = vslip / vt
     ff = fhc_smooth * (wp.min(vrel, 1.0) * (
-                ud + 2.0 * (us - ud) / (1.0 + vrel * vrel)) + uv * vslip)
+            ud + 2.0 * (us - ud) / (1.0 + vrel * vrel)) + uv * vslip)
     force += ff * v_t / vslip
 
     # Apply forces to bodies
@@ -111,17 +109,16 @@ def _process_contacts_hc(
 
 
 @event_scope
-def contact_forces(m: Model, d: Data):
+def apply_contact_forces(m: Model, d: Data):
     d.grf.zero_()
     wp.launch(
         _process_contacts_hc,
         dim=(d.naconmax),
         inputs=[
-            m.body_rootid,
             m.geom_bodyid,
             d.xipos,
-            d.cvel,
-            d.subtree_com,
+            d.xpos,
+            d.xvel,
             d.nacon,
             d.contact.dist,
             d.contact.curvature,

@@ -1905,13 +1905,48 @@ def create_context(m: types.Model, d: types.Data, grad: bool = True):
         _update_gradient(m, d)
 
 
+@wp.kernel
+def check_num_solve_worlds(
+        # Data in:
+        nefc_in: wp.array(dtype=int),
+        # Data out:
+        needs_solve_out: wp.array(dtype=int),
+):
+    worldid = wp.tid()
+    if nefc_in[worldid] > 0:
+        wp.atomic_or(needs_solve_out, 0, 1)
+
+
+@event_scope
+def _check_num_solve_worlds(m: types.Model, d: types.Data):
+    d.needs_solve.zero_()
+    wp.launch(
+        check_num_solve_worlds,
+        dim=(d.nworld),
+        inputs=[d.nefc],
+        outputs=[d.needs_solve],
+    )
+
+
+@event_scope
+def solve_zero(
+        m: types.Model,
+        d: types.Data,
+):
+    wp.copy(d.qacc, d.qacc_smooth)
+    d.solver_niter.fill_(0)
+
+
 @event_scope
 def solve(m: types.Model, d: types.Data):
-    if d.njmax == 0 or m.nv == 0 or d.nefc == 0:
-        wp.copy(d.qacc, d.qacc_smooth)
-        d.solver_niter.fill_(0)
-    else:
-        _solve(m, d)
+    _check_num_solve_worlds(m, d),
+    wp.capture_if(
+        d.needs_solve,
+        on_true=_solve,
+        on_false=solve_zero,
+        m=m,
+        d=d,
+    )
 
 
 def _solve(m: types.Model, d: types.Data):

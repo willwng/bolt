@@ -213,13 +213,15 @@ def load_model(
         ccd_tolerance=1e-6,
         gravity=-9.81,
         solver=types.SolverType.NEWTON,
-        contact_type=types.ContactType.MUJOCO,
-        limit_type=types.LimitType.MUJOCO,
+        contact_type=types.ContactType.HUNT_CROSSLEY,
+        limit_type=types.LimitType.EXPONENTIAL,
         integrator=types.IntegratorType.EULER_FIXED,
         iterations=50,
         ls_iterations=100,
         ccd_iterations=50,
         warm_start=True,
+
+        enable_drag=True,
 
         muscle_dyn_substeps=30,
         use_fn_path=use_fn_path,
@@ -377,6 +379,7 @@ def load_model(
 
         nl=make_zero(n_worlds, dtype=int),
         nefc=make_zero(n_worlds, dtype=int),
+        needs_solve=make_zero(1, dtype=int),
         time=make_zero(n_worlds, dtype=float),
         time1=make_zero(n_worlds, dtype=float),
         next_time=make_zero(n_worlds, dtype=float),
@@ -700,28 +703,28 @@ def gravity(m: types.Model) -> float:
     return m.opt.gravity
 
 
-def use_newton_solver(m: types.Model):
-    m.opt.solver = types.SolverType.NEWTON
+def set_drag_enabled(m: types.Model, enabled: bool):
+    m.opt.enable_drag = enabled
 
 
-def use_cg_solver(m: types.Model):
-    m.opt.solver = types.SolverType.CG
+def set_solver_type(m: types.Model, solver_type: types.SolverType):
+    m.opt.solver = solver_type
 
 
-def use_hunt_crossley_contact(m: types.Model):
-    m.opt.contact_type = types.ContactType.HUNT_CROSSLEY
-
-
-def use_mujoco_contact(m: types.Model):
-    m.opt.contact_type = types.ContactType.MUJOCO
+def set_contact_type(m: types.Model, contact_type: types.ContactType):
+    m.opt.contact_type = contact_type
 
 
 def use_exponential_limit(m: types.Model):
     m.opt.limit_type = types.LimitType.EXPONENTIAL
 
 
-def use_mujoco_limit(m: types.Model):
-    m.opt.limit_type = types.LimitType.MUJOCO
+def set_limit_type(m: types.Model, limit_type: types.LimitType):
+    m.opt.limit_type = limit_type
+
+
+def set_integrator_type(m: types.Model, integrator_type: types.IntegratorType):
+    m.opt.integrator = integrator_type
 
 
 def set_muscle_dynamics_substeps(m: types.Model, substeps: int):
@@ -734,6 +737,10 @@ def set_solref(m: types.Model, solref: tuple[float, float]):
 
 def joint_limit_ranges(m: types.Model) -> torch.Tensor:
     return wp.to_torch(m.limit_dof_range)
+
+
+def joint_limit_qadr(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.limit_dof_qadr)
 
 
 def exp_limit_forces(m: types.Model) -> torch.Tensor:

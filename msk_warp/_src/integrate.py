@@ -154,10 +154,9 @@ def _next_time(
     time_out[worldid] = time_in[worldid] + step_size
 
 
-def _advance(m: Model, d: Data, qacc: wp.array, scale: float):
+def _advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float):
     """Advance state and time given state derivatives"""
     if m.nmuscle:
-        # Muscles
         wp.launch(
             _next_muscle_activation,
             dim=(d.nworld, m.nmuscle),
@@ -165,7 +164,7 @@ def _advance(m: Model, d: Data, qacc: wp.array, scale: float):
                     d.actual_step_size, scale],
             outputs=[d.m_act],
         )
-
+        # If we didn't sub-step, advance here
         if wp.static(m.opt.muscle_dyn_substeps) == 0:
             wp.launch(
                 _next_muscle_state,
@@ -176,7 +175,6 @@ def _advance(m: Model, d: Data, qacc: wp.array, scale: float):
             )
 
     if m.nactuator:
-        # Actuators
         wp.launch(
             _next_actuator_activation,
             dim=(d.nworld, m.nactuator),
@@ -185,7 +183,6 @@ def _advance(m: Model, d: Data, qacc: wp.array, scale: float):
             outputs=[d.a_act],
         )
 
-    # Velocity, position
     wp.launch(
         _next_velocity,
         dim=(d.nworld, m.nv),
@@ -196,11 +193,9 @@ def _advance(m: Model, d: Data, qacc: wp.array, scale: float):
         _next_position,
         dim=(d.nworld, m.nbody),
         inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
-                d.qpos, d.qvel, d.actual_step_size, scale],
+                d.qpos, qvel, d.actual_step_size, scale],
         outputs=[d.qpos],
     )
-
-    # Time
     wp.launch(
         _next_time,
         dim=d.nworld,
@@ -262,7 +257,193 @@ def euler(m: Model, d: Data, dt: float):
             outputs=[qacc],
             block_dim=m.block_dim.euler_dense,
         )
-    _advance(m, d, qacc, 1.0)
+    _advance(m, d, qacc, d.qvel, 1.0)
+
+
+@wp.kernel
+def _rk_accumulate_velocity_acceleration(
+        # Data in:
+        qvel_in: wp.array2d(dtype=float),
+        qacc_in: wp.array2d(dtype=float),
+        # In:
+        scale: float,
+        # Data out:
+        qvel_out: wp.array2d(dtype=float),
+        qacc_out: wp.array2d(dtype=float),
+):
+    worldid, dofid = wp.tid()
+    qvel_out[worldid, dofid] += scale * qvel_in[worldid, dofid]
+    qacc_out[worldid, dofid] += scale * qacc_in[worldid, dofid]
+
+
+@wp.kernel
+def _rk_accumulate_muscle(
+        # Data in:
+        m_act_dot_in: wp.array2d(dtype=float),
+        m_state_dot_in: wp.array2d(dtype=float),
+        # In:
+        scale: float,
+        # Data out:
+        m_act_dot_out: wp.array2d(dtype=float),
+        m_state_dot_out: wp.array2d(dtype=float),
+):
+    worldid, muscle_id = wp.tid()
+    m_act_dot_out[worldid, muscle_id] += scale * m_act_dot_in[worldid, muscle_id]
+    m_state_dot_out[worldid, muscle_id] += scale * m_state_dot_in[worldid, muscle_id]
+
+
+@wp.kernel
+def _rk_accumulate_actuator(
+        # Data in:
+        a_act_dot_in: wp.array2d(dtype=float),
+        # In:
+        scale: float,
+        # Data out:
+        a_act_dot_out: wp.array2d(dtype=float),
+):
+    worldid, actuator_id = wp.tid()
+    a_act_dot_out[worldid, actuator_id] += scale * a_act_dot_in[worldid, actuator_id]
+
+
+def _rk_accumulate(
+        m: Model,
+        d: Data,
+        scale: float,
+        qvel_rk: wp.array2d(dtype=float),
+        qacc_rk: wp.array2d(dtype=float),
+        m_act_dot_rk: wp.array2d(dtype=float),
+        m_state_dot_rk: wp.array2d(dtype=float),
+        a_act_dot_rk: wp.array2d(dtype=float),
+):
+    """Computes one term of 1/6 k_1 + 1/3 k_2 + 1/3 k_3 + 1/6 k_4."""
+    wp.launch(
+        _rk_accumulate_velocity_acceleration,
+        dim=(d.nworld, m.nv),
+        inputs=[d.qvel, d.qacc, scale],
+        outputs=[qvel_rk, qacc_rk],
+    )
+
+    if m.nmuscle:
+        wp.launch(
+            _rk_accumulate_muscle,
+            dim=(d.nworld, m.nmuscle),
+            inputs=[d.m_act_dot, d.m_state_dot, scale],
+            outputs=[m_act_dot_rk, m_state_dot_rk],
+        )
+    if m.nactuator:
+        wp.launch(
+            _rk_accumulate_actuator,
+            dim=(d.nworld, m.nactuator),
+            inputs=[d.a_act_dot, scale],
+            outputs=[a_act_dot_rk],
+        )
+
+
+def _rk_perturb_state(
+        m: Model,
+        d: Data,
+        scale: float,
+        qpos_t0: wp.array2d(dtype=float),
+        qvel_t0: wp.array2d(dtype=float),
+        m_act_t0: wp.array2d(dtype=float),
+        m_state_t0: wp.array2d(dtype=float),
+        a_act_t0: wp.array2d(dtype=float)
+):
+    # position
+    wp.launch(
+        _next_position,
+        dim=(d.nworld, m.nbody),
+        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
+                qpos_t0, d.qvel, d.actual_step_size, scale],
+        outputs=[d.qpos],
+    )
+    # velocity
+    wp.launch(
+        _next_velocity,
+        dim=(d.nworld, m.nv),
+        inputs=[qvel_t0, d.qacc, d.actual_step_size, scale],
+        outputs=[d.qvel],
+    )
+
+    # muscles
+    if m.nmuscle:
+        wp.launch(
+            _next_muscle_activation,
+            dim=(d.nworld, m.nmuscle),
+            inputs=[m.muscle_metadata, m_act_t0, d.m_act_dot,
+                    d.actual_step_size, scale],
+            outputs=[d.m_act],
+        )
+        if wp.static(m.opt.muscle_dyn_substeps) == 0:
+            wp.launch(
+                _next_muscle_state,
+                dim=(d.nworld, m.nmuscle),
+                inputs=[m.muscle_metadata, m_state_t0, d.m_state_dot,
+                        d.actual_step_size, scale],
+                outputs=[d.m_state],
+            )
+
+    if m.nactuator:
+        wp.launch(
+            _next_actuator_activation,
+            dim=(d.nworld, m.nactuator),
+            inputs=[m.actuator_metadata, a_act_t0, d.a_act_dot,
+                    d.actual_step_size, scale],
+            outputs=[d.a_act],
+        )
+
+
+@event_scope
+def rungekutta4(m: Model, d: Data):
+    """Runge-Kutta explicit order 4 integrator."""
+    # RK4 tableau
+    A = [0.5, 0.5, 1.0]
+    B = [1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0]
+
+    # Initial state y_0 and derivative accumulators y'_rk
+    qpos_t0 = wp.clone(d.qpos)
+    qvel_t0 = wp.clone(d.qvel)
+    qvel_rk = wp.zeros((d.nworld, m.nv), dtype=float)
+    qacc_rk = wp.zeros((d.nworld, m.nv), dtype=float)
+    if m.nmuscle:
+        m_act_t0 = wp.clone(d.m_act)
+        m_state_t0 = wp.clone(d.m_state)
+        m_act_dot_rk = wp.zeros((d.nworld, m.nmuscle), dtype=float)
+        m_state_dot_rk = wp.zeros((d.nworld, m.nmuscle), dtype=float)
+    else:
+        m_act_t0, m_state_t0 = None, None
+        m_act_dot_rk, m_state_dot_rk = None, None
+    if m.nactuator:
+        a_act_t0 = wp.clone(d.a_act)
+        a_act_dot_rk = wp.zeros((d.nworld, m.nactuator), dtype=float)
+    else:
+        a_act_t0 = None
+        a_act_dot_rk = None
+
+    # Compute 1/6 k_1
+    _rk_accumulate(m, d, B[0], qvel_rk, qacc_rk, m_act_dot_rk, m_state_dot_rk, a_act_dot_rk)
+    # Compute k_2, k_3, k_4
+    for i in range(3):
+        a, b = float(A[i]), B[i + 1]
+        # Realize state, compute next derivative
+        _rk_perturb_state(m, d, a, qpos_t0, qvel_t0, m_act_t0, m_state_t0, a_act_t0)
+        forward.fwd(m, d, run_post=False)
+        _rk_accumulate(m, d, b, qvel_rk, qacc_rk, m_act_dot_rk, m_state_dot_rk, a_act_dot_rk)
+
+    # Restore initial state, set accumulated derivatives
+    wp.copy(d.qpos, qpos_t0)
+    wp.copy(d.qvel, qvel_t0)
+    if m.nmuscle:
+        wp.copy(d.m_act, m_act_t0)
+        wp.copy(d.m_act_dot, m_act_dot_rk)
+        wp.copy(d.m_state, m_state_t0)
+        wp.copy(d.m_state_dot, m_state_dot_rk)
+    if m.nactuator:
+        wp.copy(d.a_act, a_act_t0)
+        wp.copy(d.a_act_dot, a_act_dot_rk)
+    _advance(m, d, qacc_rk, qvel_rk, 1.0)
+    wp.copy(d.qacc, qacc_rk)  # copy acceleration for post-step analysis
+    return
 
 
 @wp.kernel
@@ -676,16 +857,16 @@ def attempt_step(m: Model, d: Data):
     _save_state(m, d, save_id=0)
 
     # Big step using full current step size, store y_1
-    _advance(m, d, d.qacc, 1.0)
+    _advance(m, d, d.qacc, d.qvel, 1.0)
     _save_state(m, d, save_id=1)
 
     # Restore y_0. Note: advance doesn't modify state derivatives (except qvel)
     # so we can reuse y_0'
     _restore_state(m, d, restore_id=0, reject_only=False)
-    _advance(m, d, d.qacc, 0.5)
+    _advance(m, d, d.qacc, d.qvel, 0.5)
     # Half-step 2: y_1* = y_{1/2} + dt/2 * y_{1/2}'
     forward.fwd(m, d)
-    _advance(m, d, d.qacc, 0.5)
+    _advance(m, d, d.qacc, d.qvel, 0.5)
 
     # Compute error with y_1 from big step
     _compute_error(m, d, compare_id=1)
@@ -747,6 +928,7 @@ def _set_fixed_step_size(
 ):
     worldid = wp.tid()
     actual_step_size_out[worldid] = dt
+    return
 
 
 @event_scope
@@ -768,8 +950,8 @@ def step_to_adaptive(m: Model, d: Data, dt: float):
 
 
 @event_scope
-def step_to_fixed(m: Model, d: Data, dt: float, dt_sim: float):
-    """Steps to [t + dt] using a fixed time step."""
+def euler_fixed(m: Model, d: Data, dt: float, dt_sim: float):
+    """Steps to [t + dt] using a fixed time step of [dt_sim] with Euler integrator."""
     num_substeps = np.ceil(dt / dt_sim)
     wp.launch(
         _set_fixed_step_size,
@@ -779,4 +961,21 @@ def step_to_fixed(m: Model, d: Data, dt: float, dt_sim: float):
     )
     for _step in range(int(num_substeps)):
         euler(m, d, dt)
+        forward.post(m, d)
         forward.fwd(m, d)
+
+
+@event_scope
+def rk4_fixed(m: Model, d: Data, dt: float, dt_sim: float):
+    """Steps to [t + dt] using a fixed time step of [dt_sim] with RK4."""
+    num_substeps = np.ceil(dt / dt_sim)
+    wp.launch(
+        _set_fixed_step_size,
+        dim=d.nworld,
+        inputs=[dt_sim],
+        outputs=[d.actual_step_size],
+    )
+    for _step in range(int(num_substeps)):
+        rungekutta4(m, d)
+        forward.post(m, d)
+        forward.fwd(m, d)  # realize for next step

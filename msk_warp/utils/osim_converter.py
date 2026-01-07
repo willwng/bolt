@@ -754,12 +754,13 @@ def get_muscle_fl_range(
 ) -> tuple[float, float]:
     optimal_pennation_angle = muscle.pennation_angle_at_optimal
 
-    if max_pennation_angle > 1e-8:
-        minimum_fiber_length = (np.sin(optimal_pennation_angle) / np.sin(
-            max_pennation_angle))
-    else:
-        minimum_fiber_length = 0.01
-    minimum_fiber_length = max(minimum_fiber_length, min_norm_fiber_length)
+    # if max_pennation_angle > 1e-8:
+    #     minimum_fiber_length = (np.sin(optimal_pennation_angle) / np.sin(
+    #         max_pennation_angle))
+    # else:
+    #     minimum_fiber_length = 0.01
+    # minimum_fiber_length = max(minimum_fiber_length, min_norm_fiber_length)
+    minimum_fiber_length = min_norm_fiber_length
     return minimum_fiber_length, max_norm_fiber_length
 
 

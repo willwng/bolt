@@ -250,6 +250,7 @@ class ContactType(enum.IntEnum):
     """
     MUJOCO = 1
     HUNT_CROSSLEY = 2
+    HUNT_CROSSLEY_SMOOTH = 3
 
 
 class LimitType(enum.IntEnum):
@@ -270,6 +271,7 @@ class IntegratorType(enum.IntEnum):
     """
     EULER_FIXED = 1
     EULER_ADAPTIVE = 2
+    RK4_FIXED = 3
 
 
 @dataclasses.dataclass
@@ -321,6 +323,8 @@ class Option:
     ls_iterations: int
     ccd_iterations: int
     warm_start: bool
+
+    enable_drag: bool
 
     muscle_dyn_substeps: int
     use_fn_path: bool
@@ -903,6 +907,7 @@ class Data:
     solver_niter: wp.array(dtype=int)
     nl: wp.array(dtype=int)
     nefc: wp.array(dtype=int)
+    needs_solve: wp.array(dtype=bool)
 
     time: wp.array(dtype=float)
     time1: wp.array(dtype=float)
