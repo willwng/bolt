@@ -213,8 +213,8 @@ def load_model(
         ccd_tolerance=1e-6,
         gravity=-9.81,
         solver=types.SolverType.NEWTON,
-        contact_type=types.ContactType.MUJOCO,
-        limit_type=types.LimitType.MUJOCO,
+        contact_type=types.ContactType.HUNT_CROSSLEY,
+        limit_type=types.LimitType.EXPONENTIAL,
         integrator=types.IntegratorType.EULER_FIXED,
         iterations=50,
         ls_iterations=100,
@@ -379,6 +379,7 @@ def load_model(
 
         nl=make_zero(n_worlds, dtype=int),
         nefc=make_zero(n_worlds, dtype=int),
+        needs_solve=make_zero(1, dtype=int),
         time=make_zero(n_worlds, dtype=float),
         time1=make_zero(n_worlds, dtype=float),
         next_time=make_zero(n_worlds, dtype=float),

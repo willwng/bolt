@@ -907,6 +907,7 @@ class Data:
     solver_niter: wp.array(dtype=int)
     nl: wp.array(dtype=int)
     nefc: wp.array(dtype=int)
+    needs_solve: wp.array(dtype=bool)
 
     time: wp.array(dtype=float)
     time1: wp.array(dtype=float)
