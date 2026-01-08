@@ -27,7 +27,7 @@ class Renderer:
     ):
         if renderer_type == RendererType.OPENGL:
             self.renderer = wp.render.OpenGLRenderer(
-                title="warp-sim",
+                title="msk-warp",
                 vsync=False,
                 up_axis='Y',
                 screen_width=2000,
@@ -37,7 +37,7 @@ class Renderer:
             )
         elif renderer_type == RendererType.TILED:
             self.renderer = wp.render.OpenGLRenderer(
-                title="warp-sim",
+                title="msk-warp",
                 vsync=False,
                 up_axis='Y',
                 screen_width=2000,

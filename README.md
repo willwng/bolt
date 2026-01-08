@@ -1,6 +1,9 @@
 MSK Warp - GPU-accelerated Musculoskeletal Simulations
 ============================
 GPU-accelerated physics simulations for articulated rigid bodies with muscle actuators, designed for many-world parallel simulations. Inspired by [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) and [OpenSim](https://github.com/opensim-org/opensim-core).
+<div float="center">
+  <img src="assets/screenshot.png" />
+</div>
 
 **Current features include:**
 - Articulated body motion computations performed in generalized coordinates, including [OpenSim CustomJoint](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CustomJoint.html) logic.
