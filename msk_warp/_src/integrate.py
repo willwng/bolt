@@ -961,8 +961,9 @@ def euler_fixed(m: Model, d: Data, dt: float, dt_sim: float):
     )
     for _step in range(int(num_substeps)):
         euler(m, d, dt)
-        forward.post(m, d)
         forward.fwd(m, d)
+
+    forward.post(m, d)
 
 
 @event_scope
@@ -977,5 +978,8 @@ def rk4_fixed(m: Model, d: Data, dt: float, dt_sim: float):
     )
     for _step in range(int(num_substeps)):
         rungekutta4(m, d)
-        forward.post(m, d)
+        # Last step, run post (but we need to use the rk4 computed acceleration)
+        if _step == int(num_substeps) - 1:
+            forward.post(m, d)
         forward.fwd(m, d)  # realize for next step
+
