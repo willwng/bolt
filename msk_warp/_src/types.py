@@ -275,6 +275,20 @@ class IntegratorType(enum.IntEnum):
 
 
 @dataclasses.dataclass
+class MetabolicOptions:
+    activation_maintenance_rate_on: bool
+    shortening_rate_on: bool
+    mechanical_work_rate_on: bool
+    enforce_minimum_heat_rate: bool
+
+    aerobic_factor: float
+    muscle_effort_scaling_factor: float
+    use_bhargava_recruitment: bool
+    include_negative_mechanical_work: bool
+    forbid_negative_total_power: bool
+
+
+@dataclasses.dataclass
 class Option:
     """Physics options.
 
@@ -328,6 +342,7 @@ class Option:
 
     muscle_dyn_substeps: int
     use_fn_path: bool
+    metabolic_options: MetabolicOptions
 
     safety: float
     min_shrink: float
@@ -382,6 +397,11 @@ class MuscleMetadata:
     max_norm_fiber_length: float
     min_activation: float
     max_activation: float
+
+    # Additional parameters for metabolic calculations
+    specific_tension: float
+    density: float
+    slow_twitch_ratio: float
 
 
 @wp.struct
@@ -862,6 +882,7 @@ class Data:
       muscle_length: muscle lengths                               (nworld, nmuscle)
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
+      muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
 
       * for substepping muscle dynamics *
       muscle_length_prev: previous muscle lengths                 (nworld, nmuscle)
@@ -973,6 +994,7 @@ class Data:
     muscle_length: wp.array2d(dtype=float)
     muscle_velocity: wp.array2d(dtype=float)
     muscle_actuation: wp.array2d(dtype=float)
+    muscle_metabolic: wp.array2d(dtype=float)
 
     muscle_length_prev: wp.array2d(dtype=float)
     muscle_velocity_prev: wp.array2d(dtype=float)

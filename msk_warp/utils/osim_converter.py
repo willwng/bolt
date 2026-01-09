@@ -723,6 +723,11 @@ def get_muscle_metadata(
         muscle_meta.max_norm_fiber_length = fl_range[1]
         muscle_meta.min_activation = 0.0
         muscle_meta.max_activation = 1.0
+        # Reasonable defaults for specific tension, density, slow twitch ratio
+        muscle_meta.specific_tension = 0.5e6
+        muscle_meta.density = 1059.7
+        muscle_meta.slow_twitch_ratio = 0.5
+
         metadata.append(muscle_meta)
 
     return metadata

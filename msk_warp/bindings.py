@@ -225,6 +225,18 @@ def load_model(
 
         muscle_dyn_substeps=30,
         use_fn_path=use_fn_path,
+        metabolic_options=types.MetabolicOptions(
+            activation_maintenance_rate_on=True,
+            shortening_rate_on=True,
+            mechanical_work_rate_on=True,
+            enforce_minimum_heat_rate=True,
+
+            aerobic_factor=1.0,
+            muscle_effort_scaling_factor=1.0,
+            use_bhargava_recruitment=True,
+            include_negative_mechanical_work=True,
+            forbid_negative_total_power=True,
+        ),
 
         safety=0.9,
         min_shrink=0.1,
@@ -445,6 +457,7 @@ def load_model(
         muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_metabolic=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_length_prev=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_velocity_prev=make_zero((n_worlds, nmuscle), dtype=float),
 
@@ -823,6 +836,10 @@ def muscle_fiber_lengths(d: types.Data) -> torch.Tensor:
 
 def muscle_fiber_velocities(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.m_state_dot)
+
+
+def muscle_powers(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.muscle_metabolic)
 
 
 def muscle_metadata_np(m: types.Model) -> np.ndarray:
