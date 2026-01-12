@@ -115,7 +115,7 @@ def geom_collision_pair(
 
 @wp.func
 def plane_convex(plane_normal: wp.vec3, plane_pos: wp.vec3, convex: Geom) -> \
-Tuple[wp.vec4, mat43f, wp.vec3]:
+        Tuple[wp.vec4, mat43f, wp.vec3]:
     """Core contact geometry calculation for plane-convex collision.
 
     Args:
@@ -361,6 +361,8 @@ def write_contact(
         frame_in: wp.mat33,
         condim_in: int,
         curvature_in: float,
+        stiffness_in: float,
+        dissipation_in: float,
         friction_in: vec5,
         geoms_in: wp.vec2i,
         pairid_in: wp.vec2i,
@@ -372,6 +374,8 @@ def write_contact(
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
         contact_curvature_out: wp.array(dtype=float),
+        contact_stiffness_out: wp.array(dtype=float),
+        contact_dissipation_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -392,6 +396,8 @@ def write_contact(
         contact_worldid_out[cid] = worldid_in
         contact_dim_out[cid] = condim_in
         contact_curvature_out[cid] = curvature_in
+        contact_stiffness_out[cid] = stiffness_in
+        contact_dissipation_out[cid] = dissipation_in
         contact_friction_out[cid] = friction_in
         contact_geomcollisionid_out[cid] = id_
 
@@ -400,6 +406,9 @@ def write_contact(
 def contact_params(
         # Model:
         geom_friction: wp.array(dtype=wp.vec3),
+        geom_stiffness: wp.array(dtype=float),
+        geom_dissipation: wp.array(dtype=float),
+        geom_priority: wp.array(dtype=int),
         # Data in:
         collision_pair_in: wp.array(dtype=wp.vec2i),
         collision_pairid_in: wp.array(dtype=wp.vec2i),
@@ -410,21 +419,32 @@ def contact_params(
     geoms = collision_pair_in[cid]
     pairid = collision_pairid_in[cid][0]
 
-    g1 = geoms[0]
-    g2 = geoms[1]
+    g1, g2 = geoms[0], geoms[1]
+    p1, p2 = geom_priority[g1], geom_priority[g2]
 
-    condim = 3 # hard coded
-    max_geom_friction = wp.max(geom_friction[g1], geom_friction[g2])
+    if p1 == p2:  # Same priority
+        g_friction = wp.max(geom_friction[g1], geom_friction[g2])
+        stiffness = wp.max(geom_stiffness[g1], geom_stiffness[g2])
+        dissipation = wp.max(geom_dissipation[g1], geom_dissipation[g2])
+    elif p1 > p2:  # g1 has higher priority
+        g_friction = geom_friction[g1]
+        stiffness = geom_stiffness[g1]
+        dissipation = geom_dissipation[g1]
+    else:
+        g_friction = geom_friction[g2]
+        stiffness = geom_stiffness[g2]
+        dissipation = geom_dissipation[g2]
 
     friction = vec5(
-        wp.max(MJ_MINMU, max_geom_friction[0]),
-        wp.max(MJ_MINMU, max_geom_friction[0]),
-        wp.max(MJ_MINMU, max_geom_friction[1]),
-        wp.max(MJ_MINMU, max_geom_friction[2]),
-        wp.max(MJ_MINMU, max_geom_friction[2]),
+        wp.max(MJ_MINMU, g_friction[0]),
+        wp.max(MJ_MINMU, g_friction[0]),
+        wp.max(MJ_MINMU, g_friction[1]),
+        wp.max(MJ_MINMU, g_friction[2]),
+        wp.max(MJ_MINMU, g_friction[2]),
     )
 
-    return geoms, condim, friction
+    condim = 3  # hard coded
+    return geoms, condim, friction, stiffness, dissipation
 
 
 @wp.func
@@ -437,6 +457,8 @@ def plane_sphere_wrapper(
         worldid: int,
         condim: int,
         friction: vec5,
+        stiffness: float,
+        dissipation: float,
         geoms: wp.vec2i,
         pairid: wp.vec2i,
         # Data out:
@@ -446,6 +468,8 @@ def plane_sphere_wrapper(
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
         contact_curvature_out: wp.array(dtype=float),
+        contact_stiffness_out: wp.array(dtype=float),
+        contact_dissipation_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -464,6 +488,8 @@ def plane_sphere_wrapper(
         make_frame(normal),
         condim,
         curvature,
+        stiffness,
+        dissipation,
         friction,
         geoms,
         pairid,
@@ -474,6 +500,8 @@ def plane_sphere_wrapper(
         contact_friction_out,
         contact_dim_out,
         contact_curvature_out,
+        contact_stiffness_out,
+        contact_dissipation_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -491,6 +519,8 @@ def sphere_sphere_wrapper(
         worldid: int,
         condim: int,
         friction: vec5,
+        stiffness: float,
+        dissipation: float,
         geoms: wp.vec2i,
         pairid: wp.vec2i,
         # Data out:
@@ -500,6 +530,8 @@ def sphere_sphere_wrapper(
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
         contact_curvature_out: wp.array(dtype=float),
+        contact_stiffness_out: wp.array(dtype=float),
+        contact_dissipation_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -518,6 +550,8 @@ def sphere_sphere_wrapper(
         make_frame(normal),
         condim,
         curvature,
+        stiffness,
+        dissipation,
         friction,
         geoms,
         pairid,
@@ -528,6 +562,8 @@ def sphere_sphere_wrapper(
         contact_friction_out,
         contact_dim_out,
         contact_curvature_out,
+        contact_stiffness_out,
+        contact_dissipation_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -545,6 +581,8 @@ def sphere_capsule_wrapper(
         worldid: int,
         condim: int,
         friction: vec5,
+        stiffness: float,
+        dissipation: float,
         geoms: wp.vec2i,
         pairid: wp.vec2i,
         # Data out:
@@ -554,6 +592,8 @@ def sphere_capsule_wrapper(
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
         contact_curvature_out: wp.array(dtype=float),
+        contact_stiffness_out: wp.array(dtype=float),
+        contact_dissipation_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -575,6 +615,8 @@ def sphere_capsule_wrapper(
         make_frame(normal),
         condim,
         curvature,
+        stiffness,
+        dissipation,
         friction,
         geoms,
         pairid,
@@ -585,6 +627,8 @@ def sphere_capsule_wrapper(
         contact_friction_out,
         contact_dim_out,
         contact_curvature_out,
+        contact_stiffness_out,
+        contact_dissipation_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -602,6 +646,8 @@ def capsule_capsule_wrapper(
         worldid: int,
         condim: int,
         friction: vec5,
+        stiffness: float,
+        dissipation: float,
         geoms: wp.vec2i,
         pairid: wp.vec2i,
         # Data out:
@@ -611,6 +657,8 @@ def capsule_capsule_wrapper(
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
         contact_curvature_out: wp.array(dtype=float),
+        contact_stiffness_out: wp.array(dtype=float),
+        contact_dissipation_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -641,6 +689,8 @@ def capsule_capsule_wrapper(
         make_frame(normal),
         condim,
         curvature,
+        stiffness,
+        dissipation,
         friction,
         geoms,
         pairid,
@@ -651,6 +701,8 @@ def capsule_capsule_wrapper(
         contact_friction_out,
         contact_dim_out,
         contact_curvature_out,
+        contact_stiffness_out,
+        contact_dissipation_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -668,6 +720,8 @@ def plane_capsule_wrapper(
         worldid: int,
         condim: int,
         friction: vec5,
+        stiffness: float,
+        dissipation: float,
         geoms: wp.vec2i,
         pairid: wp.vec2i,
         # Data out:
@@ -677,6 +731,8 @@ def plane_capsule_wrapper(
         contact_friction_out: wp.array(dtype=vec5),
         contact_dim_out: wp.array(dtype=int),
         contact_curvature_out: wp.array(dtype=float),
+        contact_stiffness_out: wp.array(dtype=float),
+        contact_dissipation_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -705,6 +761,8 @@ def plane_capsule_wrapper(
             frame,
             condim,
             curvature,
+            stiffness,
+            dissipation,
             friction,
             geoms,
             pairid,
@@ -715,6 +773,8 @@ def plane_capsule_wrapper(
             contact_friction_out,
             contact_dim_out,
             contact_curvature_out,
+            contact_stiffness_out,
+            contact_dissipation_out,
             contact_geom_out,
             contact_worldid_out,
             contact_geomcollisionid_out,
@@ -1341,6 +1401,9 @@ def _create_narrowphase_kernel(primitive_collisions_types,
             geom_type: wp.array(dtype=int),
             geom_size: wp.array(dtype=wp.vec3),
             geom_friction: wp.array(dtype=wp.vec3),
+            geom_stiffness: wp.array(dtype=float),
+            geom_dissipation: wp.array(dtype=float),
+            geom_priority: wp.array(dtype=int),
             # Data in:
             geom_xpos_in: wp.array2d(dtype=wp.vec3),
             geom_xmat_in: wp.array2d(dtype=wp.mat33),
@@ -1356,6 +1419,8 @@ def _create_narrowphase_kernel(primitive_collisions_types,
             contact_friction_out: wp.array(dtype=vec5),
             contact_dim_out: wp.array(dtype=int),
             contact_curvature_out: wp.array(dtype=float),
+            contact_stiffness_out: wp.array(dtype=float),
+            contact_dissipation_out: wp.array(dtype=float),
             contact_geom_out: wp.array(dtype=wp.vec2i),
             contact_worldid_out: wp.array(dtype=int),
             contact_geomcollisionid_out: wp.array(dtype=int),
@@ -1369,8 +1434,11 @@ def _create_narrowphase_kernel(primitive_collisions_types,
         geoms = collision_pair_in[tid]
         worldid = collision_worldid_in[tid]
 
-        _, condim, friction = contact_params(
+        _, condim, friction, stiffness, dissipation = contact_params(
             geom_friction,
+            geom_stiffness,
+            geom_dissipation,
+            geom_priority,
             collision_pair_in,
             collision_pairid_in,
             tid,
@@ -1399,6 +1467,8 @@ def _create_narrowphase_kernel(primitive_collisions_types,
                     worldid,
                     condim,
                     friction,
+                    stiffness,
+                    dissipation,
                     geoms,
                     collision_pairid_in[tid],
                     contact_dist_out,
@@ -1407,6 +1477,8 @@ def _create_narrowphase_kernel(primitive_collisions_types,
                     contact_friction_out,
                     contact_dim_out,
                     contact_curvature_out,
+                    contact_stiffness_out,
+                    contact_dissipation_out,
                     contact_geom_out,
                     contact_worldid_out,
                     contact_geomcollisionid_out,
@@ -1456,6 +1528,9 @@ def primitive_narrowphase(m: Model, d: Data):
             m.geom_type,
             m.geom_size,
             m.geom_friction,
+            m.geom_stiffness,
+            m.geom_dissipation,
+            m.geom_priority,
             d.geom_xpos,
             d.geom_xmat,
             d.naconmax,
@@ -1471,6 +1546,8 @@ def primitive_narrowphase(m: Model, d: Data):
             d.contact.friction,
             d.contact.dim,
             d.contact.curvature,
+            d.contact.stiffness,
+            d.contact.dissipation,
             d.contact.geom,
             d.contact.worldid,
             d.contact.geomcollisionid,

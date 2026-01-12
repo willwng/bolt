@@ -22,6 +22,7 @@ class ModelLoadResult:
     limit_id_lookup: dict[str, int]
     muscle_id_lookup: dict[str, int]
     actuator_id_lookup: dict[str, int]
+    collider_id_lookup: dict[str, int]
     visuals: list[types.MeshLoadResult]
 
 
@@ -211,7 +212,7 @@ def load_model(
         tolerance=1e-8,
         ls_tolerance=0.01,
         ccd_tolerance=1e-6,
-        gravity=-9.81,
+        gravity=-9.80665,
         solver=types.SolverType.NEWTON,
         contact_type=types.ContactType.HUNT_CROSSLEY,
         limit_type=types.LimitType.EXPONENTIAL,
@@ -336,6 +337,9 @@ def load_model(
         geom_pos=to_warp_array(geom_data.pos, dtype=wp.vec3),
         geom_quat=to_warp_array(geom_data.rot, dtype=wp.quat),
         geom_friction=to_warp_array(geom_data.friction, dtype=wp.vec3),
+        geom_stiffness=to_warp_array(geom_data.stiffness, dtype=float),
+        geom_dissipation=to_warp_array(geom_data.dissipation, dtype=float),
+        geom_priority=to_warp_array(geom_data.priority, dtype=int),
         geom_aabb=to_warp_array(geom_data.aabb, dtype=wp.vec3),
         geom_rbound=to_warp_array(geom_data.rbound, dtype=float),
 
@@ -497,6 +501,8 @@ def load_model(
             friction=make_zero(naconmax, dtype=types.vec5),
             dim=make_zero(naconmax, dtype=int),
             curvature=make_zero(naconmax, dtype=float),
+            stiffness=make_zero(naconmax, dtype=float),
+            dissipation=make_zero(naconmax, dtype=float),
             geom=make_zero(naconmax, dtype=wp.vec2i),
             efc_address=make_zero((naconmax, 4), dtype=int),
             # assuming condim_max = 3
@@ -602,6 +608,7 @@ def load_model(
         limit_id_lookup=get_limit_id_lookup(osim_model),
         muscle_id_lookup=get_muscle_id_lookup(osim_model),
         actuator_id_lookup=get_actuator_id_lookup(osim_model),
+        collider_id_lookup=get_collider_id_lookup(osim_model),
         visuals=mesh_load_results
     )
 
@@ -801,6 +808,10 @@ def joint_accelerations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qacc)
 
 
+def joint_accelerations(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qacc)
+
+
 def subtree_com_positions(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.subtree_com)
 
@@ -891,6 +902,22 @@ def get_collider_types(m: types.Model) -> torch.Tensor:
 
 def get_collider_sizes(m: types.Model) -> torch.Tensor:
     return wp.to_torch(m.geom_size)
+
+
+def collider_stiffness(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.geom_stiffness)
+
+
+def collider_dissipation(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.geom_dissipation)
+
+
+def collider_priority(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.geom_priority)
+
+
+def collider_friction(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.geom_friction)
 
 
 def get_collider_positions(d: types.Data) -> torch.Tensor:

@@ -11,6 +11,9 @@ class ColliderData:
     pos: list[list[float]]
     rot: list[list[float]]
     friction: list[list[float]]
+    stiffness: list[float]
+    dissipation: list[float]
+    priority: list[int]
     aabb: list[list[float]]
     rbound: list[float]
 
@@ -22,6 +25,9 @@ class ColliderData:
         self.pos = []
         self.rot = []
         self.friction = []
+        self.stiffness = []
+        self.dissipation = []
+        self.priority = []
         self.aabb = []
         self.rbound = []
 

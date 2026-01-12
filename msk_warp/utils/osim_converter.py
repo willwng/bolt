@@ -472,6 +472,9 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         # MuJoCo: sliding, torsional, rolling friction
         # Hunt-Crossley: static, dynamic, viscous
         friction = [0.95, 0.3, 0.3]  # default friction values
+        stiffness = 1602213.464769315 ** (2.0 / 3.0)
+        dissipation = 0.0725
+        priority = 0
         aabb = collider.get_aabb()
         rbound = collider.get_rbound()
 
@@ -481,6 +484,9 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         collider_data.pos.append(pos)
         collider_data.rot.append(rot)
         collider_data.friction.append(friction)
+        collider_data.stiffness.append(stiffness)
+        collider_data.dissipation.append(dissipation)
+        collider_data.priority.append(priority)
         collider_data.aabb.append(aabb)
         collider_data.rbound.append(rbound)
 
@@ -817,3 +823,12 @@ def get_limit_id_lookup(model: CheckedModel) -> dict[str, int]:
         limit_id_lookup[coord.name] = limit_idx
         limit_idx += 1
     return limit_id_lookup
+
+
+def get_collider_id_lookup(model: CheckedModel) -> dict[str, int]:
+    collider_id_lookup = {}
+    collider_idx = 0
+    for (body_name, collider_name), _ in model.iter_colliders():
+        collider_id_lookup[collider_name] = collider_idx
+        collider_idx += 1
+    return collider_id_lookup

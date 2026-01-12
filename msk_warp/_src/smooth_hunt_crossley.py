@@ -23,6 +23,8 @@ def _process_contacts_hc(
         # In:
         dist_in: wp.array(dtype=float),
         curvature_in: wp.array(dtype=float),
+        stiffness_in: wp.array(dtype=float),
+        dissipation_in: wp.array(dtype=float),
         worldid_in: wp.array(dtype=int),
         geom_in: wp.array(dtype=wp.vec2i),
         pos_in: wp.array(dtype=wp.vec3),
@@ -47,27 +49,20 @@ def _process_contacts_hc(
     cpos = pos_in[conid]
     frame = frame_in[conid]
     radius = curvature_in[conid]
+    friction = friction_in[conid]
+    stiffness = stiffness_in[conid]
+    dissipation = dissipation_in[conid]
     normal = frame[0]
 
-    # TODO: get these from material properties
-    s_opt = 1602213.464769315
-    stiffness1 = wp.pow(s_opt, 2.0 / 3.0)
-    stiffness2 = wp.pow(s_opt, 2.0 / 3.0)
-    dissipation1 = 0.0725
-    dissipation2 = 0.0725
-    us1, us2 = 0.95, 0.95
-    ud1, ud2 = 0.3, 0.3
-    uv1, uv2 = 0.3, 0.3
+    us, ud, uv = friction[0], friction[1], friction[2]
     transition_velocity = 0.001
 
     # Adjust the contact location based on the relative stiffness
-    s1 = stiffness2 / (stiffness1 + stiffness2)
-    s2 = 1.0 - s1
-    location = cpos + depth * (0.5 - s1) * frame[0]
+    location = cpos
 
     # Calculate the Hertz force.
-    k = stiffness1 * s1
-    c = dissipation1 * s1 + dissipation2 * s2
+    k = 0.5 * stiffness
+    c = dissipation
     fH = (4.0 / 3.0) * k * depth * wp.sqrt(radius * k * depth)
 
     # Calculate the relative velocity of the two bodies at the contact point
@@ -94,13 +89,6 @@ def _process_contacts_hc(
     # Friction cone
     v_slip = wp.length(v_t)
     if v_slip > MJ_MINVAL:
-        has_static = (us1 != 0.0 or us2 != 0.0)
-        has_dynamic = (ud1 != 0.0 or ud2 != 0.0)
-        has_viscous = (uv1 != 0.0 or uv2 != 0.0)
-        us = (2.0 * us1 * us2) / (us1 + us2) if has_static else 0.0
-        ud = (2.0 * ud1 * ud2) / (ud1 + ud2) if has_dynamic else 0.0
-        uv = (2.0 * uv1 * uv2) / (uv1 + uv2) if has_viscous else 0.0
-
         v_rel = v_slip / transition_velocity
         f_friction = f * (wp.min(v_rel, 1.0) * (ud + 2.0 * (us - ud) / (1.0 + v_rel * v_rel)) + uv * v_slip)
 
@@ -134,6 +122,8 @@ def apply_contact_forces(m: Model, d: Data):
             d.nacon,
             d.contact.dist,
             d.contact.curvature,
+            d.contact.stiffness,
+            d.contact.dissipation,
             d.contact.worldid,
             d.contact.geom,
             d.contact.pos,
