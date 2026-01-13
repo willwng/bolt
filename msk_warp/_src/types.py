@@ -851,6 +851,7 @@ class Data:
       qacc_warmstart: acceleration used for warmstart             (nworld, nv)
       qfrc_applied: applied generalized force                     (nworld, nv)
       xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
+      xfrc_user: user Cartesian force/torque applied to body      (nworld, nbody, 6)
       grf: ground reaction force                                  (nworld, 6)
       joint_moments: joint moments                                (nworld, nv)
 
@@ -960,6 +961,7 @@ class Data:
     qacc_warmstart: wp.array2d(dtype=float)
     qfrc_applied: wp.array2d(dtype=float)
     xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
+    xfrc_user: wp.array2d(dtype=wp.spatial_vector)
     grf: wp.array2d(dtype=wp.vec3)
     joint_moments: wp.array2d(dtype=float)
 

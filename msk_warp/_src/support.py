@@ -170,14 +170,9 @@ def apply_ft(
 
 @event_scope
 def xfrc_accumulate(m: Model, d: Data, qfrc: wp.array2d(dtype=float)):
-    """Map applied forces at each body via Jacobians to dof space and accumulate.
-
-    Args:
-      m: The model containing kinematic and dynamic information (device).
-      d: The data object containing the current state and output arrays (device).
-      qfrc: Total applied force mapped to dof space.
-    """
+    """Map applied forces at each body via Jacobians to dof space and accumulate. """
     apply_ft(m, d, d.xfrc_applied, qfrc, True)
+    apply_ft(m, d, d.xfrc_user, qfrc, True)
 
 
 @wp.func

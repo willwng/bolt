@@ -409,6 +409,7 @@ def load_model(
         qacc_warmstart=make_zero((n_worlds, nv), dtype=float),
         qfrc_applied=make_zero((n_worlds, nv), dtype=float),
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        xfrc_user=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         grf=make_zero((n_worlds,), dtype=wp.vec3),
         joint_moments=make_zero((n_worlds, nv), dtype=float),
 
@@ -675,6 +676,10 @@ def get_num_dofs(m: types.Model) -> int:
     return m.nv
 
 
+def get_num_bodies(m: types.Model) -> int:
+    return m.nbody
+
+
 def get_num_visuals(m: types.Model) -> int:
     return m.nvis
 
@@ -794,6 +799,10 @@ def body_velocities(d: types.Data) -> torch.Tensor:
 
 def body_com_velocities(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.xivel)
+
+
+def body_user_forces(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.xfrc_user)
 
 
 def joint_positions(d: types.Data) -> torch.Tensor:
