@@ -144,68 +144,6 @@ class CheckedModel:
         raise ValueError(f"Coordinate name {coord_name} not found.")
 
 
-def convert_y_up_z_up(model: CheckedModel):
-    rot_convert = R.from_euler("x", 90, degrees=True)
-    rot_mat = rot_convert.as_matrix()
-
-    def convert_vec(v: Vector3) -> Vector3:
-        vec = rot_mat @ [v.x, v.y, v.z]
-        return Vector3(x=vec[0], y=vec[1], z=vec[2])
-
-    def convert_quat(q: Quat) -> Quat:
-        r = R.from_quat([q.x, q.y, q.z, q.w])
-        r_converted = rot_convert * r * rot_convert.inv()
-        q_converted = r_converted.as_quat()
-        return Quat(w=q_converted[3], x=q_converted[0],
-                    y=q_converted[1], z=q_converted[2])
-
-    def convert_rel_quat(q: Quat) -> Quat:
-        r = R.from_quat([q.x, q.y, q.z, q.w])
-        r_converted = rot_convert * r
-        q_converted = r_converted.as_quat()
-        return Quat(w=q_converted[3], x=q_converted[0],
-                    y=q_converted[1], z=q_converted[2])
-
-    for _, desc in model.iter_descs():
-        # Body mass properties
-        body = desc.body
-        body.mass_center = convert_vec(body.mass_center)
-        inertia = body.inertia
-        # Rotate inertia tensor
-        inertia_mat = [[inertia.xx, inertia.xy, inertia.xz],
-                       [inertia.xy, inertia.yy, inertia.yz],
-                       [inertia.xz, inertia.yz, inertia.zz]]
-        rotated_inertia = rot_mat @ inertia_mat @ rot_mat.T
-        body.inertia.xx = rotated_inertia[0][0]
-        body.inertia.yy = rotated_inertia[1][1]
-        body.inertia.zz = rotated_inertia[2][2]
-        body.inertia.xy = rotated_inertia[0][1]
-        body.inertia.xz = rotated_inertia[0][2]
-        body.inertia.yz = rotated_inertia[1][2]
-
-        # Joint connections
-        joint = desc.joint
-        for frame in joint.frames:
-            frame.translation = convert_vec(frame.translation)
-            frame.orientation = convert_quat(frame.orientation)
-
-        # Attached geom
-        for collider in desc.colliders.values():
-            collider.location = convert_vec(collider.location)
-            collider.orientation = convert_rel_quat(collider.orientation)
-
-    # Custom joints spatial transform axes
-    for axis in model.iter_transform_axes():
-        axis.axis = convert_vec(axis.axis)
-
-    # All muscle points
-    for muscle in model.force_set.muscles.values():
-        geom_path = muscle.geometry_path
-        for path_point in geom_path.path_point_set.path_points.values():
-            path_point.location = convert_vec(path_point.location)
-    return model
-
-
 def remove_prefix(name: str) -> str:
     # get after the last "/"
     if "/" not in name:
@@ -477,6 +415,7 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         priority = 0
         aabb = collider.get_aabb()
         rbound = collider.get_rbound()
+        pc_filter = collider.pc_filter
 
         collider_data.type.append(geom_type)
         collider_data.body_id.append(body_id)
@@ -489,6 +428,7 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         collider_data.priority.append(priority)
         collider_data.aabb.append(aabb)
         collider_data.rbound.append(rbound)
+        collider_data.pc_filter.append(pc_filter)
 
     return collider_data
 

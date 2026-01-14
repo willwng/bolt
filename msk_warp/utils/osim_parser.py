@@ -354,39 +354,46 @@ def parse_force_set(force_set) -> ForceSet:
     return ForceSet(muscles=muscles, actuators=actuators)
 
 
+def parse_base_collider(collider) -> tuple[str, str]:
+    name = collider.attrib["name"]
+    socket_frame = collider.find("socket_frame").text
+    location = to_vector3(collider.find("location").text)
+    orientation = to_vector3(collider.find("orientation").text)
+
+    pc_filter_element = collider.find("filter")
+    pc_filter = True
+    if pc_filter_element is not None:
+        pc_filter_text = pc_filter_element.text
+        pc_filter = pc_filter_text.lower() == "true"
+    return name, socket_frame, location, orientation, pc_filter
+
+
 def parse_half_space(contact_half_space) -> ContactHalfSpace:
-    name = contact_half_space.attrib["name"]
-    socket_frame = contact_half_space.find("socket_frame").text
-    location = to_vector3(contact_half_space.find("location").text)
-    orientation = to_vector3(contact_half_space.find("orientation").text)
+    name, socket_frame, location, orientation, pc_filter = parse_base_collider(contact_half_space)
     return ContactHalfSpace(
         name=name,
         socket_frame=socket_frame,
         location=location,
-        orientation=Quat.from_fixed_angles(orientation)
+        orientation=Quat.from_fixed_angles(orientation),
+        pc_filter=pc_filter,
     )
 
 
 def parse_contact_sphere(contact_sphere) -> ContactSphere:
-    name = contact_sphere.attrib["name"]
-    socket_frame = contact_sphere.find("socket_frame").text
-    location = to_vector3(contact_sphere.find("location").text)
-    orientation = to_vector3(contact_sphere.find("orientation").text)
+    name, socket_frame, location, orientation, pc_filter = parse_base_collider(contact_sphere)
     radius = float(contact_sphere.find("radius").text)
     return ContactSphere(
         name=name,
         socket_frame=socket_frame,
         location=location,
         orientation=Quat.from_fixed_angles(orientation),
-        radius=radius
+        radius=radius,
+        pc_filter=pc_filter,
     )
 
 
 def parse_contact_capsule(contact_capsule) -> ContactCapsule:
-    name = contact_capsule.attrib["name"]
-    socket_frame = contact_capsule.find("socket_frame").text
-    location = to_vector3(contact_capsule.find("location").text)
-    orientation = to_vector3(contact_capsule.find("orientation").text)
+    name, socket_frame, location, orientation, pc_filter = parse_base_collider(contact_capsule)
     radius = float(contact_capsule.find("radius").text)
     length = float(contact_capsule.find("length").text)
     return ContactCapsule(
@@ -395,7 +402,8 @@ def parse_contact_capsule(contact_capsule) -> ContactCapsule:
         location=location,
         orientation=Quat.from_fixed_angles(orientation),
         radius=radius,
-        half_length=length
+        half_length=length,
+        pc_filter=pc_filter,
     )
 
 

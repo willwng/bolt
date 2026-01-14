@@ -354,6 +354,7 @@ class Collider:
     socket_frame: str
     location: Vector3
     orientation: Quat
+    pc_filter: bool
 
     def size(self) -> list[float]:
         raise NotImplementedError
@@ -365,7 +366,6 @@ class Collider:
     def get_rbound(self) -> float:
         """ return the radius bound of the collider """
         raise NotImplementedError
-
 
 @dataclass
 class ContactHalfSpace(Collider):

@@ -16,6 +16,7 @@ class ColliderData:
     priority: list[int]
     aabb: list[list[float]]
     rbound: list[float]
+    pc_filter: list[bool]  # If true, maintains child-parent contact filter
 
     # default constructor
     def __init__(self):
@@ -30,6 +31,7 @@ class ColliderData:
         self.priority = []
         self.aabb = []
         self.rbound = []
+        self.pc_filter = []
 
 
 @dataclass

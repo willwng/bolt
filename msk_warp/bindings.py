@@ -26,6 +26,50 @@ class ModelLoadResult:
     visuals: list[types.MeshLoadResult]
 
 
+def prepare_contacts(
+        geom_data: ColliderData,
+        body_parent_ids: list[int],
+        ngeom: int,
+):
+    # precalculated geom pairs
+    geom1, geom2 = np.triu_indices(ngeom, k=1)
+    nxn_geom_pair = np.stack((geom1, geom2), axis=1)
+
+    # Contact pair id: -1 if not pre-defined, -2 if skipped, id otherwise
+    nxn_pairid_contact = -1 * np.ones(len(geom1), dtype=int)
+
+    # filter out parent-child collisions and self-collisions
+    geom_bodyid = np.array(geom_data.body_id)
+    geom_pc_filter = np.array(geom_data.pc_filter)
+    body_parentid = np.array(body_parent_ids)
+    bodyid1, bodyid2 = geom_bodyid[geom1], geom_bodyid[geom2]
+    parentid1, parentid2 = body_parentid[bodyid1], body_parentid[bodyid2]
+    pc_filter1, pc_filter2 = geom_pc_filter[geom1], geom_pc_filter[geom2]
+
+    self_collision = (bodyid1 == bodyid2)
+    parent_child_collision = (
+            ((bodyid1 == parentid2) & (bodyid1 != 0) & pc_filter1)
+            | ((bodyid2 == parentid1) & (bodyid2 != 0) & pc_filter2)
+    )
+    nxn_pairid_contact[parent_child_collision | self_collision] = -2
+    nxn_pairid_collision = -1 * np.ones(len(geom1), dtype=int)
+    include = (nxn_pairid_contact > -2) | (nxn_pairid_collision >= 0)
+    nxn_pairid = np.hstack([nxn_pairid_contact.reshape((-1, 1)), nxn_pairid_collision.reshape((-1, 1))])
+    nxn_pairid_filtered = nxn_pairid[include]
+    nxn_geom_pair_filtered = nxn_geom_pair[include]
+
+    # count contact pair types
+    geom_types = geom_data.type
+    geom_type_pair_count = np.bincount([
+        math.upper_trid_index(len(types.GeomType),
+                              int(geom_types[geom1[i]]),
+                              int(geom_types[geom2[i]]))
+        for i in np.arange(len(geom1))
+        if nxn_pairid_contact[i] > -2 or nxn_pairid_collision[i] > -1
+    ], minlength=len(types.GeomType) * (len(types.GeomType) + 1) // 2, )
+    return geom_types, geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered
+
+
 def load_model(
         model_path: str,
         n_worlds: int,
@@ -165,42 +209,9 @@ def load_model(
     txfm_dof_adr = txfm_dof_adr.reshape(n_custom_jnts, 6)
     txfm_axis = txfm_axis.reshape(n_custom_jnts, 6, 3)
 
-    # precalculated geom pairs
-    geom1, geom2 = np.triu_indices(ngeom, k=1)
-    nxn_geom_pair = np.stack((geom1, geom2), axis=1)
-
-    # Contact pair id: -1 if not pre-defined, -2 if skipped, id otherwise
-    nxn_pairid_contact = -1 * np.ones(len(geom1), dtype=int)
-
-    # filter out parent-child collisions and self-collisions
-    geom_bodyid = np.array(geom_data.body_id)
-    body_parentid = np.array(body_parent_ids)
-    bodyid1, bodyid2 = geom_bodyid[geom1], geom_bodyid[geom2]
-    parentid1, parentid2 = body_parentid[bodyid1], body_parentid[bodyid2]
-
-    self_collision = (bodyid1 == bodyid2)
-    parent_child_collision = (
-            ((bodyid1 == parentid2) & (bodyid1 != 0)) |
-            ((bodyid2 == parentid1) & (bodyid2 != 0)))
-    nxn_pairid_contact[parent_child_collision | self_collision] = -2
-
-    nxn_pairid_collision = -1 * np.ones(len(geom1), dtype=int)
-
-    include = (nxn_pairid_contact > -2) | (nxn_pairid_collision >= 0)
-    nxn_pairid = np.hstack([nxn_pairid_contact.reshape((-1, 1)),
-                            nxn_pairid_collision.reshape((-1, 1))])
-    nxn_pairid_filtered = nxn_pairid[include]
-    nxn_geom_pair_filtered = nxn_geom_pair[include]
-
-    # count contact pair types
-    geom_types = geom_data.type
-    geom_type_pair_count = np.bincount([
-        math.upper_trid_index(len(types.GeomType),
-                              int(geom_types[geom1[i]]),
-                              int(geom_types[geom2[i]]))
-        for i in np.arange(len(geom1))
-        if nxn_pairid_contact[i] > -2 or nxn_pairid_collision[i] > -1
-    ], minlength=len(types.GeomType) * (len(types.GeomType) + 1) // 2, )
+    # Prepare contacts
+    geom_types, geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = prepare_contacts(
+        geom_data, body_parent_ids, ngeom)
 
     # todo: don't hard code
     njmax = 128
