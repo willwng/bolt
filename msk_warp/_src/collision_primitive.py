@@ -363,6 +363,7 @@ def write_contact(
         curvature_in: float,
         stiffness_in: float,
         dissipation_in: float,
+        transition_velocity_in: float,
         friction_in: vec5,
         geoms_in: wp.vec2i,
         pairid_in: wp.vec2i,
@@ -376,6 +377,7 @@ def write_contact(
         contact_curvature_out: wp.array(dtype=float),
         contact_stiffness_out: wp.array(dtype=float),
         contact_dissipation_out: wp.array(dtype=float),
+        contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -398,6 +400,7 @@ def write_contact(
         contact_curvature_out[cid] = curvature_in
         contact_stiffness_out[cid] = stiffness_in
         contact_dissipation_out[cid] = dissipation_in
+        contact_transition_velocity_out[cid] = transition_velocity_in
         contact_friction_out[cid] = friction_in
         contact_geomcollisionid_out[cid] = id_
 
@@ -408,6 +411,7 @@ def contact_params(
         geom_friction: wp.array(dtype=wp.vec3),
         geom_stiffness: wp.array(dtype=float),
         geom_dissipation: wp.array(dtype=float),
+        geom_transition_velocity: wp.array(dtype=float),
         geom_priority: wp.array(dtype=int),
         # Data in:
         collision_pair_in: wp.array(dtype=wp.vec2i),
@@ -426,25 +430,29 @@ def contact_params(
         g_friction = wp.max(geom_friction[g1], geom_friction[g2])
         stiffness = wp.max(geom_stiffness[g1], geom_stiffness[g2])
         dissipation = wp.max(geom_dissipation[g1], geom_dissipation[g2])
+        transition_vel = wp.max(geom_transition_velocity[g1], geom_transition_velocity[g2])
     elif p1 > p2:  # g1 has higher priority
         g_friction = geom_friction[g1]
         stiffness = geom_stiffness[g1]
         dissipation = geom_dissipation[g1]
+        transition_vel = geom_transition_velocity[g1]
     else:
         g_friction = geom_friction[g2]
         stiffness = geom_stiffness[g2]
         dissipation = geom_dissipation[g2]
+        transition_vel = geom_transition_velocity[g2]
 
-    friction = vec5(
-        wp.max(MJ_MINMU, g_friction[0]),
-        wp.max(MJ_MINMU, g_friction[0]),
-        wp.max(MJ_MINMU, g_friction[1]),
-        wp.max(MJ_MINMU, g_friction[2]),
-        wp.max(MJ_MINMU, g_friction[2]),
-    )
-
+    # todo: fix this for mujoco contacts
+    # friction = vec5(
+    #     wp.max(MJ_MINMU, g_friction[0]),
+    #     wp.max(MJ_MINMU, g_friction[0]),
+    #     wp.max(MJ_MINMU, g_friction[1]),
+    #     wp.max(MJ_MINMU, g_friction[2]),
+    #     wp.max(MJ_MINMU, g_friction[2]),
+    # )
+    friction = vec5(g_friction[0], g_friction[1], g_friction[2], 0.0, 0.0)
     condim = 3  # hard coded
-    return geoms, condim, friction, stiffness, dissipation
+    return geoms, condim, friction, stiffness, dissipation, transition_vel
 
 
 @wp.func
@@ -459,6 +467,7 @@ def plane_sphere_wrapper(
         friction: vec5,
         stiffness: float,
         dissipation: float,
+        transition_velocity: float,
         geoms: wp.vec2i,
         pairid: wp.vec2i,
         # Data out:
@@ -470,6 +479,7 @@ def plane_sphere_wrapper(
         contact_curvature_out: wp.array(dtype=float),
         contact_stiffness_out: wp.array(dtype=float),
         contact_dissipation_out: wp.array(dtype=float),
+        contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -490,6 +500,7 @@ def plane_sphere_wrapper(
         curvature,
         stiffness,
         dissipation,
+        transition_velocity,
         friction,
         geoms,
         pairid,
@@ -502,6 +513,7 @@ def plane_sphere_wrapper(
         contact_curvature_out,
         contact_stiffness_out,
         contact_dissipation_out,
+        contact_transition_velocity_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -521,6 +533,7 @@ def sphere_sphere_wrapper(
         friction: vec5,
         stiffness: float,
         dissipation: float,
+        transition_velocity: float,
         geoms: wp.vec2i,
         pairid: wp.vec2i,
         # Data out:
@@ -532,6 +545,7 @@ def sphere_sphere_wrapper(
         contact_curvature_out: wp.array(dtype=float),
         contact_stiffness_out: wp.array(dtype=float),
         contact_dissipation_out: wp.array(dtype=float),
+        contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -552,6 +566,7 @@ def sphere_sphere_wrapper(
         curvature,
         stiffness,
         dissipation,
+        transition_velocity,
         friction,
         geoms,
         pairid,
@@ -564,6 +579,7 @@ def sphere_sphere_wrapper(
         contact_curvature_out,
         contact_stiffness_out,
         contact_dissipation_out,
+        contact_transition_velocity_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -583,6 +599,7 @@ def sphere_capsule_wrapper(
         friction: vec5,
         stiffness: float,
         dissipation: float,
+        transition_velocity: float,
         geoms: wp.vec2i,
         pairid: wp.vec2i,
         # Data out:
@@ -594,6 +611,7 @@ def sphere_capsule_wrapper(
         contact_curvature_out: wp.array(dtype=float),
         contact_stiffness_out: wp.array(dtype=float),
         contact_dissipation_out: wp.array(dtype=float),
+        contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -617,6 +635,7 @@ def sphere_capsule_wrapper(
         curvature,
         stiffness,
         dissipation,
+        transition_velocity,
         friction,
         geoms,
         pairid,
@@ -629,6 +648,7 @@ def sphere_capsule_wrapper(
         contact_curvature_out,
         contact_stiffness_out,
         contact_dissipation_out,
+        contact_transition_velocity_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -648,6 +668,7 @@ def capsule_capsule_wrapper(
         friction: vec5,
         stiffness: float,
         dissipation: float,
+        transition_velocity: float,
         geoms: wp.vec2i,
         pairid: wp.vec2i,
         # Data out:
@@ -659,6 +680,7 @@ def capsule_capsule_wrapper(
         contact_curvature_out: wp.array(dtype=float),
         contact_stiffness_out: wp.array(dtype=float),
         contact_dissipation_out: wp.array(dtype=float),
+        contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -691,6 +713,7 @@ def capsule_capsule_wrapper(
         curvature,
         stiffness,
         dissipation,
+        transition_velocity,
         friction,
         geoms,
         pairid,
@@ -703,6 +726,7 @@ def capsule_capsule_wrapper(
         contact_curvature_out,
         contact_stiffness_out,
         contact_dissipation_out,
+        contact_transition_velocity_out,
         contact_geom_out,
         contact_worldid_out,
         contact_geomcollisionid_out,
@@ -722,6 +746,7 @@ def plane_capsule_wrapper(
         friction: vec5,
         stiffness: float,
         dissipation: float,
+        transition_velocity: float,
         geoms: wp.vec2i,
         pairid: wp.vec2i,
         # Data out:
@@ -733,6 +758,7 @@ def plane_capsule_wrapper(
         contact_curvature_out: wp.array(dtype=float),
         contact_stiffness_out: wp.array(dtype=float),
         contact_dissipation_out: wp.array(dtype=float),
+        contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_geomcollisionid_out: wp.array(dtype=int),
@@ -763,6 +789,7 @@ def plane_capsule_wrapper(
             curvature,
             stiffness,
             dissipation,
+            transition_velocity,
             friction,
             geoms,
             pairid,
@@ -775,6 +802,7 @@ def plane_capsule_wrapper(
             contact_curvature_out,
             contact_stiffness_out,
             contact_dissipation_out,
+            contact_transition_velocity_out,
             contact_geom_out,
             contact_worldid_out,
             contact_geomcollisionid_out,
@@ -1403,6 +1431,7 @@ def _create_narrowphase_kernel(primitive_collisions_types,
             geom_friction: wp.array(dtype=wp.vec3),
             geom_stiffness: wp.array(dtype=float),
             geom_dissipation: wp.array(dtype=float),
+            geom_transition_velocity: wp.array(dtype=float),
             geom_priority: wp.array(dtype=int),
             # Data in:
             geom_xpos_in: wp.array2d(dtype=wp.vec3),
@@ -1421,6 +1450,7 @@ def _create_narrowphase_kernel(primitive_collisions_types,
             contact_curvature_out: wp.array(dtype=float),
             contact_stiffness_out: wp.array(dtype=float),
             contact_dissipation_out: wp.array(dtype=float),
+            contact_transition_velocity_out: wp.array(dtype=float),
             contact_geom_out: wp.array(dtype=wp.vec2i),
             contact_worldid_out: wp.array(dtype=int),
             contact_geomcollisionid_out: wp.array(dtype=int),
@@ -1434,10 +1464,11 @@ def _create_narrowphase_kernel(primitive_collisions_types,
         geoms = collision_pair_in[tid]
         worldid = collision_worldid_in[tid]
 
-        _, condim, friction, stiffness, dissipation = contact_params(
+        _, condim, friction, stiffness, dissipation, transition_vel = contact_params(
             geom_friction,
             geom_stiffness,
             geom_dissipation,
+            geom_transition_velocity,
             geom_priority,
             collision_pair_in,
             collision_pairid_in,
@@ -1469,6 +1500,7 @@ def _create_narrowphase_kernel(primitive_collisions_types,
                     friction,
                     stiffness,
                     dissipation,
+                    transition_vel,
                     geoms,
                     collision_pairid_in[tid],
                     contact_dist_out,
@@ -1479,6 +1511,7 @@ def _create_narrowphase_kernel(primitive_collisions_types,
                     contact_curvature_out,
                     contact_stiffness_out,
                     contact_dissipation_out,
+                    contact_transition_velocity_out,
                     contact_geom_out,
                     contact_worldid_out,
                     contact_geomcollisionid_out,
@@ -1530,6 +1563,7 @@ def primitive_narrowphase(m: Model, d: Data):
             m.geom_friction,
             m.geom_stiffness,
             m.geom_dissipation,
+            m.geom_transition_velocity,
             m.geom_priority,
             d.geom_xpos,
             d.geom_xmat,
@@ -1548,6 +1582,7 @@ def primitive_narrowphase(m: Model, d: Data):
             d.contact.curvature,
             d.contact.stiffness,
             d.contact.dissipation,
+            d.contact.transition_velocity,
             d.contact.geom,
             d.contact.worldid,
             d.contact.geomcollisionid,

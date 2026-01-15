@@ -25,6 +25,7 @@ def _process_contacts_hc(
         curvature_in: wp.array(dtype=float),
         stiffness_in: wp.array(dtype=float),
         dissipation_in: wp.array(dtype=float),
+        transition_velocity_in: wp.array(dtype=float),
         worldid_in: wp.array(dtype=int),
         geom_in: wp.array(dtype=wp.vec2i),
         pos_in: wp.array(dtype=wp.vec3),
@@ -52,10 +53,10 @@ def _process_contacts_hc(
     friction = friction_in[conid]
     stiffness = stiffness_in[conid]
     dissipation = dissipation_in[conid]
+    transition_velocity = transition_velocity_in[conid]
     normal = frame[0]
 
     us, ud, uv = friction[0], friction[1], friction[2]
-    transition_velocity = 0.001
 
     # Adjust the contact location based on the relative stiffness
     location = cpos
@@ -124,6 +125,7 @@ def apply_contact_forces(m: Model, d: Data):
             d.contact.curvature,
             d.contact.stiffness,
             d.contact.dissipation,
+            d.contact.transition_velocity,
             d.contact.worldid,
             d.contact.geom,
             d.contact.pos,

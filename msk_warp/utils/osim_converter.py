@@ -412,6 +412,7 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         friction = [0.95, 0.3, 0.3]  # default friction values
         stiffness = 1602213.464769315 ** (2.0 / 3.0)
         dissipation = 0.0725
+        transition_velocity = 0.001
         priority = 0
         aabb = collider.get_aabb()
         rbound = collider.get_rbound()
@@ -425,6 +426,7 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         collider_data.friction.append(friction)
         collider_data.stiffness.append(stiffness)
         collider_data.dissipation.append(dissipation)
+        collider_data.transition_velocity.append(transition_velocity)
         collider_data.priority.append(priority)
         collider_data.aabb.append(aabb)
         collider_data.rbound.append(rbound)

@@ -174,7 +174,6 @@ def load_model(
 
     dof_limit_ranges, dof_limit_adr, dof_limit_qadr = get_dof_limits(osim_model)
     n_limits = len(dof_limit_ranges)
-    # todo: make these user-editable
     dof_limit_forces = [(50.0, 20.0)] * n_limits  # Placeholder for limit forces
     dof_limit_shapes = [(75.0, 25.0)] * n_limits  # Placeholder for limit shapes
 
@@ -350,6 +349,7 @@ def load_model(
         geom_friction=to_warp_array(geom_data.friction, dtype=wp.vec3),
         geom_stiffness=to_warp_array(geom_data.stiffness, dtype=float),
         geom_dissipation=to_warp_array(geom_data.dissipation, dtype=float),
+        geom_transition_velocity=to_warp_array(geom_data.transition_velocity, dtype=float),
         geom_priority=to_warp_array(geom_data.priority, dtype=int),
         geom_aabb=to_warp_array(geom_data.aabb, dtype=wp.vec3),
         geom_rbound=to_warp_array(geom_data.rbound, dtype=float),
@@ -515,6 +515,7 @@ def load_model(
             curvature=make_zero(naconmax, dtype=float),
             stiffness=make_zero(naconmax, dtype=float),
             dissipation=make_zero(naconmax, dtype=float),
+            transition_velocity=make_zero(naconmax, dtype=float),
             geom=make_zero(naconmax, dtype=wp.vec2i),
             efc_address=make_zero((naconmax, 4), dtype=int),
             # assuming condim_max = 3
@@ -938,6 +939,10 @@ def collider_priority(m: types.Model) -> torch.Tensor:
 
 def collider_friction(m: types.Model) -> torch.Tensor:
     return wp.to_torch(m.geom_friction)
+
+
+def collider_transition_velocity(m: types.Model) -> torch.Tensor:
+    return wp.to_torch(m.geom_transition_velocity)
 
 
 def get_collider_positions(d: types.Data) -> torch.Tensor:
