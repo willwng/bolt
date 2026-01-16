@@ -258,9 +258,11 @@ class LimitType(enum.IntEnum):
     Attributes:
         MUJOCO: MuJoCo limit model (constraint-based)
         EXPONENTIAL: Exponential Spring Function
+        HUNT_CROSSLEY: Hunt-Crossley-like limit model
     """
     MUJOCO = 1
     EXPONENTIAL = 2
+    HUNT_CROSSLEY = 3
 
 
 class IntegratorType(enum.IntEnum):

@@ -167,7 +167,7 @@ def compute_grf(m: Model, d: Data):
 
 @event_scope
 def compute_limit_torques(m: Model, d: Data):
-    if wp.static(m.opt.limit_type == LimitType.EXPONENTIAL):
+    if wp.static(m.opt.limit_type != LimitType.MUJOCO):
         return  # already handled
     d.dof_lim_torque.zero_()
 
