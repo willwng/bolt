@@ -51,7 +51,7 @@ DGF_KPE = 4.0
 # Activation dynamics
 DGF_ACTIVATION_TIME_CONSTANT = 0.015
 DGF_DEACTIVATION_TIME_CONSTANT = 0.060
-DGF_ACTIVATION_DYNAMICS_SMOOTHING = 0.1 # 10.
+DGF_ACTIVATION_DYNAMICS_SMOOTHING = 10.0  # 0.1 is original in paper
 
 # These are overridden for each muscle depending on max pennation angles
 MIN_NORM_FIBER_LENGTH = 0.2
