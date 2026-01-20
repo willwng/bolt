@@ -34,10 +34,10 @@ def _process_joint_limits(
     stiffness = 500.0
     if qpos >= dof_range[0] and qpos <= dof_range[1]:
         return
-    elif qpos < dof_range[0]:
-        force = wp.max(stiffness * (dof_range[0] - qpos) * (1.0 - damping * qvel), 0.0)
-    else:
+    elif qpos > dof_range[1]:
         force = wp.min(-stiffness * (qpos - dof_range[1]) * (1.0 + damping * qvel), 0.0)
+    else:
+        force = wp.max(-stiffness * (qpos - dof_range[0]) * (1.0 - damping * qvel), 0.0)
 
     wp.atomic_add(qfrc_applied_out, worldid, dof_adr, force)
     wp.atomic_add(dof_limit_torque_out, worldid, limitdofid, force)
