@@ -568,30 +568,7 @@ def load_model(
         subtree_bodyvel=make_zero((n_worlds, nb), dtype=wp.vec3),
 
         # Variable-step integrator
-        integrator_state=types.IntegratorState(
-            time=make_zero((n_worlds, n_int_states), dtype=float),
-            qpos=make_zero((n_worlds, n_int_states, nq), dtype=float),
-            qvel=make_zero((n_worlds, n_int_states, nv), dtype=float),
-            mstate=make_zero((n_worlds, n_int_states, nmuscle), dtype=float),
-            act=make_zero((n_worlds, n_int_states, nmuscle), dtype=float),
-        ),
-        nintegrating=make_zero(1, dtype=int),
-        step_size=make_full(dt / 10.0, (n_worlds,), dtype=float),
         actual_step_size=make_full(dt, (n_worlds,), dtype=float),
-        artificially_limited=make_zero((n_worlds,), dtype=bool),
-        error=make_zero((n_worlds,), dtype=float),
-        qvel_scales=make_zero((n_worlds, nv), dtype=float),
-        qpos_diff=make_zero((n_worlds, nq), dtype=float),
-        qpos_diff_scaled=make_zero((n_worlds, nq), dtype=float),
-        qvel_diff=make_zero((n_worlds, nq), dtype=float),
-        mstate_diff=make_zero((n_worlds, nmuscle), dtype=float),
-        act_diff=make_zero((n_worlds, nmuscle), dtype=float),
-        qpos_error=make_zero((n_worlds,), dtype=float),
-        qvel_error=make_zero((n_worlds,), dtype=float),
-        ninv_dq_tmp=make_zero((n_worlds, nv), dtype=float),
-
-        step_accepted=make_zero((n_worlds,), dtype=bool),
-        integration_done=make_zero((n_worlds,), dtype=bool),
 
         # collision driver
         collision_pair=wp.zeros((naconmax,), dtype=wp.vec2i),

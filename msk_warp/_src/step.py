@@ -13,8 +13,6 @@ wp.set_module_options({"enable_backward": False})
 def step_to(m: Model, d: Data, dt: float, dt_sim: float):
     if wp.static(m.opt.integrator) == IntegratorType.EULER_FIXED:
         integrate.euler_fixed(m, d, dt, dt_sim)
-    elif wp.static(m.opt.integrator) == IntegratorType.EULER_ADAPTIVE:
-        integrate.step_to_adaptive(m, d, dt)
     elif wp.static(m.opt.integrator) == IntegratorType.RK4_FIXED:
         integrate.rk4_fixed(m, d, dt, dt_sim)
     else:

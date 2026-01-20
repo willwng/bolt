@@ -269,11 +269,10 @@ class IntegratorType(enum.IntEnum):
     """ Integrator type.
     Attributes:
         EULER_FIXED: Fixed-step Euler (semi-implicit with implicit damping)
-        EULER_ADAPTIVE: Variable-step Euler (semi-implicit)
+        RK4_FIXED: Fixed-step 4th-order Runge-Kutta
     """
     EULER_FIXED = 1
-    EULER_ADAPTIVE = 2
-    RK4_FIXED = 3
+    RK4_FIXED = 2
 
 
 @dataclasses.dataclass
@@ -808,24 +807,6 @@ class Contact:
     geomcollisionid: wp.array(dtype=int)
 
 
-@dataclasses.dataclass
-class IntegratorState:
-    """
-    State saved for variable-step size integrator. Number of requested
-    saved states is configurable.
-    Attributes:
-        time: simulation time                       (nworld, nstates)
-        qpos: position                              (nworld, nstates, nq)
-        qvel: velocity                              (nworld, nstates, nv)
-        mstate: muscle state variable               (nworld, nstates, nmuscles)
-        act: actuator activation                   (nworld, nstates, nmuscles)
-    """
-    time: wp.array2d(dtype=float)
-    qpos: wp.array3d(dtype=float)
-    qvel: wp.array3d(dtype=float)
-    mstate: wp.array3d(dtype=float)
-    act: wp.array3d(dtype=float)
-
 
 @dataclasses.dataclass
 class Data:
@@ -1055,27 +1036,7 @@ class Data:
     nsolving: wp.array(dtype=int)
     subtree_bodyvel: wp.array2d(dtype=wp.spatial_vector)
 
-    # Variable-step size integrator
-    integrator_state: IntegratorState
-    nintegrating: wp.array(dtype=int)
-
-    step_size: wp.array(dtype=float)
     actual_step_size: wp.array(dtype=float)
-    artificially_limited: wp.array(dtype=bool)
-    # Variable-step size error
-    error: wp.array(dtype=float)
-    qvel_scales: wp.array2d(dtype=float)
-    qpos_diff: wp.array2d(dtype=float)
-    qpos_diff_scaled: wp.array2d(dtype=float)
-    qvel_diff: wp.array2d(dtype=float)
-    mstate_diff: wp.array2d(dtype=float)
-    act_diff: wp.array2d(dtype=float)
-    qpos_error: wp.array(dtype=float)
-    qvel_error: wp.array(dtype=float)
-    ninv_dq_tmp: wp.array2d(dtype=float)
-
-    step_accepted: wp.array(dtype=bool)
-    integration_done: wp.array(dtype=bool)
 
     # collision driver
     collision_pair: wp.array(dtype=wp.vec2i)
