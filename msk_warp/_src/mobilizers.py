@@ -83,8 +83,7 @@ def fk_joint(
         xaxis_out[0] = math.rot_vec_quat(hinge_axis, jnt_rot)
 
     if jnttype == JointType.BALL:
-        qloc_ = wp.quat(qpos[qadr + 0], qpos[qadr + 1],
-                        qpos[qadr + 2], qpos[qadr + 3])
+        qloc_ = wp.quat(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2], qpos[qadr + 3])
         qloc_ = wp.normalize(qloc_)
 
     elif jnttype == JointType.SLIDE:
@@ -134,6 +133,8 @@ def fk_joint(
             xloc_ += fn_eval[0] * txfm_axes[i]
             # store the rotated linear axes, with derivative
             xaxis_out[i] = fn_eval[1] * math.rot_vec_quat(txfm_axes[i], jnt_rot)
+    elif jnttype == JointType.WELD:
+        pass
     elif jnttype == JointType.DUMMY:
         pass
 
@@ -199,6 +200,8 @@ def cdof_joint(
                 c = wp.spatial_vector(wp.vec3(0.0), xaxis)
             res[dof_adr] += c
             cst_res_tmp[i] = c
+    elif jnttype == JointType.WELD:
+        pass
     elif jnttype == JointType.DUMMY:
         pass
 
@@ -260,6 +263,8 @@ def cvel_joint(
                 continue
             res[dof_adr] += math.motion_cross(cvel, cdof_tmp[j])
             cvel += cdof_tmp[j] * qvel[dof_adr]
+    elif jnttype == JointType.WELD:
+        pass
     elif jnttype == JointType.DUMMY:
         pass
     return cvel
@@ -325,6 +330,8 @@ def integrate(
             qpos_next[qpos_adr + i] = (
                     qpos[qpos_adr + i] + timestep * qvel[dof_adr + i])
 
+    elif jnttype == JointType.WELD:
+        return
     elif jnttype == JointType.DUMMY:
         return
     else:

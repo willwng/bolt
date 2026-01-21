@@ -154,6 +154,11 @@ def parse_universal_joint(joint) -> UniversalJoint:
     return UniversalJoint.from_joint(joint_base)
 
 
+def parse_weld_joint(joint) -> WeldJoint:
+    joint_base = parse_joint_base(joint)
+    return WeldJoint.from_joint(joint_base)
+
+
 def parse_mesh(mesh) -> Mesh:
     mesh_file = mesh.find("mesh_file").text
     scale_text = mesh.find("scale_factors").text
@@ -223,6 +228,8 @@ def parse_joint_set(joint_set) -> JointSet:
             joint_obj = parse_pin_joint(joint)
         elif joint.tag == "UniversalJoint":
             joint_obj = parse_universal_joint(joint)
+        elif joint.tag == "WeldJoint":
+            joint_obj = parse_weld_joint(joint)
         else:
             print("Undefined joint type:", joint.tag)
             continue

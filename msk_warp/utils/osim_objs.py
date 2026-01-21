@@ -328,6 +328,25 @@ class CustomJoint(Joint):
 
 
 @dataclass
+class WeldJoint(Joint):
+    @classmethod
+    def from_joint(cls, joint: Joint) -> "WeldJoint":
+        return cls(
+            name=joint.name,
+            socket_parent_frame=joint.socket_parent_frame,
+            socket_child_frame=joint.socket_child_frame,
+            coordinates=joint.coordinates,
+            frames=joint.frames,
+        )
+
+    def num_dofs(self) -> int:
+        return 0
+
+    def num_pos_dofs(self) -> int:
+        return 0
+
+
+@dataclass
 class JointSet:
     joints: OrderedDict[str, Joint]
 
@@ -366,6 +385,7 @@ class Collider:
     def get_rbound(self) -> float:
         """ return the radius bound of the collider """
         raise NotImplementedError
+
 
 @dataclass
 class ContactHalfSpace(Collider):
