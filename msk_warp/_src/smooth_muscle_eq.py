@@ -17,6 +17,8 @@ wp.set_module_options({"enable_backward": False})
 
 @wp.kernel
 def _compute_activation_dot(
+        # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
         mexcitation_in: wp.array2d(dtype=float),
         act_in: wp.array2d(dtype=float),
@@ -24,9 +26,17 @@ def _compute_activation_dot(
         act_dot_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
+    mm = muscle_metadata[muscle_id]
+
     excitation = mexcitation_in[worldid, muscle_id]
     activation = act_in[worldid, muscle_id]
-    act_dot = dgf.calc_activation_derivative(activation, excitation)
+    act_dot = dgf.calc_activation_derivative(
+        activation,
+        excitation,
+        mm.activation_time_const,
+        mm.deactivation_time_const,
+        mm.activation_dynamics_smoothing
+    )
     act_dot_out[worldid, muscle_id] = act_dot
     return
 
@@ -36,7 +46,7 @@ def compute_act_dot(m: Model, d: Data):
     wp.launch(
         _compute_activation_dot,
         dim=(d.nworld, m.nmuscle),
-        inputs=[d.m_excitations, d.m_act],
+        inputs=[m.muscle_metadata, d.m_excitations, d.m_act],
         outputs=[d.m_act_dot],
     )
 

@@ -398,6 +398,10 @@ class MuscleMetadata:
     fiber_damping: float
     v_max: float
 
+    activation_time_const: float
+    deactivation_time_const: float
+    activation_dynamics_smoothing: float
+
     min_norm_fiber_length: float
     max_norm_fiber_length: float
     min_activation: float

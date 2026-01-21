@@ -33,12 +33,14 @@ def calc_gaussian_like_curve_der(
 def calc_activation_derivative(
         activation: float,
         excitation: float,
+        activation_time_const: float,
+        deactivation_time_const: float,
+        activation_dynamics_smoothing: float
 ) -> float:
     time_const_fact = 0.5 + 1.5 * activation
-    tmp_act = 1.0 / (consts.DGF_ACTIVATION_TIME_CONSTANT * time_const_fact)
-    tmp_deact = time_const_fact / consts.DGF_DEACTIVATION_TIME_CONSTANT
-    f = 0.5 * wp.tanh(
-        consts.DGF_ACTIVATION_DYNAMICS_SMOOTHING * (excitation - activation))
+    tmp_act = 1.0 / (activation_time_const * time_const_fact)
+    tmp_deact = time_const_fact / deactivation_time_const
+    f = 0.5 * wp.tanh(activation_dynamics_smoothing * (excitation - activation))
     time_const = tmp_act * (f + 0.5) + tmp_deact * (-f + 0.5)
     return time_const * (excitation - activation)
 

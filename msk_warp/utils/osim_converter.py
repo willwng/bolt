@@ -663,6 +663,10 @@ def get_muscle_metadata(
         muscle_meta.fiber_damping = 0.1
         muscle_meta.v_max = 12.0
 
+        muscle_meta.activation_time_const = 0.015
+        muscle_meta.deactivation_time_const = 0.060
+        muscle_meta.activation_dynamics_smoothing = 0.1
+
         fl_range = get_muscle_fl_range(
             muscle,
             max_pennation_angle=max_pennation_angle,
