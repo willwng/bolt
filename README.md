@@ -7,11 +7,14 @@ GPU-accelerated physics simulations for articulated rigid bodies with muscle act
 
 **Current features include:**
 - Articulated body motion computations performed in generalized coordinates, including [OpenSim CustomJoint](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CustomJoint.html) logic.
-- Elastic tendon dynamics and muscle activation dynamics based on [De Groote et al.](https://pubmed.ncbi.nlm.nih.gov/27001399/).
+- Stateful elastic tendon dynamics and muscle activation dynamics based on [De Groote et al.](https://pubmed.ncbi.nlm.nih.gov/27001399/).
 - Geometry-based and polynomial/function-based muscle paths.
 - Force-based Hunt-Crossley contacts and constraint-based MuJoCo contacts.
-- Exponential force-based joint limits [Anderson and Pandy](https://pubmed.ncbi.nlm.nih.gov/11264828/) and constraint-based MuJoCo limits.
+- Exponential force-based joint limits [Anderson and Pandy](https://pubmed.ncbi.nlm.nih.gov/11264828/), [Hunt-Crossley joint limits](https://simtk.org/api_docs/simbody/api_docs33/Simbody/html/classSimTK_1_1Force_1_1MobilityLinearStop.html), and constraint-based MuJoCo limits.
 - Explicit Euler, RK4, and adaptive Euler (in-progress) integrators.
+
+We also include a basic [OpenGL renderer](msk_warp/render) (not tuned for performance) for debugging.
+
 
 ## Setup
 ```bash
