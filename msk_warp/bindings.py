@@ -810,6 +810,10 @@ def joint_accelerations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qacc)
 
 
+def qfrc_damper(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_damper)
+
+
 def subtree_com_positions(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.subtree_com)
 
