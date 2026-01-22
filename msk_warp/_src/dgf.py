@@ -323,7 +323,7 @@ def calc_damped_norm_fiber_velocity(
     # approximation is poor beyond maximum velocities
     dlceN_dt = wp.clamp(dlceN_dt, -1.0, 1.0)
 
-    while wp.abs(err) > 10 and i < max_iter:
+    while wp.abs(err) > tol and i < max_iter:
         fv = calc_force_velocity_multiplier(dlceN_dt)
         fvDer = calc_force_velocity_multiplier_derivative(dlceN_dt)
         fiber_force = f_iso * (a * fal * fv + fpe + beta * dlceN_dt)
