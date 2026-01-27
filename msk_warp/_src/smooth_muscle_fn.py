@@ -33,10 +33,8 @@ def _compute_path_kernel(
 ):
     worldid, muscle_id = wp.tid()
     # Store previous values
-    muscle_length_prev_out[worldid, muscle_id] = muscle_length_in[
-        worldid, muscle_id]
-    muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[
-        worldid, muscle_id]
+    muscle_length_prev_out[worldid, muscle_id] = muscle_length_in[worldid, muscle_id]
+    muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[worldid, muscle_id]
 
     # Fetch polynomial data: address into coeffs, order
     poly_adr = muscle_poly_adr[muscle_id]
@@ -77,7 +75,7 @@ def _compute_path_kernel(
                     c = muscle_poly_coeffs[poly_adr + coeff_idx]
                     t1, t2, t3, t4 = q_pows[0, in1], q_pows[1, in2], q_pows[2, in3], q_pows[3, in4]
 
-                    # Function eval (Length)
+                    # Function eval (L)
                     term_all = t1 * t2 * t3 * t4
                     length += c * term_all
 
@@ -93,7 +91,7 @@ def _compute_path_kernel(
 
                     coeff_idx += 1
 
-    # l = f(q), v = dl/dq * qv, moment_arm = -dl/dq
+    # l = f(q), v = dL/dq * dq/dt, moment_arm = -dL/dq
     muscle_length_out[worldid, muscle_id] = length
     muscle_velocity_out[worldid, muscle_id] = wp.dot(df_dq, poly_tmp_qv)
     for i in range(n_dof):

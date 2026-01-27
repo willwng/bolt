@@ -148,7 +148,7 @@ def _xfrc_muscles(
         xipos_in: wp.array2d(dtype=wp.vec3),
         site_xpos_in: wp.array2d(dtype=wp.vec3),
         # Data out:
-        xfrc_applied_out: wp.array2d(dtype=wp.spatial_vector),
+        xfrc_muscle_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, muscle_id = wp.tid()
     actuation = muscle_actuation_in[worldid, muscle_id]
@@ -169,9 +169,9 @@ def _xfrc_muscles(
         com1, com2 = xipos_in[worldid, body1], xipos_in[worldid, body2]
 
         muscle_frc = actuation * vec
-        wp.atomic_add(xfrc_applied_out[worldid], body1,
+        wp.atomic_add(xfrc_muscle_out[worldid], body1,
                       support.force_at_point(muscle_frc, p1 - com1))
-        wp.atomic_sub(xfrc_applied_out[worldid], body2,
+        wp.atomic_sub(xfrc_muscle_out[worldid], body2,
                       support.force_at_point(muscle_frc, p2 - com2))
 
 
@@ -246,5 +246,5 @@ def apply_muscle_force(m: Model, d: Data):
                 d.xipos,
                 d.site_xpos,
             ],
-            outputs=[d.xfrc_applied],
+            outputs=[d.xfrc_muscle],
         )

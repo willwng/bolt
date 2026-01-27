@@ -39,20 +39,25 @@ def main():
     if args.debug:
         wp.config.mode = "debug"
 
-    model = "data/osim/model.osim"
-    load_result = msk_warp.load_model(model, args.nworld)
+    model = "data/osim/model_motor_arms_foot_contact_full_contact.osim"
+    load_result = msk_warp.load_model(model, args.nworld,
+                                      polynomial_data_path="data/muscle_poly_info.json")
     m, d = load_result.model, load_result.data
+    m.opt.muscle_dyn_substeps = 0
+    m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
+    m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
+    m.opt.integrator = msk_warp.types.IntegratorType.EULER_FIXED
 
-    dt = 1.0 / 300.0
-    dt_sim = 1.0 / 300.0
+    dt = 1.0 / 7200.0
+    dt_sim = 1.0 / 7200.0
     is_cuda = wp.get_device().is_cuda
     if not args.benchmark:
         viewer = msk_warp.create_renderer(
             load_result=load_result,
             renderer_type=RendererType.TILED,
             draw_visuals=True,
-            draw_colliders=False,
-            draw_muscles=True
+            draw_colliders=True,
+            draw_muscles=False
         )
         if viewer.viewer_type == RendererType.TILED:
             viewer.setup_tiled_renderer(list(range(min(args.nworld, 4))))

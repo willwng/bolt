@@ -243,7 +243,7 @@ def _damper_dof_passive(
 
 
 @event_scope
-def apply_passive_forces(m: Model, d: Data):
+def apply_spring_damper(m: Model, d: Data):
     """Adds all passive forces."""
     wp.launch(
         _spring_jnt_passive,
@@ -282,6 +282,7 @@ def _qfrc_smooth(
         qfrc_contact_in: wp.array2d(dtype=float),
         qfrc_spring_in: wp.array2d(dtype=float),
         qfrc_damper_in: wp.array2d(dtype=float),
+        qfrc_drag_in: wp.array2d(dtype=float),
         # Data out:
         qfrc_smooth_out: wp.array2d(dtype=float),
 ):
@@ -295,33 +296,42 @@ def _qfrc_smooth(
             + qfrc_contact_in[worldid, dofid]
             + qfrc_spring_in[worldid, dofid]
             + qfrc_damper_in[worldid, dofid]
+            + qfrc_drag_in[worldid, dofid]
     )
 
 
 @event_scope
 def reset_forces(m: Model, d: Data):
     """ Compute all applied forces """
-    d.qfrc_applied.zero_()
-    d.xfrc_applied.zero_()
     d.xfrc_contact.zero_()
+    d.xfrc_drag.zero_()
+    d.xfrc_muscle.zero_()
 
+    d.qfrc_applied.zero_()
+    d.qfrc_bias.zero_()
+    d.qfrc_spring.zero_()
+    d.qfrc_damper.zero_()
+    d.qfrc_drag.zero_()
     d.qfrc_muscle.zero_()
     d.qfrc_actuator.zero_()
-    d.qfrc_limit.zero_()
     d.qfrc_contact.zero_()
+    d.qfrc_limit.zero_()
 
 
 @event_scope
 def accumulate_forces(m: Model, d: Data):
     """ Accumulate all forces into qfrc_applied smooth"""
+    support.apply_ft(m, d, d.xfrc_drag, d.qfrc_drag, True)
     support.apply_ft(m, d, d.xfrc_contact, d.qfrc_contact, True)
     support.apply_ft(m, d, d.xfrc_applied, d.qfrc_applied, True)
-    support.apply_ft(m, d, d.xfrc_user, d.qfrc_applied, True)
+    if not wp.static(m.opt.use_fn_path):
+        support.apply_ft(m, d, d.xfrc_muscle, d.qfrc_muscle, True)
 
     wp.launch(
         _qfrc_smooth,
         dim=(d.nworld, m.nv),
         inputs=[d.qfrc_applied, d.qfrc_bias, d.qfrc_muscle, d.qfrc_actuator,
-                d.qfrc_limit, d.qfrc_contact, d.qfrc_spring, d.qfrc_damper],
+                d.qfrc_limit, d.qfrc_contact, d.qfrc_spring, d.qfrc_damper,
+                d.qfrc_drag],
         outputs=[d.qfrc_smooth],
     )

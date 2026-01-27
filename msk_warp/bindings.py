@@ -418,10 +418,6 @@ def load_model(
         m_state=make_zero((n_worlds, nmuscle), dtype=float),
 
         qacc_warmstart=make_zero((n_worlds, nv), dtype=float),
-        qfrc_applied=make_zero((n_worlds, nv), dtype=float),
-        xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        xfrc_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        xfrc_user=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         grf=make_zero((n_worlds,), dtype=wp.vec3),
         joint_moments=make_zero((n_worlds, nv), dtype=float),
 
@@ -490,9 +486,16 @@ def load_model(
         xivel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         cdof_dot=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
 
+        xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        xfrc_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        xfrc_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        xfrc_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+
+        qfrc_applied=make_zero((n_worlds, nv), dtype=float),
         qfrc_bias=make_zero((n_worlds, nv), dtype=float),
         qfrc_spring=make_zero((n_worlds, nv), dtype=float),
         qfrc_damper=make_zero((n_worlds, nv), dtype=float),
+        qfrc_drag=make_zero((n_worlds, nv), dtype=float),
         qfrc_muscle=make_zero((n_worlds, nv), dtype=float),
         qfrc_actuator=make_zero((n_worlds, nv), dtype=float),
         qfrc_limit=make_zero((n_worlds, nv), dtype=float),
@@ -798,7 +801,7 @@ def body_com_velocities(d: types.Data) -> torch.Tensor:
 
 
 def body_user_forces(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.xfrc_user)
+    return wp.to_torch(d.xfrc_applied)
 
 
 def joint_positions(d: types.Data) -> torch.Tensor:
@@ -813,6 +816,10 @@ def joint_accelerations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qacc)
 
 
+def qfrc_bias(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_bias)
+
+
 def qfrc_spring(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_spring)
 
@@ -821,8 +828,8 @@ def qfrc_damper(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_damper)
 
 
-def qfrc_bias(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.qfrc_bias)
+def qfrc_drag(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_drag)
 
 
 def qfrc_muscle(d: types.Data) -> torch.Tensor:
@@ -882,12 +889,20 @@ def muscle_powers(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_metabolic)
 
 
+def muscle_moment_arms(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.muscle_moment_arm)
+
+
 def muscle_metadata_np(m: types.Model) -> np.ndarray:
     return m.muscle_metadata.numpy()
 
 
 def muscle_length_info_np(d: types.Data) -> np.ndarray:
     return d.muscle_length_info.numpy()
+
+
+def muscle_velocity_info_np(d: types.Data) -> np.ndarray:
+    return d.muscle_velocity_info.numpy()
 
 
 def site_positions(d: types.Data) -> torch.Tensor:

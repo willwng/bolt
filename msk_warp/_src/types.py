@@ -846,7 +846,6 @@ class Data:
       qacc_warmstart: acceleration used for warmstart             (nworld, nv)
       qfrc_applied: applied generalized force                     (nworld, nv)
       xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
-      xfrc_user: user Cartesian force/torque applied to body      (nworld, nbody, 6)
       grf: ground reaction force                                  (nworld, 6)
       joint_moments: joint moments                                (nworld, nv)
 
@@ -899,11 +898,16 @@ class Data:
       xivel: Cartesian body velocity in body-com frame            (nworld, nbody, 6)
       cdof_dot: time-derivative of cdof (rot:lin)                 (nworld, nv, 6)
 
+      xfrc_drag: drag Cartesian force/torque on body              (nworld, nbody, 6)
+
       qfrc_bias: C(qpos,qvel)                                     (nworld, nv)
       qfrc_spring: passive spring force                           (nworld, nv)
       qfrc_damper: passive damper force                           (nworld, nv)
-
+      qfrc_drag: drag generalized force                           (nworld, nv)
       qfrc_muscle: muscle generalized force                       (nworld, nv)
+      qfrc_actuator: actuator generalized force                   (nworld, nv)
+      qfrc_contact: contact generalized force                     (nworld, nv)
+      qfrc_limit: dof limit generalized force                     (nworld, nv)
 
       subtree_linvel: linear velocity of subtree com              (nworld, nbody, 3)
       subtree_angmom: angular momentum about subtree com          (nworld, nbody, 3)
@@ -955,12 +959,6 @@ class Data:
     m_state_dot: wp.array2d(dtype=float)
 
     qacc_warmstart: wp.array2d(dtype=float)
-    qfrc_applied: wp.array2d(dtype=float)
-    xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
-    xfrc_contact: wp.array2d(dtype=wp.spatial_vector)
-    xfrc_user: wp.array2d(dtype=wp.spatial_vector)
-    grf: wp.array2d(dtype=wp.vec3)
-    joint_moments: wp.array2d(dtype=float)
 
     xpos: wp.array2d(dtype=wp.vec3)
     xquat: wp.array2d(dtype=wp.quat)
@@ -1017,14 +1015,23 @@ class Data:
     xivel: wp.array2d(dtype=wp.spatial_vector)
     cdof_dot: wp.array2d(dtype=wp.spatial_vector)
 
+    xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
+    xfrc_muscle: wp.array2d(dtype=wp.spatial_vector)
+    xfrc_contact: wp.array2d(dtype=wp.spatial_vector)
+    xfrc_drag: wp.array2d(dtype=wp.spatial_vector)
+
+    qfrc_applied: wp.array2d(dtype=float)
     qfrc_bias: wp.array2d(dtype=float)
     qfrc_spring: wp.array2d(dtype=float)
     qfrc_damper: wp.array2d(dtype=float)
-
+    qfrc_drag: wp.array2d(dtype=float)
     qfrc_muscle: wp.array2d(dtype=float)
     qfrc_actuator: wp.array2d(dtype=float)
     qfrc_contact: wp.array2d(dtype=float)
     qfrc_limit: wp.array2d(dtype=float)
+
+    grf: wp.array2d(dtype=wp.vec3)
+    joint_moments: wp.array2d(dtype=float)
 
     subtree_linvel: wp.array2d(dtype=wp.vec3)
     subtree_angmom: wp.array2d(dtype=wp.vec3)

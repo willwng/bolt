@@ -16,7 +16,7 @@ def _drag_force(
         # In:
         body_tree: wp.array(dtype=int),
         # Data out:
-        xfrc_applied_out: wp.array2d(dtype=wp.spatial_vector),
+        xfrc_drag_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, nodeid = wp.tid()
     bodyid = body_tree[nodeid]
@@ -24,17 +24,17 @@ def _drag_force(
 
     drag_x = -consts.A_AFK * math.sqr(body_vel[0]) * wp.sign(body_vel[0])
     drag_frc = wp.spatial_vector(drag_x, 0.0, 0.0, 0.0, 0.0, 0.0)
-    xfrc_applied_out[worldid, bodyid] += drag_frc
+    xfrc_drag_out[worldid, bodyid] += drag_frc
     return
 
 
 @event_scope
-def apply_drag_force(m: Model, d: Data):
+def apply_drag(m: Model, d: Data):
     # Only apply to root bodies
     body_roots = m.body_tree[1]
     wp.launch(
         _drag_force,
         dim=(d.nworld, body_roots.size),
         inputs=[d.xivel, body_roots],
-        outputs=[d.xfrc_applied],
+        outputs=[d.xfrc_drag],
     )
