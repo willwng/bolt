@@ -277,6 +277,7 @@ def _qfrc_smooth(
         qfrc_applied_in: wp.array2d(dtype=float),
         qfrc_bias_in: wp.array2d(dtype=float),
         qfrc_muscle_in: wp.array2d(dtype=float),
+        qfrc_actuator_in: wp.array2d(dtype=float),
         qfrc_limit_in: wp.array2d(dtype=float),
         qfrc_contact_in: wp.array2d(dtype=float),
         qfrc_spring_in: wp.array2d(dtype=float),
@@ -289,6 +290,7 @@ def _qfrc_smooth(
             qfrc_applied_in[worldid, dofid]
             - qfrc_bias_in[worldid, dofid]
             + qfrc_muscle_in[worldid, dofid]
+            + qfrc_actuator_in[worldid, dofid]
             + qfrc_limit_in[worldid, dofid]
             + qfrc_contact_in[worldid, dofid]
             + qfrc_spring_in[worldid, dofid]
@@ -319,7 +321,7 @@ def accumulate_forces(m: Model, d: Data):
     wp.launch(
         _qfrc_smooth,
         dim=(d.nworld, m.nv),
-        inputs=[d.qfrc_applied, d.qfrc_bias, d.qfrc_muscle, d.qfrc_limit,
-                d.qfrc_contact, d.qfrc_spring, d.qfrc_damper],
+        inputs=[d.qfrc_applied, d.qfrc_bias, d.qfrc_muscle, d.qfrc_actuator,
+                d.qfrc_limit, d.qfrc_contact, d.qfrc_spring, d.qfrc_damper],
         outputs=[d.qfrc_smooth],
     )
