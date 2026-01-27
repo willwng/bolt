@@ -155,5 +155,5 @@ def apply_muscle_force(m: Model, d: Data):
             _apply_muscle_frc,
             dim=(d.nworld, m.nmuscle, m.nv),
             inputs=[d.muscle_actuation, d.muscle_moment_arm, ],
-            outputs=[d.qfrc_applied],
+            outputs=[d.qfrc_muscle],
         )

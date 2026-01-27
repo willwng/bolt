@@ -18,8 +18,7 @@ def _process_joint_limits(
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
         # Data out:
-        qfrc_applied_out: wp.array2d(dtype=float),
-        dof_limit_torque_out: wp.array2d(dtype=float),
+        qfrc_limit_out: wp.array2d(dtype=float),
 ):
     worldid, limitdofid = wp.tid()
 
@@ -38,12 +37,10 @@ def _process_joint_limits(
     else:
         force = wp.max(-limit_forces[0] * (qpos - dof_range[0]) * (1.0 - shape_factors[0] * qvel), 0.0)
 
-    wp.atomic_add(qfrc_applied_out, worldid, dof_adr, force)
-    wp.atomic_add(dof_limit_torque_out, worldid, limitdofid, force)
+    wp.atomic_add(qfrc_limit_out, worldid, dof_adr, force)
 
 
 def apply_limit_forces(m: Model, d: Data):
-    d.dof_lim_torque.zero_()
     wp.launch(
         _process_joint_limits,
         dim=(d.nworld, m.ndoflimit),
@@ -57,8 +54,7 @@ def apply_limit_forces(m: Model, d: Data):
             d.qvel
         ],
         outputs=[
-            d.qfrc_applied,
-            d.dof_lim_torque
+            d.qfrc_limit,
         ],
     )
     return

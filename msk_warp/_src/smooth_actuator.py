@@ -39,13 +39,13 @@ def _qfrc_actuators(
         # Data in:
         a_act_in: wp.array2d(dtype=float),
         # Data out:
-        qfrc_applied_out: wp.array2d(dtype=float),
+        qfrc_actuator_out: wp.array2d(dtype=float),
 ):
     worldid, actuator_id = wp.tid()
     am = actuator_metadata[actuator_id]
     activation = a_act_in[worldid, actuator_id]
     actuation = (activation - 0.5) * 2.0 * am.optimal_force
-    wp.atomic_add(qfrc_applied_out[worldid], am.coordinate, actuation)
+    wp.atomic_add(qfrc_actuator_out[worldid], am.coordinate, actuation)
     return
 
 
@@ -65,5 +65,5 @@ def apply_actuator_force(m: Model, d: Data):
         _qfrc_actuators,
         dim=(d.nworld, m.nactuator),
         inputs=[m.actuator_metadata, d.a_act],
-        outputs=[d.qfrc_applied],
+        outputs=[d.qfrc_actuator],
     )

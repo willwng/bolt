@@ -492,7 +492,9 @@ def load_model(
         qfrc_bias=make_zero((n_worlds, nv), dtype=float),
         qfrc_spring=make_zero((n_worlds, nv), dtype=float),
         qfrc_damper=make_zero((n_worlds, nv), dtype=float),
-        qfrc_passive=make_zero((n_worlds, nv), dtype=float),
+        qfrc_muscle=make_zero((n_worlds, nv), dtype=float),
+        qfrc_actuator=make_zero((n_worlds, nv), dtype=float),
+        qfrc_limit=make_zero((n_worlds, nv), dtype=float),
 
         subtree_linvel=make_zero((n_worlds, nb), dtype=wp.vec3),
         subtree_angmom=make_zero((n_worlds, nb), dtype=wp.vec3),
@@ -558,7 +560,6 @@ def load_model(
             done=make_zero(n_worlds, dtype=bool),
         ),
         dof_lim_efc_address=make_zero((n_worlds, n_limits), dtype=int),
-        dof_lim_torque=make_zero((n_worlds, n_limits), dtype=float),
 
         nworld=n_worlds,
         naconmax=naconmax,
@@ -685,6 +686,10 @@ def get_num_actuators(m: types.Model) -> int:
     return m.nactuator
 
 
+def get_num_limits(m: types.Model) -> int:
+    return m.ndoflimit
+
+
 def get_qpos_adr(m: types.Model, body_id: int) -> torch.Tensor:
     jnt_qpos_adr = wp.to_torch(m.jnt_qposadr)
     return jnt_qpos_adr[body_id]
@@ -806,12 +811,28 @@ def joint_accelerations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qacc)
 
 
-def joint_accelerations(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.qacc)
+def qfrc_spring(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_spring)
 
 
 def qfrc_damper(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_damper)
+
+
+def qfrc_bias(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_bias)
+
+
+def qfrc_muscle(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_muscle)
+
+
+def qfrc_actuator(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_actuator)
+
+
+def qfrc_limit(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_limit)
 
 
 def subtree_com_positions(d: types.Data) -> torch.Tensor:
@@ -936,10 +957,6 @@ def get_collider_rotations(d: types.Data) -> torch.Tensor:
 
 def grf(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.grf)
-
-
-def limit_torques(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.dof_lim_torque)
 
 
 def joint_moments(d: types.Data) -> torch.Tensor:

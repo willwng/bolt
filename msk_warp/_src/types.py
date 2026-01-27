@@ -902,7 +902,8 @@ class Data:
       qfrc_bias: C(qpos,qvel)                                     (nworld, nv)
       qfrc_spring: passive spring force                           (nworld, nv)
       qfrc_damper: passive damper force                           (nworld, nv)
-      qfrc_passive: total passive force                           (nworld, nv)
+
+      qfrc_muscle: muscle generalized force                       (nworld, nv)
 
       subtree_linvel: linear velocity of subtree com              (nworld, nbody, 3)
       subtree_angmom: angular momentum about subtree com          (nworld, nbody, 3)
@@ -1018,7 +1019,10 @@ class Data:
     qfrc_bias: wp.array2d(dtype=float)
     qfrc_spring: wp.array2d(dtype=float)
     qfrc_damper: wp.array2d(dtype=float)
-    qfrc_passive: wp.array2d(dtype=float)
+
+    qfrc_muscle: wp.array2d(dtype=float)
+    qfrc_actuator: wp.array2d(dtype=float)
+    qfrc_limit: wp.array2d(dtype=float)
 
     subtree_linvel: wp.array2d(dtype=wp.vec3)
     subtree_angmom: wp.array2d(dtype=wp.vec3)
@@ -1034,7 +1038,6 @@ class Data:
     efc: Constraint
 
     dof_lim_efc_address: wp.array2d(dtype=int)
-    dof_lim_torque: wp.array2d(dtype=float)
 
     #
     nworld: int
