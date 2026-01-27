@@ -420,6 +420,7 @@ def load_model(
         qacc_warmstart=make_zero((n_worlds, nv), dtype=float),
         qfrc_applied=make_zero((n_worlds, nv), dtype=float),
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        xfrc_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_user=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         grf=make_zero((n_worlds,), dtype=wp.vec3),
         joint_moments=make_zero((n_worlds, nv), dtype=float),
@@ -495,6 +496,7 @@ def load_model(
         qfrc_muscle=make_zero((n_worlds, nv), dtype=float),
         qfrc_actuator=make_zero((n_worlds, nv), dtype=float),
         qfrc_limit=make_zero((n_worlds, nv), dtype=float),
+        qfrc_contact=make_zero((n_worlds, nv), dtype=float),
 
         subtree_linvel=make_zero((n_worlds, nb), dtype=wp.vec3),
         subtree_angmom=make_zero((n_worlds, nb), dtype=wp.vec3),
@@ -833,6 +835,10 @@ def qfrc_actuator(d: types.Data) -> torch.Tensor:
 
 def qfrc_limit(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_limit)
+
+
+def qfrc_contact(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_contact)
 
 
 def subtree_com_positions(d: types.Data) -> torch.Tensor:

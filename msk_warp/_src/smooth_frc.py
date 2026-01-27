@@ -278,6 +278,7 @@ def _qfrc_smooth(
         qfrc_bias_in: wp.array2d(dtype=float),
         qfrc_muscle_in: wp.array2d(dtype=float),
         qfrc_limit_in: wp.array2d(dtype=float),
+        qfrc_contact_in: wp.array2d(dtype=float),
         qfrc_spring_in: wp.array2d(dtype=float),
         qfrc_damper_in: wp.array2d(dtype=float),
         # Data out:
@@ -289,6 +290,7 @@ def _qfrc_smooth(
             - qfrc_bias_in[worldid, dofid]
             + qfrc_muscle_in[worldid, dofid]
             + qfrc_limit_in[worldid, dofid]
+            + qfrc_contact_in[worldid, dofid]
             + qfrc_spring_in[worldid, dofid]
             + qfrc_damper_in[worldid, dofid]
     )
@@ -297,22 +299,27 @@ def _qfrc_smooth(
 @event_scope
 def reset_forces(m: Model, d: Data):
     """ Compute all applied forces """
-    d.xfrc_applied.zero_()
     d.qfrc_applied.zero_()
+    d.xfrc_applied.zero_()
+    d.xfrc_contact.zero_()
 
     d.qfrc_muscle.zero_()
     d.qfrc_actuator.zero_()
     d.qfrc_limit.zero_()
+    d.qfrc_contact.zero_()
 
 
 @event_scope
 def accumulate_forces(m: Model, d: Data):
     """ Accumulate all forces into qfrc_applied smooth"""
+    support.apply_ft(m, d, d.xfrc_contact, d.qfrc_contact, True)
+    support.apply_ft(m, d, d.xfrc_applied, d.qfrc_applied, True)
+    support.apply_ft(m, d, d.xfrc_user, d.qfrc_applied, True)
+
     wp.launch(
         _qfrc_smooth,
         dim=(d.nworld, m.nv),
-        inputs=[d.qfrc_applied, d.qfrc_bias, d.qfrc_muscle,
-                d.qfrc_limit, d.qfrc_spring, d.qfrc_damper],
+        inputs=[d.qfrc_applied, d.qfrc_bias, d.qfrc_muscle, d.qfrc_limit,
+                d.qfrc_contact, d.qfrc_spring, d.qfrc_damper],
         outputs=[d.qfrc_smooth],
     )
-    support.xfrc_accumulate(m, d, d.qfrc_smooth)

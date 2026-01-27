@@ -168,13 +168,6 @@ def apply_ft(
     )
 
 
-@event_scope
-def xfrc_accumulate(m: Model, d: Data, qfrc: wp.array2d(dtype=float)):
-    """Map applied forces at each body via Jacobians to dof space and accumulate. """
-    apply_ft(m, d, d.xfrc_applied, qfrc, True)
-    apply_ft(m, d, d.xfrc_user, qfrc, True)
-
-
 @wp.func
 def force_at_point(frc: wp.vec3, offset: wp.vec3) -> wp.spatial_vector:
     torque = wp.cross(offset, frc)

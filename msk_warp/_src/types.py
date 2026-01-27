@@ -957,6 +957,7 @@ class Data:
     qacc_warmstart: wp.array2d(dtype=float)
     qfrc_applied: wp.array2d(dtype=float)
     xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
+    xfrc_contact: wp.array2d(dtype=wp.spatial_vector)
     xfrc_user: wp.array2d(dtype=wp.spatial_vector)
     grf: wp.array2d(dtype=wp.vec3)
     joint_moments: wp.array2d(dtype=float)
@@ -1022,6 +1023,7 @@ class Data:
 
     qfrc_muscle: wp.array2d(dtype=float)
     qfrc_actuator: wp.array2d(dtype=float)
+    qfrc_contact: wp.array2d(dtype=float)
     qfrc_limit: wp.array2d(dtype=float)
 
     subtree_linvel: wp.array2d(dtype=wp.vec3)

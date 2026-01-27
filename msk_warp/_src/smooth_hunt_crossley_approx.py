@@ -27,7 +27,7 @@ def _process_contacts_hc(
         frame_in: wp.array(dtype=wp.mat33),
         friction_in: wp.array(dtype=vec5),
         # Data out:
-        xfrc_applied_out: wp.array2d(dtype=wp.spatial_vector),
+        xfrc_contact_out: wp.array2d(dtype=wp.spatial_vector),
         grf_out: wp.array(dtype=wp.vec3)
 ):
     conid = wp.tid()
@@ -97,9 +97,9 @@ def _process_contacts_hc(
 
     # Apply forces to bodies
     com1, com2 = xipos_in[worldid, body1], xipos_in[worldid, body2]
-    wp.atomic_add(xfrc_applied_out[worldid], body1,
+    wp.atomic_add(xfrc_contact_out[worldid], body1,
                   support.force_at_point(-1.0 * force, location - com1))
-    wp.atomic_add(xfrc_applied_out[worldid], body2,
+    wp.atomic_add(xfrc_contact_out[worldid], body2,
                   support.force_at_point(1.0 * force, location - com2))
 
     if body1 == 0:
@@ -129,7 +129,7 @@ def apply_contact_forces(m: Model, d: Data):
             d.contact.friction,
         ],
         outputs=[
-            d.xfrc_applied,
+            d.xfrc_contact,
             d.grf
         ],
     )
