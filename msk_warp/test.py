@@ -39,9 +39,10 @@ def main():
     if args.debug:
         wp.config.mode = "debug"
 
-    model = "data/osim/model_motor_arms_foot_contact_full_contact.osim"
-    load_result = msk_warp.load_model(model, args.nworld,
-                                      polynomial_data_path="data/muscle_poly_info.json")
+    model_path = "data/osim/model_motor_arms_foot_contact_full_contact.osim"
+    load_result = msk_warp.load_model(model_path, args.nworld,
+                                      polynomial_data_path="data/muscle_poly_info.json",
+                                      root_free=False)
     m, d = load_result.model, load_result.data
     m.opt.muscle_dyn_substeps = 0
     m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
