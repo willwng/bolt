@@ -85,7 +85,7 @@ def joint_limit_torque_kernel(
         dof_lim_efc_address_in: wp.array2d(dtype=int),
         efc_force_in: wp.array2d(dtype=float),
         # Data out:
-        dof_lim_torque: wp.array2d(dtype=float)
+        qfrc_limit_out: wp.array2d(dtype=float)
 ):
     worldid, limitdofid = wp.tid()
     torque = joint_limit_torque_fn(
@@ -94,7 +94,7 @@ def joint_limit_torque_kernel(
         worldid,
         limitdofid,
     )
-    dof_lim_torque[worldid, limitdofid] = torque
+    qfrc_limit_out[worldid, limitdofid] = torque
     return
 
 
@@ -107,8 +107,7 @@ def compute_grf_kernel(
         contact_dim_in: wp.array(dtype=int),
         contact_efc_address_in: wp.array2d(dtype=int),
         contact_worldid_in: wp.array(dtype=int),
-        contact_geom_in: wp.array(dtype=wp.vec2i),
-        efc_force_in: wp.array2d(dtype=float),
+        contact_geom_in: wp.array(dtype=wp.vec2i), efc_force_in: wp.array2d(dtype=float),
         njmax_in: int,
         nacon_in: wp.array(dtype=int),
         # In:
@@ -169,7 +168,7 @@ def compute_grf(m: Model, d: Data):
 def compute_limit_torques(m: Model, d: Data):
     if wp.static(m.opt.limit_type != LimitType.MUJOCO):
         return  # already handled
-    d.dof_lim_torque.zero_()
+    d.qfrc_limit.zero_()
 
     wp.launch(
         joint_limit_torque_kernel,
@@ -178,13 +177,43 @@ def compute_limit_torques(m: Model, d: Data):
             d.dof_lim_efc_address,
             d.efc.force,
         ],
-        outputs=[d.dof_lim_torque],
+        outputs=[d.qfrc_limit],
     )
     return
+
+
+@wp.kernel
+def _joint_limits_kernel(
+        # Data in:
+        joint_moments_in: wp.array2d(dtype=float),
+        qfrc_bias_in: wp.array2d(dtype=float),
+        qfrc_contact_in: wp.array2d(dtype=float),
+        qfrc_drag_in: wp.array2d(dtype=float),
+        # Data out:
+        joint_moments_out: wp.array2d(dtype=float),
+):
+    worldid, dofid = wp.tid()
+    joint_moments_out[worldid, dofid] = (
+            joint_moments_in[worldid, dofid]
+            + qfrc_bias_in[worldid, dofid]
+            - qfrc_contact_in[worldid, dofid]
+            - qfrc_drag_in[worldid, dofid]
+    )
 
 
 @event_scope
 def compute_joint_moments(m: Model, d: Data):
     d.joint_moments.zero_()
     support.mul_m(m, d, d.joint_moments, d.qacc)
+    wp.launch(
+        _joint_limits_kernel,
+        dim=(d.nworld, m.nv),
+        inputs=[
+            d.joint_moments,
+            d.qfrc_bias,
+            d.qfrc_contact,
+            d.qfrc_drag,
+        ],
+        outputs=[d.joint_moments],
+    )
     return
