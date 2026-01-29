@@ -1,12 +1,9 @@
 from collections import OrderedDict
 from typing import Optional
 
-import numpy as np
-from scipy.spatial.transform import Rotation as R
-
 from .converted_objs import *
 from .osim_objs import (Model, ForceSet, Body, Joint, Collider, FunctionType,
-                        Vector3, Quat, Inertia, AttachedGeometry,
+                        Vector3, Inertia, AttachedGeometry, WeldJoint, FreeJoint,
                         DummyJoint, Muscle, _VOID_NAME)
 
 
@@ -25,63 +22,41 @@ class CheckedModel:
     """
     body_full_desc: OrderedDict[str, FullBodyDesc]
     force_set: ForceSet
+    root_free: bool
 
     def iter_descs(self):
+        """ iterator for body descriptions """
         for body_name, full_desc in self.body_full_desc.items():
             yield body_name, full_desc
 
     def iter_bodies(self):
+        """ iterator for bodies """
         for body_name, full_desc in self.body_full_desc.items():
             yield body_name, full_desc.body
 
     def iter_joints(self):
+        """ iterator for joints """
         for body_name, full_desc in self.body_full_desc.items():
             yield body_name, full_desc.joint
 
     def iter_dof_limits(self):
+        """ iterator for coordinates with limits """
         for _, joint in self.iter_joints():
-            # No joint limits for free joints. FIXME check for free joints better
-            if joint.connects_to_ground():
+            if joint.connects_to_ground():  # no limits (either free or fixed)
                 continue
 
             for coord in joint.coordinates:
                 if coord.clamped:
                     yield coord
 
-    def iter_muscles(self):
-        for muscle_id, muscle in enumerate(self.force_set.muscles.values()):
-            yield muscle_id, muscle
-
-    def iter_actuators(self):
-        for actuator_id, actuator in enumerate(
-                self.force_set.actuators.values()):
-            yield actuator_id, actuator
-
-    def iter_path_points(self):
-        for muscle_id, muscle in self.iter_muscles():
-            geom_path = muscle.geometry_path
-            for path_point in geom_path.path_point_set.path_points.values():
-                yield muscle_id, path_point
-
-    def iter_colliders(self):
-        for body_name, full_desc in self.body_full_desc.items():
-            for collider_name, collider in full_desc.colliders.items():
-                yield (body_name, collider_name), collider
-
-    def iter_visuals(self):
-        for body_name, desc in self.iter_descs():
-            for mesh in desc.body.attached_geometry.meshes:
-                yield body_name, mesh
-
     def iter_cst_joints(self):
+        """ iterator for custom joints """
         for _, jnt in self.iter_joints():
-            if "ground" in jnt.socket_parent_frame:
-                continue
             if jnt.__class__.__name__ == "CustomJoint":
                 yield jnt
 
     def iter_transform_axes(self):
-        # Transform axes for custom joints first
+        """ iterator for the transform axes of custom joints """
         for jnt in self.iter_cst_joints():
             spt_txfm = jnt.spatial_transform
             transform_axes = spt_txfm.transform_axes
@@ -89,8 +64,39 @@ class CheckedModel:
                 yield axis
 
     def iter_fns(self):
+        """ iterator for functions used in transform axes """
         for axis in self.iter_transform_axes():
             yield axis.function
+
+    def iter_muscles(self):
+        """ iterator for muscles """
+        for muscle_id, muscle in enumerate(self.force_set.muscles.values()):
+            yield muscle_id, muscle
+
+    def iter_actuators(self):
+        """ iterator for actuators """
+        for actuator_id, actuator in enumerate(
+                self.force_set.actuators.values()):
+            yield actuator_id, actuator
+
+    def iter_path_points(self):
+        """ iterator for muscle path points """
+        for muscle_id, muscle in self.iter_muscles():
+            geom_path = muscle.geometry_path
+            for path_point in geom_path.path_point_set.path_points.values():
+                yield muscle_id, path_point
+
+    def iter_colliders(self):
+        """ iterator for colliders """
+        for body_name, full_desc in self.body_full_desc.items():
+            for collider_name, collider in full_desc.colliders.items():
+                yield (body_name, collider_name), collider
+
+    def iter_visuals(self):
+        """ iterator for visual meshes """
+        for body_name, desc in self.iter_descs():
+            for mesh in desc.body.attached_geometry.meshes:
+                yield body_name, mesh
 
     def get_body_index(self, body_name: str) -> int:
         if body_name == _VOID_NAME:
@@ -133,14 +139,17 @@ class CheckedModel:
         parent_body_name = remove_prefix(parent_frame.socket_parent)
         return self.get_body_index(parent_body_name)
 
-    # don't use this for root dofs
     def lookup_dof_idx(self, coord_name: str, pos: bool) -> int:
+        """ Lookup dof index, not to be used for root """
         dof_idx = 0
         for _, joint in self.iter_joints():
+            joint_dof_tmp = 0
             for coord in joint.coordinates:
                 if coord.name == coord_name:
-                    return dof_idx + 1 if pos else dof_idx
-                dof_idx += 1
+                    return dof_idx + joint_dof_tmp
+                joint_dof_tmp += 1
+
+            dof_idx += joint.num_pos_dofs() if pos else joint.num_dofs()
         raise ValueError(f"Coordinate name {coord_name} not found.")
 
 
@@ -151,8 +160,23 @@ def remove_prefix(name: str) -> str:
     return name.split("/")[-1]
 
 
-def to_checked_model(model: Model) -> CheckedModel:
+def to_checked_model(model: Model, root_free: bool) -> CheckedModel:
     body_full_desc = OrderedDict()
+
+    # Before we do anything else, we should properly set the ground-root joint
+    for joint in model.joint_set.joints.values():
+        if joint.connects_to_ground():
+            ground_root_joint = joint
+            break
+    else:
+        assert False, "No ground-root joint found in the model."
+
+    if root_free:
+        new_ground_root_joint = FreeJoint.from_joint(ground_root_joint)
+    else:
+        new_ground_root_joint = WeldJoint.from_joint(ground_root_joint)
+        new_ground_root_joint.coordinates = []
+    model.joint_set.joints[ground_root_joint.name] = new_ground_root_joint
 
     # All colliders for each body
     body_name_to_colliders = {}
@@ -166,11 +190,12 @@ def to_checked_model(model: Model) -> CheckedModel:
     body_name_to_joint = {}
     for joint in model.joint_set.joints.values():
         child_frame_name = joint.socket_child_frame
-        child_frame = None
         for frame in joint.frames:
             if frame.name == child_frame_name:
                 child_frame = frame
                 break
+        else:
+            assert False, f"Child frame {child_frame_name} not found in joint {joint.name}"
         child_body_name = remove_prefix(child_frame.socket_parent)
         body_name_to_joint[child_body_name] = joint
 
@@ -202,24 +227,13 @@ def to_checked_model(model: Model) -> CheckedModel:
 
     return CheckedModel(
         body_full_desc=body_full_desc,
-        force_set=model.force_set
+        force_set=model.force_set,
+        root_free=root_free
     )
 
 
 def num_bodies(model: CheckedModel) -> int:
     return len(model.body_full_desc)
-
-
-def get_joint_num_dofs(model: CheckedModel, vel_dofs: bool) -> list[int]:
-    joint_num_dofs = []
-    for _, desc in model.iter_descs():
-        joint = desc.joint
-        if "ground" in joint.socket_parent_frame:
-            joint_num_dofs.append(6 if vel_dofs else 7)
-            continue
-        joint_num_dofs.append(joint.num_dofs() if vel_dofs else
-                              joint.num_pos_dofs())
-    return joint_num_dofs
 
 
 def num_muscles(model: CheckedModel) -> int:
@@ -231,17 +245,31 @@ def num_actuators(model: CheckedModel) -> int:
 
 
 def num_colliders(model: CheckedModel) -> int:
-    num_colliders = 0
+    nc = 0
     for _, desc in model.iter_descs():
-        num_colliders += len(desc.colliders)
-    return num_colliders
+        nc += len(desc.colliders)
+    return nc
 
 
 def num_visuals(model: CheckedModel) -> int:
-    num_visuals = 0
+    nv = 0
     for _, desc in model.iter_descs():
-        num_visuals += len(desc.body.attached_geometry.meshes)
-    return num_visuals
+        nv += len(desc.body.attached_geometry.meshes)
+    return nv
+
+
+def get_joint_num_dofs(model: CheckedModel, vel_dofs: bool) -> list[int]:
+    joint_num_dofs = []
+    for _, desc in model.iter_descs():
+        joint = desc.joint
+        if joint.connects_to_ground():
+            if model.root_free:
+                joint_num_dofs.append(6 if vel_dofs else 7)
+            else:
+                joint_num_dofs.append(0)
+            continue
+        joint_num_dofs.append(joint.num_dofs() if vel_dofs else joint.num_pos_dofs())
+    return joint_num_dofs
 
 
 def get_site_data(model: CheckedModel) -> SiteData:
@@ -312,13 +340,6 @@ def get_local_body_rot(model: CheckedModel) -> list[list[float]]:
     return local_rots
 
 
-def get_body_num_colliders(model: CheckedModel) -> list[int]:
-    num_body_colliders = []
-    for _, desc in model.iter_descs():
-        num_body_colliders.append(len(desc.colliders))
-    return num_body_colliders
-
-
 def get_frame_from_joint(joint, frame_name: str):
     for frame in joint.frames:
         if frame.name == frame_name:
@@ -338,12 +359,10 @@ def get_body_parent_ids(model: CheckedModel) -> list[int]:
 def get_joint_types(model: CheckedModel) -> list[types.JointType]:
     joint_types = []
     for _, joint in model.iter_joints():
-        if joint.connects_to_ground():
-            joint_types.append(types.JointType.FREE)
-            continue
-
         class_name = joint.__class__.__name__
-        if class_name == "PinJoint":
+        if class_name == "FreeJoint":
+            joint_types.append(types.JointType.FREE)
+        elif class_name == "PinJoint":
             joint_types.append(types.JointType.PIN)
         elif class_name == "UniversalJoint":
             joint_types.append(types.JointType.UNIVERSAL)
@@ -356,9 +375,7 @@ def get_joint_types(model: CheckedModel) -> list[types.JointType]:
         elif class_name == "DummyJoint":
             joint_types.append(types.JointType.DUMMY)
         else:
-            print(
-                f"Warning: Unrecognized joint type {joint.__class__.__name__}")
-            assert False
+            assert False, f"Unrecognized joint type {joint.__class__.__name__}"
     return joint_types
 
 
@@ -736,17 +753,20 @@ def get_dof_id_lookup(model: CheckedModel) -> dict[str, tuple[int, int]]:
         for coord in joint.coordinates:
             qpos_idx = model.lookup_dof_idx(coord.name, True)
             dof_idx = model.lookup_dof_idx(coord.name, False)
-            # Ignore root
-            if qpos_idx <= 6:
+            # Ignore root if free
+            if model.root_free and qpos_idx <= 6:
                 continue
             dof_id_lookup[coord.name] = (qpos_idx, dof_idx)
-    dof_id_lookup["pelvis_tx"] = (0, 0)
-    dof_id_lookup["pelvis_ty"] = (1, 1)
-    dof_id_lookup["pelvis_tz"] = (2, 2)
-    dof_id_lookup["pelvis_rot_w"] = (3, -1)
-    dof_id_lookup["pelvis_rot_x"] = (4, 3)
-    dof_id_lookup["pelvis_rot_y"] = (5, 4)
-    dof_id_lookup["pelvis_rot_z"] = (6, 5)
+
+    # Manually add pelvis dofs
+    if model.root_free:
+        dof_id_lookup["pelvis_tx"] = (0, 0)
+        dof_id_lookup["pelvis_ty"] = (1, 1)
+        dof_id_lookup["pelvis_tz"] = (2, 2)
+        dof_id_lookup["pelvis_rot_w"] = (3, -1)
+        dof_id_lookup["pelvis_rot_x"] = (4, 3)
+        dof_id_lookup["pelvis_rot_y"] = (5, 4)
+        dof_id_lookup["pelvis_rot_z"] = (6, 5)
     return dof_id_lookup
 
 

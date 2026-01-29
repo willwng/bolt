@@ -80,7 +80,7 @@ def fk_joint(
     if jnttype == JointType.PIN:
         hinge_axis = wp.vec3(0.0, 0.0, 1.0)
         qloc_ = math.axis_angle_to_quat(hinge_axis, qpos[qadr])
-        xaxis_out[0] = math.rot_vec_quat(hinge_axis, jnt_rot)
+        xaxis_out[0] = wp.normalize(math.rot_vec_quat(hinge_axis, jnt_rot))
 
     if jnttype == JointType.BALL:
         qloc_ = wp.quat(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2], qpos[qadr + 3])
@@ -89,7 +89,7 @@ def fk_joint(
     elif jnttype == JointType.SLIDE:
         slide_axis = wp.vec3(1.0, 0.0, 0.0)
         xloc_ = qpos[qadr] * slide_axis
-        xaxis_out[0] = math.rot_vec_quat(slide_axis, jnt_rot)
+        xaxis_out[0] = wp.normalize(math.rot_vec_quat(slide_axis, jnt_rot))
 
     elif jnttype == JointType.UNIVERSAL:
         axis1 = wp.vec3(1.0, 0.0, 0.0)
@@ -100,8 +100,8 @@ def fk_joint(
         qloc_ = math.mul_quat(qloc1, qloc2)
 
         # Keep track of first rotation
-        xaxis_out[0] = (math.rot_vec_quat(axis1, jnt_rot))
-        xaxis_out[1] = (math.rot_vec_quat(axis2, math.mul_quat(jnt_rot, qloc1)))
+        xaxis_out[0] = wp.normalize(math.rot_vec_quat(axis1, jnt_rot))
+        xaxis_out[1] = wp.normalize(math.rot_vec_quat(axis2, math.mul_quat(jnt_rot, qloc1)))
     elif jnttype == JointType.CUSTOM:
         # First 3 are rotation
         for i in range(wp.static(3)):
@@ -114,11 +114,10 @@ def fk_joint(
                 linear_fns,
             )
             # store intermediate rotated axes
-            xaxis_out[i] = fn_eval[1] * math.rot_vec_quat(
-                txfm_axes[i], math.mul_quat(jnt_rot, qloc_))
+            xaxis_out[i] = fn_eval[1] * wp.normalize(math.rot_vec_quat(
+                txfm_axes[i], math.mul_quat(jnt_rot, qloc_)))
 
-            qloc_ = math.mul_quat(
-                qloc_, math.axis_angle_to_quat(txfm_axes[i], fn_eval[0]))
+            qloc_ = math.mul_quat(qloc_, math.axis_angle_to_quat(txfm_axes[i], fn_eval[0]))
 
         # Next 3 are translation
         for i in range(wp.static(3), wp.static(6)):
@@ -132,7 +131,7 @@ def fk_joint(
             )
             xloc_ += fn_eval[0] * txfm_axes[i]
             # store the rotated linear axes, with derivative
-            xaxis_out[i] = fn_eval[1] * math.rot_vec_quat(txfm_axes[i], jnt_rot)
+            xaxis_out[i] = fn_eval[1] * wp.normalize(math.rot_vec_quat(txfm_axes[i], jnt_rot))
     elif jnttype == JointType.WELD:
         pass
     elif jnttype == JointType.DUMMY:

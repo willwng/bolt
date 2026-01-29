@@ -347,6 +347,25 @@ class WeldJoint(Joint):
 
 
 @dataclass
+class FreeJoint(Joint):
+    @classmethod
+    def from_joint(cls, joint: Joint) -> "FreeJoint":
+        return cls(
+            name=joint.name,
+            socket_parent_frame=joint.socket_parent_frame,
+            socket_child_frame=joint.socket_child_frame,
+            coordinates=joint.coordinates,
+            frames=joint.frames,
+        )
+
+    def num_dofs(self) -> int:
+        return 6
+
+    def num_pos_dofs(self) -> int:
+        return 7
+
+
+@dataclass
 class JointSet:
     joints: OrderedDict[str, Joint]
 

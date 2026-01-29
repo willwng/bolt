@@ -1,6 +1,7 @@
 import json
 import torch
 import warp as wp
+import numpy as np
 
 import msk_warp._src.consts as consts
 import msk_warp._src.forward as forward
@@ -73,10 +74,11 @@ def prepare_contacts(
 def load_model(
         model_path: str,
         n_worlds: int,
+        root_free: bool,
         polynomial_data_path: str = None,
 ) -> ModelLoadResult:
     raw_osim_model = parse_osim_file(model_path)
-    osim_model = to_checked_model(raw_osim_model)
+    osim_model = to_checked_model(raw_osim_model, root_free=root_free)
 
     # Lookups
     dof_id_lookup = get_dof_id_lookup(osim_model)
@@ -102,8 +104,9 @@ def load_model(
     nvis = num_visuals(osim_model)
     site_data = get_site_data(osim_model)
     qpos0 = [0.0] * nq
-    qpos0[0:3] = [0.0, 1.0, 0.0]  # Root pos
-    qpos0[3] = 1  # root quat
+    if root_free:
+        qpos0[0:3] = [0.0, 1.0, 0.0]  # Root pos
+        qpos0[3] = 1  # root quat
 
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
@@ -414,7 +417,7 @@ def load_model(
         qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
         qvel=wp.array(np.tile(qvel0, (n_worlds, 1)), dtype=float),
         m_act=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act=make_zero((n_worlds, nactuators), dtype=float),
+        a_act=make_full(0.5, (n_worlds, nactuators), dtype=float),
         m_state=make_zero((n_worlds, nmuscle), dtype=float),
 
         qacc_warmstart=make_zero((n_worlds, nv), dtype=float),
@@ -424,7 +427,7 @@ def load_model(
         qacc=make_zero((n_worlds, nv), dtype=float),
         m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
         a_act_dot=make_zero((n_worlds, nactuators), dtype=float),
-        m_excitations=make_zero((n_worlds, nmuscle), dtype=float),
+        m_excitations=make_full(0.5, (n_worlds, nmuscle), dtype=float),
         a_excitations=make_zero((n_worlds, nactuators), dtype=float),
         m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
 
