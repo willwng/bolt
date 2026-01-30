@@ -84,11 +84,11 @@ def load_model(
     dof_id_lookup = get_dof_id_lookup(osim_model)
 
     nb = num_bodies(osim_model)
-    joint_num_qdofs = get_joint_num_dofs(osim_model, vel_dofs=False)
-    joint_num_vdofs = get_joint_num_dofs(osim_model, vel_dofs=True)
+    jnt_qpos_num = get_joint_num_dofs(osim_model, vel_dofs=False)
+    jnt_dof_num = get_joint_num_dofs(osim_model, vel_dofs=True)
 
-    nv = sum(joint_num_vdofs)
-    nq = sum(joint_num_qdofs)
+    nv = sum(jnt_dof_num)
+    nq = sum(jnt_qpos_num)
     nmuscle = num_muscles(osim_model)
     nactuators = num_actuators(osim_model)
 
@@ -123,8 +123,8 @@ def load_model(
     custom_joint_indices = exclusive_scan(is_custom_joint_mask, True)
     assert (max(custom_joint_indices) == n_custom_jnts - 1)
 
-    jnt_qpos_adr = exclusive_scan(joint_num_qdofs, False)
-    jnt_dof_adr = exclusive_scan(joint_num_vdofs, False)
+    jnt_qpos_adr = exclusive_scan(jnt_qpos_num, False)
+    jnt_dof_adr = exclusive_scan(jnt_dof_num, False)
 
     jnt_rel_parent = get_joint_rel_pos(osim_model, get_parent_rel=True)
     jnt_rel_child = get_joint_rel_pos(osim_model, get_parent_rel=False)
@@ -185,7 +185,7 @@ def load_model(
     body_tree_warp = tuple([wp.array(bt, dtype=int) for bt in body_tree])
 
     dof_body_id = get_dof_body_ids(osim_model)
-    dof_parent_id = compute_expanded_parent(osim_model, jnt_dof_adr)
+    dof_parent_id = compute_dof_parent_id(osim_model, jnt_dof_num, jnt_dof_adr)
 
     body_subtree_mass = get_subtree_mass(osim_model)
     tiles = make_tiles(osim_model, dof_parent_id)
@@ -322,7 +322,7 @@ def load_model(
         jnt_type=to_warp_array(joint_types, dtype=int),
         jnt_stiffness=to_warp_array(jnt_stiffness, dtype=float),
         jnt_qposadr=to_warp_array(jnt_qpos_adr, dtype=int),
-        jnt_dofnum=to_warp_array(joint_num_vdofs, dtype=int),
+        jnt_dofnum=to_warp_array(jnt_dof_num, dtype=int),
         jnt_dofadr=to_warp_array(jnt_dof_adr, dtype=int),
         jnt_rel_parent=to_warp_array(jnt_rel_parent, dtype=wp.vec3),
         jnt_rel_child=to_warp_array(jnt_rel_child, dtype=wp.vec3),

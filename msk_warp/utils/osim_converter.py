@@ -528,25 +528,31 @@ def create_body_tree(model: CheckedModel) -> list[tuple[int, ...]]:
     return body_tree
 
 
-def compute_expanded_parent(
+def compute_dof_parent_id(
         model: CheckedModel,
-        jnt_dof_adr: list[int]
+        jnt_dof_num: list[int],
+        jnt_dof_adr: list[int],
 ) -> list[int]:
     nv = sum(get_joint_num_dofs(model, vel_dofs=True))
     nb = num_bodies(model)
 
-    # "lambda" function in Featherstone's book
-    def lp(body_idx):
-        parent_id = model.get_body_parent_idx(body_idx - 1)
-        return parent_id + 1
+    dof_parent_id = [-1] * nv
+    body_last_dof = [0] * nb
 
-    # Initialize (0, nv]
-    expanded_parent = list(range(nv))
+    for i in range(nb):
+        num_dofs = jnt_dof_num[i]
+        parent_id = model.get_body_parent_idx(i)
+        curr_parent_dof = body_last_dof[parent_id] if parent_id >= 0 else -1
 
-    for i in range(1, nb):
-        expanded_parent[jnt_dof_adr[i - 1]] = jnt_dof_adr[lp(i)]
-    expanded_parent = [p - 1 for p in expanded_parent]  # to zero-based
-    return expanded_parent
+        for j in range(num_dofs):
+            dof_adr = jnt_dof_adr[i] + j
+            dof_parent_id[dof_adr] = curr_parent_dof
+            curr_parent_dof = dof_adr
+
+        body_last_dof[i] = curr_parent_dof
+
+    dof_parent_id[0] = -1  # world/ground
+    return dof_parent_id
 
 
 def get_subtree_mass(model: CheckedModel) -> list[float]:
