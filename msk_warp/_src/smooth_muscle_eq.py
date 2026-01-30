@@ -338,8 +338,8 @@ def _update_velocity_info(
     fvi[muscle_id].pennation_angular_velocity = pennation_angular_velocity
     fvi[muscle_id].tendon_velocity = tendon_velocity
     fvi[muscle_id].norm_tendon_velocity = norm_tendon_velocity
-    fvi[muscle_id].fiber_force_velocity_multiplier = (
-        fiber_force_velocity_multiplier)
+    fvi[muscle_id].fiber_force_velocity_multiplier = fiber_force_velocity_multiplier
+    fvi[muscle_id].fiber_damping_force_multiplier = mm.fiber_damping * norm_fiber_velocity
     return
 
 
@@ -650,8 +650,8 @@ def _update_info_fused(
     fvi[muscle_id].pennation_angular_velocity = pennation_angular_velocity
     fvi[muscle_id].tendon_velocity = tendon_velocity
     fvi[muscle_id].norm_tendon_velocity = norm_tendon_velocity
-    fvi[muscle_id].fiber_force_velocity_multiplier = (
-        fiber_force_velocity_multiplier)
+    fvi[muscle_id].fiber_force_velocity_multiplier = fiber_force_velocity_multiplier
+    fvi[muscle_id].fiber_damping_force_multiplier = mm.fiber_damping * norm_fiber_velocity
 
     mdi[muscle_id].fiber_force = fm
     mdi[muscle_id].fiber_force_along_tendon = fmAT

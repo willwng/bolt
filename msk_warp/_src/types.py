@@ -452,6 +452,7 @@ class FiberVelocityInfo:
     tendon_velocity: float
     norm_tendon_velocity: float
     fiber_force_velocity_multiplier: float
+    fiber_damping_force_multiplier: float
 
 
 @wp.struct
