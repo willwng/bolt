@@ -971,6 +971,7 @@ class Data:
     geom_xpos: wp.array2d(dtype=wp.vec3)
     geom_xquat: wp.array2d(dtype=wp.quat)
     geom_xmat: wp.array2d(dtype=wp.mat33)
+    geom_cforce: wp.array2d(dtype=float)
 
     vis_xpos: wp.array2d(dtype=wp.vec3)
     vis_xquat: wp.array2d(dtype=wp.quat)

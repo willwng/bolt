@@ -317,6 +317,8 @@ def reset_forces(m: Model, d: Data):
     d.qfrc_contact.zero_()
     d.qfrc_limit.zero_()
 
+    d.geom_cforce.zero_()
+
 
 @event_scope
 def accumulate_forces(m: Model, d: Data):

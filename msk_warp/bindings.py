@@ -48,10 +48,14 @@ def prepare_contacts(
     pc_filter1, pc_filter2 = geom_pc_filter[geom1], geom_pc_filter[geom2]
 
     self_collision = (bodyid1 == bodyid2)
+    # Mask for whether collision is between parent-child
     parent_child_collision = (
-            ((bodyid1 == parentid2) & (bodyid1 != 0) & pc_filter1)
-            | ((bodyid2 == parentid1) & (bodyid2 != 0) & pc_filter2)
+            ((bodyid1 == parentid2) & (bodyid1 != 0))
+            | ((bodyid2 == parentid1) & (bodyid2 != 0))
     )
+    # For any parent-child collision, if both geoms have pc_filter=False, ensure the collision happens
+    parent_child_collision &= ~(~pc_filter1 & ~pc_filter2)
+
     nxn_pairid_contact[parent_child_collision | self_collision] = -2
     nxn_pairid_collision = -1 * np.ones(len(geom1), dtype=int)
     include = (nxn_pairid_contact > -2) | (nxn_pairid_collision >= 0)
@@ -442,6 +446,7 @@ def load_model(
         geom_xpos=make_zero((n_worlds, ngeom), dtype=wp.vec3),
         geom_xquat=make_zero((n_worlds, ngeom), dtype=wp.quat),
         geom_xmat=make_zero((n_worlds, ngeom), dtype=wp.mat33),
+        geom_cforce=make_zero((n_worlds, ngeom), dtype=float),
 
         vis_xpos=make_zero((n_worlds, nvis), dtype=wp.vec3),
         vis_xquat=make_zero((n_worlds, nvis), dtype=wp.quat),
@@ -973,6 +978,10 @@ def collider_transition_velocity(m: types.Model) -> torch.Tensor:
 
 def get_collider_positions(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.geom_xpos)
+
+
+def collider_forces(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.geom_cforce)
 
 
 def get_collider_rotations(d: types.Data) -> torch.Tensor:
