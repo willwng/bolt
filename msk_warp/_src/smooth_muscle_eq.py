@@ -612,13 +612,10 @@ def _update_info_fused(
     fse = tendon_force_multiplier
 
     if not fiber_state_clamped:
-        aFm = (mm.max_isometric_force * activation *
-               fiber_active_force_length_multiplier *
+        aFm = (mm.max_isometric_force * activation * fiber_active_force_length_multiplier *
                fiber_force_velocity_multiplier)
-        p1Fm = (mm.max_isometric_force *
-                fiber_passive_force_length_multiplier)
-        p2Fm = (mm.max_isometric_force *
-                mm.fiber_damping * norm_fiber_velocity)
+        p1Fm = (mm.max_isometric_force * fiber_passive_force_length_multiplier)
+        p2Fm = (mm.max_isometric_force * mm.fiber_damping * norm_fiber_velocity)
         pFm = p1Fm + p2Fm
 
         fm = aFm + pFm
@@ -638,10 +635,8 @@ def _update_info_fused(
     mli[muscle_id].tendon_length = tendon_length
     mli[muscle_id].norm_tendon_length = norm_tendon_length
     mli[muscle_id].tendon_strain = tendon_strain
-    mli[muscle_id].fiber_passive_force_length_multiplier = (
-        fiber_passive_force_length_multiplier)
-    mli[muscle_id].fiber_active_force_length_multiplier = (
-        fiber_active_force_length_multiplier)
+    mli[muscle_id].fiber_passive_force_length_multiplier = fiber_passive_force_length_multiplier
+    mli[muscle_id].fiber_active_force_length_multiplier = fiber_active_force_length_multiplier
     mli[muscle_id].tendon_force_multiplier = tendon_force_multiplier
 
     fvi[muscle_id].fiber_velocity = fiber_velocity
