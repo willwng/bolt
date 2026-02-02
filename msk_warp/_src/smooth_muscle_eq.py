@@ -675,8 +675,7 @@ def _set_state(
     mdi = muscle_dynamics_info_in[worldid, muscle_id]
 
     muscle_actuation_out[worldid, muscle_id] = mdi.tendon_force
-    mstate_dot_out[worldid, muscle_id] = (
-            fvi.fiber_velocity / mm.optimal_fiber_length)
+    mstate_dot_out[worldid, muscle_id] = fvi.fiber_velocity / mm.optimal_fiber_length
     return
 
 
