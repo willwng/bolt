@@ -10,10 +10,10 @@ wp.set_module_options({"enable_backward": False})
 
 
 @event_scope
-def step_to(m: Model, d: Data, dt: float, dt_sim: float):
+def step(m: Model, d: Data, dt_sim: float):
     if wp.static(m.opt.integrator) == IntegratorType.EULER_FIXED:
-        integrate.euler_fixed(m, d, dt, dt_sim)
+        integrate.euler_fixed(m, d, dt_sim)
     elif wp.static(m.opt.integrator) == IntegratorType.RK4_FIXED:
-        integrate.rk4_fixed(m, d, dt, dt_sim)
+        integrate.rk4_fixed(m, d, dt_sim)
     else:
         raise RuntimeError("Unknown integrator type")

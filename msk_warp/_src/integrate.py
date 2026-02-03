@@ -457,35 +457,26 @@ def _set_fixed_step_size(
 
 
 @event_scope
-def euler_fixed(m: Model, d: Data, dt: float, dt_sim: float):
+def euler_fixed(m: Model, d: Data, dt_sim: float):
     """Steps to [t + dt] using a fixed time step of [dt_sim] with Euler integrator."""
-    num_substeps = np.ceil(dt / dt_sim)
     wp.launch(
         _set_fixed_step_size,
         dim=d.nworld,
         inputs=[dt_sim],
         outputs=[d.actual_step_size],
     )
-    for _step in range(int(num_substeps)):
-        euler(m, d, dt)
-        forward.fwd(m, d)
-
-    forward.post(m, d)
+    euler(m, d, dt_sim)
+    forward.fwd(m, d)  # realize state for next step
 
 
 @event_scope
-def rk4_fixed(m: Model, d: Data, dt: float, dt_sim: float):
+def rk4_fixed(m: Model, d: Data, dt_sim: float):
     """Steps to [t + dt] using a fixed time step of [dt_sim] with RK4."""
-    num_substeps = np.ceil(dt / dt_sim)
     wp.launch(
         _set_fixed_step_size,
         dim=d.nworld,
         inputs=[dt_sim],
         outputs=[d.actual_step_size],
     )
-    for _step in range(int(num_substeps)):
-        rungekutta4(m, d)
-        # Last step, run post (but we need to use the rk4 computed acceleration)
-        if _step == int(num_substeps) - 1:
-            forward.post(m, d)
-        forward.fwd(m, d)  # realize for next step
+    rungekutta4(m, d)
+    forward.fwd(m, d)  # realize for next step
