@@ -28,23 +28,6 @@ def calc_gaussian_like_curve_der(
             (b2 - x) * (b3 + b2 * b4)) / (b3 + b4 * x) ** 3
 
 
-### --- Begin activation --- ###
-@wp.func
-def calc_activation_derivative(
-        activation: float,
-        excitation: float,
-        activation_time_const: float,
-        deactivation_time_const: float,
-        activation_dynamics_smoothing: float
-) -> float:
-    time_const_fact = 0.5 + 1.5 * activation
-    tmp_act = 1.0 / (activation_time_const * time_const_fact)
-    tmp_deact = time_const_fact / deactivation_time_const
-    f = 0.5 * wp.tanh(activation_dynamics_smoothing * (excitation - activation))
-    time_const = tmp_act * (f + 0.5) + tmp_deact * (-f + 0.5)
-    return time_const * (excitation - activation)
-
-
 ### --- Begin Pennation --- ###
 @wp.func
 def get_tendon_stiffness_parameter() -> float:

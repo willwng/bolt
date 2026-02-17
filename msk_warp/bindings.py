@@ -233,6 +233,7 @@ def load_model(
         solver=types.SolverType.NEWTON,
         contact_type=types.ContactType.HUNT_CROSSLEY,
         limit_type=types.LimitType.EXPONENTIAL,
+        activation_type=types.ActivationType.MILLARD,
         integrator=types.IntegratorType.EULER_FIXED,
         iterations=50,
         ls_iterations=100,
@@ -747,12 +748,12 @@ def set_contact_type(m: types.Model, contact_type: types.ContactType):
     m.opt.contact_type = contact_type
 
 
-def use_exponential_limit(m: types.Model):
-    m.opt.limit_type = types.LimitType.EXPONENTIAL
-
-
 def set_limit_type(m: types.Model, limit_type: types.LimitType):
     m.opt.limit_type = limit_type
+
+
+def set_activation_type(m: types.Model, activation_type: types.ActivationType):
+    m.opt.activation_type = activation_type
 
 
 def set_integrator_type(m: types.Model, integrator_type: types.IntegratorType):

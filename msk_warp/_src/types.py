@@ -269,6 +269,16 @@ class LimitType(enum.IntEnum):
     HUNT_CROSSLEY = 3
 
 
+class ActivationType(enum.IntEnum):
+    """ Muscle activation dynamics
+    Attributes:
+        DGF: DeGroote-Fregly muscle activation dynamics
+        MILLARD: Millard muscle activation dynamics
+    """
+    DGF = 1
+    MILLARD = 2
+
+
 class IntegratorType(enum.IntEnum):
     """ Integrator type.
     Attributes:
@@ -337,6 +347,7 @@ class Option:
     solver: SolverType
     contact_type: ContactType
     limit_type: LimitType
+    activation_type: ActivationType
     integrator: IntegratorType
     iterations: int
     ls_iterations: int
@@ -814,7 +825,6 @@ class Contact:
     efc_address: wp.array2d(dtype=int)
     worldid: wp.array(dtype=int)
     geomcollisionid: wp.array(dtype=int)
-
 
 
 @dataclasses.dataclass

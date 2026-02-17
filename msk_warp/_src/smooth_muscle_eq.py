@@ -1,8 +1,10 @@
 import warp as wp
 
 from . import dgf
+from . import smooth_muscle_act
 from .types import Data
 from .types import Model
+from .types import ActivationType
 from .types import ResidualResult
 from .types import MuscleMetadata
 from .types import MuscleLengthInfo
@@ -13,42 +15,6 @@ from .consts import M_MAX_NORM_TENDON_FORCE
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
-
-
-@wp.kernel
-def _compute_activation_dot(
-        # Model:
-        muscle_metadata: wp.array(dtype=MuscleMetadata),
-        # Data in:
-        mexcitation_in: wp.array2d(dtype=float),
-        act_in: wp.array2d(dtype=float),
-        # Data out:
-        act_dot_out: wp.array2d(dtype=float),
-):
-    worldid, muscle_id = wp.tid()
-    mm = muscle_metadata[muscle_id]
-
-    excitation = mexcitation_in[worldid, muscle_id]
-    activation = act_in[worldid, muscle_id]
-    act_dot = dgf.calc_activation_derivative(
-        activation,
-        excitation,
-        mm.activation_time_const,
-        mm.deactivation_time_const,
-        mm.activation_dynamics_smoothing
-    )
-    act_dot_out[worldid, muscle_id] = act_dot
-    return
-
-
-@event_scope
-def compute_act_dot(m: Model, d: Data):
-    wp.launch(
-        _compute_activation_dot,
-        dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.m_excitations, d.m_act],
-        outputs=[d.m_act_dot],
-    )
 
 
 @wp.kernel
