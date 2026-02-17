@@ -277,6 +277,7 @@ class IntegratorType(enum.IntEnum):
     """
     EULER_FIXED = 1
     RK4_FIXED = 2
+    EULER_ADAPTIVE = 3
 
 
 @dataclasses.dataclass
@@ -829,7 +830,6 @@ class Data:
       nefc: number of constraints                                 (nworld,)
 
       time: simulation time                                       (nworld,)
-      time1: current target time for integrator (t1)              (nworld,)
       next_time: final target time for integrator (tMax)          (nworld,)
 
       qpos: position                                              (nworld, nq)
@@ -943,8 +943,31 @@ class Data:
     needs_solve: wp.array(dtype=bool)
 
     time: wp.array(dtype=float)
+
+    # Adaptive integrator fields
     time1: wp.array(dtype=float)
     next_time: wp.array(dtype=float)
+    step_size: wp.array(dtype=float)
+    actual_step_size: wp.array(dtype=float)
+    artificially_limited: wp.array(dtype=bool)
+    step_accepted: wp.array(dtype=bool)
+    integration_done: wp.array(dtype=bool)
+    nintegrating: wp.array(dtype=int)
+    # error estimate for adaptive stepping
+    error: wp.array(dtype=float)
+    qvel_scales: wp.array2d(dtype=float)
+    qpos_diff: wp.array2d(dtype=float)
+    ninv_dq_tmp: wp.array2d(dtype=float)
+    qpos_diff_scaled: wp.array2d(dtype=float)
+    qvel_diff: wp.array2d(dtype=float)
+    m_state_diff: wp.array2d(dtype=float)
+    m_act_diff: wp.array2d(dtype=float)
+    a_act_diff: wp.array2d(dtype=float)
+    qpos_err: wp.array(dtype=float)
+    qvel_err: wp.array(dtype=float)
+    m_state_err: wp.array(dtype=float)
+    act_err: wp.array(dtype=float)
+
 
     qpos: wp.array2d(dtype=float)
     qvel: wp.array2d(dtype=float)
@@ -1058,7 +1081,6 @@ class Data:
     nsolving: wp.array(dtype=int)
     subtree_bodyvel: wp.array2d(dtype=wp.spatial_vector)
 
-    actual_step_size: wp.array(dtype=float)
 
     # collision driver
     collision_pair: wp.array(dtype=wp.vec2i)

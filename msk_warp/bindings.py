@@ -262,7 +262,7 @@ def load_model(
         hysteresis_low=0.9,
         hysteresis_high=1.2,
         accuracy=0.01,
-        use_inf_norm=True,
+        use_inf_norm=False,
 
         solref=wp.vec2(0.02, 1.0),
         solimp=types.vec5(0.9, 0.95, 0.001, 0.5, 2.0),
@@ -415,8 +415,29 @@ def load_model(
         nefc=make_zero(n_worlds, dtype=int),
         needs_solve=make_zero(1, dtype=int),
         time=make_zero(n_worlds, dtype=float),
+
         time1=make_zero(n_worlds, dtype=float),
         next_time=make_zero(n_worlds, dtype=float),
+        step_size=make_full(dt / 10.0, (n_worlds,), dtype=float),
+        actual_step_size=make_full(dt, (n_worlds,), dtype=float),
+        artificially_limited=make_zero(n_worlds, dtype=bool),
+        step_accepted=make_zero(n_worlds, dtype=bool),
+        integration_done=make_zero(n_worlds, dtype=bool),
+        nintegrating=make_zero(1, dtype=int),
+
+        qvel_scales=make_full(1.0, (n_worlds, nv), dtype=float),
+        qpos_diff=make_zero((n_worlds, nq), dtype=float),
+        ninv_dq_tmp=make_zero((n_worlds, nv), dtype=float),
+        qpos_diff_scaled=make_zero((n_worlds, nq), dtype=float),
+        qvel_diff=make_zero((n_worlds, nv), dtype=float),
+        m_state_diff=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_diff=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_diff=make_zero((n_worlds, nactuators), dtype=float),
+        qpos_err=make_zero((n_worlds,), dtype=float),
+        qvel_err=make_zero((n_worlds,), dtype=float),
+        m_state_err=make_zero((n_worlds,), dtype=float),
+        act_err=make_zero((n_worlds,), dtype=float),
+        error=make_zero(n_worlds, dtype=float),
 
         qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
         qvel=wp.array(np.tile(qvel0, (n_worlds, 1)), dtype=float),
@@ -580,9 +601,6 @@ def load_model(
         nacon=make_zero(n_worlds, dtype=int),
         nsolving=make_zero(1, dtype=int),
         subtree_bodyvel=make_zero((n_worlds, nb), dtype=wp.vec3),
-
-        # Variable-step integrator
-        actual_step_size=make_full(dt, (n_worlds,), dtype=float),
 
         # collision driver
         collision_pair=wp.zeros((naconmax,), dtype=wp.vec2i),

@@ -15,5 +15,7 @@ def step(m: Model, d: Data, dt_sim: float):
         integrate.euler_fixed(m, d, dt_sim)
     elif wp.static(m.opt.integrator) == IntegratorType.RK4_FIXED:
         integrate.rk4_fixed(m, d, dt_sim)
+    elif wp.static(m.opt.integrator) == IntegratorType.EULER_ADAPTIVE:
+        integrate.euler_adaptive(m, d, dt_sim)
     else:
         raise RuntimeError("Unknown integrator type")

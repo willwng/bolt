@@ -468,8 +468,7 @@ def multiply_W(m: Model, d: Data):
 
         qvel_diff_tile = wp.tile_load(qvel_diff_in[worldid], nv)
         qvel_scales_tile = wp.tile_load(qvel_weights, nv)
-        qvel_scaled_diff_tile = wp.tile_map(
-            wp.mul, qvel_diff_tile, qvel_scales_tile)
+        qvel_scaled_diff_tile = wp.tile_map(wp.mul, qvel_diff_tile, qvel_scales_tile)
 
         wp.tile_store(ninv_dq_tmp_out[worldid], qvel_scaled_diff_tile)
         return
@@ -535,8 +534,7 @@ def scale_dq(
     wp.launch(
         kernel=multiply_N_inv_kernel,
         dim=(d.nworld, m.nbody),
-        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
-                d.qpos, dq, ],
+        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum, d.qpos, dq, ],
         outputs=[d.ninv_dq_tmp, ],
     )
 
@@ -547,8 +545,7 @@ def scale_dq(
     wp.launch(
         kernel=multiply_N_kernel,
         dim=(d.nworld, m.nbody),
-        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
-                d.qpos, d.ninv_dq_tmp, ],
+        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum, d.qpos, d.ninv_dq_tmp, ],
         outputs=[dq_scaled, ],
     )
     return
