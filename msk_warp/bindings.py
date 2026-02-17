@@ -416,6 +416,18 @@ def load_model(
         needs_solve=make_zero(1, dtype=int),
         time=make_zero(n_worlds, dtype=float),
 
+        time_0=make_zero(n_worlds, dtype=float),
+        qpos_0=make_zero((n_worlds, nq), dtype=float),
+        qvel_0=make_zero((n_worlds, nv), dtype=float),
+        m_state_0=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_0=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_0=make_zero((n_worlds, nactuators), dtype=float),
+        qpos_1=make_zero((n_worlds, nq), dtype=float),
+        qvel_1=make_zero((n_worlds, nv), dtype=float),
+        m_state_1=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_1=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_1=make_zero((n_worlds, nactuators), dtype=float),
+
         time1=make_zero(n_worlds, dtype=float),
         next_time=make_zero(n_worlds, dtype=float),
         step_size=make_full(dt / 10.0, (n_worlds,), dtype=float),

@@ -968,7 +968,6 @@ class Data:
     m_state_err: wp.array(dtype=float)
     act_err: wp.array(dtype=float)
 
-
     qpos: wp.array2d(dtype=float)
     qvel: wp.array2d(dtype=float)
     m_act: wp.array2d(dtype=float)
@@ -981,6 +980,20 @@ class Data:
     m_excitations: wp.array2d(dtype=float)
     a_excitations: wp.array2d(dtype=float)
     m_state_dot: wp.array2d(dtype=float)
+
+    # Stored state for adaptive time-stepper
+    time_0: wp.array(dtype=float)
+    qpos_0: wp.array2d(dtype=float)
+    qvel_0: wp.array2d(dtype=float)
+    m_state_0: wp.array2d(dtype=float)
+    m_act_0: wp.array2d(dtype=float)
+    a_act_0: wp.array2d(dtype=float)
+
+    qpos_1: wp.array2d(dtype=float)
+    qvel_1: wp.array2d(dtype=float)
+    m_state_1: wp.array2d(dtype=float)
+    m_act_1: wp.array2d(dtype=float)
+    a_act_1: wp.array2d(dtype=float)
 
     qacc_warmstart: wp.array2d(dtype=float)
 

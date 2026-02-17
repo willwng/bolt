@@ -591,11 +591,7 @@ def _check_done_integrating(
 
 
 @event_scope
-def restore_state(
-        m: Model, d: Data,
-        time: wp.array, qpos: wp.array, qvel: wp.array, m_act: wp.array, m_state: wp.array, a_act: wp.array,
-        only_on_reject: bool
-):
+def restore_state(m: Model, d: Data, only_on_reject: bool):
     @wp.kernel
     def restore_state_conditional(
             # Data in
@@ -639,18 +635,18 @@ def restore_state(
         wp.launch(
             restore_state_conditional,
             dim=d.nworld,
-            inputs=[d.step_accepted, time, qpos, qvel, m_state, m_act, a_act],
+            inputs=[d.step_accepted, d.time_0, d.qpos_0, d.qvel_0, d.m_state_0, d.m_act_0, d.a_act_0],
             outputs=[d.time, d.qpos, d.qvel, d.m_state, d.m_act, d.a_act],
         )
     else:  # everyone gets restored!
-        wp.copy(d.time, time)
-        wp.copy(d.qpos, qpos)
-        wp.copy(d.qvel, qvel)
+        wp.copy(d.time, d.time_0)
+        wp.copy(d.qpos, d.qpos_0)
+        wp.copy(d.qvel, d.qvel_0)
         if m.nmuscle:
-            wp.copy(d.m_act, m_act)
-            wp.copy(d.m_state, m_state)
+            wp.copy(d.m_act, d.m_act_0)
+            wp.copy(d.m_state, d.m_state_0)
         if m.nactuator:
-            wp.copy(d.a_act, a_act)
+            wp.copy(d.a_act, d.a_act_0)
 
 
 def compute_error(
@@ -943,26 +939,33 @@ def attempt_adaptive_step(m: Model, d: Data):
     _adjust_scales(m, d)
 
     # Save state y_0
-    time_0, qpos_0, qvel_0 = wp.clone(d.time), wp.clone(d.qpos), wp.clone(d.qvel)
-    m_act_0 = wp.clone(d.m_act) if m.nmuscle else None
-    m_state_0 = wp.clone(d.m_state) if m.nmuscle else None
-    a_act_0 = wp.clone(d.a_act) if m.nactuator else None
+    wp.copy(d.time_0, d.time)
+    wp.copy(d.qpos_0, d.qpos)
+    wp.copy(d.qvel_0, d.qvel)
+    if m.nmuscle:
+        wp.copy(d.m_act_0, d.m_act)
+        wp.copy(d.m_state_0, d.m_state)
+    if m.nactuator:
+        wp.copy(d.a_act_0, d.a_act)
 
     # Big step using full current step size, store y_1
     _advance(m, d, d.qacc, d.qvel, 1.0)
-    qpos_1, qvel_1 = wp.clone(d.qpos), wp.clone(d.qvel)
-    m_act_1 = wp.clone(d.m_act) if m.nmuscle else None
-    m_state_1 = wp.clone(d.m_state) if m.nmuscle else None
-    a_act_1 = wp.clone(d.a_act) if m.nactuator else None
+    wp.copy(d.qpos_1, d.qpos)
+    wp.copy(d.qvel_1, d.qvel)
+    if m.nmuscle:
+        wp.copy(d.m_act_1, d.m_act)
+        wp.copy(d.m_state_1, d.m_state)
+    if m.nactuator:
+        wp.copy(d.a_act_1, d.a_act)
 
     # Restore y_0 (note that y_0' is not modified). Take two half steps
-    restore_state(m, d, time_0, qpos_0, qvel_0, m_act_0, m_state_0, a_act_0, only_on_reject=False)
+    restore_state(m, d, only_on_reject=False)
     _advance(m, d, d.qacc, d.qvel, 0.5)
     forward.fwd(m, d)  # realize for mid-point
     _advance(m, d, d.qacc, d.qvel, 0.5)
 
     # Compute error between y_1* and y_1
-    compute_error(m, d, qpos_1, qvel_1, m_act_1, m_state_1, a_act_1)
+    compute_error(m, d, d.qpos_1, d.qvel_1, d.m_act_1, d.m_state_1, d.a_act_1)
 
     # Reject step if accuracy isn't good, compute new step size
     wp.launch(
@@ -985,7 +988,7 @@ def attempt_adaptive_step(m: Model, d: Data):
     )
 
     # Restore state if step was rejected
-    restore_state(m, d, time_0, qpos_0, qvel_0, m_act_0, m_state_0, a_act_0, only_on_reject=True)
+    restore_state(m, d, only_on_reject=True)
 
     # Check if we've reached the target time
     wp.launch(
