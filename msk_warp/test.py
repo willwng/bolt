@@ -1,6 +1,7 @@
 import argparse
 
 import warp as wp
+import torch
 
 import msk_warp
 import msk_warp._src.forward as forward
@@ -47,16 +48,21 @@ def main():
     m.opt.muscle_dyn_substeps = 0
     m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
     m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
-    m.opt.integrator = msk_warp.types.IntegratorType.EULER_FIXED
+    # m.opt.integrator = msk_warp.types.IntegratorType.RK4_FIXED
+    # m.opt.integrator = msk_warp.types.IntegratorType.EULER_ADAPTIVE
+    m.opt.integrator = msk_warp.types.IntegratorType.EULER_ADAPTIVE
+    m.opt.use_inf_norm = False
+    m.opt.accuracy = 1.0
 
-    dt_sim = 1.0 / 10000.0
-    is_cuda = wp.get_device().is_cuda and False
+    dt = 1.0 / 50.0
+    # dt_sim = 1.0 / 5000.0
+    is_cuda = wp.get_device().is_cuda
     if not args.benchmark:
         viewer = msk_warp.create_renderer(
             load_result=load_result,
             renderer_type=RendererType.TILED,
             draw_visuals=True,
-            draw_colliders=True,
+            draw_colliders=False,
             draw_muscles=False
         )
         if viewer.viewer_type == RendererType.TILED:
@@ -64,22 +70,26 @@ def main():
 
         if is_cuda:
             with wp.ScopedCapture() as capture:
-                step.step(m, d, dt_sim)
+                step.step(m, d)
             graph = capture.graph
 
         for i in range(args.nstep):
+            step.increment_next_time(m, d, dt)
             if is_cuda:
                 wp.capture_launch(graph)
             else:
-                step.step(m, d, dt_sim)
+                step.step(m, d)
             viewer.render(m, d)
         viewer.close()
 
     else:
+        def benchmark_fn(m: msk_warp.Model, d: msk_warp.Data, dt: float):
+            step.increment_next_time(m, d, dt)
+            step.step(m, d)
         n_worlds = args.nworld
         n_steps = args.nstep
-        res = benchmark(fn=step.step, m=m, d=d,
-                        dt_sim=dt_sim, nstep=n_steps,
+        res = benchmark(fn=benchmark_fn,
+                        m=m, d=d, dt=dt, nstep=n_steps,
                         event_trace=True, measure_alloc=True,
                         measure_solver_niter=True)
         jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
@@ -91,7 +101,7 @@ def main():
         Total JIT time: {jit_time:.2f} s
         Total simulation time: {run_time:.2f} s
         Total steps per second: {steps / run_time:,.0f}
-        Total realtime factor: {steps * dt_sim / run_time:,.2f} x
+        Total realtime factor: {steps * dt / run_time:,.2f} x
         Total time per step: {1e9 * run_time / steps:.2f} ns
         Total converged worlds: {nsuccess} / {d.nworld}""")
 

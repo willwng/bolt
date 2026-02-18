@@ -7,13 +7,9 @@ TILE_SIZE_JTDAJ_DENSE = 16
 TILE_SIZE_SITE = 256
 
 
-# TODO(team): add check that all wp.launch_tiled 'block_dim' settings are configurable
 @dataclasses.dataclass
 class BlockDim:
-    """Block dimension 'block_dim' settings for wp.launch_tiled.
-
-    TODO(team): experimental and may be removed
-    """
+    """Block dimension 'block_dim' settings for wp.launch_tiled. """
 
     # collision_driver
     segmented_sort: int = 128
@@ -22,9 +18,9 @@ class BlockDim:
     actuator_velocity: int = 32
     site_diffs: int = 128
 
-    adjust_scales: int = 32
-    error_step: int = 32
-    restore_state: int = 32
+    adjust_scales: int = 16
+    error_step: int = 16
+    restore_state: int = 16
 
     # ray
     ray: int = 64
@@ -944,10 +940,10 @@ class Data:
     needs_solve: wp.array(dtype=bool)
 
     time: wp.array(dtype=float)
+    next_time: wp.array(dtype=float)
 
     # Adaptive integrator fields
     time1: wp.array(dtype=float)
-    next_time: wp.array(dtype=float)
     step_size: wp.array(dtype=float)
     actual_step_size: wp.array(dtype=float)
     artificially_limited: wp.array(dtype=bool)
@@ -991,6 +987,7 @@ class Data:
     m_act_0: wp.array2d(dtype=float)
     a_act_0: wp.array2d(dtype=float)
 
+    time_1: wp.array(dtype=float)
     qpos_1: wp.array2d(dtype=float)
     qvel_1: wp.array2d(dtype=float)
     m_state_1: wp.array2d(dtype=float)

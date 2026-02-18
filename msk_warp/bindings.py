@@ -422,6 +422,7 @@ def load_model(
         m_state_0=make_zero((n_worlds, nmuscle), dtype=float),
         m_act_0=make_zero((n_worlds, nmuscle), dtype=float),
         a_act_0=make_zero((n_worlds, nactuators), dtype=float),
+        time_1=make_zero(n_worlds, dtype=float),
         qpos_1=make_zero((n_worlds, nq), dtype=float),
         qvel_1=make_zero((n_worlds, nv), dtype=float),
         m_state_1=make_zero((n_worlds, nmuscle), dtype=float),
@@ -790,6 +791,24 @@ def set_integrator_type(m: types.Model, integrator_type: types.IntegratorType):
     m.opt.integrator = integrator_type
 
 
+def steps_attempted(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.steps_attempted)
+
+
+def set_integrator_accuracy(m: types.Model, accuracy: float):
+    m.opt.accuracy = accuracy
+
+
+def set_integrator_use_inf_norm(m: types.Model, use_inf_norm: bool):
+    m.opt.use_inf_norm = use_inf_norm
+
+
+def is_adaptive(integrator_type: types.IntegratorType) -> bool:
+    return integrator_type in [
+        types.IntegratorType.EULER_ADAPTIVE,
+    ]
+
+
 def set_muscle_dynamics_substeps(m: types.Model, substeps: int):
     m.opt.muscle_dyn_substeps = substeps
 
@@ -1025,7 +1044,3 @@ def grf(d: types.Data) -> torch.Tensor:
 
 def joint_moments(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.joint_moments)
-
-
-def steps_attempted(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.steps_attempted)
