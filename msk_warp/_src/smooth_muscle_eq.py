@@ -20,12 +20,15 @@ def _compute_activation_dot(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         mexcitation_in: wp.array2d(dtype=float),
         act_in: wp.array2d(dtype=float),
         # Data out:
         act_dot_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
     mm = muscle_metadata[muscle_id]
 
     excitation = mexcitation_in[worldid, muscle_id]
@@ -46,7 +49,7 @@ def compute_act_dot(m: Model, d: Data):
     wp.launch(
         _compute_activation_dot,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.m_excitations, d.m_act],
+        inputs=[m.muscle_metadata, d.integration_done, d.m_excitations, d.m_act],
         outputs=[d.m_act_dot],
     )
 
@@ -517,6 +520,7 @@ def _update_info_fused(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         act_in: wp.array2d(dtype=float),
         mstate_in: wp.array2d(dtype=float),
         muscle_length_in: wp.array2d(dtype=float),
@@ -527,6 +531,9 @@ def _update_info_fused(
         muscle_dynamics_info_out: wp.array2d(dtype=MuscleDynamicsInfo),
 ):
     worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
     mm = muscle_metadata[muscle_id]
     norm_fiber_length = mstate_in[worldid, muscle_id]
     path_length = muscle_length_in[worldid, muscle_id]
@@ -663,6 +670,7 @@ def _set_state(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         muscle_velocity_info_in: wp.array2d(dtype=FiberVelocityInfo),
         muscle_dynamics_info_in: wp.array2d(dtype=MuscleDynamicsInfo),
         # Data out:
@@ -670,6 +678,8 @@ def _set_state(
         muscle_actuation_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
     mm = muscle_metadata[muscle_id]
     fvi = muscle_velocity_info_in[worldid, muscle_id]
     mdi = muscle_dynamics_info_in[worldid, muscle_id]
@@ -716,10 +726,8 @@ def update_info_fused(m: Model, d: Data):
     wp.launch(
         _update_info_fused,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.m_act, d.m_state,
-                d.muscle_length, d.muscle_velocity, ],
-        outputs=[d.muscle_length_info, d.muscle_velocity_info,
-                 d.muscle_dynamics_info],
+        inputs=[m.muscle_metadata, d.integration_done, d.m_act, d.m_state, d.muscle_length, d.muscle_velocity, ],
+        outputs=[d.muscle_length_info, d.muscle_velocity_info, d.muscle_dynamics_info],
     )
 
 
@@ -759,7 +767,6 @@ def realize_muscle_state(m: Model, d: Data):
     wp.launch(
         _set_state,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.muscle_velocity_info,
-                d.muscle_dynamics_info],
+        inputs=[m.muscle_metadata, d.integration_done, d.muscle_velocity_info, d.muscle_dynamics_info],
         outputs=[d.m_state_dot, d.muscle_actuation],
     )

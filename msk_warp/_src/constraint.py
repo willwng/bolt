@@ -29,11 +29,15 @@ wp.set_module_options({"enable_backward": False})
 
 @wp.kernel
 def _zero_constraint_counts(
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
         # Data out:
         nl_out: wp.array(dtype=int),
         nefc_out: wp.array(dtype=int),
 ):
     worldid = wp.tid()
+    if integration_done_in[worldid]:
+        return
 
     # Zero all constraint counters
     nl_out[worldid] = 0
@@ -110,6 +114,7 @@ def _efc_dof_limit(
         limit_dof_qadr: wp.array(dtype=int),
         dof_invweight0: wp.array(dtype=float),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
         njmax_in: int,
@@ -129,6 +134,8 @@ def _efc_dof_limit(
         efc_aref_out: wp.array2d(dtype=float),
 ):
     worldid, limitdofid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     dof_lim_efc_address_out[worldid, limitdofid] = -1
 
     dof_range = limit_dof_range[limitdofid]
@@ -189,6 +196,7 @@ def _efc_contact_elliptic(
         solref: wp.vec2,
         solimp: vec5,
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qvel_in: wp.array2d(dtype=float),
         subtree_com_in: wp.array2d(dtype=wp.vec3),
         cdof_in: wp.array2d(dtype=wp.spatial_vector),
@@ -228,6 +236,8 @@ def _efc_contact_elliptic(
 
     if active:
         worldid = worldid_in[conid]
+        if integration_done_in[worldid]:
+            return
 
         efcid = wp.atomic_add(nefc_out, worldid, 1)
         if efcid >= njmax_in:
@@ -344,7 +354,8 @@ def make_constraint(m: types.Model, d: types.Data):
     wp.launch(
         _zero_constraint_counts,
         dim=d.nworld,
-        inputs=[d.nl, d.nefc],
+        inputs=[d.integration_done],
+        outputs=[d.nl, d.nefc],
     )
 
     # Individual DOF limits
@@ -358,6 +369,7 @@ def make_constraint(m: types.Model, d: types.Data):
                 m.limit_dof_adr,
                 m.limit_dof_qadr,
                 m.dof_invweight0,
+                d.integration_done,
                 d.qpos,
                 d.qvel,
                 d.njmax,
@@ -393,6 +405,7 @@ def make_constraint(m: types.Model, d: types.Data):
                 m.geom_bodyid,
                 m.opt.solref,
                 m.opt.solimp,
+                d.integration_done,
                 d.qvel,
                 d.subtree_com,
                 d.cdof,

@@ -27,10 +27,15 @@ wp.set_module_options({"enable_backward": False})
 
 @wp.kernel
 def _comvel_root(
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        # Data out:
         xvel_out: wp.array2d(dtype=wp.spatial_vector),
         cvel_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, elementid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     xvel_out[worldid, 0][elementid] = 0.0
     cvel_out[worldid, 0][elementid] = 0.0
 
@@ -46,6 +51,7 @@ def _comvel_level(
         cst_txfm_dofadr_in: wp.array2d(dtype=int),
         body_rootid: wp.array(dtype=int),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qvel_in: wp.array2d(dtype=float),
         cdof_in: wp.array2d(dtype=wp.spatial_vector),
         cdof_tmp_in: wp.array3d(dtype=wp.spatial_vector),
@@ -62,6 +68,8 @@ def _comvel_level(
         cdof_dot_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, nodeid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     bodyid = body_tree_[nodeid]
 
     # parent velocity
@@ -108,7 +116,7 @@ def com_vel(m: Model, d: Data):
     wp.launch(
         _comvel_root,
         dim=(d.nworld, 6),
-        inputs=[],
+        inputs=[d.integration_done],
         outputs=[d.xvel, d.cvel]
     )
 
@@ -119,7 +127,7 @@ def com_vel(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[m.body_parentid, m.jnt_dofadr, m.jnt_type, m.jnt_dofnum,
                     m.jnt_cst_adr, m.cst_txfm_dofadr, m.body_rootid,
-                    d.qvel, d.cdof, d.cdof_tmp, d.cvel, d.xpos, d.xipos,
+                    d.integration_done, d.qvel, d.cdof, d.cdof_tmp, d.cvel, d.xpos, d.xipos,
                     d.subtree_com, body_tree],
             outputs=[d.cvel, d.xvel, d.xivel, d.cdof_dot],
         )
@@ -130,12 +138,15 @@ def _site_velocity(
         # Model:
         site_bodyid: wp.array(dtype=int),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         site_rpos_in: wp.array2d(dtype=wp.vec3),
         xvel_in: wp.array2d(dtype=wp.spatial_vector),
         # Data out:
         site_xvel_out: wp.array2d(dtype=wp.vec3),
 ):
     worldid, siteid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     # Body COM-velocity
     bodyid = site_bodyid[siteid]
     xvel = xvel_in[worldid, bodyid]
@@ -151,6 +162,6 @@ def site_velocity(m: Model, d: Data):
     wp.launch(
         _site_velocity,
         dim=(d.nworld, m.nsite),
-        inputs=[m.site_bodyid, d.site_rpos, d.xvel],
+        inputs=[m.site_bodyid, d.integration_done, d.site_rpos, d.xvel],
         outputs=[d.site_xvel]
     )

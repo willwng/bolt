@@ -450,6 +450,7 @@ def load_model(
         m_state_err=make_zero((n_worlds,), dtype=float),
         act_err=make_zero((n_worlds,), dtype=float),
         error=make_zero(n_worlds, dtype=float),
+        steps_attempted=make_zero(n_worlds, dtype=int),
 
         qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
         qvel=wp.array(np.tile(qvel0, (n_worlds, 1)), dtype=float),
@@ -1024,3 +1025,7 @@ def grf(d: types.Data) -> torch.Tensor:
 
 def joint_moments(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.joint_moments)
+
+
+def steps_attempted(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.steps_attempted)

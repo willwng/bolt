@@ -24,6 +24,7 @@ def _next_position(
         jnt_dofadr: wp.array(dtype=int),
         jnt_dofnum: wp.array(dtype=int),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
         actual_step_size_in: wp.array(dtype=float),
@@ -33,6 +34,8 @@ def _next_position(
         qpos_out: wp.array2d(dtype=float),
 ):
     worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     timestep = actual_step_size_in[worldid] * scale
 
     jnttype = jnt_type[bodyid]
@@ -52,6 +55,7 @@ def _next_position(
 @wp.kernel
 def _next_velocity(
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qvel_in: wp.array2d(dtype=float),
         qacc_in: wp.array2d(dtype=float),
         actual_step_size_in: wp.array(dtype=float),
@@ -61,6 +65,8 @@ def _next_velocity(
         qvel_out: wp.array2d(dtype=float),
 ):
     worldid, dofid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     timestep = actual_step_size_in[worldid] * scale
     qvel_out[worldid, dofid] = (qvel_in[worldid, dofid] +
                                 qacc_in[worldid, dofid] * timestep)
@@ -71,6 +77,7 @@ def _next_muscle_activation(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         act_in: wp.array2d(dtype=float),
         act_dot_in: wp.array2d(dtype=float),
         actual_step_size_in: wp.array(dtype=float),
@@ -80,6 +87,8 @@ def _next_muscle_activation(
         act_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
     mm = muscle_metadata[muscle_id]
     step_size = actual_step_size_in[worldid] * scale
 
@@ -95,6 +104,7 @@ def _next_muscle_state(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         m_state_in: wp.array2d(dtype=float),
         m_state_dot_in: wp.array2d(dtype=float),
         actual_step_size_in: wp.array(dtype=float),
@@ -104,6 +114,8 @@ def _next_muscle_state(
         m_state_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
     mm = muscle_metadata[muscle_id]
     step_size = actual_step_size_in[worldid] * scale
 
@@ -119,6 +131,7 @@ def _next_actuator_activation(
         # Model:
         actuator_metadata: wp.array(dtype=ActuatorMetadata),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         act_in: wp.array2d(dtype=float),
         act_dot_in: wp.array2d(dtype=float),
         actual_step_size_in: wp.array(dtype=float),
@@ -128,6 +141,8 @@ def _next_actuator_activation(
         act_out: wp.array2d(dtype=float),
 ):
     worldid, actuator_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
     am = actuator_metadata[actuator_id]
     step_size = actual_step_size_in[worldid] * scale
 
@@ -141,6 +156,7 @@ def _next_actuator_activation(
 @wp.kernel
 def _next_time(
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         time_in: wp.array(dtype=float),
         actual_step_size_in: wp.array(dtype=float),
         # In:
@@ -149,6 +165,8 @@ def _next_time(
         time_out: wp.array(dtype=float),
 ):
     worldid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     step_size = actual_step_size_in[worldid] * scale
     time_out[worldid] = time_in[worldid] + step_size
 
@@ -159,7 +177,7 @@ def _advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float):
         wp.launch(
             _next_muscle_activation,
             dim=(d.nworld, m.nmuscle),
-            inputs=[m.muscle_metadata, d.m_act, d.m_act_dot, d.actual_step_size, scale],
+            inputs=[m.muscle_metadata, d.integration_done, d.m_act, d.m_act_dot, d.actual_step_size, scale],
             outputs=[d.m_act],
         )
         # If we didn't sub-step, advance here
@@ -167,7 +185,7 @@ def _advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float):
             wp.launch(
                 _next_muscle_state,
                 dim=(d.nworld, m.nmuscle),
-                inputs=[m.muscle_metadata, d.m_state, d.m_state_dot, d.actual_step_size, scale],
+                inputs=[m.muscle_metadata, d.integration_done, d.m_state, d.m_state_dot, d.actual_step_size, scale],
                 outputs=[d.m_state],
             )
 
@@ -175,28 +193,27 @@ def _advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float):
         wp.launch(
             _next_actuator_activation,
             dim=(d.nworld, m.nactuator),
-            inputs=[m.actuator_metadata, d.a_act, d.a_act_dot,
-                    d.actual_step_size, scale],
+            inputs=[m.actuator_metadata, d.integration_done, d.a_act, d.a_act_dot, d.actual_step_size, scale],
             outputs=[d.a_act],
         )
 
     wp.launch(
         _next_velocity,
         dim=(d.nworld, m.nv),
-        inputs=[d.qvel, qacc, d.actual_step_size, scale],
+        inputs=[d.integration_done, d.qvel, qacc, d.actual_step_size, scale],
         outputs=[d.qvel],
     )
     wp.launch(
         _next_position,
         dim=(d.nworld, m.nbody),
         inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
-                d.qpos, qvel, d.actual_step_size, scale],
+                d.integration_done, d.qpos, qvel, d.actual_step_size, scale],
         outputs=[d.qpos],
     )
     wp.launch(
         _next_time,
         dim=d.nworld,
-        inputs=[d.time, d.actual_step_size, scale],
+        inputs=[d.integration_done, d.time, d.actual_step_size, scale],
         outputs=[d.time],
     )
 
@@ -367,16 +384,14 @@ def _rk_perturb_state(
         wp.launch(
             _next_muscle_activation,
             dim=(d.nworld, m.nmuscle),
-            inputs=[m.muscle_metadata, m_act_t0, d.m_act_dot,
-                    d.actual_step_size, scale],
+            inputs=[m.muscle_metadata, m_act_t0, d.integration_done, d.m_act_dot, d.actual_step_size, scale],
             outputs=[d.m_act],
         )
         if wp.static(m.opt.muscle_dyn_substeps) == 0:
             wp.launch(
                 _next_muscle_state,
                 dim=(d.nworld, m.nmuscle),
-                inputs=[m.muscle_metadata, m_state_t0, d.m_state_dot,
-                        d.actual_step_size, scale],
+                inputs=[m.muscle_metadata, m_state_t0, d.integration_done, d.m_state_dot, d.actual_step_size, scale],
                 outputs=[d.m_state],
             )
 
@@ -384,8 +399,7 @@ def _rk_perturb_state(
         wp.launch(
             _next_actuator_activation,
             dim=(d.nworld, m.nactuator),
-            inputs=[m.actuator_metadata, a_act_t0, d.a_act_dot,
-                    d.actual_step_size, scale],
+            inputs=[m.actuator_metadata, a_act_t0, d.integration_done, d.a_act_dot, d.actual_step_size, scale],
             outputs=[d.a_act],
         )
 
@@ -507,15 +521,18 @@ def determine_current_target_time(
         time1_out: wp.array(dtype=float),
         actual_step_size_out: wp.array(dtype=float),
         artificially_limited_out: wp.array(dtype=bool),
+        steps_attempted_out: wp.array(dtype=int),
 ):
     worldid = wp.tid()
     if integration_done[worldid]:
+        actual_step_size_out[worldid] = 0.0
         return
 
     t0 = time_in[worldid]
     t_max = next_time_in[worldid]
     current_step_size = step_size_in[worldid]
     artificially_limited_out[worldid] = False
+    steps_attempted_out[worldid] += 1
 
     # If we lose more than a small fraction of the step size we wanted
     # to take (due to a need to stop at next_time/t_max), make a note so the
@@ -533,7 +550,7 @@ def determine_current_target_time(
     return
 
 
-def _adjust_scales(m: Model, d: Data):
+def adjust_qvel_err_scales(m: Model, d: Data):
     @wp.func
     def calc_relative_scaling(abs_v: float, w: float) -> float:
         """
@@ -577,6 +594,7 @@ def _check_done_integrating(
         time1_in: wp.array(dtype=float),
         next_time_in: wp.array(dtype=float),
         # Data out:
+        time_out: wp.array(dtype=float),
         integration_done: wp.array(dtype=bool),
         nintegrating_out: wp.array(dtype=int),
 ):
@@ -584,10 +602,23 @@ def _check_done_integrating(
     if not step_accepted_in[worldid] or integration_done[worldid]:
         return
 
-    # Reached target time
+    # Reached target time. Need to compare time1 (in case of floating point imprecision)
     if time1_in[worldid] >= next_time_in[worldid]:
+        time_out[worldid] = next_time_in[worldid]  # this shouldn't be needed, but good for precision
         integration_done[worldid] = True
         wp.atomic_add(nintegrating_out, 0, -1)
+
+
+@event_scope
+def save_state(m: Model, d: Data):
+    wp.copy(d.time_0, d.time)
+    wp.copy(d.qpos_0, d.qpos)
+    wp.copy(d.qvel_0, d.qvel)
+    if m.nmuscle:
+        wp.copy(d.m_act_0, d.m_act)
+        wp.copy(d.m_state_0, d.m_state)
+    if m.nactuator:
+        wp.copy(d.a_act_0, d.a_act)
 
 
 @event_scope
@@ -595,6 +626,7 @@ def restore_state(m: Model, d: Data, only_on_reject: bool):
     @wp.kernel
     def restore_state_conditional(
             # Data in
+            done_integrating_in: wp.array(dtype=bool),
             step_accepted_in: wp.array(dtype=bool),
             time_in: wp.array(dtype=float),
             qpos_in: wp.array2d(dtype=float),
@@ -611,32 +643,27 @@ def restore_state(m: Model, d: Data, only_on_reject: bool):
             a_act_out: wp.array2d(dtype=float),
     ):
         worldid = wp.tid()
-        if step_accepted_in[worldid]:
+        if step_accepted_in[worldid] or done_integrating_in[worldid]:
             return
         nq, nv, nm, na = wp.static(m.nq), wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
         time_out[worldid] = time_in[worldid]
 
-        qpos_tile = wp.tile_load(qpos_in[worldid], shape=nq)
-        wp.tile_store(qpos_out[worldid], qpos_tile)
-
-        qvel_tile = wp.tile_load(qvel_in[worldid], shape=nv)
-        wp.tile_store(qvel_out[worldid], qvel_tile)
-
+        wp.tile_store(qpos_out[worldid], wp.tile_load(qpos_in[worldid], shape=(nq,)))
+        wp.tile_store(qvel_out[worldid], wp.tile_load(qvel_in[worldid], shape=(nv,)))
         if nm:
-            mstate_tile = wp.tile_load(m_state_in[worldid], shape=nm)
-            wp.tile_store(m_state_out[worldid], mstate_tile)
-            act_tile = wp.tile_load(m_act_in[worldid], shape=nm)
-            wp.tile_store(m_act_out[worldid], act_tile)
+            wp.tile_store(m_state_out[worldid], wp.tile_load(m_state_in[worldid], shape=(nm,)))
+            wp.tile_store(m_act_out[worldid], wp.tile_load(m_act_in[worldid], shape=(nm,)))
         if na:
-            aact_tile = wp.tile_load(a_act_in[worldid], shape=na)
-            wp.tile_store(a_act_out[worldid], aact_tile)
+            wp.tile_store(a_act_out[worldid], wp.tile_load(a_act_in[worldid], shape=(na,)))
 
     if only_on_reject:
-        wp.launch(
+        wp.launch_tiled(
             restore_state_conditional,
             dim=d.nworld,
-            inputs=[d.step_accepted, d.time_0, d.qpos_0, d.qvel_0, d.m_state_0, d.m_act_0, d.a_act_0],
+            inputs=[d.integration_done, d.step_accepted, d.time_0, d.qpos_0, d.qvel_0, d.m_state_0,
+                    d.m_act_0, d.a_act_0],
             outputs=[d.time, d.qpos, d.qvel, d.m_state, d.m_act, d.a_act],
+            block_dim=m.block_dim.restore_state,
         )
     else:  # everyone gets restored!
         wp.copy(d.time, d.time_0)
@@ -801,7 +828,13 @@ def compute_error(
 
     @wp.kernel
     def aggregate_errors(
+            actual_step_size_in: wp.array(dtype=float),
+            qpos: wp.array2d(dtype=float),
+            qvel: wp.array2d(dtype=float),
+            qpos0: wp.array2d(dtype=float),
+            qvel0: wp.array2d(dtype=float),
             # Data in:
+            integration_done: wp.array(dtype=bool),
             qpos_error_in: wp.array(dtype=float),
             qvel_error_in: wp.array(dtype=float),
             m_state_error_in: wp.array(dtype=float),
@@ -810,11 +843,15 @@ def compute_error(
             error_out: wp.array(dtype=float),
     ):
         worldid = wp.tid()
+        if integration_done[worldid]:
+            error_out[worldid] = 0.0
+            return
         error = qpos_error_in[worldid]
-        error = wp.max(error, qvel_error_in[worldid])
-        error = wp.max(error, m_state_error_in[worldid])
-        error = wp.max(error, act_error_in[worldid])
+        error = math.max_err(error, qvel_error_in[worldid])
+        error = math.max_err(error, m_state_error_in[worldid])
+        error = math.max_err(error, act_error_in[worldid])
         error_out[worldid] = error
+        return
 
     wp.launch_tiled(
         compute_diffs,
@@ -861,7 +898,8 @@ def compute_error(
     wp.launch(
         aggregate_errors,
         dim=d.nworld,
-        inputs=[d.qpos_err, d.qvel_err, d.m_state_err, d.act_err],
+        inputs=[d.actual_step_size, d.qpos, d.qvel, d.qpos_0, d.qvel_0, d.integration_done, d.qpos_err, d.qvel_err,
+                d.m_state_err, d.act_err],
         outputs=[d.error],
     )
     return
@@ -888,7 +926,7 @@ def _adjust_step_size(
 ):
     worldid = wp.tid()
     if integration_done_in[worldid]:
-        step_accepted_out[worldid] = False
+        step_accepted_out[worldid] = True
         return
 
     # Start with the actual step size taken
@@ -932,21 +970,14 @@ def attempt_adaptive_step(m: Model, d: Data):
         determine_current_target_time,
         dim=d.nworld,
         inputs=[d.time, d.next_time, d.step_size, d.integration_done],
-        outputs=[d.time1, d.actual_step_size, d.artificially_limited],
+        outputs=[d.time1, d.actual_step_size, d.artificially_limited, d.steps_attempted],
     )
 
     # Adjust scales for error computation
-    _adjust_scales(m, d)
+    adjust_qvel_err_scales(m, d)
 
     # Save state y_0
-    wp.copy(d.time_0, d.time)
-    wp.copy(d.qpos_0, d.qpos)
-    wp.copy(d.qvel_0, d.qvel)
-    if m.nmuscle:
-        wp.copy(d.m_act_0, d.m_act)
-        wp.copy(d.m_state_0, d.m_state)
-    if m.nactuator:
-        wp.copy(d.a_act_0, d.a_act)
+    save_state(m, d)
 
     # Big step using full current step size, store y_1
     _advance(m, d, d.qacc, d.qvel, 1.0)
@@ -987,7 +1018,7 @@ def attempt_adaptive_step(m: Model, d: Data):
         outputs=[d.step_size, d.step_accepted],
     )
 
-    # Restore state if step was rejected
+    # Restore state for worlds where the step was rejected
     restore_state(m, d, only_on_reject=True)
 
     # Check if we've reached the target time
@@ -995,9 +1026,8 @@ def attempt_adaptive_step(m: Model, d: Data):
         _check_done_integrating,
         dim=d.nworld,
         inputs=[d.step_accepted, d.time1, d.next_time],
-        outputs=[d.integration_done, d.nintegrating],
+        outputs=[d.time, d.integration_done, d.nintegrating],
     )
-
     # Prepare derivatives for next attempt
     forward.fwd(m, d)
     return
@@ -1013,7 +1043,8 @@ def euler_adaptive(m: Model, d: Data, dt_sim: float):
         outputs=[d.next_time, d.integration_done],
     )
 
-    # adaptive steps until target time is reached
+    # take adaptive steps until target time is reached
+    d.steps_attempted.zero_()
     d.nintegrating.fill_(d.nworld)
     wp.capture_while(
         d.nintegrating,
@@ -1021,4 +1052,8 @@ def euler_adaptive(m: Model, d: Data, dt_sim: float):
         m=m,
         d=d,
     )
+
+    # One more forward pass to realize
+    d.integration_done.zero_()
+    forward.fwd(m, d)
     return

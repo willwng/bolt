@@ -27,6 +27,16 @@ def sqr(x: float) -> float:
 
 
 @wp.func
+def max_err(x: float, y: float) -> float:
+    """Returns the maximum of x and y, treating NaN and Inf as higher priority than any number."""
+    if wp.isnan(x) or wp.isnan(y):
+        return wp.nan
+    if wp.isinf(x) or wp.isinf(y):
+        return wp.inf
+    return wp.max(x, y)
+
+
+@wp.func
 def mul_quat(u: wp.quat, v: wp.quat) -> wp.quat:
     return wp.quat(
         u[0] * v[0] - u[1] * v[1] - u[2] * v[2] - u[3] * v[3],

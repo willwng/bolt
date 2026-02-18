@@ -14,6 +14,7 @@ def _process_contacts_hc(
         # Model:
         geom_bodyid: wp.array(dtype=int),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         xipos_in: wp.array2d(dtype=wp.vec3),
         xpos_in: wp.array2d(dtype=wp.vec3),
         xvel_in: wp.array2d(dtype=wp.spatial_vector),
@@ -39,6 +40,9 @@ def _process_contacts_hc(
     #     return
 
     worldid = worldid_in[conid]
+    if integration_done_in[worldid]:
+        return
+
     geom = geom_in[conid]
     body1 = geom_bodyid[geom[0]]
     body2 = geom_bodyid[geom[1]]
@@ -116,6 +120,7 @@ def apply_contact_forces(m: Model, d: Data):
         dim=(d.naconmax),
         inputs=[
             m.geom_bodyid,
+            d.integration_done,
             d.xipos,
             d.xpos,
             d.xvel,

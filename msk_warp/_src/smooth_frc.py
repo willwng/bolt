@@ -31,17 +31,24 @@ wp.set_module_options({"enable_backward": False})
 def _cacc_world(
         # In:
         gravity: float,
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
         # Data out:
         cacc_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid = wp.tid()
-    cacc_out[worldid, 0] = (
-        wp.spatial_vector(wp.vec3(0.0), wp.vec3(0.0, -gravity, 0.0)))
+    if integration_done_in[worldid]:
+        return
+    cacc_out[worldid, 0] = wp.spatial_vector(wp.vec3(0.0), wp.vec3(0.0, -gravity, 0.0))
 
 
 def _rne_cacc_world(m: Model, d: Data):
-    wp.launch(_cacc_world, dim=[d.nworld], inputs=[m.opt.gravity],
-              outputs=[d.cacc])
+    wp.launch(
+        _cacc_world,
+        dim=[d.nworld],
+        inputs=[m.opt.gravity, d.integration_done],
+        outputs=[d.cacc]
+    )
 
 
 @wp.kernel
@@ -51,6 +58,7 @@ def _cacc(
         jnt_dofnum: wp.array(dtype=int),
         jnt_dofadr: wp.array(dtype=int),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qvel_in: wp.array2d(dtype=float),
         cdof_dot_in: wp.array2d(dtype=wp.spatial_vector),
         cacc_in: wp.array2d(dtype=wp.spatial_vector),
@@ -60,6 +68,8 @@ def _cacc(
         cacc_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, nodeid = wp.tid()
+    if integration_done_in[worldid]:
+        return
 
     bodyid = body_tree_[nodeid]
     dofnum = jnt_dofnum[bodyid]
@@ -78,8 +88,8 @@ def _rne_cacc_forward(m: Model, d: Data):
         wp.launch(
             _cacc,
             dim=(d.nworld, body_tree.size),
-            inputs=[m.body_parentid, m.jnt_dofnum, m.jnt_dofadr, d.qvel,
-                    d.cdof_dot, d.cacc, body_tree],
+            inputs=[m.body_parentid, m.jnt_dofnum, m.jnt_dofadr,
+                    d.integration_done, d.qvel, d.cdof_dot, d.cacc, body_tree],
             outputs=[d.cacc],
         )
 
@@ -87,6 +97,7 @@ def _rne_cacc_forward(m: Model, d: Data):
 @wp.kernel
 def _cfrc(
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         cinert_in: wp.array2d(dtype=vec10),
         cvel_in: wp.array2d(dtype=wp.spatial_vector),
         cacc_in: wp.array2d(dtype=wp.spatial_vector),
@@ -94,6 +105,8 @@ def _cfrc(
         cfrc_int_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     bodyid += 1  # skip world body
 
     cacc = cacc_in[worldid, bodyid]
@@ -107,8 +120,9 @@ def _cfrc(
 
 def _rne_cfrc(m: Model, d: Data):
     wp.launch(
-        _cfrc, dim=[d.nworld, m.nbody - 1],
-        inputs=[d.cinert, d.cvel, d.cacc],
+        _cfrc,
+        dim=[d.nworld, m.nbody - 1],
+        inputs=[d.integration_done, d.cinert, d.cvel, d.cacc],
         outputs=[d.cfrc_int]
     )
 
@@ -118,6 +132,7 @@ def _cfrc_backward(
         # Model:
         body_parentid: wp.array(dtype=int),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         cfrc_int_in: wp.array2d(dtype=wp.spatial_vector),
         # In:
         body_tree_: wp.array(dtype=int),
@@ -125,6 +140,8 @@ def _cfrc_backward(
         cfrc_int_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, nodeid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     bodyid = body_tree_[nodeid]
     pid = body_parentid[bodyid]
     if bodyid != 0:
@@ -134,8 +151,9 @@ def _cfrc_backward(
 def _rne_cfrc_backward(m: Model, d: Data):
     for body_tree in reversed(m.body_tree):
         wp.launch(
-            _cfrc_backward, dim=[d.nworld, body_tree.size],
-            inputs=[m.body_parentid, d.cfrc_int, body_tree],
+            _cfrc_backward,
+            dim=[d.nworld, body_tree.size],
+            inputs=[m.body_parentid, d.integration_done, d.cfrc_int, body_tree],
             outputs=[d.cfrc_int]
         )
 
@@ -145,12 +163,15 @@ def _qfrc_bias(
         # Model:
         dof_bodyid: wp.array(dtype=int),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         cdof_in: wp.array2d(dtype=wp.spatial_vector),
         cfrc_int_in: wp.array2d(dtype=wp.spatial_vector),
         # Data out:
         qfrc_bias_out: wp.array2d(dtype=float),
 ):
     worldid, dofid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     bodyid = dof_bodyid[dofid]
     qfrc_bias_out[worldid, dofid] = wp.dot(cdof_in[worldid, dofid],
                                            cfrc_int_in[worldid, bodyid])
@@ -171,8 +192,12 @@ def rne(m: Model, d: Data):
     _rne_cacc_forward(m, d)
     _rne_cfrc(m, d)
     _rne_cfrc_backward(m, d)
-    wp.launch(_qfrc_bias, dim=[d.nworld, m.nv],
-              inputs=[m.dof_bodyid, d.cdof, d.cfrc_int], outputs=[d.qfrc_bias])
+    wp.launch(
+        _qfrc_bias,
+        dim=[d.nworld, m.nv],
+        inputs=[m.dof_bodyid, d.integration_done, d.cdof, d.cfrc_int],
+        outputs=[d.qfrc_bias]
+    )
 
 
 @wp.kernel
@@ -185,11 +210,14 @@ def _spring_jnt_passive(
         jnt_dofnum: wp.array(dtype=int),
         jnt_stiffness: wp.array(dtype=float),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         # Data out:
         qfrc_spring_out: wp.array2d(dtype=float),
 ):
     worldid, jntid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     dofid = jnt_dofadr[jntid]
     stiffness = jnt_stiffness[jntid]
 
@@ -233,11 +261,14 @@ def _damper_dof_passive(
         # Model:
         dof_damping: wp.array(dtype=float),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qvel_in: wp.array2d(dtype=float),
         # Data out:
         qfrc_damper_out: wp.array2d(dtype=float),
 ):
     worldid, dofid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     damping = dof_damping[dofid]
     qfrc_damper_out[worldid, dofid] = -damping * qvel_in[worldid, dofid]
 
@@ -255,6 +286,7 @@ def apply_spring_damper(m: Model, d: Data):
             m.jnt_dofadr,
             m.jnt_dofnum,
             m.jnt_stiffness,
+            d.integration_done,
             d.qpos,
         ],
         outputs=[d.qfrc_spring],
@@ -265,6 +297,7 @@ def apply_spring_damper(m: Model, d: Data):
         dim=(d.nworld, m.nv),
         inputs=[
             m.dof_damping,
+            d.integration_done,
             d.qvel,
         ],
         outputs=[d.qfrc_damper],
@@ -274,6 +307,7 @@ def apply_spring_damper(m: Model, d: Data):
 @wp.kernel
 def _qfrc_smooth(
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qfrc_applied_in: wp.array2d(dtype=float),
         qfrc_bias_in: wp.array2d(dtype=float),
         qfrc_muscle_in: wp.array2d(dtype=float),
@@ -287,6 +321,8 @@ def _qfrc_smooth(
         qfrc_smooth_out: wp.array2d(dtype=float),
 ):
     worldid, dofid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     qfrc_smooth_out[worldid, dofid] = (
             qfrc_applied_in[worldid, dofid]
             - qfrc_bias_in[worldid, dofid]
@@ -332,8 +368,8 @@ def accumulate_forces(m: Model, d: Data):
     wp.launch(
         _qfrc_smooth,
         dim=(d.nworld, m.nv),
-        inputs=[d.qfrc_applied, d.qfrc_bias, d.qfrc_muscle, d.qfrc_actuator,
-                d.qfrc_limit, d.qfrc_contact, d.qfrc_spring, d.qfrc_damper,
-                d.qfrc_drag],
+        inputs=[d.integration_done,
+                d.qfrc_applied, d.qfrc_bias, d.qfrc_muscle, d.qfrc_actuator, d.qfrc_limit,
+                d.qfrc_contact, d.qfrc_spring, d.qfrc_damper, d.qfrc_drag],
         outputs=[d.qfrc_smooth],
     )

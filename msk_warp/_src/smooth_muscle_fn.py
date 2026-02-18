@@ -20,6 +20,7 @@ def _compute_path_kernel(
         muscle_poly_dep_dof_num: wp.array(dtype=int),
         muscle_poly_dep_dof_adr: wp.array(dtype=int),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
         muscle_length_in: wp.array2d(dtype=float),
@@ -32,6 +33,8 @@ def _compute_path_kernel(
         muscle_velocity_prev_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
     # Store previous values
     muscle_length_prev_out[worldid, muscle_id] = muscle_length_in[worldid, muscle_id]
     muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[worldid, muscle_id]
@@ -103,12 +106,15 @@ def _compute_path_kernel(
 @wp.kernel
 def _apply_muscle_frc(
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         muscle_actuation_in: wp.array2d(dtype=float),
         muscle_moment_arm_in: wp.array3d(dtype=float),
         # Data out:
         qfrc_applied_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id, dofid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     actuation = muscle_actuation_in[worldid, muscle_id]
     moment_arm = muscle_moment_arm_in[worldid, muscle_id]
 
@@ -138,7 +144,7 @@ def muscle_path(m: Model, d: Data):
             m.muscle_poly_coeffs, m.muscle_poly_adr, m.muscle_poly_order,
             m.muscle_poly_qpos_adr, m.muscle_poly_dof_adr,
             m.muscle_dep_dof_num, m.muscle_dep_dof_adr,
-            d.qpos, d.qvel, d.muscle_length, d.muscle_velocity
+            d.integration_done, d.qpos, d.qvel, d.muscle_length, d.muscle_velocity
         ],
         outputs=[d.muscle_length, d.muscle_velocity,
                  d.muscle_moment_arm, d.muscle_length_prev,
@@ -152,6 +158,6 @@ def apply_muscle_force(m: Model, d: Data):
         wp.launch(
             _apply_muscle_frc,
             dim=(d.nworld, m.nmuscle, m.nv),
-            inputs=[d.muscle_actuation, d.muscle_moment_arm, ],
+            inputs=[d.integration_done, d.muscle_actuation, d.muscle_moment_arm, ],
             outputs=[d.qfrc_muscle],
         )

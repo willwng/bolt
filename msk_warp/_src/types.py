@@ -22,8 +22,9 @@ class BlockDim:
     actuator_velocity: int = 32
     site_diffs: int = 128
 
-    adjust_scales: int = 64
-    error_step: int = 64
+    adjust_scales: int = 32
+    error_step: int = 32
+    restore_state: int = 32
 
     # ray
     ray: int = 64
@@ -954,7 +955,6 @@ class Data:
     integration_done: wp.array(dtype=bool)
     nintegrating: wp.array(dtype=int)
     # error estimate for adaptive stepping
-    error: wp.array(dtype=float)
     qvel_scales: wp.array2d(dtype=float)
     qpos_diff: wp.array2d(dtype=float)
     ninv_dq_tmp: wp.array2d(dtype=float)
@@ -967,6 +967,8 @@ class Data:
     qvel_err: wp.array(dtype=float)
     m_state_err: wp.array(dtype=float)
     act_err: wp.array(dtype=float)
+    error: wp.array(dtype=float)
+    steps_attempted: wp.array(dtype=int)
 
     qpos: wp.array2d(dtype=float)
     qvel: wp.array2d(dtype=float)

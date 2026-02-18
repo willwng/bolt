@@ -140,6 +140,7 @@ def _xfrc_muscles(
         muscle_pts_adr: wp.array(dtype=int),
         site_bodyid: wp.array(dtype=int),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         muscle_actuation_in: wp.array2d(dtype=float),
         muscle_num_active_in: wp.array2d(dtype=int),
         muscle_active_sites_in: wp.array2d(dtype=int),
@@ -151,6 +152,8 @@ def _xfrc_muscles(
         xfrc_muscle_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
     actuation = muscle_actuation_in[worldid, muscle_id]
 
     pts_adr = muscle_pts_adr[muscle_id]
@@ -184,6 +187,8 @@ def muscle_path(m: Model, d: Data):
      """
     if not m.nmuscle:
         return
+
+    # TODO: zero out work for integration done worlds
 
     # fill_ doesn't work with graph capture so we just launch a kernel
     wp.launch(
@@ -238,6 +243,7 @@ def apply_muscle_force(m: Model, d: Data):
             inputs=[
                 m.muscle_pts_adr,
                 m.site_bodyid,
+                d.integration_done,
                 d.muscle_actuation,
                 d.muscle_num_active,
                 d.muscle_active_sites,
