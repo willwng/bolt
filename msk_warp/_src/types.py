@@ -266,6 +266,16 @@ class LimitType(enum.IntEnum):
     HUNT_CROSSLEY = 3
 
 
+class ActivationType(enum.IntEnum):
+    """ Muscle activation dynamics
+    Attributes:
+        DGF: DeGroote-Fregly muscle activation dynamics
+        MILLARD: Millard muscle activation dynamics
+    """
+    DGF = 1
+    MILLARD = 2
+
+
 class IntegratorType(enum.IntEnum):
     """ Integrator type.
     Attributes:
@@ -335,6 +345,7 @@ class Option:
     solver: SolverType
     contact_type: ContactType
     limit_type: LimitType
+    activation_type: ActivationType
     integrator: IntegratorType
     iterations: int
     ls_iterations: int
@@ -356,6 +367,7 @@ class Option:
     use_inf_norm: bool
 
     qvel_weights: wp.array(dtype=float)
+    z_weights: wp.array(dtype=float)
 
     solref: wp.vec2
     solimp: vec5
@@ -661,6 +673,7 @@ class Model:
     nv: int
     nmuscle: int
     nactuator: int
+    nz: int
     ndoflimit: int
 
     njnts_conv: int
@@ -814,7 +827,6 @@ class Contact:
     geomcollisionid: wp.array(dtype=int)
 
 
-
 @dataclasses.dataclass
 class Data:
     """Dynamic state that updates each step.
@@ -952,17 +964,15 @@ class Data:
     nintegrating: wp.array(dtype=int)
     # error estimate for adaptive stepping
     qvel_scales: wp.array2d(dtype=float)
+    z_scales: wp.array2d(dtype=float)
     qpos_diff: wp.array2d(dtype=float)
     ninv_dq_tmp: wp.array2d(dtype=float)
     qpos_diff_scaled: wp.array2d(dtype=float)
     qvel_diff: wp.array2d(dtype=float)
-    m_state_diff: wp.array2d(dtype=float)
-    m_act_diff: wp.array2d(dtype=float)
-    a_act_diff: wp.array2d(dtype=float)
+    z_diff: wp.array2d(dtype=float)
     qpos_err: wp.array(dtype=float)
     qvel_err: wp.array(dtype=float)
-    m_state_err: wp.array(dtype=float)
-    act_err: wp.array(dtype=float)
+    z_err: wp.array(dtype=float)
     error: wp.array(dtype=float)
     steps_attempted: wp.array(dtype=int)
 
@@ -1092,7 +1102,6 @@ class Data:
     nacon: wp.array(dtype=int)
     nsolving: wp.array(dtype=int)
     subtree_bodyvel: wp.array2d(dtype=wp.spatial_vector)
-
 
     # collision driver
     collision_pair: wp.array(dtype=wp.vec2i)

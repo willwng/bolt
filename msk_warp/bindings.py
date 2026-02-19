@@ -95,6 +95,7 @@ def load_model(
     nq = sum(jnt_qpos_num)
     nmuscle = num_muscles(osim_model)
     nactuators = num_actuators(osim_model)
+    nz = nmuscle + nmuscle + nactuators  # muscle state, muscle activation, actuator activation
 
     joint_types = get_joint_types(osim_model)
     n_conv_jnts, n_custom_jnts = 0, 0
@@ -233,6 +234,7 @@ def load_model(
         solver=types.SolverType.NEWTON,
         contact_type=types.ContactType.HUNT_CROSSLEY,
         limit_type=types.LimitType.EXPONENTIAL,
+        activation_type=types.ActivationType.MILLARD,
         integrator=types.IntegratorType.EULER_FIXED,
         iterations=50,
         ls_iterations=100,
@@ -268,6 +270,7 @@ def load_model(
         solimp=types.vec5(0.9, 0.95, 0.001, 0.5, 2.0),
 
         qvel_weights=wp.full(nv, 1.0, dtype=float),
+        z_weights=wp.full(nz, 1.0, dtype=float),
 
         ls_parallel=False,
         ls_parallel_min_step=1e-8,
@@ -295,6 +298,7 @@ def load_model(
         nv=nv,
         nq=nq,
         nmuscle=nmuscle,
+        nz=nz,
         nactuator=nactuators,
         ndoflimit=n_limits,
 
@@ -439,17 +443,15 @@ def load_model(
         nintegrating=make_zero(1, dtype=int),
 
         qvel_scales=make_full(1.0, (n_worlds, nv), dtype=float),
+        z_scales=make_full(1.0, (n_worlds, nz), dtype=float),
         qpos_diff=make_zero((n_worlds, nq), dtype=float),
         ninv_dq_tmp=make_zero((n_worlds, nv), dtype=float),
         qpos_diff_scaled=make_zero((n_worlds, nq), dtype=float),
         qvel_diff=make_zero((n_worlds, nv), dtype=float),
-        m_state_diff=make_zero((n_worlds, nmuscle), dtype=float),
-        m_act_diff=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act_diff=make_zero((n_worlds, nactuators), dtype=float),
+        z_diff=make_zero((n_worlds, nz), dtype=float),
         qpos_err=make_zero((n_worlds,), dtype=float),
         qvel_err=make_zero((n_worlds,), dtype=float),
-        m_state_err=make_zero((n_worlds,), dtype=float),
-        act_err=make_zero((n_worlds,), dtype=float),
+        z_err=make_zero((n_worlds,), dtype=float),
         error=make_zero(n_worlds, dtype=float),
         steps_attempted=make_zero(n_worlds, dtype=int),
 
@@ -779,12 +781,12 @@ def set_contact_type(m: types.Model, contact_type: types.ContactType):
     m.opt.contact_type = contact_type
 
 
-def use_exponential_limit(m: types.Model):
-    m.opt.limit_type = types.LimitType.EXPONENTIAL
-
-
 def set_limit_type(m: types.Model, limit_type: types.LimitType):
     m.opt.limit_type = limit_type
+
+
+def set_activation_type(m: types.Model, activation_type: types.ActivationType):
+    m.opt.activation_type = activation_type
 
 
 def set_integrator_type(m: types.Model, integrator_type: types.IntegratorType):

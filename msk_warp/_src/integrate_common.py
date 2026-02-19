@@ -93,10 +93,8 @@ def _next_muscle_activation(
     step_size = actual_step_size_in[worldid] * scale
 
     # advance muscle activation
-    act = act_in[worldid, muscle_id] + act_dot_in[
-        worldid, muscle_id] * step_size
-    act_out[worldid, muscle_id] = (
-        wp.clamp(act, mm.min_activation, mm.max_activation))
+    act = act_in[worldid, muscle_id] + act_dot_in[worldid, muscle_id] * step_size
+    act_out[worldid, muscle_id] = (wp.clamp(act, mm.min_activation, mm.max_activation))
 
 
 @wp.kernel
