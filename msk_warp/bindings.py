@@ -340,7 +340,7 @@ def load_model(
         jnt_cst_adr=to_warp_array(custom_joint_indices, dtype=int),
         const_fns=to_warp_array(const_fns, dtype=float),
         linear_fns=to_warp_array(linear_fns, dtype=wp.vec2),
-        cst_txfm_axis=wp.array(txfm_axis, dtype=wp.vec3),
+        cst_txfm_axis=to_warp_array(txfm_axis, dtype=wp.vec3),
         cst_txfm_fn=to_warp_array(txfm_fn_type, dtype=int),
         cst_txfm_fn_adr=to_warp_array(txfm_fn_adr, dtype=int),
         cst_txfm_qadr=to_warp_array(txfm_qadr, dtype=int),
