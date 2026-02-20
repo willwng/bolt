@@ -149,6 +149,11 @@ def parse_ball_joint(joint) -> BallJoint:
     return BallJoint.from_joint(joint_base)
 
 
+def parse_gimbal_joint(joint) -> GimbalJoint:
+    joint_base = parse_joint_base(joint)
+    return GimbalJoint.from_joint(joint_base)
+
+
 def parse_universal_joint(joint) -> UniversalJoint:
     joint_base = parse_joint_base(joint)
     return UniversalJoint.from_joint(joint_base)
@@ -228,6 +233,8 @@ def parse_joint_set(joint_set) -> JointSet:
             joint_obj = parse_pin_joint(joint)
         elif joint.tag == "UniversalJoint":
             joint_obj = parse_universal_joint(joint)
+        elif joint.tag == "GimbalJoint":
+            joint_obj = parse_gimbal_joint(joint)
         elif joint.tag == "WeldJoint":
             joint_obj = parse_weld_joint(joint)
         else:

@@ -79,6 +79,7 @@ class JointType(enum.IntEnum):
       SLIDE: sliding distance along body-fixed axis       (1,)
       PIN: rotation angle (rad) around joint z-axis       (1,)
       UNIVERSAL: two rotation angles (rad) around joint x- and y-axes (2,)
+      GIMBAL: three euler angles (XYZ order)              (3,)
       CUSTOM: custom joint with up to 6 dofs              (<=6,)
       WELD: no dofs
       DUMMY: for ground (represents world body)
@@ -89,9 +90,10 @@ class JointType(enum.IntEnum):
     SLIDE = 2
     PIN = 3
     UNIVERSAL = 4
-    CUSTOM = 5
-    WELD = 6
-    DUMMY = 7  # for ground
+    GIMBAL = 5
+    CUSTOM = 6
+    WELD = 7
+    DUMMY = 8  # for ground
 
 
 class GeomType(enum.IntEnum):
@@ -983,6 +985,7 @@ class Data:
     m_state: wp.array2d(dtype=float)
 
     qacc: wp.array2d(dtype=float)
+    qacc_euler: wp.array2d(dtype=float)
     m_act_dot: wp.array2d(dtype=float)
     a_act_dot: wp.array2d(dtype=float)
     m_excitations: wp.array2d(dtype=float)
