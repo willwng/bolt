@@ -354,18 +354,19 @@ def compute_error(
     ):
         worldid = wp.tid()
         nz = wp.static(m.nz)
-        # Multiply qvel_diff by scales
-        z_diff_tile = wp.tile_load(z_diff_in[worldid], nz)
-        z_scales_tile = wp.tile_load(z_scales_in[worldid], nz)
-        z_scaled_diff_tile = wp.tile_map(wp.mul, z_diff_tile, z_scales_tile)
-        # Error
-        if wp.static(m.opt.use_inf_norm):
-            z_diff_abs = wp.tile_map(wp.abs, z_scaled_diff_tile)
-            z_err = wp.tile_max(z_diff_abs)[0]
-        else:
-            z_diff_sq = wp.tile_map(math.sqr, z_scaled_diff_tile)
-            z_err = wp.sqrt(wp.tile_sum(z_diff_sq)[0] / float(nz))
-        z_error_out[worldid] = z_err
+        if nz:
+            # Multiply qvel_diff by scales
+            z_diff_tile = wp.tile_load(z_diff_in[worldid], nz)
+            z_scales_tile = wp.tile_load(z_scales_in[worldid], nz)
+            z_scaled_diff_tile = wp.tile_map(wp.mul, z_diff_tile, z_scales_tile)
+            # Error
+            if wp.static(m.opt.use_inf_norm):
+                z_diff_abs = wp.tile_map(wp.abs, z_scaled_diff_tile)
+                z_err = wp.tile_max(z_diff_abs)[0]
+            else:
+                z_diff_sq = wp.tile_map(math.sqr, z_scaled_diff_tile)
+                z_err = wp.sqrt(wp.tile_sum(z_diff_sq)[0] / float(nz))
+            z_error_out[worldid] = z_err
         return
 
     @wp.kernel
@@ -418,8 +419,8 @@ def compute_error(
     wp.launch_tiled(
         compute_z_error,
         dim=d.nworld,
-        inputs=[d.z_diff],
-        outputs=[d.z_scales, d.z_err],
+        inputs=[d.z_diff, d.z_scales],
+        outputs=[d.z_err],
         block_dim=m.block_dim.error_step,
     )
     wp.launch(
