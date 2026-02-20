@@ -1939,6 +1939,7 @@ def solve_zero(
 
     # Euler needs M*a for implicit damping
     if m.opt.integrator == types.IntegratorType.EULER_FIXED:
+        # or m.opt.integrator == types.IntegratorType.EULER_ADAPTIVE):
         support.mul_m(m, d, d.efc.Ma, d.qacc, skip=d.efc.done)
 
 

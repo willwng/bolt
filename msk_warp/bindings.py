@@ -466,6 +466,7 @@ def load_model(
         joint_moments=make_zero((n_worlds, nv), dtype=float),
 
         qacc=make_zero((n_worlds, nv), dtype=float),
+        qacc_euler=make_zero((n_worlds, nv), dtype=float),
         m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
         a_act_dot=make_zero((n_worlds, nactuators), dtype=float),
         m_excitations=make_full(0.5, (n_worlds, nmuscle), dtype=float),

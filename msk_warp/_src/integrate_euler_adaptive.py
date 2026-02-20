@@ -2,6 +2,7 @@ import warp as wp
 
 from . import forward
 from . import integrate_common
+# from . import integrate_euler_fixed
 from . import math
 from . import mobilizers
 from .consts import MJ_MINVAL
@@ -508,13 +509,16 @@ def attempt_adaptive_step(m: Model, d: Data):
 
     # Big step using full current step size, store y_1
     integrate_common.advance(m, d, d.qacc, d.qvel, 1.0)
+    # integrate_euler_fixed.euler(m, d, 1.0)
     save_state(m, d, d.time_1, d.qpos_1, d.qvel_1, d.m_state_1, d.m_act_1, d.a_act_1)
 
     # Restore y_0 (note that y_0' is not modified). Take two half steps
     restore_state(m, d, d.time_0, d.qpos_0, d.qvel_0, d.m_state_0, d.m_act_0, d.a_act_0, only_on_reject=False)
     integrate_common.advance(m, d, d.qacc, d.qvel, 0.5)
+    # integrate_euler_fixed.euler(m, d, 0.5)
     forward.fwd(m, d)  # realize for mid-point
     integrate_common.advance(m, d, d.qacc, d.qvel, 0.5)
+    # integrate_euler_fixed.euler(m, d, 0.5)
 
     # Compute error between y_1* and y_1
     compute_error(m, d, d.qpos_1, d.qvel_1, d.m_act_1, d.m_state_1, d.a_act_1)

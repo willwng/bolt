@@ -29,11 +29,12 @@ def _tile_euler_dense(tile: TileSet):
             efc_Ma_in: wp.array2d(dtype=float),
             # In:
             adr_in: wp.array(dtype=int),
+            scale: float,
             # Out:
             qacc_out: wp.array2d(dtype=float),
     ):
         worldid, nodeid = wp.tid()
-        timestep = actual_step_size_in[worldid]
+        timestep = actual_step_size_in[worldid] * scale
         TILE_SIZE = wp.static(tile.size)
 
         dofid = adr_in[nodeid]
@@ -54,26 +55,25 @@ def _tile_euler_dense(tile: TileSet):
 
 
 @event_scope
-def euler(m: Model, d: Data):
+def euler(m: Model, d: Data, scale: float):
     """
     Euler integrator, semi-implicit in velocity.
     Requires state derivative is set already
     """
-    qacc = wp.empty((d.nworld, m.nv), dtype=float)
     for tile in m.qM_tiles:
         wp.launch_tiled(
             _tile_euler_dense(tile),
             dim=(d.nworld, tile.adr.size),
-            inputs=[m.dof_damping, d.actual_step_size, d.qM, d.efc.Ma, tile.adr],
-            outputs=[qacc],
+            inputs=[m.dof_damping, d.actual_step_size, d.qM, d.efc.Ma, tile.adr, scale],
+            outputs=[d.qacc_euler],
             block_dim=m.block_dim.euler_dense,
         )
-    integrate_common.advance(m, d, qacc, d.qvel, 1.0)
+    integrate_common.advance(m, d, d.qacc_euler, d.qvel, scale)
 
 
 @event_scope
 def integrate(m: Model, d: Data):
     """Steps from d.time to d.next_time using RK4 """
     integrate_common.update_step_size(m, d)
-    euler(m, d)
+    euler(m, d, 1.0)
     forward.fwd(m, d)  # realize state for next step
