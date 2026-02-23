@@ -15,11 +15,14 @@ def _process_joint_limits(
         limit_dof_forces: wp.array(dtype=wp.vec2),
         limit_dof_shapes: wp.array(dtype=wp.vec2),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         # Data out:
         qfrc_limit_out: wp.array2d(dtype=float),
 ):
     worldid, limitdofid = wp.tid()
+    if integration_done_in[worldid]:
+        return
 
     dof_range = limit_dof_range[limitdofid]
     dof_adr = limit_dof_adr[limitdofid]
@@ -43,6 +46,7 @@ def apply_limit_forces(m: Model, d: Data):
             m.limit_dof_qadr,
             m.limit_dof_forces,
             m.limit_dof_shapes,
+            d.integration_done,
             d.qpos,
         ],
         outputs=[

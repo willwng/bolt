@@ -102,6 +102,20 @@ def fk_joint(
         # Keep track of first rotation
         xaxis_out[0] = wp.normalize(math.rot_vec_quat(axis1, jnt_rot))
         xaxis_out[1] = wp.normalize(math.rot_vec_quat(axis2, math.mul_quat(jnt_rot, qloc1)))
+    elif jnttype == JointType.GIMBAL:
+        axis1 = wp.vec3(1.0, 0.0, 0.0)
+        axis2 = wp.vec3(0.0, 1.0, 0.0)
+        axis3 = wp.vec3(0.0, 0.0, 1.0)
+
+        qloc1 = math.axis_angle_to_quat(axis1, qpos[qadr + 0])
+        qloc2 = math.axis_angle_to_quat(axis2, qpos[qadr + 1])
+        qloc3 = math.axis_angle_to_quat(axis3, qpos[qadr + 2])
+        qloc_ = math.mul_quat(math.mul_quat(qloc1, qloc2), qloc3)
+
+        # Keep track of first rotation
+        xaxis_out[0] = wp.normalize(math.rot_vec_quat(axis1, jnt_rot))
+        xaxis_out[1] = wp.normalize(math.rot_vec_quat(axis2, math.mul_quat(jnt_rot, qloc1)))
+        xaxis_out[2] = wp.normalize(math.rot_vec_quat(axis3, math.mul_quat(math.mul_quat(jnt_rot, qloc1), qloc2)))
     elif jnttype == JointType.CUSTOM:
         # First 3 are rotation
         for i in range(wp.static(3)):
@@ -114,11 +128,8 @@ def fk_joint(
                 linear_fns,
             )
             # store intermediate rotated axes
-            xaxis_out[i] = fn_eval[1] * wp.normalize(math.rot_vec_quat(
-                txfm_axes[i], math.mul_quat(jnt_rot, qloc_)))
-
+            xaxis_out[i] = fn_eval[1] * wp.normalize(math.rot_vec_quat(txfm_axes[i], math.mul_quat(jnt_rot, qloc_)))
             qloc_ = math.mul_quat(qloc_, math.axis_angle_to_quat(txfm_axes[i], fn_eval[0]))
-
         # Next 3 are translation
         for i in range(wp.static(3), wp.static(6)):
             fn_eval = evaluate_txfm(
@@ -139,8 +150,7 @@ def fk_joint(
 
     # world coordinates
     xquat = math.mul_quat(jnt_rot, math.mul_quat(qloc_, jnt_rel_child_rot))
-    xpos = (jnt_pos + math.rot_vec_quat(xloc_, jnt_rot) +
-            math.rot_vec_quat(jnt_rel_child, xquat))
+    xpos = jnt_pos + math.rot_vec_quat(xloc_, jnt_rot) + math.rot_vec_quat(jnt_rel_child, xquat)
     xanchor = jnt_pos
     return xpos, xquat, xanchor
 
@@ -183,6 +193,13 @@ def cdof_joint(
         xaxis2 = xaxis_in[1]
         res[dofid + 0] = wp.spatial_vector(xaxis1, wp.cross(xaxis1, offset))
         res[dofid + 1] = wp.spatial_vector(xaxis2, wp.cross(xaxis2, offset))
+    elif jnttype == JointType.GIMBAL:
+        xaxis1 = xaxis_in[0]
+        xaxis2 = xaxis_in[1]
+        xaxis3 = xaxis_in[2]
+        res[dofid + 0] = wp.spatial_vector(xaxis1, wp.cross(xaxis1, offset))
+        res[dofid + 1] = wp.spatial_vector(xaxis2, wp.cross(xaxis2, offset))
+        res[dofid + 2] = wp.spatial_vector(xaxis3, wp.cross(xaxis3, offset))
     elif jnttype == JointType.CUSTOM:
         # Initialize to zero
         for i in range(dof_num):
@@ -245,6 +262,10 @@ def cvel_joint(
     elif jnttype == JointType.UNIVERSAL:
         # The second transformation is dependent on the first
         for i in range(2):
+            res[dofid + i] = math.motion_cross(cvel, cdof[dofid + i])
+            cvel += cdof[dofid + i] * qvel[dofid + i]
+    elif jnttype == JointType.GIMBAL:
+        for i in range(3):
             res[dofid + i] = math.motion_cross(cvel, cdof[dofid + i])
             cvel += cdof[dofid + i] * qvel[dofid + i]
     elif jnttype == JointType.CUSTOM:
@@ -321,13 +342,15 @@ def integrate(
 
     elif jnttype == JointType.UNIVERSAL:
         qpos_next[qpos_adr] = qpos[qpos_adr] + timestep * qvel[dof_adr]
-        qpos_next[qpos_adr + 1] = qpos[qpos_adr + 1] + timestep * qvel[
-            dof_adr + 1]
+        qpos_next[qpos_adr + 1] = qpos[qpos_adr + 1] + timestep * qvel[dof_adr + 1]
+
+    elif jnttype == JointType.GIMBAL:
+        for i in range(3):
+            qpos_next[qpos_adr + i] = (qpos[qpos_adr + i] + timestep * qvel[dof_adr + i])
 
     elif jnttype == JointType.CUSTOM:
         for i in range(dof_num):
-            qpos_next[qpos_adr + i] = (
-                    qpos[qpos_adr + i] + timestep * qvel[dof_adr + i])
+            qpos_next[qpos_adr + i] = (qpos[qpos_adr + i] + timestep * qvel[dof_adr + i])
 
     elif jnttype == JointType.WELD:
         return
@@ -468,8 +491,7 @@ def multiply_W(m: Model, d: Data):
 
         qvel_diff_tile = wp.tile_load(qvel_diff_in[worldid], nv)
         qvel_scales_tile = wp.tile_load(qvel_weights, nv)
-        qvel_scaled_diff_tile = wp.tile_map(
-            wp.mul, qvel_diff_tile, qvel_scales_tile)
+        qvel_scaled_diff_tile = wp.tile_map(wp.mul, qvel_diff_tile, qvel_scales_tile)
 
         wp.tile_store(ninv_dq_tmp_out[worldid], qvel_scaled_diff_tile)
         return
@@ -535,8 +557,7 @@ def scale_dq(
     wp.launch(
         kernel=multiply_N_inv_kernel,
         dim=(d.nworld, m.nbody),
-        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
-                d.qpos, dq, ],
+        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum, d.qpos, dq, ],
         outputs=[d.ninv_dq_tmp, ],
     )
 
@@ -547,8 +568,7 @@ def scale_dq(
     wp.launch(
         kernel=multiply_N_kernel,
         dim=(d.nworld, m.nbody),
-        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
-                d.qpos, d.ninv_dq_tmp, ],
+        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum, d.qpos, d.ninv_dq_tmp, ],
         outputs=[dq_scaled, ],
     )
     return

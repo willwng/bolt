@@ -1,6 +1,7 @@
 import argparse
 
 import warp as wp
+import torch
 
 import msk_warp
 import msk_warp._src.forward as forward
@@ -39,18 +40,22 @@ def main():
     if args.debug:
         wp.config.mode = "debug"
 
-    model_path = "data/osim/model_motor_arms_foot_contact_full_contact.osim"
+    model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       polynomial_data_path="data/muscle_poly_info.json",
-                                      root_free=False)
+                                      root_free=True)
     m, d = load_result.model, load_result.data
     m.opt.muscle_dyn_substeps = 0
     m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
     m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
+    # m.opt.integrator = msk_warp.types.IntegratorType.RK4_FIXED
+    # m.opt.integrator = msk_warp.types.IntegratorType.EULER_ADAPTIVE
     m.opt.integrator = msk_warp.types.IntegratorType.EULER_FIXED
+    m.opt.use_inf_norm = False
+    m.opt.accuracy = 1.0
 
-    dt = 1.0 / 7200.0
-    dt_sim = 1.0 / 7200.0
+    dt = 1.0 / 50.0
+    # dt = 1.0 / 10000.0
     is_cuda = wp.get_device().is_cuda
     if not args.benchmark:
         viewer = msk_warp.create_renderer(
@@ -65,23 +70,26 @@ def main():
 
         if is_cuda:
             with wp.ScopedCapture() as capture:
-                step.step_to(m, d, dt, dt_sim)
+                step.step(m, d)
             graph = capture.graph
 
         for i in range(args.nstep):
+            step.increment_next_time(m, d, dt)
             if is_cuda:
                 wp.capture_launch(graph)
             else:
-                step.step_to(m, d, dt, dt_sim)
-                # forward_fused.step_to(m, d, dt, dt_sim)
+                step.step(m, d)
             viewer.render(m, d)
         viewer.close()
 
     else:
+        def benchmark_fn(m: msk_warp.Model, d: msk_warp.Data, dt: float):
+            step.increment_next_time(m, d, dt)
+            step.step(m, d)
         n_worlds = args.nworld
         n_steps = args.nstep
-        res = benchmark(fn=step.step_to, m=m, d=d,
-                        dt=dt, dt_sim=dt_sim, nstep=n_steps,
+        res = benchmark(fn=benchmark_fn,
+                        m=m, d=d, dt=dt, nstep=n_steps,
                         event_trace=True, measure_alloc=True,
                         measure_solver_niter=True)
         jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res

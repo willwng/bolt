@@ -262,6 +262,27 @@ class PinJoint(Joint):
 
 
 @dataclass
+class GimbalJoint(Joint):
+    @classmethod
+    def from_joint(cls, joint: Joint) -> "GimbalJoint":
+        assert len(
+            joint.coordinates) == 3, "Gimbal joint must have exactly one coordinate"
+        return cls(
+            name=joint.name,
+            socket_parent_frame=joint.socket_parent_frame,
+            socket_child_frame=joint.socket_child_frame,
+            coordinates=joint.coordinates,
+            frames=joint.frames,
+        )
+
+    def num_dofs(self) -> int:
+        return 3
+
+    def num_pos_dofs(self) -> int:
+        return 3
+
+
+@dataclass
 class UniversalJoint(Joint):
     @classmethod
     def from_joint(cls, joint: Joint) -> "UniversalJoint":

@@ -95,6 +95,7 @@ def load_model(
     nq = sum(jnt_qpos_num)
     nmuscle = num_muscles(osim_model)
     nactuators = num_actuators(osim_model)
+    nz = nmuscle + nmuscle + nactuators  # muscle state, muscle activation, actuator activation
 
     joint_types = get_joint_types(osim_model)
     n_conv_jnts, n_custom_jnts = 0, 0
@@ -263,12 +264,13 @@ def load_model(
         hysteresis_low=0.9,
         hysteresis_high=1.2,
         accuracy=0.01,
-        use_inf_norm=True,
+        use_inf_norm=False,
 
         solref=wp.vec2(0.02, 1.0),
         solimp=types.vec5(0.9, 0.95, 0.001, 0.5, 2.0),
 
         qvel_weights=wp.full(nv, 1.0, dtype=float),
+        z_weights=wp.full(nz, 1.0, dtype=float),
 
         ls_parallel=False,
         ls_parallel_min_step=1e-8,
@@ -296,6 +298,7 @@ def load_model(
         nv=nv,
         nq=nq,
         nmuscle=nmuscle,
+        nz=nz,
         nactuator=nactuators,
         ndoflimit=n_limits,
 
@@ -337,7 +340,7 @@ def load_model(
         jnt_cst_adr=to_warp_array(custom_joint_indices, dtype=int),
         const_fns=to_warp_array(const_fns, dtype=float),
         linear_fns=to_warp_array(linear_fns, dtype=wp.vec2),
-        cst_txfm_axis=wp.array(txfm_axis, dtype=wp.vec3),
+        cst_txfm_axis=to_warp_array(txfm_axis, dtype=wp.vec3),
         cst_txfm_fn=to_warp_array(txfm_fn_type, dtype=int),
         cst_txfm_fn_adr=to_warp_array(txfm_fn_adr, dtype=int),
         cst_txfm_qadr=to_warp_array(txfm_qadr, dtype=int),
@@ -416,8 +419,41 @@ def load_model(
         nefc=make_zero(n_worlds, dtype=int),
         needs_solve=make_zero(1, dtype=int),
         time=make_zero(n_worlds, dtype=float),
+
+        time_0=make_zero(n_worlds, dtype=float),
+        qpos_0=make_zero((n_worlds, nq), dtype=float),
+        qvel_0=make_zero((n_worlds, nv), dtype=float),
+        m_state_0=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_0=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_0=make_zero((n_worlds, nactuators), dtype=float),
+        time_1=make_zero(n_worlds, dtype=float),
+        qpos_1=make_zero((n_worlds, nq), dtype=float),
+        qvel_1=make_zero((n_worlds, nv), dtype=float),
+        m_state_1=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_1=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_1=make_zero((n_worlds, nactuators), dtype=float),
+
         time1=make_zero(n_worlds, dtype=float),
         next_time=make_zero(n_worlds, dtype=float),
+        step_size=make_full(dt / 10.0, (n_worlds,), dtype=float),
+        actual_step_size=make_full(dt, (n_worlds,), dtype=float),
+        artificially_limited=make_zero(n_worlds, dtype=bool),
+        step_accepted=make_zero(n_worlds, dtype=bool),
+        integration_done=make_zero(n_worlds, dtype=bool),
+        nintegrating=make_zero(1, dtype=int),
+
+        qvel_scales=make_full(1.0, (n_worlds, nv), dtype=float),
+        z_scales=make_full(1.0, (n_worlds, nz), dtype=float),
+        qpos_diff=make_zero((n_worlds, nq), dtype=float),
+        ninv_dq_tmp=make_zero((n_worlds, nv), dtype=float),
+        qpos_diff_scaled=make_zero((n_worlds, nq), dtype=float),
+        qvel_diff=make_zero((n_worlds, nv), dtype=float),
+        z_diff=make_zero((n_worlds, nz), dtype=float),
+        qpos_err=make_zero((n_worlds,), dtype=float),
+        qvel_err=make_zero((n_worlds,), dtype=float),
+        z_err=make_zero((n_worlds,), dtype=float),
+        error=make_zero(n_worlds, dtype=float),
+        steps_attempted=make_zero(n_worlds, dtype=int),
 
         qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
         qvel=wp.array(np.tile(qvel0, (n_worlds, 1)), dtype=float),
@@ -430,6 +466,7 @@ def load_model(
         joint_moments=make_zero((n_worlds, nv), dtype=float),
 
         qacc=make_zero((n_worlds, nv), dtype=float),
+        qacc_euler=make_zero((n_worlds, nv), dtype=float),
         m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
         a_act_dot=make_zero((n_worlds, nactuators), dtype=float),
         m_excitations=make_full(0.5, (n_worlds, nmuscle), dtype=float),
@@ -581,9 +618,6 @@ def load_model(
         nacon=make_zero(n_worlds, dtype=int),
         nsolving=make_zero(1, dtype=int),
         subtree_bodyvel=make_zero((n_worlds, nb), dtype=wp.vec3),
-
-        # Variable-step integrator
-        actual_step_size=make_full(dt, (n_worlds,), dtype=float),
 
         # collision driver
         collision_pair=wp.zeros((naconmax,), dtype=wp.vec2i),
@@ -758,6 +792,24 @@ def set_activation_type(m: types.Model, activation_type: types.ActivationType):
 
 def set_integrator_type(m: types.Model, integrator_type: types.IntegratorType):
     m.opt.integrator = integrator_type
+
+
+def steps_attempted(d: types.Data) -> torch.Tensor:
+    return wp.to_torch(d.steps_attempted)
+
+
+def set_integrator_accuracy(m: types.Model, accuracy: float):
+    m.opt.accuracy = accuracy
+
+
+def set_integrator_use_inf_norm(m: types.Model, use_inf_norm: bool):
+    m.opt.use_inf_norm = use_inf_norm
+
+
+def is_adaptive(integrator_type: types.IntegratorType) -> bool:
+    return integrator_type in [
+        types.IntegratorType.EULER_ADAPTIVE,
+    ]
 
 
 def set_muscle_dynamics_substeps(m: types.Model, substeps: int):

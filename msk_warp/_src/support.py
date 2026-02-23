@@ -112,6 +112,7 @@ def _apply_ft(
         body_rootid: wp.array(dtype=int),
         dof_bodyid: wp.array(dtype=int),
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         xipos_in: wp.array2d(dtype=wp.vec3),
         subtree_com_in: wp.array2d(dtype=wp.vec3),
         cdof_in: wp.array2d(dtype=wp.spatial_vector),
@@ -122,10 +123,12 @@ def _apply_ft(
         qfrc_out: wp.array2d(dtype=float),
 ):
     worldid, dofid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
     cdof = cdof_in[worldid, dofid]
     rotational_cdof = wp.vec3(cdof[0], cdof[1], cdof[2])
-    jac = wp.spatial_vector(cdof[3], cdof[4], cdof[5], cdof[0], cdof[1],
-                            cdof[2])
+    jac = wp.spatial_vector(cdof[3], cdof[4], cdof[5], cdof[0], cdof[1], cdof[2])
 
     dofbodyid = dof_bodyid[dofid]
     accumul = float(0.0)
@@ -162,8 +165,8 @@ def apply_ft(
     wp.launch(
         kernel=_apply_ft,
         dim=(d.nworld, m.nv),
-        inputs=[m.nbody, m.body_parentid, m.body_rootid, m.dof_bodyid, d.xipos,
-                d.subtree_com, d.cdof, ft, flg_add],
+        inputs=[m.nbody, m.body_parentid, m.body_rootid, m.dof_bodyid,
+                d.integration_done, d.xipos, d.subtree_com, d.cdof, ft, flg_add],
         outputs=[qfrc],
     )
 

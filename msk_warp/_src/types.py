@@ -7,13 +7,9 @@ TILE_SIZE_JTDAJ_DENSE = 16
 TILE_SIZE_SITE = 256
 
 
-# TODO(team): add check that all wp.launch_tiled 'block_dim' settings are configurable
 @dataclasses.dataclass
 class BlockDim:
-    """Block dimension 'block_dim' settings for wp.launch_tiled.
-
-    TODO(team): experimental and may be removed
-    """
+    """Block dimension 'block_dim' settings for wp.launch_tiled. """
 
     # collision_driver
     segmented_sort: int = 128
@@ -22,8 +18,9 @@ class BlockDim:
     actuator_velocity: int = 32
     site_diffs: int = 128
 
-    adjust_scales: int = 64
-    error_step: int = 64
+    adjust_scales: int = 16
+    error_step: int = 16
+    restore_state: int = 16
 
     # ray
     ray: int = 64
@@ -82,6 +79,7 @@ class JointType(enum.IntEnum):
       SLIDE: sliding distance along body-fixed axis       (1,)
       PIN: rotation angle (rad) around joint z-axis       (1,)
       UNIVERSAL: two rotation angles (rad) around joint x- and y-axes (2,)
+      GIMBAL: three euler angles (XYZ order)              (3,)
       CUSTOM: custom joint with up to 6 dofs              (<=6,)
       WELD: no dofs
       DUMMY: for ground (represents world body)
@@ -92,9 +90,10 @@ class JointType(enum.IntEnum):
     SLIDE = 2
     PIN = 3
     UNIVERSAL = 4
-    CUSTOM = 5
-    WELD = 6
-    DUMMY = 7  # for ground
+    GIMBAL = 5
+    CUSTOM = 6
+    WELD = 7
+    DUMMY = 8  # for ground
 
 
 class GeomType(enum.IntEnum):
@@ -287,6 +286,7 @@ class IntegratorType(enum.IntEnum):
     """
     EULER_FIXED = 1
     RK4_FIXED = 2
+    EULER_ADAPTIVE = 3
 
 
 @dataclasses.dataclass
@@ -369,6 +369,7 @@ class Option:
     use_inf_norm: bool
 
     qvel_weights: wp.array(dtype=float)
+    z_weights: wp.array(dtype=float)
 
     solref: wp.vec2
     solimp: vec5
@@ -674,6 +675,7 @@ class Model:
     nv: int
     nmuscle: int
     nactuator: int
+    nz: int
     ndoflimit: int
 
     njnts_conv: int
@@ -839,7 +841,6 @@ class Data:
       nefc: number of constraints                                 (nworld,)
 
       time: simulation time                                       (nworld,)
-      time1: current target time for integrator (t1)              (nworld,)
       next_time: final target time for integrator (tMax)          (nworld,)
 
       qpos: position                                              (nworld, nq)
@@ -953,8 +954,29 @@ class Data:
     needs_solve: wp.array(dtype=bool)
 
     time: wp.array(dtype=float)
-    time1: wp.array(dtype=float)
     next_time: wp.array(dtype=float)
+
+    # Adaptive integrator fields
+    time1: wp.array(dtype=float)
+    step_size: wp.array(dtype=float)
+    actual_step_size: wp.array(dtype=float)
+    artificially_limited: wp.array(dtype=bool)
+    step_accepted: wp.array(dtype=bool)
+    integration_done: wp.array(dtype=bool)
+    nintegrating: wp.array(dtype=int)
+    # error estimate for adaptive stepping
+    qvel_scales: wp.array2d(dtype=float)
+    z_scales: wp.array2d(dtype=float)
+    qpos_diff: wp.array2d(dtype=float)
+    ninv_dq_tmp: wp.array2d(dtype=float)
+    qpos_diff_scaled: wp.array2d(dtype=float)
+    qvel_diff: wp.array2d(dtype=float)
+    z_diff: wp.array2d(dtype=float)
+    qpos_err: wp.array(dtype=float)
+    qvel_err: wp.array(dtype=float)
+    z_err: wp.array(dtype=float)
+    error: wp.array(dtype=float)
+    steps_attempted: wp.array(dtype=int)
 
     qpos: wp.array2d(dtype=float)
     qvel: wp.array2d(dtype=float)
@@ -963,11 +985,27 @@ class Data:
     m_state: wp.array2d(dtype=float)
 
     qacc: wp.array2d(dtype=float)
+    qacc_euler: wp.array2d(dtype=float)
     m_act_dot: wp.array2d(dtype=float)
     a_act_dot: wp.array2d(dtype=float)
     m_excitations: wp.array2d(dtype=float)
     a_excitations: wp.array2d(dtype=float)
     m_state_dot: wp.array2d(dtype=float)
+
+    # Stored state for adaptive time-stepper
+    time_0: wp.array(dtype=float)
+    qpos_0: wp.array2d(dtype=float)
+    qvel_0: wp.array2d(dtype=float)
+    m_state_0: wp.array2d(dtype=float)
+    m_act_0: wp.array2d(dtype=float)
+    a_act_0: wp.array2d(dtype=float)
+
+    time_1: wp.array(dtype=float)
+    qpos_1: wp.array2d(dtype=float)
+    qvel_1: wp.array2d(dtype=float)
+    m_state_1: wp.array2d(dtype=float)
+    m_act_1: wp.array2d(dtype=float)
+    a_act_1: wp.array2d(dtype=float)
 
     qacc_warmstart: wp.array2d(dtype=float)
 
@@ -1067,8 +1105,6 @@ class Data:
     nacon: wp.array(dtype=int)
     nsolving: wp.array(dtype=int)
     subtree_bodyvel: wp.array2d(dtype=wp.spatial_vector)
-
-    actual_step_size: wp.array(dtype=float)
 
     # collision driver
     collision_pair: wp.array(dtype=wp.vec2i)

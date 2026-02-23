@@ -33,6 +33,7 @@ def _tile_cholesky_solve(tile: TileSet):
     @nested_kernel(module="unique", enable_backward=False)
     def cholesky_solve(
             # In:
+            integration_done_in: wp.array(dtype=bool),
             L: wp.array3d(dtype=float),
             y: wp.array2d(dtype=float),
             adr: wp.array(dtype=int),
@@ -40,6 +41,8 @@ def _tile_cholesky_solve(tile: TileSet):
             x: wp.array2d(dtype=float),
     ):
         worldid, nodeid = wp.tid()
+        if integration_done_in[worldid]:
+            return
         TILE_SIZE = wp.static(tile.size)
 
         dofid = adr[nodeid]
@@ -60,7 +63,7 @@ def _solve_LD_dense(m: Model, d: Data, L: wp.array3d(dtype=float),
         wp.launch_tiled(
             _tile_cholesky_solve(tile),
             dim=(d.nworld, tile.adr.size),
-            inputs=[L, y, tile.adr],
+            inputs=[d.integration_done, L, y, tile.adr],
             outputs=[x],
             block_dim=m.block_dim.cholesky_solve,
         )
@@ -108,6 +111,7 @@ def _tile_cholesky_factorize_solve(tile: TileSet):
     @nested_kernel(module="unique", enable_backward=False)
     def cholesky_factorize_solve(
             # In:
+            integration_done_in: wp.array(dtype=bool),
             M: wp.array3d(dtype=float),
             y: wp.array2d(dtype=float),
             adr: wp.array(dtype=int),
@@ -116,6 +120,8 @@ def _tile_cholesky_factorize_solve(tile: TileSet):
             L: wp.array3d(dtype=float),
     ):
         worldid, nodeid = wp.tid()
+        if integration_done_in[worldid]:
+            return
         TILE_SIZE = wp.static(tile.size)
 
         dofid = adr[nodeid]
@@ -143,7 +149,7 @@ def _factor_solve_i_dense(
         wp.launch_tiled(
             _tile_cholesky_factorize_solve(tile),
             dim=(d.nworld, tile.adr.size),
-            inputs=[M, y, tile.adr],
+            inputs=[d.integration_done, M, y, tile.adr],
             outputs=[x, L],
             block_dim=m.block_dim.cholesky_factorize_solve,
         )

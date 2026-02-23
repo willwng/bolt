@@ -32,14 +32,11 @@ def calc_activation_derivative_millard(
         excitation: float,
         activation_time_const: float,
         deactivation_time_const: float,
-        activation_dynamics_smoothing: float
 ) -> float:
-    time_const_fact = 0.5 + 1.5 * activation
-    tau = wp.where(
-        excitation > activation,
-        activation_time_const * time_const_fact,
-        deactivation_time_const / time_const_fact
-    )
+    if excitation > activation:
+        tau = activation_time_const * (0.5 + 1.5 * activation)
+    else:
+        tau = deactivation_time_const / (0.5 + 1.5 * activation)
     return (excitation - activation) / tau
 
 
@@ -89,7 +86,6 @@ def _compute_activation_dot_millard(
         excitation,
         mm.activation_time_const,
         mm.deactivation_time_const,
-        mm.activation_dynamics_smoothing
     )
     act_dot_out[worldid, muscle_id] = act_dot
     return

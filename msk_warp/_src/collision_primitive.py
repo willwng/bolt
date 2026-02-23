@@ -1532,8 +1532,7 @@ def _primitive_narrowphase_builder(m: Model):
             _primitive_collisions_types.append(types)
             _primitive_collisions_func.append(func)
 
-    return _create_narrowphase_kernel(_primitive_collisions_types,
-                                      _primitive_collisions_func)
+    return _create_narrowphase_kernel(_primitive_collisions_types, _primitive_collisions_func)
 
 
 @event_scope

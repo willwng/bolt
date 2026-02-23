@@ -12,6 +12,7 @@ wp.set_module_options({"enable_backward": False})
 @wp.kernel
 def _drag_force(
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         xivel_in: wp.array2d(dtype=wp.spatial_vector),
         # In:
         body_tree: wp.array(dtype=int),
@@ -19,6 +20,8 @@ def _drag_force(
         xfrc_drag_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, nodeid = wp.tid()
+    if integration_done_in[worldid]:
+        return
     bodyid = body_tree[nodeid]
     body_vel = wp.spatial_bottom(xivel_in[worldid, bodyid])
 
@@ -35,6 +38,6 @@ def apply_drag(m: Model, d: Data):
     wp.launch(
         _drag_force,
         dim=(d.nworld, body_roots.size),
-        inputs=[d.xivel, body_roots],
+        inputs=[d.integration_done, d.xivel, body_roots],
         outputs=[d.xfrc_drag],
     )

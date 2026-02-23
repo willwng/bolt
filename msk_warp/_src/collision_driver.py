@@ -251,10 +251,8 @@ def _broadphase_filter(m: Model):
         # Bounding sphere
         rbound1, rbound2 = geom_rbound[geom1], geom_rbound[geom2]
 
-        xpos1, xpos2 = geom_xpos_in[worldid, geom1], geom_xpos_in[
-            worldid, geom2]
-        xmat1, xmat2 = geom_xmat_in[worldid, geom1], geom_xmat_in[
-            worldid, geom2]
+        xpos1, xpos2 = geom_xpos_in[worldid, geom1], geom_xpos_in[worldid, geom2]
+        xmat1, xmat2 = geom_xmat_in[worldid, geom1], geom_xmat_in[worldid, geom2]
 
         if rbound1 == 0.0 or rbound2 == 0.0:
             return _plane_filter(rbound1, rbound2, xpos1,
@@ -322,6 +320,7 @@ def _nxn_broadphase(broadphase_filter):
             nxn_geom_pair: wp.array(dtype=wp.vec2i),
             nxn_pairid: wp.array(dtype=wp.vec2i),
             # Data in:
+            integration_done_in: wp.array(dtype=bool),
             naconmax_in: int,
             geom_xpos_in: wp.array2d(dtype=wp.vec3),
             geom_xmat_in: wp.array2d(dtype=wp.mat33),
@@ -332,6 +331,8 @@ def _nxn_broadphase(broadphase_filter):
             ncollision_out: wp.array(dtype=int),
     ):
         worldid, elementid = wp.tid()
+        if integration_done_in[worldid]:
+            return
 
         geom = nxn_geom_pair[elementid]
         geom1 = geom[0]
@@ -382,6 +383,7 @@ def nxn_broadphase(m: Model, d: Data):
             m.geom_rbound,
             m.nxn_geom_pair_filtered,
             m.nxn_pairid_filtered,
+            d.integration_done,
             d.naconmax,
             d.geom_xpos,
             d.geom_xmat,

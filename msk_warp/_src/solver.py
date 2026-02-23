@@ -1908,12 +1908,13 @@ def create_context(m: types.Model, d: types.Data, grad: bool = True):
 @wp.kernel
 def check_num_solve_worlds(
         # Data in:
+        integration_done_in: wp.array(dtype=bool),
         nefc_in: wp.array(dtype=int),
         # Data out:
         needs_solve_out: wp.array(dtype=int),
 ):
     worldid = wp.tid()
-    if nefc_in[worldid] > 0:
+    if nefc_in[worldid] > 0 and not integration_done_in[worldid]:
         wp.atomic_or(needs_solve_out, 0, 1)
 
 
@@ -1923,7 +1924,7 @@ def _check_num_solve_worlds(m: types.Model, d: types.Data):
     wp.launch(
         check_num_solve_worlds,
         dim=(d.nworld),
-        inputs=[d.nefc],
+        inputs=[d.integration_done, d.nefc],
         outputs=[d.needs_solve],
     )
 
@@ -1937,8 +1938,8 @@ def solve_zero(
     d.solver_niter.fill_(0)
 
     # Euler needs M*a for implicit damping
-    if m.opt.integrator == types.IntegratorType.EULER_FIXED or \
-            m.opt.integrator == types.IntegratorType.EULER_ADAPTIVE:
+    if m.opt.integrator == types.IntegratorType.EULER_FIXED:
+        # or m.opt.integrator == types.IntegratorType.EULER_ADAPTIVE):
         support.mul_m(m, d, d.efc.Ma, d.qacc, skip=d.efc.done)
 
 
