@@ -42,15 +42,16 @@ def main():
     model_path = "data/osim/model_motor_arms_foot_contact_full_contact.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       polynomial_data_path="data/muscle_poly_info.json",
-                                      root_free=True)
+                                      root_free=False)
     m, d = load_result.model, load_result.data
     m.opt.muscle_dyn_substeps = 0
     m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
     m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
     m.opt.integrator = msk_warp.types.IntegratorType.EULER_FIXED
 
-    dt_sim = 1.0 / 10000.0
-    is_cuda = wp.get_device().is_cuda and False
+    dt = 1.0 / 7200.0
+    dt_sim = 1.0 / 7200.0
+    is_cuda = wp.get_device().is_cuda
     if not args.benchmark:
         viewer = msk_warp.create_renderer(
             load_result=load_result,
@@ -64,22 +65,23 @@ def main():
 
         if is_cuda:
             with wp.ScopedCapture() as capture:
-                step.step(m, d, dt_sim)
+                step.step_to(m, d, dt, dt_sim)
             graph = capture.graph
 
         for i in range(args.nstep):
             if is_cuda:
                 wp.capture_launch(graph)
             else:
-                step.step(m, d, dt_sim)
+                step.step_to(m, d, dt, dt_sim)
+                # forward_fused.step_to(m, d, dt, dt_sim)
             viewer.render(m, d)
         viewer.close()
 
     else:
         n_worlds = args.nworld
         n_steps = args.nstep
-        res = benchmark(fn=step.step, m=m, d=d,
-                        dt_sim=dt_sim, nstep=n_steps,
+        res = benchmark(fn=step.step_to, m=m, d=d,
+                        dt=dt, dt_sim=dt_sim, nstep=n_steps,
                         event_trace=True, measure_alloc=True,
                         measure_solver_niter=True)
         jit_time, run_time, trace, nacon, nefc, solver_niter, nsuccess = res
@@ -91,7 +93,7 @@ def main():
         Total JIT time: {jit_time:.2f} s
         Total simulation time: {run_time:.2f} s
         Total steps per second: {steps / run_time:,.0f}
-        Total realtime factor: {steps * dt_sim / run_time:,.2f} x
+        Total realtime factor: {steps * dt / run_time:,.2f} x
         Total time per step: {1e9 * run_time / steps:.2f} ns
         Total converged worlds: {nsuccess} / {d.nworld}""")
 
