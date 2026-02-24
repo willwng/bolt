@@ -11,7 +11,7 @@ GPU-accelerated physics simulations for articulated rigid bodies with muscle act
 - Geometry-based and polynomial/function-based muscle paths.
 - Force-based Hunt-Crossley contacts and constraint-based MuJoCo contacts.
 - Exponential force-based joint limits [Anderson and Pandy](https://pubmed.ncbi.nlm.nih.gov/11264828/), [Hunt-Crossley joint limits](https://simtk.org/api_docs/simbody/api_docs33/Simbody/html/classSimTK_1_1Force_1_1MobilityLinearStop.html), and constraint-based MuJoCo limits.
-- Explicit Euler, RK4, and adaptive Euler (in-progress) integrators.
+- Explicit Euler, RK4, adaptive Euler, adaptive Runge-Kutta-Merson (in-progress) integrators.
 
 We also include a basic [OpenGL renderer](msk_warp/render) (not tuned for performance) for debugging.
 
