@@ -210,21 +210,21 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
         wp.tile_store(qvel_diff_out[worldid], qvel_diff_tile)
         if nm:
             # m_state_curr - m_state_stored
-            mstate_tile = wp.tile_load(m_state_in[worldid], nm)
-            mstate_s_tile = wp.tile_load(m_state_store_in[worldid], nm)
-            mstate_diff_tile = scale * wp.tile_map(wp.sub, mstate_tile, mstate_s_tile)
-            wp.tile_store(z_diff_out[worldid], mstate_diff_tile, offset=(0,))
+            m_state_tile = wp.tile_load(m_state_in[worldid], nm)
+            m_state_s_tile = wp.tile_load(m_state_store_in[worldid], nm)
+            m_state_diff_tile = scale * wp.tile_map(wp.sub, m_state_tile, m_state_s_tile)
+            wp.tile_store(z_diff_out[worldid], m_state_diff_tile, offset=(0,))
             # m_act_curr - m_act_stored
-            act_tile = wp.tile_load(m_act_in[worldid], nm)
-            act_s_tile = wp.tile_load(m_act_store_in[worldid], nm)
-            act_diff_tile = scale * wp.tile_map(wp.sub, act_tile, act_s_tile)
-            wp.tile_store(z_diff_out[worldid], act_diff_tile, offset=(nm,))
+            m_act_tile = wp.tile_load(m_act_in[worldid], nm)
+            m_act_s_tile = wp.tile_load(m_act_store_in[worldid], nm)
+            m_act_diff_tile = scale * wp.tile_map(wp.sub, m_act_tile, m_act_s_tile)
+            wp.tile_store(z_diff_out[worldid], m_act_diff_tile, offset=(nm,))
         if na:
             # a_act_curr - a_act_stored
-            aact_tile = wp.tile_load(a_act_in[worldid], na)
-            aact_s_tile = wp.tile_load(a_act_store_in[worldid], na)
-            aact_diff_tile = scale * wp.tile_map(wp.sub, aact_tile, aact_s_tile)
-            wp.tile_store(z_diff_out[worldid], aact_diff_tile, offset=(nm + nm,))
+            a_act_tile = wp.tile_load(a_act_in[worldid], na)
+            a_act_s_tile = wp.tile_load(a_act_store_in[worldid], na)
+            a_act_diff_tile = scale * wp.tile_map(wp.sub, a_act_tile, a_act_s_tile)
+            wp.tile_store(z_diff_out[worldid], a_act_diff_tile, offset=(nm + nm,))
         return
 
     @wp.kernel
