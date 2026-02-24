@@ -177,7 +177,7 @@ def _update_fixed_step_size(
 
 
 @event_scope
-def advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float):
+def advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float, symplectic: bool = True):
     """Advance state and time given state derivatives"""
     if m.nmuscle:
         wp.launch(
@@ -203,19 +203,34 @@ def advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float):
             outputs=[d.a_act],
         )
 
-    wp.launch(
-        _next_velocity,
-        dim=(d.nworld, m.nv),
-        inputs=[d.integration_done, d.qvel, qacc, d.actual_step_size, scale],
-        outputs=[d.qvel],
-    )
-    wp.launch(
-        _next_position,
-        dim=(d.nworld, m.nbody),
-        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
-                d.integration_done, d.qpos, qvel, d.actual_step_size, scale],
-        outputs=[d.qpos],
-    )
+    if symplectic:
+        wp.launch(
+            _next_velocity,
+            dim=(d.nworld, m.nv),
+            inputs=[d.integration_done, d.qvel, qacc, d.actual_step_size, scale],
+            outputs=[d.qvel],
+        )
+        wp.launch(
+            _next_position,
+            dim=(d.nworld, m.nbody),
+            inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
+                    d.integration_done, d.qpos, qvel, d.actual_step_size, scale],
+            outputs=[d.qpos],
+        )
+    else:
+        wp.launch(
+            _next_position,
+            dim=(d.nworld, m.nbody),
+            inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
+                    d.integration_done, d.qpos, qvel, d.actual_step_size, scale],
+            outputs=[d.qpos],
+        )
+        wp.launch(
+            _next_velocity,
+            dim=(d.nworld, m.nv),
+            inputs=[d.integration_done, d.qvel, qacc, d.actual_step_size, scale],
+            outputs=[d.qvel],
+        )
     wp.launch(
         _next_time,
         dim=d.nworld,

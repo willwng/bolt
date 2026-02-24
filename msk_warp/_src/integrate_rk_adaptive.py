@@ -31,21 +31,21 @@ def attempt_adaptive_step(m: Model, d: Data):
     integrate_adaptive_common.save_state_dot_idx(m, d, 0)
 
     # k_1 = f(y_0 + (h/3) * k_0)
-    integrate_common.advance(m, d, d.qacc, d.qvel, 1.0 / 3.0)
+    integrate_common.advance(m, d, d.qacc, d.qvel, 1.0 / 3.0, symplectic=False)
     forward.fwd(m, d)
     integrate_adaptive_common.save_state_dot_idx(m, d, 1)
 
     # k_2 = f(y_0 + (h/6) * (k_0 + k_1))
     restore_0(m, d, only_on_reject=False)
     integrate_adaptive_common.add_to_state_dot_from_idx(m, d, 1.0, 1)
-    integrate_common.advance(m, d, d.qacc, d.qvel_buffer, 1.0 / 6.0)
+    integrate_common.advance(m, d, d.qacc, d.qvel_buffer, 1.0 / 6.0, symplectic=False)
     forward.fwd(m, d)
     integrate_adaptive_common.save_state_dot_idx(m, d, 2)
 
     # k_3 = f(y_0 + (h/8) * (k_0 + 3*k_2))
     restore_0(m, d, only_on_reject=False)
     integrate_adaptive_common.add_to_state_dot_from_idx(m, d, 3.0, 2)
-    integrate_common.advance(m, d, d.qacc, d.qvel_buffer, 1.0 / 8.0)
+    integrate_common.advance(m, d, d.qacc, d.qvel_buffer, 1.0 / 8.0, symplectic=False)
     forward.fwd(m, d)
     integrate_adaptive_common.save_state_dot_idx(m, d, 3)
 
@@ -53,7 +53,7 @@ def attempt_adaptive_step(m: Model, d: Data):
     restore_0(m, d, only_on_reject=False)
     integrate_adaptive_common.add_to_state_dot_from_idx(m, d, -3.0, 2)
     integrate_adaptive_common.add_to_state_dot_from_idx(m, d, 4.0, 3)
-    integrate_common.advance(m, d, d.qacc, d.qvel_buffer, 1.0 / 2.0)
+    integrate_common.advance(m, d, d.qacc, d.qvel_buffer, 1.0 / 2.0, symplectic=False)
     forward.fwd(m, d)
     integrate_adaptive_common.save_state_dot_idx(m, d, 4)
 
@@ -63,7 +63,7 @@ def attempt_adaptive_step(m: Model, d: Data):
     restore_0(m, d, only_on_reject=False)
     integrate_adaptive_common.add_to_state_dot_from_idx(m, d, 4.0, 3)
     integrate_adaptive_common.add_to_state_dot_from_idx(m, d, 1.0, 4)
-    integrate_common.advance(m, d, d.qacc, d.qvel_buffer, 1.0 / 6.0)
+    integrate_common.advance(m, d, d.qacc, d.qvel_buffer, 1.0 / 6.0, symplectic=False)
 
     # Compute error against y_save: (1/5) * (y - y_save)
     ss = d.integrator_scratch[1]
