@@ -833,6 +833,25 @@ class Contact:
 
 
 @dataclasses.dataclass
+class IntegratorStateScratch:
+    time: wp.array(dtype=float)
+    qpos: wp.array2d(dtype=float)
+    qvel: wp.array2d(dtype=float)
+    m_state: wp.array2d(dtype=float)
+    m_act: wp.array2d(dtype=float)
+    a_act: wp.array2d(dtype=float)
+
+
+@dataclasses.dataclass
+class IntegratorDotScratch:
+    qvel: wp.array2d(dtype=float)
+    qacc: wp.array2d(dtype=float)
+    m_state_dot: wp.array2d(dtype=float)
+    m_act_dot: wp.array2d(dtype=float)
+    a_act_dot: wp.array2d(dtype=float)
+
+
+@dataclasses.dataclass
 class Data:
     """Dynamic state that updates each step.
 
@@ -996,48 +1015,9 @@ class Data:
     m_state_dot: wp.array2d(dtype=float)
 
     # Stored state for adaptive time-stepper
-    time_0: wp.array(dtype=float)
-    qpos_0: wp.array2d(dtype=float)
-    qvel_0: wp.array2d(dtype=float)
-    m_state_0: wp.array2d(dtype=float)
-    m_act_0: wp.array2d(dtype=float)
-    a_act_0: wp.array2d(dtype=float)
-
-    time_1: wp.array(dtype=float)
-    qpos_1: wp.array2d(dtype=float)
-    qvel_1: wp.array2d(dtype=float)
-    m_state_1: wp.array2d(dtype=float)
-    m_act_1: wp.array2d(dtype=float)
-    a_act_1: wp.array2d(dtype=float)
-
-    # for higher order integrators
-    qacc_0: wp.array2d(dtype=float)
-    m_state_dot_0: wp.array2d(dtype=float)
-    m_act_dot_0: wp.array2d(dtype=float)
-    a_act_dot_0: wp.array2d(dtype=float)
-
-    qacc_1: wp.array2d(dtype=float)
-    m_state_dot_1: wp.array2d(dtype=float)
-    m_act_dot_1: wp.array2d(dtype=float)
-    a_act_dot_1: wp.array2d(dtype=float)
-
-    qvel_2: wp.array2d(dtype=float)
-    qacc_2: wp.array2d(dtype=float)
-    m_state_dot_2: wp.array2d(dtype=float)
-    m_act_dot_2: wp.array2d(dtype=float)
-    a_act_dot_2: wp.array2d(dtype=float)
-
-    qvel_3: wp.array2d(dtype=float)
-    qacc_3: wp.array2d(dtype=float)
-    m_state_dot_3: wp.array2d(dtype=float)
-    m_act_dot_3: wp.array2d(dtype=float)
-    a_act_dot_3: wp.array2d(dtype=float)
-
-    qvel_4: wp.array2d(dtype=float)
-    qacc_4: wp.array2d(dtype=float)
-    m_state_dot_4: wp.array2d(dtype=float)
-    m_act_dot_4: wp.array2d(dtype=float)
-    a_act_dot_4: wp.array2d(dtype=float)
+    integrator_scratch: list[IntegratorStateScratch]
+    integrator_dot_scratch: list[IntegratorDotScratch]  # for higher order integrators
+    qvel_buffer: wp.array2d(dtype=float)
 
     qacc_warmstart: wp.array2d(dtype=float)
 

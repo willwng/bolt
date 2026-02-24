@@ -1,18 +1,11 @@
 import warp as wp
 
-from . import forward
-from . import integrate_common
 from . import math
 from . import mobilizers
 from .consts import MJ_MINVAL
-from .types import ActuatorMetadata
 from .types import Data
 from .types import Model
-from .types import MuscleMetadata
-from .types import TileSet
-from .warp_util import cache_kernel
 from .warp_util import event_scope
-from .warp_util import kernel as nested_kernel
 
 wp.set_module_options({"enable_backward": False})
 
@@ -176,298 +169,6 @@ def check_done_integrating(m: Model, d: Data):
         inputs=[d.step_accepted, d.time1, d.next_time],
         outputs=[d.time, d.integration_done, d.nintegrating],
     )
-
-
-@event_scope
-def add_to_state_dot(
-        m: Model, d: Data,
-        scale: float,
-        qvel_add: wp.array2d,
-        qacc_add: wp.array2d,
-        m_state_dot_add: wp.array2d,
-        m_act_dot_add: wp.array2d,
-        a_act_dot_add: wp.array2d,
-):
-    @wp.kernel
-    def _add_to_state_dot(
-            # Data in
-            done_integrating_in: wp.array(dtype=bool),
-            qvel_in: wp.array2d(dtype=float),
-            qacc_in: wp.array2d(dtype=float),
-            m_state_dot_in: wp.array2d(dtype=float),
-            m_act_dot_in: wp.array2d(dtype=float),
-            a_act_dot_in: wp.array2d(dtype=float),
-            # Data out:
-            qvel_out: wp.array2d(dtype=float),
-            qacc_out: wp.array2d(dtype=float),
-            m_state_dot_out: wp.array2d(dtype=float),
-            m_act_dot_out: wp.array2d(dtype=float),
-            a_act_dot_out: wp.array2d(dtype=float),
-    ):
-        worldid = wp.tid()
-        if done_integrating_in[worldid]:
-            return
-        nv, nm, na = wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
-
-        qv_og = wp.tile_load(qvel_out[worldid], shape=(nv,))
-        qv_add = scale * wp.tile_load(qvel_in[worldid], shape=(nv,))
-        wp.tile_store(qvel_out[worldid], wp.tile_map(wp.add, qv_og, qv_add))
-
-        qacc_og = wp.tile_load(qacc_out[worldid], shape=(nv,))
-        qacc_add_scaled = scale * wp.tile_load(qacc_in[worldid], shape=(nv,))
-        wp.tile_store(qacc_out[worldid], wp.tile_map(wp.add, qacc_og, qacc_add_scaled))
-
-        if nm:
-            ms_dot_og = wp.tile_load(m_state_dot_out[worldid], shape=(nm,))
-            ms_dot_add_scaled = scale * wp.tile_load(m_state_dot_in[worldid], shape=(nm,))
-            wp.tile_store(m_state_dot_out[worldid], wp.tile_map(wp.add, ms_dot_og, ms_dot_add_scaled))
-
-            ma_dot_og = wp.tile_load(m_act_dot_out[worldid], shape=(nm,))
-            ma_dot_add_scaled = scale * wp.tile_load(m_act_dot_in[worldid], shape=(nm,))
-            wp.tile_store(m_act_dot_out[worldid], wp.tile_map(wp.add, ma_dot_og, ma_dot_add_scaled))
-
-        if na:
-            aa_dot_og = wp.tile_load(a_act_dot_out[worldid], shape=(na,))
-            aa_dot_add_scaled = scale * wp.tile_load(a_act_dot_in[worldid], shape=(na,))
-            wp.tile_store(a_act_dot_out[worldid], wp.tile_map(wp.add, aa_dot_og, aa_dot_add_scaled))
-        return
-
-    wp.launch_tiled(
-        _add_to_state_dot,
-        dim=d.nworld,
-        inputs=[d.integration_done, qvel_add, qacc_add, m_state_dot_add, m_act_dot_add, a_act_dot_add],
-        outputs=[d.qvel, d.qacc, d.m_state_dot, d.m_act_dot, d.a_act_dot],
-        block_dim=m.block_dim.restore_state,
-    )
-    return
-
-
-def get_state_at_idx(m: Model, d: Data, idx: int):
-    if idx == 0:
-        time_dest, qpos_dest, qvel_dest = d.time_0, d.qpos_0, d.qvel_0
-        m_state_dest, m_act_dest = d.m_state_0, d.m_act_0
-        a_act_dest = d.a_act_0
-    elif idx == 1:
-        time_dest, qpos_dest, qvel_dest = d.time_1, d.qpos_1, d.qvel_1
-        m_state_dest, m_act_dest = d.m_state_1, d.m_act_1
-        a_act_dest = d.a_act_1
-    else:
-        raise ValueError("Invalid save_idx")
-    return time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest
-
-
-def save_state_idx(m: Model, d: Data, save_idx: int, ):
-    time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest = get_state_at_idx(m, d, save_idx)
-    save_state(m, d, time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest)
-
-
-def restore_state_idx(m: Model, d: Data, restore_idx: int, only_on_reject: bool):
-    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src = get_state_at_idx(m, d, restore_idx)
-    restore_state(m, d, time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, only_on_reject=only_on_reject)
-
-
-@event_scope
-def save_state(
-        m: Model, d: Data,
-        time_dest: wp.array,
-        qpos_dest: wp.array2d,
-        qvel_dest: wp.array2d,
-        m_state_dest: wp.array2d,
-        m_act_dest: wp.array2d,
-        a_act_dest: wp.array2d
-):
-    wp.copy(time_dest, d.time)
-    wp.copy(qpos_dest, d.qpos)
-    wp.copy(qvel_dest, d.qvel)
-    if m.nmuscle:
-        wp.copy(m_act_dest, d.m_act)
-        wp.copy(m_state_dest, d.m_state)
-    if m.nactuator:
-        wp.copy(a_act_dest, d.a_act)
-
-
-@event_scope
-def save_state_dot(
-        m: Model, d: Data,
-        qvel_dest: wp.array2d,
-        qacc_dest: wp.array2d,
-        m_state_dot_dest: wp.array2d,
-        m_act_dot_dest: wp.array2d,
-        a_act_dot_dest: wp.array2d,
-):
-    wp.copy(qvel_dest, d.qvel)
-    wp.copy(qacc_dest, d.qacc)
-    if m.nmuscle:
-        wp.copy(m_state_dot_dest, d.m_state_dot)
-        wp.copy(m_act_dot_dest, d.m_act_dot)
-    if m.nactuator:
-        wp.copy(a_act_dot_dest, d.a_act_dot)
-
-
-@event_scope
-def restore_state_dot(
-        m: Model, d: Data,
-        qvel_src: wp.array2d,
-        qacc_src: wp.array2d,
-        m_state_dot_src: wp.array2d,
-        m_act_dot_src: wp.array2d,
-        a_act_dot_src: wp.array2d,
-        only_on_reject: bool
-):
-    @wp.kernel
-    def restore_state_dot_conditional(
-            # Data in
-            done_integrating_in: wp.array(dtype=bool),
-            step_accepted_in: wp.array(dtype=bool),
-            qvel_in: wp.array2d(dtype=float),
-            qacc_in: wp.array2d(dtype=float),
-            m_state_dot_in: wp.array2d(dtype=float),
-            m_act_dot_in: wp.array2d(dtype=float),
-            a_act_dot_in: wp.array2d(dtype=float),
-            # Data out:
-            qvel_out: wp.array2d(dtype=float),
-            qacc_out: wp.array2d(dtype=float),
-            m_state_dot_out: wp.array2d(dtype=float),
-            m_act_dot_out: wp.array2d(dtype=float),
-            a_act_dot_out: wp.array2d(dtype=float),
-    ):
-        worldid = wp.tid()
-        if step_accepted_in[worldid] or done_integrating_in[worldid]:
-            return
-        nv, nm, na = wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
-        wp.tile_store(qvel_out[worldid], wp.tile_load(qvel_in[worldid], shape=(nv,)))
-        if nm:
-            wp.tile_store(m_state_dot_out[worldid], wp.tile_load(m_state_dot_in[worldid], shape=(nm,)))
-            wp.tile_store(m_act_dot_out[worldid], wp.tile_load(m_act_dot_in[worldid], shape=(nm,)))
-        if na:
-            wp.tile_store(a_act_dot_out[worldid], wp.tile_load(a_act_dot_in[worldid], shape=(na,)))
-
-    if only_on_reject:
-        wp.launch_tiled(
-            restore_state_dot_conditional,
-            dim=d.nworld,
-            inputs=[d.integration_done, d.step_accepted, qvel_src, qacc_src, m_state_dot_src,
-                    m_act_dot_src, a_act_dot_src],
-            outputs=[d.qvel, d.qacc, d.m_state_dot, d.m_act_dot, d.a_act_dot],
-            block_dim=m.block_dim.restore_state,
-        )
-    else:
-        wp.copy(d.qvel, qvel_src)
-        wp.copy(d.qacc, qacc_src)
-        if m.nmuscle:
-            wp.copy(d.m_state_dot, m_state_dot_src)
-            wp.copy(d.m_act_dot, m_act_dot_src)
-        if m.nactuator:
-            wp.copy(d.a_act_dot, a_act_dot_src)
-
-
-def get_state_dot_at_idx(
-        m: Model, d: Data, idx: int
-):
-    if idx == 0:
-        qvel, qacc = d.qvel_0, d.qacc_0
-        m_state_dot, m_act_dot_dest = d.m_state_dot_0, d.m_act_dot_0
-        a_act_dot = d.a_act_dot_0
-    elif idx == 1:
-        qvel, qacc = d.qvel_1, d.qacc_1
-        m_state_dot, m_act_dot_dest = d.m_state_dot_1, d.m_act_dot_1
-        a_act_dot = d.a_act_dot_1
-    elif idx == 2:
-        qvel, qacc = d.qvel_2, d.qacc_2
-        m_state_dot, m_act_dot_dest = d.m_state_dot_2, d.m_act_dot_2
-        a_act_dot = d.a_act_dot_2
-    elif idx == 3:
-        qvel, qacc = d.qvel_3, d.qacc_3
-        m_state_dot, m_act_dot_dest = d.m_state_dot_3, d.m_act_dot_3
-        a_act_dot = d.a_act_dot_3
-    elif idx == 4:
-        qvel, qacc = d.qvel_4, d.qacc_4
-        m_state_dot, m_act_dot_dest = d.m_state_dot_4, d.m_act_dot_4
-        a_act_dot = d.a_act_dot_4
-    else:
-        raise ValueError("Invalid save_idx")
-    return qvel, qacc, m_state_dot, m_act_dot_dest, a_act_dot
-
-
-def save_state_dot_idx(m: Model, d: Data, save_idx: int, ):
-    qvel_dest, qacc_dest, m_state_dot_dest, m_act_dot_dest, a_act_dot_dest = get_state_dot_at_idx(m, d, save_idx)
-    save_state_dot(m, d, qvel_dest, qacc_dest, m_state_dot_dest, m_act_dot_dest, a_act_dot_dest)
-
-
-def restore_state_dot_idx(m: Model, d: Data, restore_idx: int, only_on_reject: bool):
-    qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src = get_state_dot_at_idx(m, d, restore_idx)
-    restore_state_dot(m, d, qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src,
-                      only_on_reject=only_on_reject)
-
-
-def add_to_state_dot_idx(m: Model, d: Data, scale: float, add_idx: int, ):
-    qvel_add, qacc_add, m_state_dot_add, m_act_dot_add, a_act_dot_add = get_state_dot_at_idx(m, d, add_idx)
-    add_to_state_dot(m, d, scale, qvel_add, qacc_add, m_state_dot_add, m_act_dot_add, a_act_dot_add)
-
-
-@event_scope
-def restore_state(
-        m: Model,
-        d: Data,
-        time_src: wp.array,
-        qpos_src: wp.array2d,
-        qvel_src: wp.array2d,
-        m_state_src: wp.array2d,
-        m_act_src: wp.array2d,
-        a_act_src: wp.array2d,
-        only_on_reject: bool
-):
-    @wp.kernel
-    def restore_state_conditional(
-            # Data in
-            done_integrating_in: wp.array(dtype=bool),
-            step_accepted_in: wp.array(dtype=bool),
-            time_in: wp.array(dtype=float),
-            qpos_in: wp.array2d(dtype=float),
-            qvel_in: wp.array2d(dtype=float),
-            m_state_in: wp.array2d(dtype=float),
-            m_act_in: wp.array2d(dtype=float),
-            a_act_in: wp.array2d(dtype=float),
-            # Data out:
-            time_out: wp.array(dtype=float),
-            qpos_out: wp.array2d(dtype=float),
-            qvel_out: wp.array2d(dtype=float),
-            m_state_out: wp.array2d(dtype=float),
-            m_act_out: wp.array2d(dtype=float),
-            a_act_out: wp.array2d(dtype=float),
-    ):
-        worldid = wp.tid()
-        if step_accepted_in[worldid] or done_integrating_in[worldid]:
-            return
-        nq, nv, nm, na = wp.static(m.nq), wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
-        time_out[worldid] = time_in[worldid]
-
-        wp.tile_store(qpos_out[worldid], wp.tile_load(qpos_in[worldid], shape=(nq,)))
-        wp.tile_store(qvel_out[worldid], wp.tile_load(qvel_in[worldid], shape=(nv,)))
-        if nm:
-            wp.tile_store(m_state_out[worldid], wp.tile_load(m_state_in[worldid], shape=(nm,)))
-            wp.tile_store(m_act_out[worldid], wp.tile_load(m_act_in[worldid], shape=(nm,)))
-        if na:
-            wp.tile_store(a_act_out[worldid], wp.tile_load(a_act_in[worldid], shape=(na,)))
-
-    if only_on_reject:
-        wp.launch_tiled(
-            restore_state_conditional,
-            dim=d.nworld,
-            inputs=[d.integration_done, d.step_accepted,
-                    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src],
-            outputs=[d.time, d.qpos, d.qvel, d.m_state, d.m_act, d.a_act],
-            block_dim=m.block_dim.restore_state,
-        )
-    else:  # everyone gets restored!
-        wp.copy(d.time, time_src)
-        wp.copy(d.qpos, qpos_src)
-        wp.copy(d.qvel, qvel_src)
-        if m.nmuscle:
-            wp.copy(d.m_act, m_act_src)
-            wp.copy(d.m_state, m_state_src)
-        if m.nactuator:
-            wp.copy(d.a_act, a_act_src)
 
 
 def compute_error(
@@ -738,3 +439,263 @@ def adjust_step_size(m: Model, d: Data, err_order: float):
         ],
         outputs=[d.step_size, d.step_accepted],
     )
+
+
+@event_scope
+def save_state(
+        m: Model, d: Data,
+        time_dest: wp.array,
+        qpos_dest: wp.array2d,
+        qvel_dest: wp.array2d,
+        m_state_dest: wp.array2d,
+        m_act_dest: wp.array2d,
+        a_act_dest: wp.array2d
+):
+    wp.copy(time_dest, d.time)
+    wp.copy(qpos_dest, d.qpos)
+    wp.copy(qvel_dest, d.qvel)
+    if m.nmuscle:
+        wp.copy(m_act_dest, d.m_act)
+        wp.copy(m_state_dest, d.m_state)
+    if m.nactuator:
+        wp.copy(a_act_dest, d.a_act)
+
+
+@event_scope
+def save_state_dot(
+        m: Model, d: Data,
+        qvel_dest: wp.array2d,
+        qacc_dest: wp.array2d,
+        m_state_dot_dest: wp.array2d,
+        m_act_dot_dest: wp.array2d,
+        a_act_dot_dest: wp.array2d,
+):
+    wp.copy(qvel_dest, d.qvel)
+    wp.copy(qacc_dest, d.qacc)
+    if m.nmuscle:
+        wp.copy(m_state_dot_dest, d.m_state_dot)
+        wp.copy(m_act_dot_dest, d.m_act_dot)
+    if m.nactuator:
+        wp.copy(a_act_dot_dest, d.a_act_dot)
+
+
+@event_scope
+def restore_state_dot(
+        m: Model, d: Data,
+        qvel_src: wp.array2d,
+        qacc_src: wp.array2d,
+        m_state_dot_src: wp.array2d,
+        m_act_dot_src: wp.array2d,
+        a_act_dot_src: wp.array2d,
+        only_on_reject: bool
+):
+    @wp.kernel
+    def restore_state_dot_conditional(
+            # Data in
+            done_integrating_in: wp.array(dtype=bool),
+            step_accepted_in: wp.array(dtype=bool),
+            qvel_in: wp.array2d(dtype=float),
+            qacc_in: wp.array2d(dtype=float),
+            m_state_dot_in: wp.array2d(dtype=float),
+            m_act_dot_in: wp.array2d(dtype=float),
+            a_act_dot_in: wp.array2d(dtype=float),
+            # Data out:
+            qvel_out: wp.array2d(dtype=float),
+            qacc_out: wp.array2d(dtype=float),
+            m_state_dot_out: wp.array2d(dtype=float),
+            m_act_dot_out: wp.array2d(dtype=float),
+            a_act_dot_out: wp.array2d(dtype=float),
+    ):
+        worldid = wp.tid()
+        if step_accepted_in[worldid] or done_integrating_in[worldid]:
+            return
+        nv, nm, na = wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
+        wp.tile_store(qvel_out[worldid], wp.tile_load(qvel_in[worldid], shape=(nv,)))
+        if nm:
+            wp.tile_store(m_state_dot_out[worldid], wp.tile_load(m_state_dot_in[worldid], shape=(nm,)))
+            wp.tile_store(m_act_dot_out[worldid], wp.tile_load(m_act_dot_in[worldid], shape=(nm,)))
+        if na:
+            wp.tile_store(a_act_dot_out[worldid], wp.tile_load(a_act_dot_in[worldid], shape=(na,)))
+
+    if only_on_reject:
+        wp.launch_tiled(
+            restore_state_dot_conditional,
+            dim=d.nworld,
+            inputs=[d.integration_done, d.step_accepted, qvel_src, qacc_src, m_state_dot_src,
+                    m_act_dot_src, a_act_dot_src],
+            outputs=[d.qvel, d.qacc, d.m_state_dot, d.m_act_dot, d.a_act_dot],
+            block_dim=m.block_dim.restore_state,
+        )
+    else:
+        wp.copy(d.qvel, qvel_src)
+        wp.copy(d.qacc, qacc_src)
+        if m.nmuscle:
+            wp.copy(d.m_state_dot, m_state_dot_src)
+            wp.copy(d.m_act_dot, m_act_dot_src)
+        if m.nactuator:
+            wp.copy(d.a_act_dot, a_act_dot_src)
+
+
+@event_scope
+def restore_state(
+        m: Model,
+        d: Data,
+        time_src: wp.array,
+        qpos_src: wp.array2d,
+        qvel_src: wp.array2d,
+        m_state_src: wp.array2d,
+        m_act_src: wp.array2d,
+        a_act_src: wp.array2d,
+        only_on_reject: bool
+):
+    @wp.kernel
+    def restore_state_conditional(
+            # Data in
+            done_integrating_in: wp.array(dtype=bool),
+            step_accepted_in: wp.array(dtype=bool),
+            time_in: wp.array(dtype=float),
+            qpos_in: wp.array2d(dtype=float),
+            qvel_in: wp.array2d(dtype=float),
+            m_state_in: wp.array2d(dtype=float),
+            m_act_in: wp.array2d(dtype=float),
+            a_act_in: wp.array2d(dtype=float),
+            # Data out:
+            time_out: wp.array(dtype=float),
+            qpos_out: wp.array2d(dtype=float),
+            qvel_out: wp.array2d(dtype=float),
+            m_state_out: wp.array2d(dtype=float),
+            m_act_out: wp.array2d(dtype=float),
+            a_act_out: wp.array2d(dtype=float),
+    ):
+        worldid = wp.tid()
+        if step_accepted_in[worldid] or done_integrating_in[worldid]:
+            return
+        nq, nv, nm, na = wp.static(m.nq), wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
+        time_out[worldid] = time_in[worldid]
+
+        wp.tile_store(qpos_out[worldid], wp.tile_load(qpos_in[worldid], shape=(nq,)))
+        wp.tile_store(qvel_out[worldid], wp.tile_load(qvel_in[worldid], shape=(nv,)))
+        if nm:
+            wp.tile_store(m_state_out[worldid], wp.tile_load(m_state_in[worldid], shape=(nm,)))
+            wp.tile_store(m_act_out[worldid], wp.tile_load(m_act_in[worldid], shape=(nm,)))
+        if na:
+            wp.tile_store(a_act_out[worldid], wp.tile_load(a_act_in[worldid], shape=(na,)))
+
+    if only_on_reject:
+        wp.launch_tiled(
+            restore_state_conditional,
+            dim=d.nworld,
+            inputs=[d.integration_done, d.step_accepted,
+                    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src],
+            outputs=[d.time, d.qpos, d.qvel, d.m_state, d.m_act, d.a_act],
+            block_dim=m.block_dim.restore_state,
+        )
+    else:  # everyone gets restored!
+        wp.copy(d.time, time_src)
+        wp.copy(d.qpos, qpos_src)
+        wp.copy(d.qvel, qvel_src)
+        if m.nmuscle:
+            wp.copy(d.m_act, m_act_src)
+            wp.copy(d.m_state, m_state_src)
+        if m.nactuator:
+            wp.copy(d.a_act, a_act_src)
+
+
+@event_scope
+def add_to_state_dot(
+        m: Model, d: Data,
+        scale: float,
+        qvel_add: wp.array2d,
+        qacc_add: wp.array2d,
+        m_state_dot_add: wp.array2d,
+        m_act_dot_add: wp.array2d,
+        a_act_dot_add: wp.array2d,
+):
+    @wp.kernel
+    def _add_to_state_dot(
+            # Data in
+            done_integrating_in: wp.array(dtype=bool),
+            qvel_in: wp.array2d(dtype=float),
+            qacc_in: wp.array2d(dtype=float),
+            m_state_dot_in: wp.array2d(dtype=float),
+            m_act_dot_in: wp.array2d(dtype=float),
+            a_act_dot_in: wp.array2d(dtype=float),
+            # Data out:
+            qvel_out: wp.array2d(dtype=float),
+            qacc_out: wp.array2d(dtype=float),
+            m_state_dot_out: wp.array2d(dtype=float),
+            m_act_dot_out: wp.array2d(dtype=float),
+            a_act_dot_out: wp.array2d(dtype=float),
+    ):
+        worldid = wp.tid()
+        if done_integrating_in[worldid]:
+            return
+        nv, nm, na = wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
+
+        qv_og = wp.tile_load(qvel_out[worldid], shape=(nv,))
+        qv_add = scale * wp.tile_load(qvel_in[worldid], shape=(nv,))
+        wp.tile_store(qvel_out[worldid], wp.tile_map(wp.add, qv_og, qv_add))
+
+        qacc_og = wp.tile_load(qacc_out[worldid], shape=(nv,))
+        qacc_add_scaled = scale * wp.tile_load(qacc_in[worldid], shape=(nv,))
+        wp.tile_store(qacc_out[worldid], wp.tile_map(wp.add, qacc_og, qacc_add_scaled))
+
+        if nm:
+            ms_dot_og = wp.tile_load(m_state_dot_out[worldid], shape=(nm,))
+            ms_dot_add_scaled = scale * wp.tile_load(m_state_dot_in[worldid], shape=(nm,))
+            wp.tile_store(m_state_dot_out[worldid], wp.tile_map(wp.add, ms_dot_og, ms_dot_add_scaled))
+
+            ma_dot_og = wp.tile_load(m_act_dot_out[worldid], shape=(nm,))
+            ma_dot_add_scaled = scale * wp.tile_load(m_act_dot_in[worldid], shape=(nm,))
+            wp.tile_store(m_act_dot_out[worldid], wp.tile_map(wp.add, ma_dot_og, ma_dot_add_scaled))
+
+        if na:
+            aa_dot_og = wp.tile_load(a_act_dot_out[worldid], shape=(na,))
+            aa_dot_add_scaled = scale * wp.tile_load(a_act_dot_in[worldid], shape=(na,))
+            wp.tile_store(a_act_dot_out[worldid], wp.tile_map(wp.add, aa_dot_og, aa_dot_add_scaled))
+        return
+
+    wp.launch_tiled(
+        _add_to_state_dot,
+        dim=d.nworld,
+        inputs=[d.integration_done, qvel_add, qacc_add, m_state_dot_add, m_act_dot_add, a_act_dot_add],
+        outputs=[d.qvel_buffer, d.qacc, d.m_state_dot, d.m_act_dot, d.a_act_dot],
+        block_dim=m.block_dim.restore_state,
+    )
+    return
+
+
+def get_state_at_idx(d: Data, idx: int):
+    scratch = d.integrator_scratch[idx]
+    return scratch.time, scratch.qpos, scratch.qvel, scratch.m_state, scratch.m_act, scratch.a_act
+
+
+def save_state_idx(m: Model, d: Data, save_idx: int, ):
+    time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest = get_state_at_idx(d, save_idx)
+    save_state(m, d, time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest)
+
+
+def restore_state_idx(m: Model, d: Data, restore_idx: int, only_on_reject: bool):
+    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src = get_state_at_idx(d, restore_idx)
+    restore_state(m, d, time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, only_on_reject=only_on_reject)
+
+
+def get_state_dot_at_idx(d: Data, idx: int):
+    scratch = d.integrator_dot_scratch[idx]
+    return scratch.qvel, scratch.qacc, scratch.m_state_dot, scratch.m_act_dot, scratch.a_act_dot
+
+
+def save_state_dot_idx(m: Model, d: Data, save_idx: int, ):
+    qvel_dest, qacc_dest, m_state_dot_dest, m_act_dot_dest, a_act_dot_dest = get_state_dot_at_idx(d, save_idx)
+    save_state_dot(m, d, qvel_dest, qacc_dest, m_state_dot_dest, m_act_dot_dest, a_act_dot_dest)
+
+
+def restore_state_dot_idx(m: Model, d: Data, restore_idx: int, only_on_reject: bool):
+    qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src = get_state_dot_at_idx(d, restore_idx)
+    restore_state_dot(m, d, qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src,
+                      only_on_reject=only_on_reject)
+
+
+def add_to_state_dot_from_idx(m: Model, d: Data, scale: float, add_idx: int):
+    qvel_add, qacc_add, m_state_dot_add, m_act_dot_add, a_act_dot_add = get_state_dot_at_idx(d, add_idx)
+    add_to_state_dot(m, d, scale, qvel_add, qacc_add, m_state_dot_add, m_act_dot_add, a_act_dot_add)

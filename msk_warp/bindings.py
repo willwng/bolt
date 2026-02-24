@@ -75,10 +75,21 @@ def prepare_contacts(
     return geom_types, geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered
 
 
+def get_num_scratch_states(integrator: types.IntegratorType) -> tuple[int, int]:
+    """ Returns number of additional copies of state and state_dot for integration """
+    if integrator == types.IntegratorType.RK4_ADAPTIVE:
+        return 2, 5
+    elif integrator == types.IntegratorType.EULER_ADAPTIVE:
+        return 2, 1
+    else:
+        return 0, 0
+
+
 def load_model(
         model_path: str,
         n_worlds: int,
         root_free: bool,
+        integrator: types.IntegratorType,
         polynomial_data_path: str = None,
 ) -> ModelLoadResult:
     raw_osim_model = parse_osim_file(model_path)
@@ -235,7 +246,7 @@ def load_model(
         contact_type=types.ContactType.HUNT_CROSSLEY,
         limit_type=types.LimitType.EXPONENTIAL,
         activation_type=types.ActivationType.MILLARD,
-        integrator=types.IntegratorType.EULER_FIXED,
+        integrator=integrator,
         iterations=50,
         ls_iterations=100,
         ccd_iterations=50,
@@ -405,11 +416,32 @@ def load_model(
 
         # These are computed with the _model_init function
         mean_inertia=0.0,
-        body_invweight0=to_warp_array([0.0, 0.0] * nb, dtype=wp.vec2),  # TODO
-        dof_invweight0=to_warp_array([0.0] * nv, dtype=float),  # TODO
+        body_invweight0=to_warp_array([0.0, 0.0] * nb, dtype=wp.vec2),
+        dof_invweight0=to_warp_array([0.0] * nv, dtype=float),
     )
 
-    n_int_states = 2
+    n_int_states, n_int_dot_states = get_num_scratch_states(integrator)
+    integrator_scratch = [
+        types.IntegratorStateScratch(
+            time=make_zero(n_worlds, dtype=float),
+            qpos=make_zero((n_worlds, nq), dtype=float),
+            qvel=make_zero((n_worlds, nv), dtype=float),
+            m_state=make_zero((n_worlds, nmuscle), dtype=float),
+            m_act=make_zero((n_worlds, nmuscle), dtype=float),
+            a_act=make_zero((n_worlds, nactuators), dtype=float),
+        ) for _ in range(n_int_states)
+    ]
+
+    integrator_dot_scratch = [
+        types.IntegratorDotScratch(
+            qvel=make_zero((n_worlds, nv), dtype=float),
+            qacc=make_zero((n_worlds, nv), dtype=float),
+            m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
+            m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
+            a_act_dot=make_zero((n_worlds, nactuators), dtype=float),
+        ) for _ in range(n_int_dot_states)
+    ]
+
     d = types.Data(
         world_reset=make_full(True, n_worlds, dtype=bool),
 
@@ -420,43 +452,10 @@ def load_model(
         needs_solve=make_zero(1, dtype=int),
         time=make_zero(n_worlds, dtype=float),
 
-        # todo this uses so much extra memory, don't use it if not needed
-        time_0=make_zero(n_worlds, dtype=float),
-        qpos_0=make_zero((n_worlds, nq), dtype=float),
-        qvel_0=make_zero((n_worlds, nv), dtype=float),
-        m_state_0=make_zero((n_worlds, nmuscle), dtype=float),
-        m_act_0=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act_0=make_zero((n_worlds, nactuators), dtype=float),
-        time_1=make_zero(n_worlds, dtype=float),
-        qpos_1=make_zero((n_worlds, nq), dtype=float),
-        qvel_1=make_zero((n_worlds, nv), dtype=float),
-        m_state_1=make_zero((n_worlds, nmuscle), dtype=float),
-        m_act_1=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act_1=make_zero((n_worlds, nactuators), dtype=float),
-        # for higher order integrators:
-        qacc_0=make_zero((n_worlds, nv), dtype=float),
-        m_state_dot_0=make_zero((n_worlds, nmuscle), dtype=float),
-        m_act_dot_0=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act_dot_0=make_zero((n_worlds, nactuators), dtype=float),
-        qacc_1=make_zero((n_worlds, nv), dtype=float),
-        m_state_dot_1=make_zero((n_worlds, nmuscle), dtype=float),
-        m_act_dot_1=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act_dot_1=make_zero((n_worlds, nactuators), dtype=float),
-        qvel_2=make_zero((n_worlds, nv), dtype=float),
-        qacc_2=make_zero((n_worlds, nv), dtype=float),
-        m_state_dot_2=make_zero((n_worlds, nmuscle), dtype=float),
-        m_act_dot_2=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act_dot_2=make_zero((n_worlds, nactuators), dtype=float),
-        qvel_3=make_zero((n_worlds, nv), dtype=float),
-        qacc_3=make_zero((n_worlds, nv), dtype=float),
-        m_state_dot_3=make_zero((n_worlds, nmuscle), dtype=float),
-        m_act_dot_3=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act_dot_3=make_zero((n_worlds, nactuators), dtype=float),
-        qvel_4=make_zero((n_worlds, nv), dtype=float),
-        qacc_4=make_zero((n_worlds, nv), dtype=float),
-        m_state_dot_4=make_zero((n_worlds, nmuscle), dtype=float),
-        m_act_dot_4=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act_dot_4=make_zero((n_worlds, nactuators), dtype=float),
+        # for adaptive integrators
+        integrator_scratch=integrator_scratch,
+        integrator_dot_scratch=integrator_dot_scratch,
+        qvel_buffer=make_zero((n_worlds, nv), dtype=float),
 
         time1=make_zero(n_worlds, dtype=float),
         next_time=make_zero(n_worlds, dtype=float),
@@ -815,10 +814,6 @@ def set_activation_type(m: types.Model, activation_type: types.ActivationType):
     m.opt.activation_type = activation_type
 
 
-def set_integrator_type(m: types.Model, integrator_type: types.IntegratorType):
-    m.opt.integrator = integrator_type
-
-
 def steps_attempted(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.steps_attempted)
 
@@ -834,6 +829,7 @@ def set_integrator_use_inf_norm(m: types.Model, use_inf_norm: bool):
 def is_adaptive(integrator_type: types.IntegratorType) -> bool:
     return integrator_type in [
         types.IntegratorType.EULER_ADAPTIVE,
+        types.IntegratorType.RK4_ADAPTIVE,
     ]
 
 
