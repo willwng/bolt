@@ -33,8 +33,7 @@ def attempt_adaptive_step(m: Model, d: Data):
     integrate_common.advance(m, d, d.qacc, d.qvel, 0.5)
 
     # Compute error between y_1* and y_1
-    ss = d.integrator_scratch[1]
-    integrate_adaptive_common.compute_error(m, d, ss.qpos, ss.qvel, ss.m_act, ss.m_state, ss.a_act, scale=1.0)
+    integrate_adaptive_common.compute_error(m, d, d.integrator_scratch[1], scale=1.0)
 
     # Reject step if accuracy isn't good, compute new step size
     integrate_adaptive_common.adjust_step_size(m, d, 2.0)

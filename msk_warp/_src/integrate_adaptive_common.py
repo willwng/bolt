@@ -4,6 +4,7 @@ from . import math
 from . import mobilizers
 from .consts import MSK_MINVAL
 from .types import Data
+from .types import IntegratorStateScratch
 from .types import Model
 from .warp_util import event_scope
 
@@ -171,11 +172,7 @@ def check_done_integrating(m: Model, d: Data):
     )
 
 
-def compute_error(
-        m: Model, d: Data,
-        qpos_1: wp.array, qvel_1: wp.array, m_act_1: wp.array, m_state_1: wp.array, a_act_1: wp.array,
-        scale: float = 1.0
-):
+def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: float = 1.0):
     """ Computes error of current state with given state. Stores error in d.error. """
 
     @wp.kernel
@@ -203,30 +200,30 @@ def compute_error(
         # q_curr - q_stored
         qpos_tile = wp.tile_load(qpos_in[worldid], nq)
         qpos_s_tile = wp.tile_load(qpos_store_in[worldid], nq)
-        q_diff_tile = wp.tile_map(wp.sub, qpos_tile, qpos_s_tile)
+        q_diff_tile = scale * wp.tile_map(wp.sub, qpos_tile, qpos_s_tile)
         wp.tile_store(qpos_diff_out[worldid], q_diff_tile)
 
         # qvel_curr - qvel_stored
         qvel_tile = wp.tile_load(qvel_in[worldid], nv)
         qvel_s_tile = wp.tile_load(qvel_store_in[worldid], nv)
-        qvel_diff_tile = wp.tile_map(wp.sub, qvel_tile, qvel_s_tile)
+        qvel_diff_tile = scale * wp.tile_map(wp.sub, qvel_tile, qvel_s_tile)
         wp.tile_store(qvel_diff_out[worldid], qvel_diff_tile)
         if nm:
             # m_state_curr - m_state_stored
             mstate_tile = wp.tile_load(m_state_in[worldid], nm)
             mstate_s_tile = wp.tile_load(m_state_store_in[worldid], nm)
-            mstate_diff_tile = wp.tile_map(wp.sub, mstate_tile, mstate_s_tile)
+            mstate_diff_tile = scale * wp.tile_map(wp.sub, mstate_tile, mstate_s_tile)
             wp.tile_store(z_diff_out[worldid], mstate_diff_tile, offset=(0,))
             # m_act_curr - m_act_stored
             act_tile = wp.tile_load(m_act_in[worldid], nm)
             act_s_tile = wp.tile_load(m_act_store_in[worldid], nm)
-            act_diff_tile = wp.tile_map(wp.sub, act_tile, act_s_tile)
+            act_diff_tile = scale * wp.tile_map(wp.sub, act_tile, act_s_tile)
             wp.tile_store(z_diff_out[worldid], act_diff_tile, offset=(nm,))
         if na:
             # a_act_curr - a_act_stored
             aact_tile = wp.tile_load(a_act_in[worldid], na)
             aact_s_tile = wp.tile_load(a_act_store_in[worldid], na)
-            aact_diff_tile = wp.tile_map(wp.sub, aact_tile, aact_s_tile)
+            aact_diff_tile = scale * wp.tile_map(wp.sub, aact_tile, aact_s_tile)
             wp.tile_store(z_diff_out[worldid], aact_diff_tile, offset=(nm + nm,))
         return
 
@@ -315,7 +312,7 @@ def compute_error(
         error = qpos_error_in[worldid]
         error = math.max_err(error, qvel_error_in[worldid])
         error = math.max_err(error, z_error_in[worldid])
-        error_out[worldid] = scale * error
+        error_out[worldid] = error
         return
 
     wp.launch_tiled(
@@ -323,7 +320,7 @@ def compute_error(
         dim=d.nworld,
         inputs=[
             d.qpos, d.qvel, d.m_state, d.m_act, d.a_act,
-            qpos_1, qvel_1, m_state_1, m_act_1, a_act_1,
+            scratch.qpos, scratch.qvel, scratch.m_state, scratch.m_act, scratch.a_act,
         ],
         outputs=[d.qpos_diff, d.qvel_diff, d.z_diff, ],
         block_dim=m.block_dim.error_step,
