@@ -229,7 +229,8 @@ def advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float):
         outputs=[d.time],
     )
 
-    wp.copy(d.qacc_warmstart, d.qacc)
+    if m.opt.warm_start:
+        wp.copy(d.qacc_warmstart, d.qacc)
 
 
 @event_scope

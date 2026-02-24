@@ -4,6 +4,7 @@ from . import integrate_common
 from . import integrate_euler_fixed
 from . import integrate_rk_fixed
 from . import integrate_euler_adaptive
+from . import integrate_rk_adaptive
 from .types import Data
 from .types import IntegratorType
 from .types import Model
@@ -36,6 +37,8 @@ def step(m: Model, d: Data):
         integrate_rk_fixed.integrate(m, d)
     elif wp.static(m.opt.integrator) == IntegratorType.EULER_ADAPTIVE:
         integrate_euler_adaptive.integrate(m, d)
+    elif wp.static(m.opt.integrator) == IntegratorType.RK4_ADAPTIVE:
+        integrate_rk_adaptive.integrate(m, d)
     else:
         raise RuntimeError("Unknown integrator type")
 

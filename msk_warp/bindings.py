@@ -110,7 +110,7 @@ def load_model(
     site_data = get_site_data(osim_model)
     qpos0 = [0.0] * nq
     if root_free:
-        qpos0[0:3] = [0.0, 1.0, 0.0]  # Root pos
+        qpos0[0:3] = [0.0, 1.5, 0.0]  # Root pos
         qpos0[3] = 1  # root quat
 
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
@@ -243,7 +243,7 @@ def load_model(
 
         enable_drag=True,
 
-        muscle_dyn_substeps=30,
+        muscle_dyn_substeps=0,
         use_fn_path=use_fn_path,
         metabolic_options=types.MetabolicOptions(
             activation_maintenance_rate_on=True,
@@ -420,6 +420,7 @@ def load_model(
         needs_solve=make_zero(1, dtype=int),
         time=make_zero(n_worlds, dtype=float),
 
+        # todo this uses so much extra memory, don't use it if not needed
         time_0=make_zero(n_worlds, dtype=float),
         qpos_0=make_zero((n_worlds, nq), dtype=float),
         qvel_0=make_zero((n_worlds, nv), dtype=float),
@@ -432,10 +433,34 @@ def load_model(
         m_state_1=make_zero((n_worlds, nmuscle), dtype=float),
         m_act_1=make_zero((n_worlds, nmuscle), dtype=float),
         a_act_1=make_zero((n_worlds, nactuators), dtype=float),
+        # for higher order integrators:
+        qacc_0=make_zero((n_worlds, nv), dtype=float),
+        m_state_dot_0=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_dot_0=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_dot_0=make_zero((n_worlds, nactuators), dtype=float),
+        qacc_1=make_zero((n_worlds, nv), dtype=float),
+        m_state_dot_1=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_dot_1=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_dot_1=make_zero((n_worlds, nactuators), dtype=float),
+        qvel_2=make_zero((n_worlds, nv), dtype=float),
+        qacc_2=make_zero((n_worlds, nv), dtype=float),
+        m_state_dot_2=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_dot_2=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_dot_2=make_zero((n_worlds, nactuators), dtype=float),
+        qvel_3=make_zero((n_worlds, nv), dtype=float),
+        qacc_3=make_zero((n_worlds, nv), dtype=float),
+        m_state_dot_3=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_dot_3=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_dot_3=make_zero((n_worlds, nactuators), dtype=float),
+        qvel_4=make_zero((n_worlds, nv), dtype=float),
+        qacc_4=make_zero((n_worlds, nv), dtype=float),
+        m_state_dot_4=make_zero((n_worlds, nmuscle), dtype=float),
+        m_act_dot_4=make_zero((n_worlds, nmuscle), dtype=float),
+        a_act_dot_4=make_zero((n_worlds, nactuators), dtype=float),
 
         time1=make_zero(n_worlds, dtype=float),
         next_time=make_zero(n_worlds, dtype=float),
-        step_size=make_full(dt / 10.0, (n_worlds,), dtype=float),
+        step_size=make_full(dt, (n_worlds,), dtype=float),
         actual_step_size=make_full(dt, (n_worlds,), dtype=float),
         artificially_limited=make_zero(n_worlds, dtype=bool),
         step_accepted=make_zero(n_worlds, dtype=bool),

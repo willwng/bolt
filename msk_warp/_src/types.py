@@ -283,10 +283,13 @@ class IntegratorType(enum.IntEnum):
     Attributes:
         EULER_FIXED: Fixed-step Euler (semi-implicit with implicit damping)
         RK4_FIXED: Fixed-step 4th-order Runge-Kutta
+        EULER_ADAPTIVE: Adaptive-step Euler
+        RK4_ADAPTIVE: Adaptive-step 4th-order Runge-Kutta-Merson
     """
     EULER_FIXED = 1
     RK4_FIXED = 2
     EULER_ADAPTIVE = 3
+    RK4_ADAPTIVE = 4
 
 
 @dataclasses.dataclass
@@ -1006,6 +1009,35 @@ class Data:
     m_state_1: wp.array2d(dtype=float)
     m_act_1: wp.array2d(dtype=float)
     a_act_1: wp.array2d(dtype=float)
+
+    # for higher order integrators
+    qacc_0: wp.array2d(dtype=float)
+    m_state_dot_0: wp.array2d(dtype=float)
+    m_act_dot_0: wp.array2d(dtype=float)
+    a_act_dot_0: wp.array2d(dtype=float)
+
+    qacc_1: wp.array2d(dtype=float)
+    m_state_dot_1: wp.array2d(dtype=float)
+    m_act_dot_1: wp.array2d(dtype=float)
+    a_act_dot_1: wp.array2d(dtype=float)
+
+    qvel_2: wp.array2d(dtype=float)
+    qacc_2: wp.array2d(dtype=float)
+    m_state_dot_2: wp.array2d(dtype=float)
+    m_act_dot_2: wp.array2d(dtype=float)
+    a_act_dot_2: wp.array2d(dtype=float)
+
+    qvel_3: wp.array2d(dtype=float)
+    qacc_3: wp.array2d(dtype=float)
+    m_state_dot_3: wp.array2d(dtype=float)
+    m_act_dot_3: wp.array2d(dtype=float)
+    a_act_dot_3: wp.array2d(dtype=float)
+
+    qvel_4: wp.array2d(dtype=float)
+    qacc_4: wp.array2d(dtype=float)
+    m_state_dot_4: wp.array2d(dtype=float)
+    m_act_dot_4: wp.array2d(dtype=float)
+    a_act_dot_4: wp.array2d(dtype=float)
 
     qacc_warmstart: wp.array2d(dtype=float)
 
