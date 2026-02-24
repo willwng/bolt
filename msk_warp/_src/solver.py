@@ -1463,8 +1463,8 @@ def update_gradient_JTCJ(
             t = 0.0
         else:
             t = wp.sqrt(tt)
-        t = wp.max(t, consts.MJ_MINVAL)
-        ttt = wp.max(t * t * t, consts.MJ_MINVAL)
+        t = wp.max(t, consts.MSK_MINVAL)
+        ttt = wp.max(t * t * t, consts.MSK_MINVAL)
 
         efc_h = float(0.0)
 
@@ -1741,7 +1741,7 @@ def solve_beta(
         beta_den += efc_prev_grad_in[worldid, dofid] * prev_Mgrad
 
     efc_beta_out[worldid] = wp.max(0.0,
-                                   beta_num / wp.max(consts.MJ_MINVAL, beta_den))
+                                   beta_num / wp.max(consts.MSK_MINVAL, beta_den))
 
 
 @wp.kernel

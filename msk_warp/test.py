@@ -42,7 +42,7 @@ def main():
 
     model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
-                                      integrator=msk_warp.types.IntegratorType.RK4_ADAPTIVE,
+                                      integrator=msk_warp.types.IntegratorType.EULER_ADAPTIVE,
                                       polynomial_data_path="data/muscle_poly_info.json",
                                       root_free=True)
     m, d = load_result.model, load_result.data
@@ -52,7 +52,7 @@ def main():
     m.opt.use_inf_norm = False
     m.opt.accuracy = 1.0
 
-    dt = 1.0 / 1000.0
+    dt = 1.0 / 100.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:

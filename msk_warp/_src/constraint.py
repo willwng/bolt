@@ -19,7 +19,7 @@ from . import support
 from . import types
 from .consts import MJ_MINIMP
 from .consts import MJ_MAXIMP
-from .consts import MJ_MINVAL
+from .consts import MSK_MINVAL
 from .types import ConstraintType
 from .types import vec5
 from .warp_util import event_scope
@@ -76,7 +76,7 @@ def _update_efc_row(
 
     dmin = wp.clamp(dmin, MJ_MINIMP, MJ_MAXIMP)
     dmax = wp.clamp(dmax, MJ_MINIMP, MJ_MAXIMP)
-    width = wp.max(MJ_MINVAL, width)
+    width = wp.max(MSK_MINVAL, width)
     mid = wp.clamp(mid, MJ_MINIMP, MJ_MAXIMP)
     power = wp.max(1.0, power)
 
@@ -97,7 +97,7 @@ def _update_efc_row(
 
     # Update constraints
     efc_D_out[worldid, efcid] = 1.0 / wp.max(invweight * (1.0 - imp) / imp,
-                                             MJ_MINVAL)
+                                             MSK_MINVAL)
     efc_vel_out[worldid, efcid] = vel
     efc_aref_out[worldid, efcid] = -k * imp * pos_aref - b * vel
     efc_pos_out[worldid, efcid] = pos_aref

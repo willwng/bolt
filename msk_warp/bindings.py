@@ -185,7 +185,7 @@ def load_model(
             total_poly_dofs += len(poly_dofs)
             max_dep_dof = max(max_dep_dof, len(poly_dofs))
 
-    dof_armature = [0.03] * nv  # Placeholder for DOF armature
+    dof_armature = [0.002] * nv  # Placeholder for DOF armature
     dof_armature[0:6] = [0.0] * 6  # No armature for free joint
     dof_damping = [0.1] * nv  # Placeholder for DOF
     dof_damping[0:6] = [0.0] * 6  # No damping for free joint

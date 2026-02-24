@@ -316,7 +316,7 @@ def closest_segment_to_segment_points(a0: wp.vec3, a1: wp.vec3, b0: wp.vec3,
 
 @wp.func
 def safe_div(x: Any, y: Any) -> Any:
-    return x / wp.where(y != 0.0, y, consts.MJ_MINVAL)
+    return x / wp.where(y != 0.0, y, consts.MSK_MINVAL)
 
 
 @wp.func

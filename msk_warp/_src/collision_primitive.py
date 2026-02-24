@@ -33,7 +33,7 @@ from .math import make_frame
 from .math import safe_div
 from .math import upper_trid_index
 from .consts import MJ_MINMU
-from .consts import MJ_MINVAL
+from .consts import MSK_MINVAL
 from .types import Data
 from .types import GeomType
 from .types import Model

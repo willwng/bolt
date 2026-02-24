@@ -16,7 +16,7 @@
 import warp as wp
 
 from .collision_primitive import primitive_narrowphase
-from .consts import MJ_MAXVAL
+from .consts import MSK_MAXVAL
 from .types import Data
 from .types import Model
 from .warp_util import cache_kernel
@@ -85,19 +85,19 @@ def _aabb_filter(
     center1 = xmat1 @ center1 + xpos1
     center2 = xmat2 @ center2 + xpos2
 
-    max_x1 = -MJ_MAXVAL
-    max_y1 = -MJ_MAXVAL
-    max_z1 = -MJ_MAXVAL
-    min_x1 = MJ_MAXVAL
-    min_y1 = MJ_MAXVAL
-    min_z1 = MJ_MAXVAL
+    max_x1 = -MSK_MAXVAL
+    max_y1 = -MSK_MAXVAL
+    max_z1 = -MSK_MAXVAL
+    min_x1 = MSK_MAXVAL
+    min_y1 = MSK_MAXVAL
+    min_z1 = MSK_MAXVAL
 
-    max_x2 = -MJ_MAXVAL
-    max_y2 = -MJ_MAXVAL
-    max_z2 = -MJ_MAXVAL
-    min_x2 = MJ_MAXVAL
-    min_y2 = MJ_MAXVAL
-    min_z2 = MJ_MAXVAL
+    max_x2 = -MSK_MAXVAL
+    max_y2 = -MSK_MAXVAL
+    max_z2 = -MSK_MAXVAL
+    min_x2 = MSK_MAXVAL
+    min_y2 = MSK_MAXVAL
+    min_z2 = MSK_MAXVAL
 
     sign = wp.vec2(-1.0, 1.0)
 

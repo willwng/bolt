@@ -4,7 +4,7 @@ from . import support
 from .types import Data
 from .types import Model
 from .types import vec5
-from .consts import MJ_MINVAL
+from .consts import MSK_MINVAL
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -94,7 +94,7 @@ def _process_contacts_hc(
 
     # Friction cone
     v_slip = wp.length(v_t)
-    if v_slip > MJ_MINVAL:
+    if v_slip > MSK_MINVAL:
         v_rel = v_slip / transition_velocity
         f_friction = f * (wp.min(v_rel, 1.0) * (ud + 2.0 * (us - ud) / (1.0 + v_rel * v_rel)) + uv * v_slip)
 

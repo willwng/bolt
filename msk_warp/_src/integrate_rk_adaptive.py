@@ -64,7 +64,6 @@ def attempt_adaptive_step(m: Model, d: Data):
     integrate_adaptive_common.add_to_state_dot_from_idx(m, d, 4.0, 3)
     integrate_adaptive_common.add_to_state_dot_from_idx(m, d, 1.0, 4)
     integrate_common.advance(m, d, d.qacc, d.qvel_buffer, 1.0 / 6.0)
-    forward.fwd(m, d)
 
     # Compute error against y_save: (1/5) * (y - y_save)
     ss = d.integrator_scratch[1]

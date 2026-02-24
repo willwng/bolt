@@ -3,21 +3,12 @@ import enum
 
 import warp as wp
 
-MJ_MAXVAL = 10000000000.0
+MSK_MINVAL = 1e-15
+MSK_MAXVAL = 10000000000.0
+MSK_SIG_REAL = 1e-6
 MJ_MINIMP = 0.0001
 MJ_MAXIMP = 0.9999
 MJ_MINMU = 1e-05
-MJ_MINVAL = 1e-15
-MJ_MAXCONPAIR = 50
-MJ_SIG_REAL = 1e-6
-# maximum size (by number of edges) of an horizon in EPA algorithm
-MJ_MAX_EPAHORIZON = 12
-# maximum average number of trianglarfaces EPA can insert at each iteration
-MJ_MAX_EPAFACES = 5
-
-TILE_SIZE_JTDAJ_SPARSE = 16
-TILE_SIZE_JTDAJ_DENSE = 16
-TILE_SIZE_SITE = 256
 
 # Air drag
 A_Cd = 0.9

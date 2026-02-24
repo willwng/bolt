@@ -2,7 +2,7 @@ import warp as wp
 
 from . import math
 from . import mobilizers
-from .consts import MJ_MINVAL
+from .consts import MSK_MINVAL
 from .types import Data
 from .types import Model
 from .warp_util import event_scope
@@ -390,7 +390,7 @@ def _adjust_step_size(
     error = error_in[worldid]
     if wp.isinf(error) or wp.isnan(error):
         new_step_size = curr_step_size * min_shrink
-    elif wp.abs(error) < MJ_MINVAL:
+    elif wp.abs(error) < MSK_MINVAL:
         new_step_size = curr_step_size * max_grow
     else:
         new_step_size = (safety * curr_step_size * wp.pow(accuracy / error, 1.0 / err_order))
@@ -516,13 +516,14 @@ def restore_state_dot(
             wp.tile_store(m_act_dot_out[worldid], wp.tile_load(m_act_dot_in[worldid], shape=(nm,)))
         if na:
             wp.tile_store(a_act_dot_out[worldid], wp.tile_load(a_act_dot_in[worldid], shape=(na,)))
+        return
 
     if only_on_reject:
         wp.launch_tiled(
             restore_state_dot_conditional,
             dim=d.nworld,
-            inputs=[d.integration_done, d.step_accepted, qvel_src, qacc_src, m_state_dot_src,
-                    m_act_dot_src, a_act_dot_src],
+            inputs=[d.integration_done, d.step_accepted,
+                    qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src],
             outputs=[d.qvel, d.qacc, d.m_state_dot, d.m_act_dot, d.a_act_dot],
             block_dim=m.block_dim.restore_state,
         )
@@ -670,19 +671,14 @@ def get_state_at_idx(d: Data, idx: int):
     return scratch.time, scratch.qpos, scratch.qvel, scratch.m_state, scratch.m_act, scratch.a_act
 
 
-def save_state_idx(m: Model, d: Data, save_idx: int, ):
-    time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest = get_state_at_idx(d, save_idx)
-    save_state(m, d, time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest)
-
-
-def restore_state_idx(m: Model, d: Data, restore_idx: int, only_on_reject: bool):
-    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src = get_state_at_idx(d, restore_idx)
-    restore_state(m, d, time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, only_on_reject=only_on_reject)
-
-
 def get_state_dot_at_idx(d: Data, idx: int):
     scratch = d.integrator_dot_scratch[idx]
     return scratch.qvel, scratch.qacc, scratch.m_state_dot, scratch.m_act_dot, scratch.a_act_dot
+
+
+def save_state_idx(m: Model, d: Data, save_idx: int, ):
+    time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest = get_state_at_idx(d, save_idx)
+    save_state(m, d, time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest)
 
 
 def save_state_dot_idx(m: Model, d: Data, save_idx: int, ):
@@ -690,10 +686,14 @@ def save_state_dot_idx(m: Model, d: Data, save_idx: int, ):
     save_state_dot(m, d, qvel_dest, qacc_dest, m_state_dot_dest, m_act_dot_dest, a_act_dot_dest)
 
 
+def restore_state_idx(m: Model, d: Data, restore_idx: int, only_on_reject: bool):
+    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src = get_state_at_idx(d, restore_idx)
+    restore_state(m, d, time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, only_on_reject=only_on_reject)
+
+
 def restore_state_dot_idx(m: Model, d: Data, restore_idx: int, only_on_reject: bool):
     qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src = get_state_dot_at_idx(d, restore_idx)
-    restore_state_dot(m, d, qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src,
-                      only_on_reject=only_on_reject)
+    restore_state_dot(m, d, qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src, only_on_reject=only_on_reject)
 
 
 def add_to_state_dot_from_idx(m: Model, d: Data, scale: float, add_idx: int):
