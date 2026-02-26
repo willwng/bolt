@@ -103,6 +103,7 @@ def _kinematics_level(
         jnt_rel_child: wp.array(dtype=wp.vec3),
         jnt_rel_parent_rot: wp.array(dtype=wp.quat),
         jnt_rel_child_rot: wp.array(dtype=wp.quat),
+        jnt_extra_info: wp.array(dtype=wp.vec3),
         jnt_cst_adr: wp.array(dtype=int),  # start custom joints
         const_fns: wp.array(dtype=float),
         linear_fns: wp.array(dtype=wp.vec2),
@@ -125,6 +126,7 @@ def _kinematics_level(
         ximat_out: wp.array2d(dtype=wp.mat33),
         xanchor_out: wp.array2d(dtype=wp.vec3),
         xaxis_out: wp.array3d(dtype=wp.vec3),
+        jnt_rot_out: wp.array2d(dtype=wp.quat),
 ):
     worldid, nodeid = wp.tid()
     if integration_done_in[worldid]:
@@ -133,11 +135,12 @@ def _kinematics_level(
     jnt_type_ = jnt_type[bodyid]
 
     cst_adr = jnt_cst_adr[bodyid]
-    xpos, xquat, xanchor = mobilizers.fk_joint(
+    xpos, xquat, xanchor, jnt_rot = mobilizers.fk_joint(
         jnt_type_, jnt_qposadr[bodyid], qpos_in[worldid],
         body_parentid[bodyid], xpos_in[worldid], xquat_in[worldid],
         jnt_rel_parent[bodyid], jnt_rel_parent_rot[bodyid],
         jnt_rel_child[bodyid], jnt_rel_child_rot[bodyid],
+        jnt_extra_info[bodyid],
         cst_txfm_axis[cst_adr], cst_txfm_fn[cst_adr],
         cst_txfm_fn_adr[cst_adr], cst_txfm_qadr[cst_adr],
         const_fns, linear_fns,
@@ -148,12 +151,11 @@ def _kinematics_level(
     xquat_out[worldid, bodyid] = wp.normalize(xquat)
     xmat_out[worldid, bodyid] = math.quat_to_mat(xquat)
     xanchor_out[worldid, bodyid] = xanchor
+    jnt_rot_out[worldid, bodyid] = jnt_rot
 
     # inertial frame
-    xipos_out[worldid, bodyid] = (
-            xpos + math.rot_vec_quat(body_ipos[bodyid], xquat))
-    ximat_out[worldid, bodyid] = (
-        math.quat_to_mat(math.mul_quat(xquat, body_iquat[bodyid])))
+    xipos_out[worldid, bodyid] = (xpos + math.rot_vec_quat(body_ipos[bodyid], xquat))
+    ximat_out[worldid, bodyid] = (math.quat_to_mat(math.mul_quat(xquat, body_iquat[bodyid])))
 
 
 @wp.kernel
@@ -267,6 +269,7 @@ def kinematics(m: Model, d: Data):
                 m.jnt_rel_child,
                 m.jnt_rel_parent_rot,
                 m.jnt_rel_child_rot,
+                m.jnt_extra_info,
                 m.jnt_cst_adr,
                 m.const_fns,
                 m.linear_fns,
@@ -280,7 +283,7 @@ def kinematics(m: Model, d: Data):
                 d.xquat,
                 body_tree,
             ],
-            outputs=[d.xpos, d.xquat, d.xmat, d.xipos, d.ximat, d.xanchor, d.xaxis],
+            outputs=[d.xpos, d.xquat, d.xmat, d.xipos, d.ximat, d.xanchor, d.xaxis, d.jnt_rot],
         )
     wp.launch(
         _geom_local_to_global,
@@ -429,6 +432,7 @@ def _cdof(
         xmat_in: wp.array2d(dtype=wp.mat33),
         xanchor_in: wp.array2d(dtype=wp.vec3),
         xaxis_in: wp.array3d(dtype=wp.vec3),
+        jnt_rot_in: wp.array2d(dtype=wp.quat),
         subtree_com_in: wp.array2d(dtype=wp.vec3),
         # Data out:
         cdof_out: wp.array2d(dtype=wp.spatial_vector),
@@ -449,15 +453,14 @@ def _cdof(
     cst_jnt_adr = jnt_cst_adr[bodyid]
     mobilizers.cdof_joint(
         jnt_type_, dofid, xmat, offset, xaxis_in[worldid, bodyid],
-        jnt_dofnum[bodyid], cst_txfm_dofadr[cst_jnt_adr],
-        cdof_out[worldid], cdof_tmp_out[worldid, cst_jnt_adr]
+        jnt_rot_in[worldid, bodyid], jnt_dofnum[bodyid], cst_txfm_dofadr[cst_jnt_adr],
+        cdof_out[worldid], cdof_tmp_out[worldid, bodyid]
     )
 
 
 @event_scope
 def com_pos(m: Model, d: Data):
     """ Computes subtree center of mass positions. """
-
     # Initialize to (current body com * mass)
     wp.launch(_subtree_com_init,
               dim=(d.nworld, m.nbody),
@@ -492,7 +495,7 @@ def com_pos(m: Model, d: Data):
         _cdof,
         dim=(d.nworld, m.nbody),
         inputs=[m.body_rootid, m.jnt_type, m.jnt_dofadr, m.jnt_dofnum, m.jnt_cst_adr, m.cst_txfm_dofadr,
-                d.integration_done, d.xmat, d.xanchor, d.xaxis, d.subtree_com],
+                d.integration_done, d.xmat, d.xanchor, d.xaxis, d.jnt_rot, d.subtree_com],
         outputs=[d.cdof, d.cdof_tmp],
     )
 

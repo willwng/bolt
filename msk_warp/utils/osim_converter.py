@@ -370,6 +370,10 @@ def get_joint_types(model: CheckedModel) -> list[types.JointType]:
             joint_types.append(types.JointType.GIMBAL)
         elif class_name == "BallJoint":
             joint_types.append(types.JointType.BALL)
+        elif class_name == "BeamJoint":
+            joint_types.append(types.JointType.BEAM)
+        elif class_name == "EllipsoidJoint":
+            joint_types.append(types.JointType.ELLIPSOID)
         elif class_name == "CustomJoint":
             joint_types.append(types.JointType.CUSTOM)
         elif class_name == "WeldJoint":
@@ -403,9 +407,16 @@ def get_joint_rel_rot(model: CheckedModel, parent: bool) -> list[list[float]]:
             frame = get_frame_from_joint(joint, joint.socket_parent_frame)
         else:
             frame = get_frame_from_joint(joint, joint.socket_child_frame)
-        rot = frame.orientation if parent else frame.orientation.inv()
+        rot = frame.orientation
         rel_parent_rots.append([rot.w, rot.x, rot.y, rot.z])
     return rel_parent_rots
+
+
+def get_joint_extra_info(model: CheckedModel) -> list[list[float]]:
+    extra_info = []
+    for _, joint in model.iter_joints():
+        extra_info.append(joint.extra_info())
+    return extra_info
 
 
 def get_collider_data(model: CheckedModel) -> ColliderData:
@@ -431,9 +442,9 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         # MuJoCo: sliding, torsional, rolling friction
         # Hunt-Crossley: static, dynamic, viscous
         friction = [0.95, 0.3, 0.3]  # default friction values
-        stiffness = 1602213.464769315 ** (2.0 / 3.0)
-        dissipation = 0.0725
-        transition_velocity = 0.001
+        stiffness = 5e6 ** (2.0 / 3.0)
+        dissipation = 1.0
+        transition_velocity = 0.01
         priority = 0
         aabb = collider.get_aabb()
         rbound = collider.get_rbound()

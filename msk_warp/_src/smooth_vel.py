@@ -58,6 +58,9 @@ def _comvel_level(
         cvel_in: wp.array2d(dtype=wp.spatial_vector),
         xpos_in: wp.array2d(dtype=wp.vec3),
         xipos_in: wp.array2d(dtype=wp.vec3),
+        xanchor_in: wp.array2d(dtype=wp.vec3),
+        xaxis_in: wp.array3d(dtype=wp.vec3),
+        jnt_rot_in: wp.array2d(dtype=wp.quat),
         subtree_com_in: wp.array2d(dtype=wp.vec3),
         # In:
         body_tree_: wp.array(dtype=int),
@@ -79,19 +82,26 @@ def _comvel_level(
     # Contribution of mobilizer
     qvel = qvel_in[worldid]
     cdof = cdof_in[worldid]
+    cdof_tmp = cdof_tmp_in[worldid, bodyid]
     dofid = jnt_dofadr[bodyid]
-    jnttype = jnt_type[bodyid]
+    jnt_type_ = jnt_type[bodyid]
 
+    # For custom joints
     dof_num = jnt_dofnum[bodyid]
     cst_jnt_adr = jnt_cst_adr[bodyid]
     cst_txfm_dofadr = cst_txfm_dofadr_in[cst_jnt_adr]
-    cdof_tmp = cdof_tmp_in[worldid, cst_jnt_adr]
 
-    res = cdof_dot_out[worldid]
+    cdof_dot = cdof_dot_out[worldid]
+    joint_pos = xanchor_in[worldid, bodyid]
+    root_com = subtree_com_in[worldid, body_rootid[bodyid]]
+    offset = root_com - joint_pos
 
     # Com-based velocity
-    cvel = mobilizers.cvel_joint(cvel, cdof, qvel, jnttype, dofid, dof_num,
-                                 cst_txfm_dofadr, cdof_tmp, res)
+    cvel = mobilizers.cvel_joint(
+        jnt_type_, dofid, cvel, cdof, qvel,
+        offset, xaxis_in[worldid, bodyid], jnt_rot_in[worldid, bodyid],
+        dof_num, cst_txfm_dofadr, cdof_tmp,
+        cdof_dot)
     cvel_out[worldid, bodyid] = cvel
 
     # Cartesian velocity
@@ -128,6 +138,7 @@ def com_vel(m: Model, d: Data):
             inputs=[m.body_parentid, m.jnt_dofadr, m.jnt_type, m.jnt_dofnum,
                     m.jnt_cst_adr, m.cst_txfm_dofadr, m.body_rootid,
                     d.integration_done, d.qvel, d.cdof, d.cdof_tmp, d.cvel, d.xpos, d.xipos,
+                    d.xanchor, d.xaxis, d.jnt_rot,
                     d.subtree_com, body_tree],
             outputs=[d.cvel, d.xvel, d.xivel, d.cdof_dot],
         )

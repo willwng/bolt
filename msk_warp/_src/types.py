@@ -80,6 +80,8 @@ class JointType(enum.IntEnum):
       PIN: rotation angle (rad) around joint z-axis       (1,)
       UNIVERSAL: two rotation angles (rad) around joint x- and y-axes (2,)
       GIMBAL: three euler angles (XYZ order)              (3,)
+      BEAM: Cantilever Free Beam bending model            (3,)
+      ELLIPSOID: Ellipsoid joint                          (3,)
       CUSTOM: custom joint with up to 6 dofs              (<=6,)
       WELD: no dofs
       DUMMY: for ground (represents world body)
@@ -91,9 +93,11 @@ class JointType(enum.IntEnum):
     PIN = 3
     UNIVERSAL = 4
     GIMBAL = 5
-    CUSTOM = 6
-    WELD = 7
-    DUMMY = 8  # for ground
+    BEAM = 6
+    ELLIPSOID = 7
+    CUSTOM = 8
+    WELD = 9
+    DUMMY = 10  # for ground
 
 
 class GeomType(enum.IntEnum):
@@ -617,8 +621,8 @@ class Model:
       jnt_stiffness: joint stiffness                           (nbody,)
       jnt_qposadr: start addr in 'qpos' for joint's data       (nbody,)
       jnt_dofadr: start addr in 'qvel' for joint's data        (nbody,)
-      jnt_rel_parent: offset from parent frame                 (nbody, 3)
-      jnt_rel_child: offset from child frame                   (nbody, 3)
+      jnt_rel_parent: parent -> joint                          (nbody, 3)
+      jnt_rel_child: child -> joint                            (nbody, 3)
       jnt_rel_parent_rot: rotation from parent frame           (nbody, 4)
       jnt_rel_child_rot: rotation from child frame             (nbody, 4)
 
@@ -717,6 +721,7 @@ class Model:
     jnt_rel_child: array("nbody", wp.vec3)
     jnt_rel_parent_rot: array("nbody", wp.quat)
     jnt_rel_child_rot: array("nbody", wp.quat)
+    jnt_extra_info: array("nbody", wp.vec3)
 
     # Custom joint data
     jnt_cst_adr: array("nbody", int)
@@ -890,6 +895,7 @@ class Data:
       ximat: Cartesian orientation of body inertia                (nworld, nbody, 3, 3)
       xanchor: Cartesian position of joint anchor                 (nworld, njnt, 3)
       xaxis: Cartesian joint axis (including temporaries)         (nworld, njnt, 6, 3)
+      jnt_rot: joint rotation in world frame                      (nworld, njnt, 4)
 
       geom_xpos: Cartesian geom position                          (nworld, ngeom, 3)
       geom_xquat: Cartesian geom orientation                      (nworld, ngeom, 4)
@@ -1028,6 +1034,7 @@ class Data:
     ximat: wp.array2d(dtype=wp.mat33)
     xanchor: wp.array2d(dtype=wp.vec3)
     xaxis: wp.array3d(dtype=wp.quat)
+    jnt_rot: wp.array2d(dtype=wp.quat)
 
     geom_xpos: wp.array2d(dtype=wp.vec3)
     geom_xquat: wp.array2d(dtype=wp.quat)

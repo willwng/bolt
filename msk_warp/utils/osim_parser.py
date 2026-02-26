@@ -154,6 +154,18 @@ def parse_gimbal_joint(joint) -> GimbalJoint:
     return GimbalJoint.from_joint(joint_base)
 
 
+def parse_beam_joint(joint) -> BeamJoint:
+    joint_base = parse_joint_base(joint)
+    beam_length = float(joint.find("beam_length").text)
+    return BeamJoint.from_joint(joint_base, beam_length)
+
+
+def parse_ellipsoid_joint(joint) -> EllipsoidJoint:
+    joint_base = parse_joint_base(joint)
+    radii_x_y_z = to_vector3(joint.find("radii_x_y_z").text)
+    return EllipsoidJoint.from_joint(joint_base, radii_x_y_z)
+
+
 def parse_universal_joint(joint) -> UniversalJoint:
     joint_base = parse_joint_base(joint)
     return UniversalJoint.from_joint(joint_base)
@@ -174,6 +186,9 @@ def parse_mesh(mesh) -> Mesh:
 
 
 def parse_attached_geometry(attached_geometry) -> AttachedGeometry:
+    if attached_geometry is None:
+        return AttachedGeometry(meshes=[])
+
     # parse <Mesh> Children
     meshes = []
     mesh_elements = attached_geometry.findall("Mesh")
@@ -235,6 +250,10 @@ def parse_joint_set(joint_set) -> JointSet:
             joint_obj = parse_universal_joint(joint)
         elif joint.tag == "GimbalJoint":
             joint_obj = parse_gimbal_joint(joint)
+        elif joint.tag == "CantileverFreeBeamJoint":
+            joint_obj = parse_beam_joint(joint)
+        elif joint.tag == "EllipsoidJoint":
+            joint_obj = parse_ellipsoid_joint(joint)
         elif joint.tag == "WeldJoint":
             joint_obj = parse_weld_joint(joint)
         else:

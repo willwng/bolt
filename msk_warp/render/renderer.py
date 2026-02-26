@@ -191,7 +191,7 @@ class Renderer:
                 muscle_sites_active = d.muscle_active_sites.numpy()[wid]
                 muscle_pts_active_num = d.muscle_num_active.numpy()[wid]
                 # Function based path: all are drawn
-                if m.opt.use_fn_path:
+                if m.opt.use_fn_path and m.nmuscle > 0:
                     muscle_pts_num = m.muscle_pts_num.numpy()
                     num_pts = muscle_pts_num.sum()
                     muscle_sites_active[:] = np.arange(num_pts)
@@ -220,6 +220,12 @@ class Renderer:
                         radius=radius,
                     )
                     obj_id += 1
+
+            # Draw any BeamJoints if any
+            joint_types = m.jnt_type.numpy()
+            ind_beams = np.where(joint_types == types.JointType.BEAM)[0]
+            for idx_beam in ind_beams:
+                pass
 
         # Render based on viewer type
         if self.viewer_type == RendererType.OPENGL:

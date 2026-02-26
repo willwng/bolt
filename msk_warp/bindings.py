@@ -121,7 +121,7 @@ def load_model(
     site_data = get_site_data(osim_model)
     qpos0 = [0.0] * nq
     if root_free:
-        qpos0[0:3] = [0.0, 1.5, 0.0]  # Root pos
+        qpos0[0:3] = [0.0, 1.25, 0.0]  # Root pos
         qpos0[3] = 1  # root quat
 
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
@@ -146,6 +146,7 @@ def load_model(
     jnt_rel_child = get_joint_rel_pos(osim_model, get_parent_rel=False)
     jnt_rel_parent_rot = get_joint_rel_rot(osim_model, parent=True)
     jnt_rel_child_rot = get_joint_rel_rot(osim_model, parent=False)
+    jnt_extra_info = get_joint_extra_info(osim_model)
 
     geom_data = get_collider_data(osim_model)
     vis_data = get_visual_data(osim_model)
@@ -187,14 +188,14 @@ def load_model(
 
     dof_armature = [0.002] * nv  # Placeholder for DOF armature
     dof_armature[0:6] = [0.0] * 6  # No armature for free joint
-    dof_damping = [0.1] * nv  # Placeholder for DOF
+    dof_damping = [5.0] * nv  # Placeholder for DOF
     dof_damping[0:6] = [0.0] * 6  # No damping for free joint
     jnt_stiffness = [0.0] * nb  # Placeholder for joint stiffness
 
     dof_limit_ranges, dof_limit_adr, dof_limit_qadr = get_dof_limits(osim_model)
     n_limits = len(dof_limit_ranges)
-    dof_limit_forces = [(50.0, 20.0)] * n_limits  # Placeholder for limit forces
-    dof_limit_shapes = [(75.0, 25.0)] * n_limits  # Placeholder for limit shapes
+    dof_limit_forces = [(500.0, 500.0)] * n_limits  # Placeholder for limit forces
+    dof_limit_shapes = [(0.1, 0.1)] * n_limits  # Placeholder for limit shapes
 
     body_rootid = [1] * nb  # Placeholder for body root IDs
     body_tree = create_body_tree(osim_model)
@@ -347,6 +348,7 @@ def load_model(
         jnt_rel_child=to_warp_array(jnt_rel_child, dtype=wp.vec3),
         jnt_rel_parent_rot=to_warp_array(jnt_rel_parent_rot, dtype=wp.quat),
         jnt_rel_child_rot=to_warp_array(jnt_rel_child_rot, dtype=wp.quat),
+        jnt_extra_info=to_warp_array(jnt_extra_info, dtype=wp.vec3),
 
         jnt_cst_adr=to_warp_array(custom_joint_indices, dtype=int),
         const_fns=to_warp_array(const_fns, dtype=float),
@@ -504,6 +506,7 @@ def load_model(
         ximat=make_zero((n_worlds, nb), dtype=wp.mat33),
         xanchor=make_zero((n_worlds, nb), dtype=wp.vec3),
         xaxis=make_zero((n_worlds, nb, 6), dtype=wp.vec3),
+        jnt_rot=make_zero((n_worlds, nb), dtype=wp.quat),
 
         geom_xpos=make_zero((n_worlds, ngeom), dtype=wp.vec3),
         geom_xquat=make_zero((n_worlds, ngeom), dtype=wp.quat),
@@ -528,8 +531,7 @@ def load_model(
 
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
         cdof=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-        cdof_tmp=make_zero((n_worlds, n_custom_jnts, 6),
-                           dtype=wp.spatial_vector),
+        cdof_tmp=make_zero((n_worlds, nb, 6), dtype=wp.spatial_vector),
         cinert=make_zero((n_worlds, nb), dtype=types.vec10),
 
         crb=make_zero((n_worlds, nb), dtype=types.vec10),

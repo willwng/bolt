@@ -52,6 +52,13 @@ class Quat:
         qz = Quat.from_angle_axis(r.z, Vector3(0, 0, 1))
         return Quat.mul(qx, Quat.mul(qy, qz))
 
+    @staticmethod
+    def from_euler_angles(r: Vector3) -> "Quat":
+        qx = Quat.from_angle_axis(r.x, Vector3(1, 0, 0))
+        qy = Quat.from_angle_axis(r.y, Vector3(0, 1, 0))
+        qz = Quat.from_angle_axis(r.z, Vector3(0, 0, 1))
+        return Quat.mul(qz, Quat.mul(qy, qx))
+
     def normalize(self) -> "Quat":
         norm = math.sqrt(self.w ** 2 + self.x ** 2 + self.y ** 2 + self.z ** 2)
         if norm > 0:
@@ -204,6 +211,9 @@ class Joint:
     def connects_to_ground(self) -> bool:
         return "ground" in self.socket_parent_frame
 
+    def extra_info(self) -> list[float]:
+        return [0.0, 0.0, 0.0]
+
 
 _VOID_NAME = "__VOID__"
 
@@ -262,27 +272,6 @@ class PinJoint(Joint):
 
 
 @dataclass
-class GimbalJoint(Joint):
-    @classmethod
-    def from_joint(cls, joint: Joint) -> "GimbalJoint":
-        assert len(
-            joint.coordinates) == 3, "Gimbal joint must have exactly one coordinate"
-        return cls(
-            name=joint.name,
-            socket_parent_frame=joint.socket_parent_frame,
-            socket_child_frame=joint.socket_child_frame,
-            coordinates=joint.coordinates,
-            frames=joint.frames,
-        )
-
-    def num_dofs(self) -> int:
-        return 3
-
-    def num_pos_dofs(self) -> int:
-        return 3
-
-
-@dataclass
 class UniversalJoint(Joint):
     @classmethod
     def from_joint(cls, joint: Joint) -> "UniversalJoint":
@@ -320,6 +309,80 @@ class BallJoint(Joint):
 
     def num_pos_dofs(self) -> int:
         return 4
+
+
+@dataclass
+class GimbalJoint(Joint):
+    @classmethod
+    def from_joint(cls, joint: Joint) -> "GimbalJoint":
+        assert len(
+            joint.coordinates) == 3, "Gimbal joint must have exactly three coordinates"
+        return cls(
+            name=joint.name,
+            socket_parent_frame=joint.socket_parent_frame,
+            socket_child_frame=joint.socket_child_frame,
+            coordinates=joint.coordinates,
+            frames=joint.frames,
+        )
+
+    def num_dofs(self) -> int:
+        return 3
+
+    def num_pos_dofs(self) -> int:
+        return 3
+
+
+@dataclass
+class BeamJoint(Joint):
+    beam_length: float
+
+    @classmethod
+    def from_joint(cls, joint: Joint, beam_length: float) -> "BeamJoint":
+        assert len(
+            joint.coordinates) == 3, "Beam joint must have exactly three coordinates"
+        return cls(
+            name=joint.name,
+            socket_parent_frame=joint.socket_parent_frame,
+            socket_child_frame=joint.socket_child_frame,
+            coordinates=joint.coordinates,
+            frames=joint.frames,
+            beam_length=beam_length,
+        )
+
+    def num_dofs(self) -> int:
+        return 3
+
+    def num_pos_dofs(self) -> int:
+        return 3
+
+    def extra_info(self) -> list[float]:
+        return [self.beam_length, self.beam_length, self.beam_length]
+
+
+@dataclass
+class EllipsoidJoint(Joint):
+    radii: Vector3
+
+    @classmethod
+    def from_joint(cls, joint: Joint, radii: Vector3) -> "EllipsoidJoint":
+        assert len(joint.coordinates) == 3, "Ellipsoid joint must have exactly three coordinates"
+        return cls(
+            name=joint.name,
+            socket_parent_frame=joint.socket_parent_frame,
+            socket_child_frame=joint.socket_child_frame,
+            coordinates=joint.coordinates,
+            frames=joint.frames,
+            radii=radii,
+        )
+
+    def num_dofs(self) -> int:
+        return 3
+
+    def num_pos_dofs(self) -> int:
+        return 3
+
+    def extra_info(self) -> list[float]:
+        return [self.radii.x, self.radii.y, self.radii.z]
 
 
 @dataclass

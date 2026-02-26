@@ -46,6 +46,7 @@ def fk_joint(
         jnt_rel_parent_rot: wp.quat,
         jnt_rel_child: wp.vec3,
         jnt_rel_child_rot: wp.quat,
+        jnt_extra_info: wp.vec3,
         # Custom joints
         txfm_axes: wp.array(dtype=wp.vec3),
         txfm_fn: wp.array(dtype=int),
@@ -55,24 +56,23 @@ def fk_joint(
         linear_fns: wp.array(dtype=wp.vec2),
         # Output
         xaxis_out: wp.array(dtype=wp.vec3),
-) -> tuple[wp.vec3, wp.quat, wp.vec3]:
+) -> tuple[wp.vec3, wp.quat, wp.vec3, wp.quat]:
     if jnttype == JointType.FREE:
         xpos = wp.vec3(qpos[qadr], qpos[qadr + 1], qpos[qadr + 2])
         xquat = wp.quat(qpos[qadr + 3], qpos[qadr + 4],
                         qpos[qadr + 5], qpos[qadr + 6])
         xquat = wp.normalize(xquat)
         xanchor = xpos
-        return xpos, xquat, xanchor
+        return xpos, xquat, xanchor, wp.quat(1.0, 0.0, 0.0, 0.0)
 
     # Grab parent frame information
     p_pos = xpos_in[pid]
     p_rot = xquat_in[pid]
 
-    # compute the joint frame
+    # compute the joint frame in world space
     p_to_jnt = math.rot_vec_quat(jnt_rel_parent, p_rot)
-    p_to_jnt_rot = jnt_rel_parent_rot
     jnt_pos = p_pos + p_to_jnt
-    jnt_rot = math.mul_quat(p_rot, p_to_jnt_rot)
+    jnt_rot = math.mul_quat(p_rot, jnt_rel_parent_rot)
 
     # local joint transformation
     qloc_ = wp.quat(1.0, 0.0, 0.0, 0.0)
@@ -92,30 +92,46 @@ def fk_joint(
         xaxis_out[0] = wp.normalize(math.rot_vec_quat(slide_axis, jnt_rot))
 
     elif jnttype == JointType.UNIVERSAL:
-        axis1 = wp.vec3(1.0, 0.0, 0.0)
-        axis2 = wp.vec3(0.0, 1.0, 0.0)
+        axis0 = wp.vec3(1.0, 0.0, 0.0)
+        axis1 = wp.vec3(0.0, 1.0, 0.0)
 
-        qloc1 = math.axis_angle_to_quat(axis1, qpos[qadr + 0])
-        qloc2 = math.axis_angle_to_quat(axis2, qpos[qadr + 1])
-        qloc_ = math.mul_quat(qloc1, qloc2)
-
-        # Keep track of first rotation
-        xaxis_out[0] = wp.normalize(math.rot_vec_quat(axis1, jnt_rot))
-        xaxis_out[1] = wp.normalize(math.rot_vec_quat(axis2, math.mul_quat(jnt_rot, qloc1)))
-    elif jnttype == JointType.GIMBAL:
-        axis1 = wp.vec3(1.0, 0.0, 0.0)
-        axis2 = wp.vec3(0.0, 1.0, 0.0)
-        axis3 = wp.vec3(0.0, 0.0, 1.0)
-
-        qloc1 = math.axis_angle_to_quat(axis1, qpos[qadr + 0])
-        qloc2 = math.axis_angle_to_quat(axis2, qpos[qadr + 1])
-        qloc3 = math.axis_angle_to_quat(axis3, qpos[qadr + 2])
-        qloc_ = math.mul_quat(math.mul_quat(qloc1, qloc2), qloc3)
+        qloc0 = math.axis_angle_to_quat(axis0, qpos[qadr + 0])
+        qloc1 = math.axis_angle_to_quat(axis1, qpos[qadr + 1])
+        qloc_ = math.mul_quat(qloc0, qloc1)
 
         # Keep track of first rotation
-        xaxis_out[0] = wp.normalize(math.rot_vec_quat(axis1, jnt_rot))
-        xaxis_out[1] = wp.normalize(math.rot_vec_quat(axis2, math.mul_quat(jnt_rot, qloc1)))
-        xaxis_out[2] = wp.normalize(math.rot_vec_quat(axis3, math.mul_quat(math.mul_quat(jnt_rot, qloc1), qloc2)))
+        xaxis_out[0] = wp.normalize(math.rot_vec_quat(axis0, jnt_rot))
+        xaxis_out[1] = wp.normalize(math.rot_vec_quat(axis1, math.mul_quat(jnt_rot, qloc0)))
+    elif jnttype == JointType.GIMBAL or jnttype == JointType.BEAM or jnttype == JointType.ELLIPSOID:
+        # Euler/Body-Fixed XYZ order
+        q0, q1, q2 = qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2]
+        qloc0 = math.axis_angle_to_quat(wp.vec3(1.0, 0.0, 0.0), q0)
+        qloc1 = math.axis_angle_to_quat(wp.vec3(0.0, 1.0, 0.0), q1)
+        qloc2 = math.axis_angle_to_quat(wp.vec3(0.0, 0.0, 1.0), q2)
+        qloc_ = math.mul_quat(math.mul_quat(qloc0, qloc1), qloc2)
+        xaxis_out[0] = wp.vec3(q0, q1, q2)
+
+        # Deflection contribution for beam
+        if jnttype == JointType.BEAM:
+            length = jnt_extra_info[0]
+            deflection_coeff = (2.0 / 3.0) * length
+            displacement_coeff = (4.0 / 15.0) * length
+            xloc_ = wp.vec3(
+                q1 * deflection_coeff,
+                -q0 * deflection_coeff,
+                length - displacement_coeff * (q0 * q0 + q1 * q1)
+            )
+            # Save these for later
+            xaxis_out[1] = wp.vec3(length, deflection_coeff, displacement_coeff)
+
+        # Ellipsoid translation
+        if jnttype == JointType.ELLIPSOID:
+            n = math.rot_vec_quat(wp.vec(0.0, 0.0, 1.0), qloc_)
+            semi = jnt_extra_info
+            xloc_ = wp.vec3(semi.x * n.x, semi.y * n.y, semi.z * n.z)
+            xaxis_out[1] = semi
+            xaxis_out[2] = n
+
     elif jnttype == JointType.CUSTOM:
         # First 3 are rotation
         for i in range(wp.static(3)):
@@ -127,9 +143,9 @@ def fk_joint(
                 const_fns,
                 linear_fns,
             )
-            # store intermediate rotated axes
-            xaxis_out[i] = fn_eval[1] * wp.normalize(math.rot_vec_quat(txfm_axes[i], math.mul_quat(jnt_rot, qloc_)))
-            qloc_ = math.mul_quat(qloc_, math.axis_angle_to_quat(txfm_axes[i], fn_eval[0]))
+        # store intermediate rotated axes
+        xaxis_out[i] = fn_eval[1] * wp.normalize(math.rot_vec_quat(txfm_axes[i], math.mul_quat(jnt_rot, qloc_)))
+        qloc_ = math.mul_quat(qloc_, math.axis_angle_to_quat(txfm_axes[i], fn_eval[0]))
         # Next 3 are translation
         for i in range(wp.static(3), wp.static(6)):
             fn_eval = evaluate_txfm(
@@ -140,19 +156,19 @@ def fk_joint(
                 const_fns,
                 linear_fns,
             )
-            xloc_ += fn_eval[0] * txfm_axes[i]
-            # store the rotated linear axes, with derivative
-            xaxis_out[i] = fn_eval[1] * wp.normalize(math.rot_vec_quat(txfm_axes[i], jnt_rot))
+        xloc_ += fn_eval[0] * txfm_axes[i]
+        # store the rotated linear axes, with derivative
+        xaxis_out[i] = fn_eval[1] * wp.normalize(math.rot_vec_quat(txfm_axes[i], jnt_rot))
     elif jnttype == JointType.WELD:
         pass
     elif jnttype == JointType.DUMMY:
         pass
 
     # world coordinates
-    xquat = math.mul_quat(jnt_rot, math.mul_quat(qloc_, jnt_rel_child_rot))
-    xpos = jnt_pos + math.rot_vec_quat(xloc_, jnt_rot) + math.rot_vec_quat(jnt_rel_child, xquat)
+    xquat = math.mul_quat(jnt_rot, math.mul_quat(qloc_, math.quat_inv(jnt_rel_child_rot)))
+    xpos = jnt_pos + math.rot_vec_quat(xloc_, jnt_rot) + math.rot_vec_quat(-jnt_rel_child, xquat)
     xanchor = jnt_pos
-    return xpos, xquat, xanchor
+    return xpos, xquat, xanchor, jnt_rot
 
 
 @wp.func
@@ -162,48 +178,67 @@ def cdof_joint(
         xmat: wp.mat33,
         offset: wp.vec3,
         xaxis_in: wp.array(dtype=wp.vec3),
+        jnt_rot: wp.quat,
         # Custom joints
         dof_num: int,
         cst_txfm_dofadr: wp.array(dtype=int),
         # out
-        res: wp.array(dtype=wp.spatial_vector),
-        cst_res_tmp: wp.array(dtype=wp.spatial_vector)
+        cdof_out: wp.array(dtype=wp.spatial_vector),
+        cdof_tmp_out: wp.array(dtype=wp.spatial_vector)
 ):
     if jnttype == JointType.FREE:
-        res[dofid + 0] = wp.spatial_vector(0.0, 0.0, 0.0, 1.0, 0.0, 0.0)
-        res[dofid + 1] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
-        res[dofid + 2] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
+        cdof_out[dofid + 0] = wp.spatial_vector(0.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+        cdof_out[dofid + 1] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+        cdof_out[dofid + 2] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 1.0)
         # I_3 rotation in child frame (assume no subsequent rotations)
-        res[dofid + 3] = wp.spatial_vector(xmat[0], wp.cross(xmat[0], offset))
-        res[dofid + 4] = wp.spatial_vector(xmat[1], wp.cross(xmat[1], offset))
-        res[dofid + 5] = wp.spatial_vector(xmat[2], wp.cross(xmat[2], offset))
+        cdof_out[dofid + 3] = wp.spatial_vector(xmat[0], wp.cross(xmat[0], offset))
+        cdof_out[dofid + 4] = wp.spatial_vector(xmat[1], wp.cross(xmat[1], offset))
+        cdof_out[dofid + 5] = wp.spatial_vector(xmat[2], wp.cross(xmat[2], offset))
     elif jnttype == JointType.BALL:  # ball
         # I_3 rotation in child frame (assume no subsequent rotations)
-        res[dofid + 0] = wp.spatial_vector(xmat[0], wp.cross(xmat[0], offset))
-        res[dofid + 1] = wp.spatial_vector(xmat[1], wp.cross(xmat[1], offset))
-        res[dofid + 2] = wp.spatial_vector(xmat[2], wp.cross(xmat[2], offset))
+        cdof_out[dofid + 0] = wp.spatial_vector(xmat[0], wp.cross(xmat[0], offset))
+        cdof_out[dofid + 1] = wp.spatial_vector(xmat[1], wp.cross(xmat[1], offset))
+        cdof_out[dofid + 2] = wp.spatial_vector(xmat[2], wp.cross(xmat[2], offset))
     elif jnttype == JointType.SLIDE:
         xaxis = xaxis_in[0]
-        res[dofid] = wp.spatial_vector(wp.vec3(0.0), xaxis)
+        cdof_out[dofid] = wp.spatial_vector(wp.vec3(0.0), xaxis)
     elif jnttype == JointType.PIN:  # hinge
         xaxis = xaxis_in[0]
-        res[dofid] = wp.spatial_vector(xaxis, wp.cross(xaxis, offset))
+        cdof_out[dofid] = wp.spatial_vector(xaxis, wp.cross(xaxis, offset))
     elif jnttype == JointType.UNIVERSAL:
-        xaxis1 = xaxis_in[0]
-        xaxis2 = xaxis_in[1]
-        res[dofid + 0] = wp.spatial_vector(xaxis1, wp.cross(xaxis1, offset))
-        res[dofid + 1] = wp.spatial_vector(xaxis2, wp.cross(xaxis2, offset))
-    elif jnttype == JointType.GIMBAL:
-        xaxis1 = xaxis_in[0]
-        xaxis2 = xaxis_in[1]
-        xaxis3 = xaxis_in[2]
-        res[dofid + 0] = wp.spatial_vector(xaxis1, wp.cross(xaxis1, offset))
-        res[dofid + 1] = wp.spatial_vector(xaxis2, wp.cross(xaxis2, offset))
-        res[dofid + 2] = wp.spatial_vector(xaxis3, wp.cross(xaxis3, offset))
+        xaxis0 = xaxis_in[0]
+        xaxis1 = xaxis_in[1]
+        cdof_out[dofid + 0] = wp.spatial_vector(xaxis0, wp.cross(xaxis0, offset))
+        cdof_out[dofid + 1] = wp.spatial_vector(xaxis1, wp.cross(xaxis1, offset))
+    elif jnttype == JointType.GIMBAL or jnttype == JointType.BEAM or jnttype == JointType.ELLIPSOID:
+        q0, q1, q2 = xaxis_in[0][0], xaxis_in[0][1], xaxis_in[0][2]
+        c0, s0, c1, s1 = wp.cos(q0), wp.sin(q0), wp.cos(q1), wp.sin(q1)
+        xaxis0 = wp.normalize(math.rot_vec_quat(wp.vec3(1.0, 0.0, 0.0), jnt_rot))
+        xaxis1 = wp.normalize(math.rot_vec_quat(wp.vec3(0.0, c0, s0), jnt_rot))
+        xaxis2 = wp.normalize(math.rot_vec_quat(wp.vec3(s1, -s0 * c1, c0 * c1), jnt_rot))
+        cdof_out[dofid + 0] = wp.spatial_vector(xaxis0, wp.cross(xaxis0, offset))
+        cdof_out[dofid + 1] = wp.spatial_vector(xaxis1, wp.cross(xaxis1, offset))
+        cdof_out[dofid + 2] = wp.spatial_vector(xaxis2, wp.cross(xaxis2, offset))
+        # Deflection contribution for beam
+        if jnttype == JointType.BEAM:
+            length, deflection_coeff, displacement_coeff = xaxis_in[1][0], xaxis_in[1][1], xaxis_in[1][2]
+            trans_from_def0 = wp.vec3(0.0, -deflection_coeff, -2.0 * displacement_coeff * q0)
+            trans_from_def1 = wp.vec3(deflection_coeff, 0.0, -2.0 * displacement_coeff * q1)
+            cdof_out[dofid + 0] += wp.spatial_vector(wp.vec3(0.0), math.rot_vec_quat(trans_from_def0, jnt_rot))
+            cdof_out[dofid + 1] += wp.spatial_vector(wp.vec3(0.0), math.rot_vec_quat(trans_from_def1, jnt_rot))
+
+    # Generalized speed is angular velocity in body frame, not changes in euler angles
+    elif jnttype == JointType.ELLIPSOID:
+        semi, n = xaxis_in[1], xaxis_in[2]
+        # I_3 rotation in child frame
+        cdof_out[dofid + 0] = wp.spatial_vector(xmat[0], wp.cross(xmat[0], offset))
+        cdof_out[dofid + 1] = wp.spatial_vector(xmat[1], wp.cross(xmat[1], offset))
+        cdof_out[dofid + 2] = wp.spatial_vector(xmat[2], wp.cross(xmat[2], offset))
+        # Translational contribution
     elif jnttype == JointType.CUSTOM:
         # Initialize to zero
         for i in range(dof_num):
-            res[dofid + i] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+            cdof_out[dofid + i] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         # Accumulate over all spatial txfm
         for i in range(wp.static(6)):
             dof_adr = cst_txfm_dofadr[i]
@@ -214,8 +249,8 @@ def cdof_joint(
                 c = wp.spatial_vector(xaxis, wp.cross(xaxis, offset))
             else:  # translation
                 c = wp.spatial_vector(wp.vec3(0.0), xaxis)
-            res[dof_adr] += c
-            cst_res_tmp[i] = c
+            cdof_out[dof_adr] += c
+            cdof_tmp_out[i] = c
     elif jnttype == JointType.WELD:
         pass
     elif jnttype == JointType.DUMMY:
@@ -224,54 +259,88 @@ def cdof_joint(
 
 @wp.func
 def cvel_joint(
+        jnttype: int,
+        dofid: int,
         cvel: wp.spatial_vector,
         cdof: wp.array(dtype=wp.spatial_vector),
         qvel: wp.array(dtype=float),
-        jnttype: int,
-        dofid: int,
+        offset: wp.vec3,
+        xaxis_in: wp.array(dtype=wp.vec3),
+        jnt_rot: wp.quat,
         # Custom joints
         dof_num: int,
         cst_txfm_dofadr: wp.array(dtype=int),
         cdof_tmp: wp.array(dtype=wp.spatial_vector),
         # Out
-        res: wp.array(dtype=wp.spatial_vector),
+        cdof_dot_out: wp.array(dtype=wp.spatial_vector),
 ) -> wp.spatial_vector:
     if jnttype == JointType.FREE:
         cvel += cdof[dofid + 0] * qvel[dofid + 0]
         cvel += cdof[dofid + 1] * qvel[dofid + 1]
         cvel += cdof[dofid + 2] * qvel[dofid + 2]
 
-        res[dofid + 3] = math.motion_cross(cvel, cdof[dofid + 3])
-        res[dofid + 4] = math.motion_cross(cvel, cdof[dofid + 4])
-        res[dofid + 5] = math.motion_cross(cvel, cdof[dofid + 5])
+        cdof_dot_out[dofid + 3] = math.motion_cross(cvel, cdof[dofid + 3])
+        cdof_dot_out[dofid + 4] = math.motion_cross(cvel, cdof[dofid + 4])
+        cdof_dot_out[dofid + 5] = math.motion_cross(cvel, cdof[dofid + 5])
 
         cvel += cdof[dofid + 3] * qvel[dofid + 3]
         cvel += cdof[dofid + 4] * qvel[dofid + 4]
         cvel += cdof[dofid + 5] * qvel[dofid + 5]
     elif jnttype == JointType.BALL:
-        res[dofid + 0] = math.motion_cross(cvel, cdof[dofid + 0])
-        res[dofid + 1] = math.motion_cross(cvel, cdof[dofid + 1])
-        res[dofid + 2] = math.motion_cross(cvel, cdof[dofid + 2])
+        cdof_dot_out[dofid + 0] = math.motion_cross(cvel, cdof[dofid + 0])
+        cdof_dot_out[dofid + 1] = math.motion_cross(cvel, cdof[dofid + 1])
+        cdof_dot_out[dofid + 2] = math.motion_cross(cvel, cdof[dofid + 2])
 
         cvel += cdof[dofid + 0] * qvel[dofid + 0]
         cvel += cdof[dofid + 1] * qvel[dofid + 1]
         cvel += cdof[dofid + 2] * qvel[dofid + 2]
     elif jnttype == JointType.PIN or jnttype == JointType.SLIDE:
-        res[dofid] = math.motion_cross(cvel, cdof[dofid])
+        cdof_dot_out[dofid] = math.motion_cross(cvel, cdof[dofid])
         cvel += cdof[dofid] * qvel[dofid]
     elif jnttype == JointType.UNIVERSAL:
         # The second transformation is dependent on the first
         for i in range(2):
-            res[dofid + i] = math.motion_cross(cvel, cdof[dofid + i])
+            cdof_dot_out[dofid + i] = math.motion_cross(cvel, cdof[dofid + i])
             cvel += cdof[dofid + i] * qvel[dofid + i]
-    elif jnttype == JointType.GIMBAL:
-        for i in range(3):
-            res[dofid + i] = math.motion_cross(cvel, cdof[dofid + i])
-            cvel += cdof[dofid + i] * qvel[dofid + i]
+    elif jnttype == JointType.GIMBAL or jnttype == JointType.BEAM:
+        q0, q1, q2 = xaxis_in[0][0], xaxis_in[0][1], xaxis_in[0][2]
+        dq0, dq1, dq2 = qvel[dofid + 0], qvel[dofid + 1], qvel[dofid + 2]
+        # cos, sin, derivatives of cos and sin
+        c0, s0, c1, s1 = wp.cos(q0), wp.sin(q0), wp.cos(q1), wp.sin(q1)
+        dc0, dc1, ds0, ds1 = -s0 * dq0, -s1 * dq1, c0 * dq0, c1 * dq1
+        # Derivative of S_gimbal wrst time
+        dx0 = math.rot_vec_quat(wp.vec3(0.0, 0.0, 0.0), jnt_rot)
+        dx1 = math.rot_vec_quat(wp.vec3(0.0, dc0, ds0), jnt_rot)
+        dx2 = math.rot_vec_quat(wp.vec3(ds1, -ds0 * c1 - s0 * dc1, dc0 * c1 + c0 * dc1), jnt_rot)
+        cdof_dot_out[dofid + 0] = (math.motion_cross(cvel, cdof[dofid + 0]) +
+                                   wp.spatial_vector(dx0, wp.cross(dx0, offset)))
+        cdof_dot_out[dofid + 1] = (math.motion_cross(cvel, cdof[dofid + 1]) +
+                                   wp.spatial_vector(dx1, wp.cross(dx1, offset)))
+        cdof_dot_out[dofid + 2] = (math.motion_cross(cvel, cdof[dofid + 2]) +
+                                   wp.spatial_vector(dx2, wp.cross(dx2, offset)))
+        # Add deflection contribution
+        if jnttype == JointType.BEAM:
+            length, deflection_coeff, displacement_coeff = xaxis_in[1][0], xaxis_in[1][1], xaxis_in[1][2]
+            cdof_dot_out[dofid + 0] += wp.spatial_vector(
+                wp.vec3(0.0), math.rot_vec_quat(wp.vec3(0.0, 0.0, -2.0 * displacement_coeff * dq0), jnt_rot))
+            cdof_dot_out[dofid + 1] += wp.spatial_vector(
+                wp.vec3(0.0), math.rot_vec_quat(wp.vec3(0.0, 0.0, -2.0 * displacement_coeff * dq1), jnt_rot))
+        # Now update cvel
+        cvel += cdof[dofid + 0] * dq0
+        cvel += cdof[dofid + 1] * dq1
+        cvel += cdof[dofid + 2] * dq2
+    elif jnttype == JointType.ELLIPSOID:
+        cdof_dot_out[dofid + 0] = math.motion_cross(cvel, cdof[dofid + 0])
+        cdof_dot_out[dofid + 1] = math.motion_cross(cvel, cdof[dofid + 1])
+        cdof_dot_out[dofid + 2] = math.motion_cross(cvel, cdof[dofid + 2])
+
+        cvel += cdof[dofid + 0] * qvel[dofid + 0]
+        cvel += cdof[dofid + 1] * qvel[dofid + 1]
+        cvel += cdof[dofid + 2] * qvel[dofid + 2]
     elif jnttype == JointType.CUSTOM:
         # Initialize to zero
         for i in range(dof_num):
-            res[dofid + i] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+            cdof_dot_out[dofid + i] = wp.spatial_vector(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         # For custom joints, we need to process them in order of transformation
         #  translations don't depend on previous transforms, so do them first
         #  but each rotation depends on previous rotation
@@ -281,7 +350,7 @@ def cvel_joint(
             dof_adr = cst_txfm_dofadr[j]
             if dof_adr == -1:
                 continue
-            res[dof_adr] += math.motion_cross(cvel, cdof_tmp[j])
+            cdof_dot_out[dof_adr] += math.motion_cross(cvel, cdof_tmp[j])
             cvel += cdof_tmp[j] * qvel[dof_adr]
     elif jnttype == JointType.WELD:
         pass
@@ -344,9 +413,12 @@ def integrate(
         qpos_next[qpos_adr] = qpos[qpos_adr] + timestep * qvel[dof_adr]
         qpos_next[qpos_adr + 1] = qpos[qpos_adr + 1] + timestep * qvel[dof_adr + 1]
 
-    elif jnttype == JointType.GIMBAL:
+    elif jnttype == JointType.GIMBAL or jnttype == JointType.BEAM:
         for i in range(3):
             qpos_next[qpos_adr + i] = (qpos[qpos_adr + i] + timestep * qvel[dof_adr + i])
+
+    elif jnttype == JointType.ELLIPSOID:
+        pass #TODO: ang vel to euler angles
 
     elif jnttype == JointType.CUSTOM:
         for i in range(dof_num):

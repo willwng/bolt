@@ -67,6 +67,7 @@ def _kinematics_level(
         ximat_out: wp.array2d(dtype=wp.mat33),
         xanchor_out: wp.array2d(dtype=wp.vec3),
         xaxis_out: wp.array3d(dtype=wp.vec3),
+        jnt_rot_out: wp.array2d(dtype=wp.quat),
         #
         worldid: int,
         bodyid: int
@@ -74,7 +75,7 @@ def _kinematics_level(
     jnt_type_ = jnt_type[bodyid]
 
     cst_adr = jnt_cst_adr[bodyid]
-    xpos, xquat, xanchor = mobilizers.fk_joint(
+    xpos, xquat, xanchor, jnt_rot = mobilizers.fk_joint(
         jnt_type_, jnt_qposadr[bodyid], qpos_in[worldid],
         body_parentid[bodyid], xpos_in[worldid], xquat_in[worldid],
         jnt_rel_parent[bodyid], jnt_rel_parent_rot[bodyid],
@@ -89,6 +90,7 @@ def _kinematics_level(
     xquat_out[worldid, bodyid] = wp.normalize(xquat)
     xmat_out[worldid, bodyid] = math.quat_to_mat(xquat)
     xanchor_out[worldid, bodyid] = xanchor
+    jnt_rot_out[worldid, bodyid] = jnt_rot
 
     # inertial frame
     xipos_out[worldid, bodyid] = (
@@ -259,6 +261,7 @@ def fused_fwd(
                 ximat_out=d_ximat,
                 xanchor_out=d_xanchor_out,
                 xaxis_out=d_xaxis_out,
+                jnt_rot_out=d_xquat,
                 worldid=worldid,
                 bodyid=bodyid,
             )

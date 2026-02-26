@@ -40,9 +40,9 @@ def main():
     if args.debug:
         wp.config.mode = "debug"
 
-    model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
+    model_path = "data/osim/upper_spine_w_legs.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
-                                      integrator=msk_warp.types.IntegratorType.EULER_ADAPTIVE,
+                                      integrator=msk_warp.types.IntegratorType.EULER_FIXED,
                                       polynomial_data_path="data/muscle_poly_info.json",
                                       root_free=True)
     m, d = load_result.model, load_result.data
@@ -58,7 +58,7 @@ def main():
     if not args.benchmark:
         viewer = msk_warp.create_renderer(
             load_result=load_result,
-            renderer_type=RendererType.TILED,
+            renderer_type=RendererType.OPENGL,
             draw_visuals=True,
             draw_colliders=False,
             draw_muscles=True

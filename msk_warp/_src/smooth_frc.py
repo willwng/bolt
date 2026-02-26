@@ -228,9 +228,9 @@ def _spring_jnt_passive(
     jnttype = jnt_type[jntid]
     qposid = jnt_qposadr[jntid]
 
-    if jnttype == JointType.FREE:
-        return  # no spring forces on free joints
-    elif jnttype == JointType.BALL:
+    if jnttype == JointType.FREE:  # no spring forces on free joints
+        return
+    elif jnttype == JointType.BALL:  # quaternion target
         if has_stiffness:
             rot = wp.quat(
                 qpos_in[worldid, qposid + 0],
