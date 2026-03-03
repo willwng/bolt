@@ -1,4 +1,5 @@
 # Copyright 2025 The Newton Developers
+# Modified for MSKWarp by Will Wang
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,12 +18,9 @@ from typing import Optional, Tuple
 
 import warp as wp
 
-from .math import motion_cross
 from .types import Data
-from .types import JointType
 from .types import Model
 from .types import TileSet
-from .types import vec5
 from .warp_util import cache_kernel
 from .warp_util import event_scope
 from .warp_util import kernel as nested_kernel
@@ -166,7 +164,7 @@ def apply_ft(
         kernel=_apply_ft,
         dim=(d.nworld, m.nv),
         inputs=[m.nbody, m.body_parentid, m.body_rootid, m.dof_bodyid,
-                d.integration_done, d.xipos, d.subtree_com, d.cdof, ft, flg_add],
+                d.integration_done, d.body_X_com, d.subtree_com, d.cdof, ft, flg_add],
         outputs=[qfrc],
     )
 

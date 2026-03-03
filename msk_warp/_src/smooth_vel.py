@@ -1,4 +1,5 @@
 # Copyright 2025 The Newton Developers
+# Modified for MSKWarp by Will Wang
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +17,7 @@
 
 import warp as wp
 
+from . import math
 from . import mobilizers
 from . import support
 from .types import Data
@@ -26,121 +28,100 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
-def _comvel_root(
+def _link_vel_root(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         # Data out:
-        xvel_out: wp.array2d(dtype=wp.spatial_vector),
-        cvel_out: wp.array2d(dtype=wp.spatial_vector),
+        body_vel_out: wp.array2d(dtype=wp.spatial_vector),
+        body_acc_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, elementid = wp.tid()
     if integration_done_in[worldid]:
         return
-    xvel_out[worldid, 0][elementid] = 0.0
-    cvel_out[worldid, 0][elementid] = 0.0
+    body_vel_out[worldid, 0] = wp.spatial_vector()
+    body_acc_out[worldid, 0] = wp.spatial_vector()
 
 
 @wp.kernel
-def _comvel_level(
+def _link_vel_level(
         # Model:
         body_parentid: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
         jnt_type: wp.array(dtype=int),
+        jnt_dofadr: wp.array(dtype=int),
         jnt_dofnum: wp.array(dtype=int),
-        jnt_cst_adr: wp.array(dtype=int),
-        cst_txfm_dofadr_in: wp.array2d(dtype=int),
-        body_rootid: wp.array(dtype=int),
+        jnt_rel_parent: wp.array(dtype=wp.transform),
+        jnt_extra_info: wp.array(dtype=wp.vec3),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qvel_in: wp.array2d(dtype=float),
-        cdof_in: wp.array2d(dtype=wp.spatial_vector),
-        cdof_tmp_in: wp.array3d(dtype=wp.spatial_vector),
-        cvel_in: wp.array2d(dtype=wp.spatial_vector),
-        xpos_in: wp.array2d(dtype=wp.vec3),
-        xipos_in: wp.array2d(dtype=wp.vec3),
-        xanchor_in: wp.array2d(dtype=wp.vec3),
-        xaxis_in: wp.array3d(dtype=wp.vec3),
-        jnt_rot_in: wp.array2d(dtype=wp.quat),
-        subtree_com_in: wp.array2d(dtype=wp.vec3),
+        body_X_in: wp.array2d(dtype=wp.transform),
+        body_vel_in: wp.array2d(dtype=wp.spatial_vector),
+        body_acc_in: wp.array2d(dtype=wp.spatial_vector),
         # In:
         body_tree_: wp.array(dtype=int),
         # Data out:
-        cvel_out: wp.array2d(dtype=wp.spatial_vector),
-        xvel_out: wp.array2d(dtype=wp.spatial_vector),
-        xivel_out: wp.array2d(dtype=wp.spatial_vector),
-        cdof_dot_out: wp.array2d(dtype=wp.spatial_vector),
+        body_vel_out: wp.array2d(dtype=wp.spatial_vector),
+        body_acc_out: wp.array2d(dtype=wp.spatial_vector),
+        cdof_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, nodeid = wp.tid()
     if integration_done_in[worldid]:
         return
+
     bodyid = body_tree_[nodeid]
 
-    # parent velocity
-    pid = body_parentid[bodyid]
-    cvel = cvel_in[worldid, pid]
-
-    # Contribution of mobilizer
-    qvel = qvel_in[worldid]
-    cdof = cdof_in[worldid]
-    cdof_tmp = cdof_tmp_in[worldid, bodyid]
-    dofid = jnt_dofadr[bodyid]
+    # Collect joint information
     jnt_type_ = jnt_type[bodyid]
+    dofadr = jnt_dofadr[bodyid]
+    X_pj = jnt_rel_parent[bodyid]
+    extra_info = jnt_extra_info[bodyid]
+    dofnum = jnt_dofnum[bodyid]
+    S_out = cdof_out[worldid]
 
-    # For custom joints
-    dof_num = jnt_dofnum[bodyid]
-    cst_jnt_adr = jnt_cst_adr[bodyid]
-    cst_txfm_dofadr = cst_txfm_dofadr_in[cst_jnt_adr]
+    # Parent world frame
+    parentid = body_parentid[bodyid]
+    X_wp = body_X_in[worldid, parentid]
+    # Parent mobilizer frame
+    X_mp = X_wp * X_pj
 
-    cdof_dot = cdof_dot_out[worldid]
-    joint_pos = xanchor_in[worldid, bodyid]
-    root_com = subtree_com_in[worldid, body_rootid[bodyid]]
-    offset = root_com - joint_pos
+    # Compute motion subspace and velocity across joint
+    v_j = mobilizers.joint_motion(jnt_type_, dofadr, qvel_in[worldid], extra_info, S_out)
+    c_j = mobilizers.joint_acc(jnt_type_, dofadr, qvel_in[worldid], extra_info)
 
-    # Com-based velocity
-    cvel = mobilizers.cvel_joint(
-        jnt_type_, dofid, cvel, cdof, qvel,
-        offset, xaxis_in[worldid, bodyid], jnt_rot_in[worldid, bodyid],
-        dof_num, cst_txfm_dofadr, cdof_tmp,
-        cdof_dot)
-    cvel_out[worldid, bodyid] = cvel
+    # Transform motion subspace
+    for i in range(dofnum):
+        S_out[dofadr + i] = math.transform_twist(X_mp, S_out[dofadr + i])
 
-    # Cartesian velocity
-    subtree_com = subtree_com_in[worldid, body_rootid[bodyid]]
+    # Parent velocity, acceleration
+    v_p = body_vel_in[worldid, parentid]
+    a_p = body_acc_in[worldid, parentid]
 
-    # Velocity at body frame
-    dif = xpos_in[worldid, bodyid] - subtree_com
-    xvel_out[worldid, bodyid] = support.transform_velocity(cvel, dif)
+    # Child velocity, acceleration
+    v_c = v_p + math.transform_twist(X_mp, v_j)
+    a_c = a_p + wp.spatial_cross(v_p, v_j) + math.transform_twist(X_mp, c_j)
 
-    # Velocity at body COM
-    dif_com = xipos_in[worldid, bodyid] - subtree_com
-    xivel_out[worldid, bodyid] = support.transform_velocity(cvel, dif_com)
+    body_vel_out[worldid, bodyid] = v_c
+    body_acc_out[worldid, bodyid] = a_c
 
 
 @event_scope
-def com_vel(m: Model, d: Data):
-    """Computes the spatial velocities (cvel) and the derivative `cdof_dot` for all bodies.
-
-    Propagates velocities down the kinematic tree, updating the spatial velocity and
-    derivative for each body.
-    """
+def link_vel(m: Model, d: Data):
     wp.launch(
-        _comvel_root,
-        dim=(d.nworld, 6),
+        _link_vel_root,
+        dim=(d.nworld),
         inputs=[d.integration_done],
-        outputs=[d.xvel, d.cvel]
+        outputs=[d.body_vel, d.body_acc]
     )
 
     for i in range(1, len(m.body_tree)):
         body_tree = m.body_tree[i]
         wp.launch(
-            _comvel_level,
+            _link_vel_level,
             dim=(d.nworld, body_tree.size),
-            inputs=[m.body_parentid, m.jnt_dofadr, m.jnt_type, m.jnt_dofnum,
-                    m.jnt_cst_adr, m.cst_txfm_dofadr, m.body_rootid,
-                    d.integration_done, d.qvel, d.cdof, d.cdof_tmp, d.cvel, d.xpos, d.xipos,
-                    d.xanchor, d.xaxis, d.jnt_rot,
-                    d.subtree_com, body_tree],
-            outputs=[d.cvel, d.xvel, d.xivel, d.cdof_dot],
+            inputs=[m.body_parentid, m.jnt_type, m.jnt_dofadr, m.jnt_dofnum, m.jnt_rel_parent, m.jnt_extra_info,
+                    d.integration_done, d.qvel, d.body_X, d.body_vel, d.body_acc,
+                    body_tree],
+            outputs=[d.body_vel, d.body_acc, d.cdof]
         )
 
 
@@ -173,6 +154,6 @@ def site_velocity(m: Model, d: Data):
     wp.launch(
         _site_velocity,
         dim=(d.nworld, m.nsite),
-        inputs=[m.site_bodyid, d.integration_done, d.site_rpos, d.xvel],
+        inputs=[m.site_bodyid, d.integration_done, d.site_rpos, d.body_acc],
         outputs=[d.site_xvel]
     )

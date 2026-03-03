@@ -1,3 +1,4 @@
+import warp as wp
 from collections import OrderedDict
 from typing import Optional
 
@@ -311,33 +312,32 @@ def body_masses(model: CheckedModel) -> list[float]:
     return masses
 
 
-def get_body_inertias(model: CheckedModel) -> list[list[float]]:
+def get_body_inertias(model: CheckedModel) -> list[wp.spatial_matrix]:
     inertias = []
     for _, desc in model.iter_descs():
         body = desc.body
+        m = body.mass
         inertia = body.inertia
-        # should be diagonal
-        assert abs(inertia.xy) <= 1e-12
-        assert abs(inertia.xz) <= 1e-12
-        assert abs(inertia.yz) <= 1e-12
-        inertias.append([inertia.xx, inertia.yy, inertia.zz])
+        spat_inertia = wp.spatial_matrix(
+            inertia.xx, inertia.xy, inertia.xz, 0.0, 0.0, 0.0,
+            inertia.xy, inertia.yy, inertia.yz, 0.0, 0.0, 0.0,
+            inertia.xz, inertia.yz, inertia.zz, 0.0, 0.0, 0.0,
+            0.0,        0.0,        0.0,        m,   0.0, 0.0,
+            0.0,        0.0,        0.0,        0.0, m,   0.0,
+            0.0,        0.0,        0.0,        0.0, 0.0, m
+        )
+        inertias.append(spat_inertia)
     return inertias
 
 
-def get_local_body_com_pos(model: CheckedModel) -> list[list[float]]:
-    com_positions = []
+def get_local_body_com_transform(model: CheckedModel) -> list[wp.transform]:
+    com_transforms = []
     for _, desc in model.iter_descs():
         body = desc.body
         com = body.mass_center
-        com_positions.append([com.x, com.y, com.z])
-    return com_positions
-
-
-def get_local_body_rot(model: CheckedModel) -> list[list[float]]:
-    local_rots = []
-    for _, desc in model.iter_descs():
-        local_rots.append([1.0, 0.0, 0.0, 0.0])
-    return local_rots
+        transform = wp.transform(wp.vec3(com.x, com.y, com.z), wp.quat_identity())
+        com_transforms.append(transform)
+    return com_transforms
 
 
 def get_frame_from_joint(joint, frame_name: str):
@@ -385,19 +385,22 @@ def get_joint_types(model: CheckedModel) -> list[types.JointType]:
     return joint_types
 
 
-def get_joint_rel_pos(
+def get_joint_rel_transform(
         model: CheckedModel,
         get_parent_rel: bool
-) -> list[list[float]]:
-    rel_parent_positions = []
+) -> list[wp.transform]:
+    rel_transforms = []
     for _, joint in model.iter_joints():
         if get_parent_rel:
             frame = get_frame_from_joint(joint, joint.socket_parent_frame)
         else:
             frame = get_frame_from_joint(joint, joint.socket_child_frame)
         pos = frame.translation
-        rel_parent_positions.append([pos.x, pos.y, pos.z])
-    return rel_parent_positions
+        rot = frame.orientation
+        transform = wp.transform(wp.vec3(pos.x, pos.y, pos.z), wp.quat(rot.x, rot.y, rot.z, rot.w))
+        rel_transforms.append(transform)
+
+    return rel_transforms
 
 
 def get_joint_rel_rot(model: CheckedModel, parent: bool) -> list[list[float]]:
@@ -439,6 +442,7 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         loc, rot = collider.location, collider.orientation
         pos = [loc.x, loc.y, loc.z]
         rot = [rot.x, rot.y, rot.z, rot.w]
+        transform = wp.transform(wp.vec3(pos[0], pos[1], pos[2]), wp.quat(rot[0], rot[1], rot[2], rot[3]))
         # MuJoCo: sliding, torsional, rolling friction
         # Hunt-Crossley: static, dynamic, viscous
         friction = [0.95, 0.3, 0.3]  # default friction values
@@ -453,8 +457,7 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         collider_data.type.append(geom_type)
         collider_data.body_id.append(body_id)
         collider_data.size.append(size)
-        collider_data.pos.append(pos)
-        collider_data.rot.append(rot)
+        collider_data.transform.append(transform)
         collider_data.friction.append(friction)
         collider_data.stiffness.append(stiffness)
         collider_data.dissipation.append(dissipation)
@@ -475,9 +478,9 @@ def get_visual_data(model: CheckedModel) -> VisualData:
         size = mesh.scale_factors
         mesh_file = mesh.mesh_file
 
+        # TODO: support socket frame for meshes
         visual_data.body_id.append(body_id)
-        visual_data.pos.append([0.0, 0.0, 0.0])
-        visual_data.rot.append([0.0, 0.0, 0.0, 1.0])
+        visual_data.transform.append(wp.transform_identity())
         visual_data.scale.append([size.x, size.y, size.z])
         visual_data.file.append(mesh_file)
 
@@ -566,23 +569,6 @@ def compute_dof_parent_id(
 
     dof_parent_id[0] = -1  # world/ground
     return dof_parent_id
-
-
-def get_subtree_mass(model: CheckedModel) -> list[float]:
-    body_masses_list = body_masses(model)
-    subtree_masses = body_masses_list.copy()
-
-    body_tree = create_body_tree(model)
-
-    # Traverse from leaves to root
-    for level in reversed(body_tree):
-        for body_idx in level:
-            parent_idx = model.get_body_parent_idx(body_idx)
-            if parent_idx == -1:
-                continue
-            subtree_masses[parent_idx] += subtree_masses[body_idx]
-
-    return subtree_masses
 
 
 def make_tiles(

@@ -13,7 +13,7 @@ wp.set_module_options({"enable_backward": False})
 def _drag_force(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        xivel_in: wp.array2d(dtype=wp.spatial_vector),
+        body_vel_in: wp.array2d(dtype=wp.spatial_vector),
         # In:
         body_tree: wp.array(dtype=int),
         # Data out:
@@ -23,7 +23,7 @@ def _drag_force(
     if integration_done_in[worldid]:
         return
     bodyid = body_tree[nodeid]
-    body_vel = wp.spatial_bottom(xivel_in[worldid, bodyid])
+    body_vel = wp.spatial_bottom(body_vel_in[worldid, bodyid])
 
     drag_x = -consts.A_AFK * math.sqr(body_vel[0]) * wp.sign(body_vel[0])
     drag_frc = wp.spatial_vector(drag_x, 0.0, 0.0, 0.0, 0.0, 0.0)
@@ -32,12 +32,12 @@ def _drag_force(
 
 
 @event_scope
-def apply_drag(m: Model, d: Data):
+def drag(m: Model, d: Data):
     # Only apply to root bodies
     body_roots = m.body_tree[1]
     wp.launch(
         _drag_force,
         dim=(d.nworld, body_roots.size),
-        inputs=[d.integration_done, d.xivel, body_roots],
+        inputs=[d.integration_done, d.body_vel, body_roots],
         outputs=[d.xfrc_drag],
     )

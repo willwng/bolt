@@ -8,8 +8,7 @@ class ColliderData:
     type: list[types.GeomType]
     body_id: list[int]
     size: list[list[float]]
-    pos: list[list[float]]
-    rot: list[list[float]]
+    transform: list[list[float]]
     friction: list[list[float]]
     stiffness: list[float]
     dissipation: list[float]
@@ -24,8 +23,7 @@ class ColliderData:
         self.type = []
         self.body_id = []
         self.size = []
-        self.pos = []
-        self.rot = []
+        self.transform = []
         self.friction = []
         self.stiffness = []
         self.dissipation = []
@@ -61,14 +59,12 @@ class SiteData:
 @dataclass
 class VisualData:
     body_id: list[int]
-    pos: list[list[float]]
-    rot: list[list[float]]
+    transform: list[list[float]]
     scale: list[list[float]]
     file: list[str]
 
     def __init__(self):
         self.body_id = []
-        self.pos = []
-        self.rot = []
+        self.transform = []
         self.scale = []
         self.file = []

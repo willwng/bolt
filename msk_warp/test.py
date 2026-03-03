@@ -41,8 +41,8 @@ def main():
         wp.config.mode = "debug"
 
     # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
-    model_path = "data/osim/upper_spine.osim"
-    # model_path = "data/osim/example_gait3d_pin.osim"
+    # model_path = "data/osim/upper_spine.osim"
+    model_path = "data/osim/example_gait3d_pin.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       integrator=msk_warp.types.IntegratorType.EULER_FIXED,
                                       polynomial_data_path="data/muscle_poly_info.json",
@@ -53,22 +53,7 @@ def main():
     m.opt.use_inf_norm = False
     m.opt.accuracy = 1.0
 
-    qpos = wp.to_torch(d.qpos)
-    # qvel = wp.to_torch(d.qvel)
-    # qacc = wp.to_torch(d.qacc)
-    # lumbar_bending = load_result.dof_id_lookup["lumbar_bending"][0]
-    # lumbar_extension = load_result.dof_id_lookup["lumbar_extension"][0]
-    # lumbar_rotation = load_result.dof_id_lookup["lumbar_rotation"][0]
-    #
-    # thorax_bending = load_result.dof_id_lookup["thorax_bending"][0]
-    # thorax_extension = load_result.dof_id_lookup["thorax_extension"][0]
-    # thorax_rotation = load_result.dof_id_lookup["thorax_rotation"][0]
-    #
-    # cervical_bending = load_result.dof_id_lookup["cervical_bending"][0]
-    # cervical_extension = load_result.dof_id_lookup["cervical_extension"][0]
-    # cervical_rotation = load_result.dof_id_lookup["cervical_rotation"][0]
-
-    dt = 1.0 / 1000.0
+    dt = 0.0 / 1000.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:
@@ -94,13 +79,6 @@ def main():
             else:
                 step.step(m, d)
             viewer.render(m, d)
-            # print("================================")
-            # print("Lumbar:")
-            # print(f"  Extension: {qpos[0, lumbar_extension].item():.4f}, {qvel[0, lumbar_extension].item():.4f}, {qacc[0, lumbar_extension].item():.4f}")
-            # print("Thorax:")
-            # print(f"  Extension: {qpos[0, thorax_extension].item():.4f}, {qvel[0, thorax_extension].item():.4f}, {qacc[0, thorax_extension].item():.4f}")
-            # print("Cervical:")
-            # print(f"  Extension: {qpos[0, cervical_extension].item():.4f}, {qvel[0, cervical_extension].item():.4f}, {qacc[0, cervical_extension].item():.4f}")
 
         viewer.close()
 

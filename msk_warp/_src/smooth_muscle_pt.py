@@ -224,7 +224,7 @@ def muscle_path(m: Model, d: Data):
 
 
 @event_scope
-def apply_muscle_force(m: Model, d: Data):
+def muscle_force(m: Model, d: Data):
     if m.nmuscle:
         wp.launch(
             _xfrc_muscles,
@@ -238,7 +238,7 @@ def apply_muscle_force(m: Model, d: Data):
                 d.muscle_active_sites,
                 d.site_diff_vec,
                 d.site_diff_len,
-                d.xipos,
+                d.body_X_com,
                 d.site_xpos,
             ],
             outputs=[d.xfrc_muscle],

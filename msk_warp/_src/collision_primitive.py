@@ -1,4 +1,5 @@
 # Copyright 2025 The Newton Developers
+# Modified for MSKWarp by Will Wang
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -76,11 +77,9 @@ class Geom:
 @wp.func
 def geom_collision_pair(
         # Model:
-        geom_type: wp.array(dtype=int),
         geom_size: wp.array(dtype=wp.vec3),
         # Data in:
-        geom_xpos_in: wp.array2d(dtype=wp.vec3),
-        geom_xmat_in: wp.array2d(dtype=wp.mat33),
+        geom_X_in: wp.array2d(dtype=wp.transform),
         # In:
         geoms: wp.vec2i,
         worldid: int,
@@ -90,20 +89,18 @@ def geom_collision_pair(
 
     g1 = geoms[0]
     g2 = geoms[1]
-    geom_type1 = geom_type[g1]
-    geom_type2 = geom_type[g2]
 
-    geom1.pos = geom_xpos_in[worldid, g1]
-    geom1.rot = geom_xmat_in[worldid, g1]
+    geom_X1 = geom_X_in[worldid, g1]
+    geom1.pos = wp.transform_get_translation(geom_X1)
+    geom1.rot = wp.quat_to_matrix(wp.transform_get_rotation(geom_X1))
     geom1.size = geom_size[g1]
-    geom1.normal = wp.vec3(geom1.rot[0, 1], geom1.rot[1, 1],
-                           geom1.rot[2, 1])  # plane
+    geom1.normal = wp.vec3(geom1.rot[0, 1], geom1.rot[1, 1], geom1.rot[2, 1])  # plane
 
-    geom2.pos = geom_xpos_in[worldid, g2]
-    geom2.rot = geom_xmat_in[worldid, g2]
+    geom_X2 = geom_X_in[worldid, g2]
+    geom2.pos = wp.transform_get_translation(geom_X2)
+    geom2.rot = wp.quat_to_matrix(wp.transform_get_rotation(geom_X2))
     geom2.size = geom_size[g2]
-    geom2.normal = wp.vec3(geom2.rot[0, 1], geom2.rot[1, 1],
-                           geom2.rot[2, 1])  # plane
+    geom2.normal = wp.vec3(geom2.rot[0, 1], geom2.rot[1, 1], geom2.rot[2, 1])  # plane
 
     geom1.index = -1
     geom2.index = -1
@@ -1403,8 +1400,7 @@ def _create_narrowphase_kernel(primitive_collisions_types,
             geom_transition_velocity: wp.array(dtype=float),
             geom_priority: wp.array(dtype=int),
             # Data in:
-            geom_xpos_in: wp.array2d(dtype=wp.vec3),
-            geom_xmat_in: wp.array2d(dtype=wp.mat33),
+            geom_X_in: wp.array2d(dtype=wp.transform),
             naconmax_in: int,
             collision_pair_in: wp.array(dtype=wp.vec2i),
             collision_pairid_in: wp.array(dtype=wp.vec2i),
@@ -1445,10 +1441,8 @@ def _create_narrowphase_kernel(primitive_collisions_types,
         )
 
         geom1, geom2 = geom_collision_pair(
-            geom_type,
             geom_size,
-            geom_xpos_in,
-            geom_xmat_in,
+            geom_X_in,
             geoms,
             worldid,
         )
@@ -1531,8 +1525,7 @@ def primitive_narrowphase(m: Model, d: Data):
             m.geom_dissipation,
             m.geom_transition_velocity,
             m.geom_priority,
-            d.geom_xpos,
-            d.geom_xmat,
+            d.geom_X,
             d.naconmax,
             d.collision_pair,
             d.collision_pairid,

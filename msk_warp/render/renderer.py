@@ -126,11 +126,10 @@ class Renderer:
             if self.draw_colliders:
                 geom_types = m.geom_type.numpy()
                 geom_sizes = m.geom_size.numpy()
-                geom_xpos = d.geom_xpos.numpy()[wid]
-                geom_xquat = d.geom_xquat.numpy()[wid]
+                geom_X = d.geom_X.numpy()[wid]
 
                 for i in range(m.ngeom):
-                    pos, rot = geom_xpos[i], geom_xquat[i]
+                    pos, rot = geom_X[i, :3], geom_X[i, 3:]
 
                     if geom_types[i] == types.GeomType.SPHERE:
                         self.renderer.render_sphere(
@@ -162,12 +161,11 @@ class Renderer:
 
             # Visuals
             if self.draw_visuals:
-                vis_xpos = d.vis_xpos.numpy()[wid]
-                vis_xquat = d.vis_xquat.numpy()[wid]
+                vis_X = d.vis_X.numpy()[wid]
                 for i in range(m.nvis):
                     mesh = self.meshes[i]
                     scale = self.mesh_scales[i]
-                    pos, rot = vis_xpos[i], vis_xquat[i]
+                    pos, rot = vis_X[i, :3], vis_X[i, 3:]
                     self.renderer.render_mesh(
                         name=f"visual_{obj_id}",
                         points=mesh.points.numpy(),
@@ -216,50 +214,6 @@ class Renderer:
                         radius=radius,
                     )
                     obj_id += 1
-
-            # Draw any BeamJoints if any
-            joint_types = m.jnt_type.numpy()
-            ind_beams = np.where(joint_types == types.JointType.BEAM)[0]
-            if len(ind_beams) == 0:
-                return
-
-            jnt_qposadr = m.jnt_qposadr.numpy()
-            joint_extra = m.jnt_extra_info.numpy()
-
-            jnt_rot = d.jnt_rot.numpy()[wid]
-            jnt_pos = d.xanchor.numpy()[wid]
-            qpos = d.qpos.numpy()[wid]
-            for idx_beam in ind_beams:
-                q0, q1, q2 = qpos[jnt_qposadr[idx_beam]:jnt_qposadr[idx_beam] + 3]
-                L = joint_extra[idx_beam][0]
-                j_pos = jnt_pos[idx_beam]
-                j_rot = jnt_rot[idx_beam]
-
-                theta_sq = q0 ** 2 + q1 ** 2
-
-                num_pts = 5
-                z = np.linspace(0, L, num_pts)
-                C_deflection = (z * z * (3.0 * L - z)) / (3.0 * L ** 2)
-                C_displacement = -(z ** 3 * (20 * L ** 2 - 15 * L * z + 3 * z ** 2)) / (30 * L ** 4)
-                d_x = q1 * C_deflection
-                d_y = -q0 * C_deflection
-                d_z = C_displacement * theta_sq
-
-                jnt_rot_R = R.from_quat(j_rot)
-
-                # local space
-                pts_xloc = np.stack([d_x, d_y, z + d_z], axis=-1)
-                # to world space
-                pts_xpos = j_pos + jnt_rot_R.apply(pts_xloc)
-                # Apply rotation and translation to pts
-                self.renderer.render_line_strip(
-                    f"beam_{obj_id}",
-                    pts_xpos,
-                    color=(0.8, 0.0, 0.0),
-                    radius=0.01,
-                )
-                obj_id += 1
-                pass
 
         # Render based on viewer type
         if self.viewer_type == RendererType.OPENGL:

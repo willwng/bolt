@@ -17,7 +17,7 @@ def _process_contacts_hc(
         geom_bodyid: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        xipos_in: wp.array2d(dtype=wp.vec3),
+        body_X_com_in: wp.array2d(dtype=wp.transform),
         cvel_in: wp.array2d(dtype=wp.spatial_vector),
         subtree_com_in: wp.array2d(dtype=wp.vec3),
         nacon_in: wp.array(dtype=int),
@@ -117,7 +117,7 @@ def _process_contacts_hc(
 
 
 @event_scope
-def apply_contact_forces(m: Model, d: Data):
+def contact_forces(m: Model, d: Data):
     d.grf.zero_()
     wp.launch(
         _process_contacts_hc,
@@ -126,8 +126,8 @@ def apply_contact_forces(m: Model, d: Data):
             m.body_rootid,
             m.geom_bodyid,
             d.integration_done,
-            d.xipos,
-            d.cvel,
+            d.body_X_com,
+            d.body_vel,
             d.subtree_com,
             d.nacon,
             d.contact.dist,

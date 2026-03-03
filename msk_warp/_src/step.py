@@ -1,7 +1,7 @@
 import warp as wp
 
-from . import integrate_common
 from . import integrate_euler_fixed
+from . import integrate_euler_damped
 from . import integrate_rk_fixed
 from . import integrate_euler_adaptive
 from . import integrate_rk_adaptive
@@ -33,6 +33,8 @@ def step(m: Model, d: Data):
     """ Steps from d.time to d.next_time """
     if wp.static(m.opt.integrator) == IntegratorType.EULER_FIXED:
         integrate_euler_fixed.integrate(m, d)
+    elif wp.static(m.opt.integrator) == IntegratorType.EULER_DAMPED_FIXED:
+        integrate_euler_damped.integrate(m, d)
     elif wp.static(m.opt.integrator) == IntegratorType.RK4_FIXED:
         integrate_rk_fixed.integrate(m, d)
     elif wp.static(m.opt.integrator) == IntegratorType.EULER_ADAPTIVE:

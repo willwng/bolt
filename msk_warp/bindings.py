@@ -5,7 +5,6 @@ import numpy as np
 
 import msk_warp._src.consts as consts
 import msk_warp._src.forward as forward
-import msk_warp._src.init_model as init_model
 import msk_warp._src.math as math
 from msk_warp.render.renderer import Renderer, RendererType
 from msk_warp.utils.load_utils import (
@@ -130,8 +129,7 @@ def load_model(
 
     b_masses = body_masses(osim_model)
     inertias = get_body_inertias(osim_model)
-    body_local_com = get_local_body_com_pos(osim_model)
-    body_local_rot = get_local_body_rot(osim_model)
+    body_local_com = get_local_body_com_transform(osim_model)
     body_parent_ids = get_body_parent_ids(osim_model)
 
     # Custom joints: compute address of joint -> custom joint
@@ -143,10 +141,8 @@ def load_model(
     jnt_qpos_adr = exclusive_scan(jnt_qpos_num, False)
     jnt_dof_adr = exclusive_scan(jnt_dof_num, False)
 
-    jnt_rel_parent = get_joint_rel_pos(osim_model, get_parent_rel=True)
-    jnt_rel_child = get_joint_rel_pos(osim_model, get_parent_rel=False)
-    jnt_rel_parent_rot = get_joint_rel_rot(osim_model, parent=True)
-    jnt_rel_child_rot = get_joint_rel_rot(osim_model, parent=False)
+    jnt_rel_parent = get_joint_rel_transform(osim_model, get_parent_rel=True)
+    jnt_rel_child = get_joint_rel_transform(osim_model, get_parent_rel=False)
     jnt_extra_info = get_joint_extra_info(osim_model)
 
     geom_data = get_collider_data(osim_model)
@@ -208,29 +204,10 @@ def load_model(
     dof_body_id = get_dof_body_ids(osim_model)
     dof_parent_id = compute_dof_parent_id(osim_model, jnt_dof_num, jnt_dof_adr)
 
-    body_subtree_mass = get_subtree_mass(osim_model)
     tiles = make_tiles(osim_model, dof_parent_id)
     qM_tiles = tuple(
         types.TileSet(adr=wp.array(tiles[sz], dtype=int), size=sz) for sz in
         sorted(tiles.keys()))
-    dof_tri_row, dof_tri_col = np.tril_indices(nv)
-
-    linear_fns, const_fns = get_functions(osim_model)
-    txfm_fn_type, txfm_fn_adr, txfm_qadr, txfm_dof_adr, txfm_axis = get_txfm_fns(
-        osim_model)
-
-    # Reshape
-    txfm_fn_type = np.array(txfm_fn_type)
-    txfm_fn_adr = np.array(txfm_fn_adr)
-    txfm_qadr = np.array(txfm_qadr)
-    txfm_dof_adr = np.array(txfm_dof_adr)
-    txfm_axis = np.array(txfm_axis)
-
-    txfm_fn_type = txfm_fn_type.reshape(n_custom_jnts, 6)
-    txfm_fn_adr = txfm_fn_adr.reshape(n_custom_jnts, 6)
-    txfm_qadr = txfm_qadr.reshape(n_custom_jnts, 6)
-    txfm_dof_adr = txfm_dof_adr.reshape(n_custom_jnts, 6)
-    txfm_axis = txfm_axis.reshape(n_custom_jnts, 6, 3)
 
     # Prepare contacts
     geom_types, geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = prepare_contacts(
@@ -320,9 +297,8 @@ def load_model(
         qpos_spring=to_warp_array(qpos_spring, dtype=float),
 
         body_mass=to_warp_array(b_masses, dtype=float),
-        body_inertia=to_warp_array(inertias, dtype=wp.vec3),
-        body_ipos=to_warp_array(body_local_com, dtype=wp.vec3),
-        body_iquat=to_warp_array(body_local_rot, dtype=wp.quat),
+        body_inertia=to_warp_array(inertias, dtype=wp.spatial_matrix),
+        body_X_com_loc=to_warp_array(body_local_com, dtype=wp.transform),
 
         body_rootid=to_warp_array(body_rootid, dtype=int),
         body_parentid=to_warp_array(body_parent_ids, dtype=int),
@@ -331,20 +307,9 @@ def load_model(
         jnt_qposadr=to_warp_array(jnt_qpos_adr, dtype=int),
         jnt_dofnum=to_warp_array(jnt_dof_num, dtype=int),
         jnt_dofadr=to_warp_array(jnt_dof_adr, dtype=int),
-        jnt_rel_parent=to_warp_array(jnt_rel_parent, dtype=wp.vec3),
-        jnt_rel_child=to_warp_array(jnt_rel_child, dtype=wp.vec3),
-        jnt_rel_parent_rot=to_warp_array(jnt_rel_parent_rot, dtype=wp.quat),
-        jnt_rel_child_rot=to_warp_array(jnt_rel_child_rot, dtype=wp.quat),
+        jnt_rel_parent=to_warp_array(jnt_rel_parent, dtype=wp.transform),
+        jnt_rel_child=to_warp_array(jnt_rel_child, dtype=wp.transform),
         jnt_extra_info=to_warp_array(jnt_extra_info, dtype=wp.vec3),
-
-        jnt_cst_adr=to_warp_array(custom_joint_indices, dtype=int),
-        const_fns=to_warp_array(const_fns, dtype=float),
-        linear_fns=to_warp_array(linear_fns, dtype=wp.vec2),
-        cst_txfm_axis=to_warp_array(txfm_axis, dtype=wp.vec3),
-        cst_txfm_fn=to_warp_array(txfm_fn_type, dtype=int),
-        cst_txfm_fn_adr=to_warp_array(txfm_fn_adr, dtype=int),
-        cst_txfm_qadr=to_warp_array(txfm_qadr, dtype=int),
-        cst_txfm_dofadr=to_warp_array(txfm_dof_adr, dtype=int),
 
         limit_dof_range=to_warp_array(dof_limit_ranges, dtype=wp.vec2),
         limit_dof_adr=to_warp_array(dof_limit_adr, dtype=int),
@@ -354,9 +319,8 @@ def load_model(
 
         geom_type=to_warp_array(geom_types, dtype=int),
         geom_bodyid=to_warp_array(geom_data.body_id, dtype=int),
+        geom_X_loc=to_warp_array(geom_data.transform, dtype=wp.transform),
         geom_size=to_warp_array(geom_data.size, dtype=wp.vec3),
-        geom_pos=to_warp_array(geom_data.pos, dtype=wp.vec3),
-        geom_quat=to_warp_array(geom_data.rot, dtype=wp.quat),
         geom_friction=to_warp_array(geom_data.friction, dtype=wp.vec3),
         geom_stiffness=to_warp_array(geom_data.stiffness, dtype=float),
         geom_dissipation=to_warp_array(geom_data.dissipation, dtype=float),
@@ -369,9 +333,8 @@ def load_model(
         nxn_geom_pair_filtered=wp.array(nxn_geom_pair_filtered, dtype=wp.vec2i),
         nxn_pairid_filtered=wp.array(nxn_pairid_filtered, dtype=wp.vec2i),
 
-        vis_pos=to_warp_array(vis_data.pos, dtype=wp.vec3),
-        vis_quat=to_warp_array(vis_data.rot, dtype=wp.quat),
         vis_bodyid=to_warp_array(vis_data.body_id, dtype=int),
+        vis_X_loc=to_warp_array(vis_data.transform, dtype=wp.transform),
 
         site_bodyid=to_warp_array(site_data.body_id, dtype=int),
         site_pos=to_warp_array(site_data.pos, dtype=wp.vec3),
@@ -397,7 +360,6 @@ def load_model(
         dof_parentid=to_warp_array(dof_parent_id, dtype=int),
 
         body_tree=body_tree_warp,
-        body_subtreemass=to_warp_array(body_subtree_mass, dtype=float),
         qM_tiles=qM_tiles,
         block_dim=types.BlockDim(),
     )
@@ -473,21 +435,18 @@ def load_model(
         a_excitations=make_zero((n_worlds, nactuators), dtype=float),
         m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
 
-        xpos=make_zero((n_worlds, nb), dtype=wp.vec3),
-        xquat=make_zero((n_worlds, nb), dtype=wp.quat),
-        xipos=make_zero((n_worlds, nb), dtype=wp.vec3),
-        ximat=make_zero((n_worlds, nb), dtype=wp.mat33),
-        xanchor=make_zero((n_worlds, nb), dtype=wp.vec3),
-        xaxis=make_zero((n_worlds, nb, 6), dtype=wp.vec3),
-        jnt_rot=make_zero((n_worlds, nb), dtype=wp.quat),
+        body_X=make_zero((n_worlds, nb), dtype=wp.transform),
+        body_X_com=make_zero((n_worlds, nb), dtype=wp.transform),
 
-        geom_xpos=make_zero((n_worlds, ngeom), dtype=wp.vec3),
-        geom_xquat=make_zero((n_worlds, ngeom), dtype=wp.quat),
-        geom_xmat=make_zero((n_worlds, ngeom), dtype=wp.mat33),
+        body_vel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_f_s=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_I_s=make_zero((n_worlds, nb), dtype=wp.spatial_matrix),
+
+        geom_X=make_zero((n_worlds, ngeom), dtype=wp.transform),
         geom_cforce=make_zero((n_worlds, ngeom), dtype=float),
 
-        vis_xpos=make_zero((n_worlds, nvis), dtype=wp.vec3),
-        vis_xquat=make_zero((n_worlds, nvis), dtype=wp.quat),
+        vis_X=make_zero((n_worlds, nvis), dtype=wp.transform),
 
         site_rpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_xpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
@@ -502,6 +461,7 @@ def load_model(
         site_diff_len=make_zero((n_worlds, max(0, nsite - 1)), dtype=float),
         site_diff_vel=make_zero((n_worlds, max(0, nsite - 1)), dtype=float),
 
+        subtree_mass=make_zero((n_worlds, nb), dtype=float),
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
         cdof=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
         cdof_tmp=make_zero((n_worlds, nb, 6), dtype=wp.spatial_vector),
@@ -524,11 +484,6 @@ def load_model(
         muscle_dynamics_info=make_zero((n_worlds, nmuscle),
                                        dtype=types.MuscleDynamicsInfo),
 
-        cvel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        xvel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        xivel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        cdof_dot=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
@@ -548,12 +503,6 @@ def load_model(
         subtree_angmom=make_zero((n_worlds, nb), dtype=wp.vec3),
 
         qfrc_smooth=make_zero((n_worlds, nv), dtype=float),
-        qfrc_constraint=make_zero((n_worlds, nv), dtype=float),
-        qfrc_inverse=make_zero((n_worlds, nv), dtype=float),
-
-        cacc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        cfrc_int=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        cfrc_ext=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
         contact=types.Contact(
             dist=make_zero(naconmax, dtype=float),
@@ -583,7 +532,6 @@ def load_model(
         ncollision=wp.zeros((1,), dtype=int),
     )
 
-    init_model._model_init(m, d)
     forward.reset(m, d)
 
     mesh_load_results = []
@@ -618,7 +566,6 @@ def reinitialize_model(
     mm = wp.array(m.muscle_data, dtype=types.MuscleMetadata)
     m.muscle_metadata = mm
 
-    init_model._model_init(m, d)
     d.world_reset.fill_(True)
     forward.reset(m, d)
 
@@ -719,10 +666,6 @@ def muscle_metadata(m: types.Model) -> list[types.MuscleMetadata]:
     return m.muscle_data
 
 
-def subtree_mass(m: types.Model) -> torch.Tensor:
-    return wp.to_torch(m.body_subtreemass)
-
-
 def gravity(m: types.Model) -> float:
     return m.opt.gravity
 
@@ -762,7 +705,6 @@ def is_adaptive(integrator_type: types.IntegratorType) -> bool:
     ]
 
 
-
 def joint_limit_ranges(m: types.Model) -> torch.Tensor:
     return wp.to_torch(m.limit_dof_range)
 
@@ -785,11 +727,11 @@ def time(d: types.Data) -> torch.tensor:
 
 
 def body_positions(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.xpos)
+    return wp.to_torch(d.body_X)
 
 
 def body_com_positions(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.xipos)
+    return wp.to_torch(d.body_X_com)
 
 
 def body_rotations(d: types.Data) -> torch.Tensor:
@@ -797,7 +739,7 @@ def body_rotations(d: types.Data) -> torch.Tensor:
 
 
 def body_velocities(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.xvel)
+    return wp.to_torch(d.body_acc)
 
 
 def body_com_velocities(d: types.Data) -> torch.Tensor:
@@ -936,7 +878,7 @@ def actuator_metadata_np(m: types.Model) -> np.ndarray:
 
 # --- Visuals ---
 def get_visual_positions(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.vis_xpos)
+    return wp.to_torch(d.vis_X)
 
 
 def get_visual_rotations(d: types.Data) -> torch.Tensor:
@@ -973,7 +915,7 @@ def collider_transition_velocity(m: types.Model) -> torch.Tensor:
 
 
 def get_collider_positions(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.geom_xpos)
+    return wp.to_torch(d.geom_X)
 
 
 def collider_forces(d: types.Data) -> torch.Tensor:

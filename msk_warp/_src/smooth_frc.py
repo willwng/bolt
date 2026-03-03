@@ -1,4 +1,5 @@
 # Copyright 2025 The Newton Developers
+# Modified for MSKWarp by Will Wang
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,175 +29,40 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
-def _cacc_world(
-        # In:
-        gravity: float,
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        # Data out:
-        cacc_out: wp.array2d(dtype=wp.spatial_vector),
-):
-    worldid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-    cacc_out[worldid, 0] = wp.spatial_vector(wp.vec3(0.0), wp.vec3(0.0, -gravity, 0.0))
-
-
-def _rne_cacc_world(m: Model, d: Data):
-    wp.launch(
-        _cacc_world,
-        dim=[d.nworld],
-        inputs=[m.opt.gravity, d.integration_done],
-        outputs=[d.cacc]
-    )
-
-
-@wp.kernel
-def _cacc(
+def _link_frc(
         # Model:
-        body_parentid: wp.array(dtype=int),
-        jnt_dofnum: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
+        body_inertia: wp.array(dtype=wp.spatial_matrix),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        qvel_in: wp.array2d(dtype=float),
-        cdof_dot_in: wp.array2d(dtype=wp.spatial_vector),
-        cacc_in: wp.array2d(dtype=wp.spatial_vector),
-        # In:
-        body_tree_: wp.array(dtype=int),
-        # Data out:
-        cacc_out: wp.array2d(dtype=wp.spatial_vector),
-):
-    worldid, nodeid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-
-    bodyid = body_tree_[nodeid]
-    dofnum = jnt_dofnum[bodyid]
-    dofadr = jnt_dofadr[bodyid]
-
-    pid = body_parentid[bodyid]
-    local_cacc = cacc_in[worldid, pid]
-    for i in range(dofnum):
-        local_cacc += cdof_dot_in[worldid, dofadr + i] * qvel_in[
-            worldid, dofadr + i]
-    cacc_out[worldid, bodyid] = local_cacc
-
-
-def _rne_cacc_forward(m: Model, d: Data):
-    for body_tree in m.body_tree:
-        wp.launch(
-            _cacc,
-            dim=(d.nworld, body_tree.size),
-            inputs=[m.body_parentid, m.jnt_dofnum, m.jnt_dofadr,
-                    d.integration_done, d.qvel, d.cdof_dot, d.cacc, body_tree],
-            outputs=[d.cacc],
-        )
-
-
-@wp.kernel
-def _cfrc(
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        cinert_in: wp.array2d(dtype=vec10),
-        cvel_in: wp.array2d(dtype=wp.spatial_vector),
-        cacc_in: wp.array2d(dtype=wp.spatial_vector),
-        # Data out:
-        cfrc_int_out: wp.array2d(dtype=wp.spatial_vector),
+        body_X_com_in: wp.array2d(dtype=wp.transform),
+        body_vel_in: wp.array2d(dtype=wp.spatial_vector),
+        body_acc_in: wp.array2d(dtype=wp.spatial_vector),
+        # Out:
+        body_f_s_out: wp.array2d(dtype=wp.spatial_vector),
+        body_I_s_out: wp.array2d(dtype=wp.spatial_matrix),
 ):
     worldid, bodyid = wp.tid()
     if integration_done_in[worldid]:
         return
-    bodyid += 1  # skip world body
 
-    cacc = cacc_in[worldid, bodyid]
-    cinert = cinert_in[worldid, bodyid]
-    cvel = cvel_in[worldid, bodyid]
-    frc = math.inert_vec(cinert, cacc)
-    frc += math.motion_cross_force(cvel, math.inert_vec(cinert, cvel))
+    X_body_com = body_X_com_in[worldid, bodyid]
+    I_body = body_inertia[bodyid]
 
-    cfrc_int_out[worldid, bodyid] = frc
+    I_s = math.transform_spatial_inertia(X_body_com, I_body)
+    v_s, a_s = body_vel_in[worldid, bodyid], body_acc_in[worldid, bodyid]
 
-
-def _rne_cfrc(m: Model, d: Data):
-    wp.launch(
-        _cfrc,
-        dim=[d.nworld, m.nbody - 1],
-        inputs=[d.integration_done, d.cinert, d.cvel, d.cacc],
-        outputs=[d.cfrc_int]
-    )
-
-
-@wp.kernel
-def _cfrc_backward(
-        # Model:
-        body_parentid: wp.array(dtype=int),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        cfrc_int_in: wp.array2d(dtype=wp.spatial_vector),
-        # In:
-        body_tree_: wp.array(dtype=int),
-        # Data out:
-        cfrc_int_out: wp.array2d(dtype=wp.spatial_vector),
-):
-    worldid, nodeid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-    bodyid = body_tree_[nodeid]
-    pid = body_parentid[bodyid]
-    if bodyid != 0:
-        wp.atomic_add(cfrc_int_out[worldid], pid, cfrc_int_in[worldid, bodyid])
-
-
-def _rne_cfrc_backward(m: Model, d: Data):
-    for body_tree in reversed(m.body_tree):
-        wp.launch(
-            _cfrc_backward,
-            dim=[d.nworld, body_tree.size],
-            inputs=[m.body_parentid, d.integration_done, d.cfrc_int, body_tree],
-            outputs=[d.cfrc_int]
-        )
-
-
-@wp.kernel
-def _qfrc_bias(
-        # Model:
-        dof_bodyid: wp.array(dtype=int),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        cdof_in: wp.array2d(dtype=wp.spatial_vector),
-        cfrc_int_in: wp.array2d(dtype=wp.spatial_vector),
-        # Data out:
-        qfrc_bias_out: wp.array2d(dtype=float),
-):
-    worldid, dofid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-    bodyid = dof_bodyid[dofid]
-    qfrc_bias_out[worldid, dofid] = wp.dot(cdof_in[worldid, dofid],
-                                           cfrc_int_in[worldid, bodyid])
+    f_body = I_s * a_s + wp.spatial_cross_dual(v_s, I_s * v_s)
+    body_f_s_out[worldid, bodyid] = f_body
+    body_I_s_out[worldid, bodyid] = I_s
 
 
 @event_scope
-def rne(m: Model, d: Data):
-    """Computes inverse dynamics using the recursive Newton-Euler algorithm.
-
-    Computes the bias forces (`qfrc_bias`) and internal forces (`cfrc_int`)
-    for the current state, including the effects of gravity.
-
-    Args:
-      m: The model containing kinematic and dynamic information.
-      d: The data object containing the current state and output arrays.
-    """
-    _rne_cacc_world(m, d)
-    _rne_cacc_forward(m, d)
-    _rne_cfrc(m, d)
-    _rne_cfrc_backward(m, d)
+def link_frc(m: Model, d: Data):
     wp.launch(
-        _qfrc_bias,
-        dim=[d.nworld, m.nv],
-        inputs=[m.dof_bodyid, d.integration_done, d.cdof, d.cfrc_int],
-        outputs=[d.qfrc_bias]
+        _link_frc,
+        dim=(d.nworld, m.nbody),
+        inputs=[m.body_inertia, d.integration_done, d.body_X_com, d.body_vel, d.body_acc],
+        outputs=[d.body_f_s, d.body_I_s],
     )
 
 
@@ -231,7 +97,7 @@ def _spring_jnt_passive(
     if jnttype == JointType.FREE:  # no spring forces on free joints
         return
     elif jnttype == JointType.BALL:  # quaternion target
-        return # todo!
+        return  # todo!
     else:
         if has_stiffness:
             for i in range(jnt_dofnum[jntid]):
@@ -252,12 +118,11 @@ def _damper_dof_passive(
     worldid, dofid = wp.tid()
     if integration_done_in[worldid]:
         return
-    damping = dof_damping[dofid]
-    qfrc_damper_out[worldid, dofid] = -damping * qvel_in[worldid, dofid]
+    qfrc_damper_out[worldid, dofid] = -dof_damping[dofid] * qvel_in[worldid, dofid]
 
 
 @event_scope
-def apply_spring_damper(m: Model, d: Data):
+def spring(m: Model, d: Data):
     """Adds all passive forces."""
     wp.launch(
         _spring_jnt_passive,
@@ -275,6 +140,8 @@ def apply_spring_damper(m: Model, d: Data):
         outputs=[d.qfrc_spring],
     )
 
+@event_scope
+def damping(m: Model, d: Data):
     wp.launch(
         _damper_dof_passive,
         dim=(d.nworld, m.nv),

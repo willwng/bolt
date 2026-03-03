@@ -45,7 +45,7 @@ def _process_joint_limits(
     wp.atomic_add(qfrc_limit_out, worldid, dof_adr, force)
 
 
-def apply_limit_forces(m: Model, d: Data):
+def limit_forces(m: Model, d: Data):
     wp.launch(
         _process_joint_limits,
         dim=(d.nworld, m.ndoflimit),

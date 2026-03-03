@@ -175,15 +175,17 @@ class ActivationType(enum.IntEnum):
 class IntegratorType(enum.IntEnum):
     """ Integrator type.
     Attributes:
-        EULER_FIXED: Fixed-step Euler (semi-implicit with implicit damping)
+        EULER_FIXED: Fixed-step Euler (semi-implicit)
+        EULER_DAMPED_FIXED: Fixed-step Euler (semi-implicit with implicit damping)
         RK4_FIXED: Fixed-step 4th-order Runge-Kutta
         EULER_ADAPTIVE: Adaptive-step Euler
         RK4_ADAPTIVE: Adaptive-step 4th-order Runge-Kutta-Merson
     """
     EULER_FIXED = 1
-    RK4_FIXED = 2
-    EULER_ADAPTIVE = 3
-    RK4_ADAPTIVE = 4
+    EULER_DAMPED_FIXED = 2
+    RK4_FIXED = 3
+    EULER_ADAPTIVE = 4
+    RK4_ADAPTIVE = 5
 
 
 @dataclasses.dataclass
@@ -388,10 +390,8 @@ class Model:
       qpos_spring: reference pose for springs                  (nq,)
 
       body_mass: mass                                          (nbody,)
-      body_subtreemass: mass of subtree starting at this body  (nbody,)
-      body_inertia: diagonal inertia in ipos/iquat frame       (nbody, 3)
-      body_ipos: local position of center of mass              (nbody, 3)
-      body_iquat: local orientation of inertia ellipsoid       (nbody, 4)
+      body_inertia: spatial inertia matrix
+      body_X_com_loc: local transform of center of mass            (nbody, transform)
 
       body_rootid: id of root above body                       (nbody,)
       body_parentid: id of body's parent                       (nbody,)
@@ -401,20 +401,8 @@ class Model:
       jnt_stiffness: joint stiffness                           (nbody,)
       jnt_qposadr: start addr in 'qpos' for joint's data       (nbody,)
       jnt_dofadr: start addr in 'qvel' for joint's data        (nbody,)
-      jnt_rel_parent: parent -> joint                          (nbody, 3)
-      jnt_rel_child: child -> joint                            (nbody, 3)
-      jnt_rel_parent_rot: rotation from parent frame           (nbody, 4)
-      jnt_rel_child_rot: rotation from child frame             (nbody, 4)
-
-      * for custom joints *
-      jnt_cst_adr: address of custom joint, -1 if conventional (nbody,)
-      const_fns:     (c) of constant functions                 (<=6*njnts_cst,)
-      linear_fns:    (m, b) of linear functions                (<=6*njnts_cst, 2)
-      cst_txfm_axis: axis for each spatial transform           (njnts_cst, 6, vec3)
-      cst_txfm_fn: function type for each spatial transform    (njnts_cst, 6)
-      cst_txfm_fn_adr: address of spatial transform function   (njnts_cst, 6)
-      cst_txfm_qadr: qpos address for each spatial transform   (njnts_cst, 6)
-      cst_txfm_dofadr: dof address for each spatial transform  (njnts_cst, 6)
+      jnt_rel_parent: parent -> joint                          (nbody, transform)
+      jnt_rel_child: child -> joint                            (nbody, transform)
 
       dof_bodyid: id of dof's body                             (nv,)
       dof_parentid: id of dof's parent; -1: none               (nv,)
@@ -480,10 +468,8 @@ class Model:
     qpos_spring: array("nq", float)
 
     body_mass: array("nbody", float)
-    body_subtreemass: array("nbody", float)
-    body_inertia: array("nbody", wp.vec3)
-    body_ipos: array("nbody", wp.vec3)
-    body_iquat: array("nbody", wp.quat)
+    body_inertia: array("nbody", wp.spatial_matrix)
+    body_X_com_loc: array("nbody", wp.vec3)
 
     body_rootid: array("nbody", int)
     body_parentid: array("nbody", int)
@@ -494,21 +480,9 @@ class Model:
     jnt_qposadr: array("nbody", int)
     jnt_dofnum: array("nbody", int)
     jnt_dofadr: array("nbody", int)
-    jnt_rel_parent: array("nbody", wp.vec3)
-    jnt_rel_child: array("nbody", wp.vec3)
-    jnt_rel_parent_rot: array("nbody", wp.quat)
-    jnt_rel_child_rot: array("nbody", wp.quat)
+    jnt_rel_parent: array("nbody", wp.transform)
+    jnt_rel_child: array("nbody", wp.transform)
     jnt_extra_info: array("nbody", wp.vec3)
-
-    # Custom joint data
-    jnt_cst_adr: array("nbody", int)
-    const_fns: wp.array(dtype=float)
-    linear_fns: wp.array(dtype=wp.vec2)
-    cst_txfm_axis: wp.array2d(dtype=wp.vec3)
-    cst_txfm_fn: wp.array2d(dtype=int)
-    cst_txfm_fn_adr: wp.array2d(dtype=int)
-    cst_txfm_qadr: wp.array2d(dtype=int)
-    cst_txfm_dofadr: wp.array2d(dtype=int)
 
     # Dof data
     dof_armature: wp.array(dtype=float)
@@ -527,9 +501,8 @@ class Model:
     # Collision geometry
     geom_type: wp.array(dtype=int)
     geom_bodyid: wp.array(dtype=int)
+    geom_X_loc: wp.array(dtype=wp.transform)
     geom_size: wp.array(dtype=wp.vec3)
-    geom_pos: wp.array(dtype=wp.vec3)
-    geom_quat: wp.array(dtype=wp.quat)
     geom_friction: wp.array(dtype=wp.vec3)
     geom_stiffness: wp.array(dtype=float)
     geom_dissipation: wp.array(dtype=float)
@@ -543,9 +516,8 @@ class Model:
     nxn_pairid_filtered: wp.array(dtype=wp.vec2i)
 
     # Visual geometry
-    vis_pos: wp.array(dtype=wp.vec3)
-    vis_quat: wp.array(dtype=wp.quat)
     vis_bodyid: wp.array(dtype=int)
+    vis_X_loc: wp.array(dtype=wp.transform)
 
     # Attachment sites (muscle path)
     site_bodyid: wp.array(dtype=int)
@@ -647,15 +619,10 @@ class Data:
       grf: ground reaction force                                  (nworld, 6)
       joint_moments: joint moments                                (nworld, nv)
 
-      xpos: Cartesian position of body frame                      (nworld, nbody, 3)
-      xquat: Cartesian orientation of body frame                  (nworld, nbody, 4)
-      xipos: Cartesian position of body com                       (nworld, nbody, 3)
-      ximat: Cartesian orientation of body inertia                (nworld, nbody, 3, 3)
-      xanchor: Cartesian position of joint anchor                 (nworld, njnt, 3)
-      xaxis: Cartesian joint axis (including temporaries)         (nworld, njnt, 6, 3)
-      jnt_rot: joint rotation in world frame                      (nworld, njnt, 4)
+      body_X: Cartesian position of body frame                      (nworld, nbody, 3)
+      body_X_com: Cartesian position of body com                       (nworld, nbody, 3)
 
-      geom_xpos: Cartesian geom position                          (nworld, ngeom, 3)
+      geom_X: Cartesian geom position                          (nworld, ngeom, 3)
       geom_xquat: Cartesian geom orientation                      (nworld, ngeom, 4)
       geom_xmat: Cartesian geom orientation                       (nworld, ngeom, 3, 3)
 
@@ -687,10 +654,8 @@ class Data:
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
       muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
 
-      cvel: com-based velocity (rot:lin)                          (nworld, nbody, 6)
-      xvel: Cartesian body velocity in body frame (ang, vel)      (nworld, nbody, 6)
-      xivel: Cartesian body velocity in body-com frame            (nworld, nbody, 6)
-      cdof_dot: time-derivative of cdof (rot:lin)                 (nworld, nv, 6)
+      body_vel: com-based velocity (rot:lin)                          (nworld, nbody, 6)
+      body_acc: Cartesian body velocity in body frame (ang, vel)      (nworld, nbody, 6)
 
       xfrc_drag: drag Cartesian force/torque on body              (nworld, nbody, 6)
 
@@ -773,21 +738,17 @@ class Data:
     integrator_dot_scratch: list[IntegratorDotScratch]  # for higher order integrators
     qvel_buffer: wp.array2d(dtype=float)
 
-    xpos: wp.array2d(dtype=wp.vec3)
-    xquat: wp.array2d(dtype=wp.quat)
-    xipos: wp.array2d(dtype=wp.vec3)
-    ximat: wp.array2d(dtype=wp.mat33)
-    xanchor: wp.array2d(dtype=wp.vec3)
-    xaxis: wp.array3d(dtype=wp.quat)
-    jnt_rot: wp.array2d(dtype=wp.quat)
+    body_X: wp.array2d(dtype=wp.transform)
+    body_X_com: wp.array2d(dtype=wp.transform)
+    body_vel: wp.array2d(dtype=wp.spatial_vector)
+    body_acc: wp.array2d(dtype=wp.spatial_vector)
+    body_f_s: wp.array2d(dtype=wp.spatial_vector)
+    body_I_s: wp.array2d(dtype=wp.spatial_matrix)
 
-    geom_xpos: wp.array2d(dtype=wp.vec3)
-    geom_xquat: wp.array2d(dtype=wp.quat)
-    geom_xmat: wp.array2d(dtype=wp.mat33)
+    geom_X: wp.array2d(dtype=wp.transform)
     geom_cforce: wp.array2d(dtype=float)
 
-    vis_xpos: wp.array2d(dtype=wp.vec3)
-    vis_xquat: wp.array2d(dtype=wp.quat)
+    vis_X: wp.array2d(dtype=wp.transform)
 
     site_rpos: wp.array2d(dtype=wp.vec3)
     site_xpos: wp.array2d(dtype=wp.vec3)
@@ -802,6 +763,7 @@ class Data:
     site_diff_len: wp.array2d(dtype=float)
     site_diff_vel: wp.array2d(dtype=float)
 
+    subtree_mass: wp.array2d(dtype=float)
     subtree_com: wp.array2d(dtype=wp.vec3)
     cdof: wp.array2d(dtype=wp.spatial_vector)
     cdof_tmp: wp.array3d(dtype=wp.spatial_vector)
@@ -820,11 +782,6 @@ class Data:
     muscle_length_info: wp.array2d(dtype=MuscleLengthInfo)
     muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
-
-    cvel: wp.array2d(dtype=wp.spatial_vector)
-    xvel: wp.array2d(dtype=wp.spatial_vector)
-    xivel: wp.array2d(dtype=wp.spatial_vector)
-    cdof_dot: wp.array2d(dtype=wp.spatial_vector)
 
     xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
     xfrc_muscle: wp.array2d(dtype=wp.spatial_vector)
@@ -848,11 +805,6 @@ class Data:
     subtree_angmom: wp.array2d(dtype=wp.vec3)
 
     qfrc_smooth: wp.array2d(dtype=float)
-    qfrc_constraint: wp.array2d(dtype=float)
-    qfrc_inverse: wp.array2d(dtype=float)
-    cacc: wp.array2d(dtype=wp.spatial_vector)
-    cfrc_int: wp.array2d(dtype=wp.spatial_vector)
-    cfrc_ext: wp.array2d(dtype=wp.spatial_vector)
     contact: Contact
 
     #

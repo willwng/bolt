@@ -1,4 +1,5 @@
 # Copyright 2025 The Newton Developers
+# Modified for MSKWarp by Will Wang
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,6 +28,14 @@ def sqr(x: float) -> float:
 
 
 @wp.func
+def quat_from_xyz(q0: float, q1: float, q2: float) -> wp.quat:
+    qloc0 = wp.quat_from_axis_angle(wp.vec3(1.0, 0.0, 0.0), q0)
+    qloc1 = wp.quat_from_axis_angle(wp.vec3(0.0, 1.0, 0.0), q1)
+    qloc2 = wp.quat_from_axis_angle(wp.vec3(0.0, 0.0, 1.0), q2)
+    return qloc0 * qloc1 * qloc2
+
+
+@wp.func
 def max_err(x: float, y: float) -> float:
     """Returns the maximum of x and y, treating NaN and Inf as higher priority than any number."""
     if wp.isnan(x) or wp.isnan(y):
@@ -47,46 +56,60 @@ def quat_normalize_in_place(q: wp.array(dtype=float), adr: int):
 
 
 @wp.func
-def inert_vec(i: types.vec10, v: wp.spatial_vector) -> wp.spatial_vector:
-    """mju_mulInertVec: multiply 6D vector (rotation, translation) by 6D inertia matrix."""
-    return wp.spatial_vector(
-        i[0] * v[0] + i[3] * v[1] + i[4] * v[2] - i[8] * v[4] + i[7] * v[5],
-        i[3] * v[0] + i[1] * v[1] + i[5] * v[2] + i[8] * v[3] - i[6] * v[5],
-        i[4] * v[0] + i[5] * v[1] + i[2] * v[2] - i[7] * v[3] + i[6] * v[4],
-        i[8] * v[1] - i[7] * v[2] + i[9] * v[3],
-        i[6] * v[2] - i[8] * v[0] + i[9] * v[4],
-        i[7] * v[0] - i[6] * v[1] + i[9] * v[5],
+def transform_twist(t: wp.transform, x: wp.spatial_vector) -> wp.spatial_vector:
+    """Transform a spatial twist between coordinate frames.
+
+    For transform ``t = (R, p)`` and twist ``x = (w, v)``, the mapped twist is:
+
+    .. math::
+       w' = R w,\\quad v' = R v + p \\times w'
+
+    Args:
+        t: Rigid transform from source frame to destination frame.
+        x: Spatial twist ``(angular, linear)`` expressed in the source frame.
+
+    Returns:
+        wp.spatial_vector: Twist expressed in the destination frame.
+    """
+
+    q = wp.transform_get_rotation(t)
+    p = wp.transform_get_translation(t)
+
+    w = wp.spatial_top(x)
+    v = wp.spatial_bottom(x)
+
+    w = wp.quat_rotate(q, w)
+    v = wp.quat_rotate(q, v) + wp.cross(p, w)
+
+    return wp.spatial_vector(w, v)
+
+@wp.func
+def transform_spatial_inertia(t: wp.transform, I: wp.spatial_matrix):
+    """
+    Transform a spatial inertia tensor to a new coordinate frame.
+    """
+    t_inv = wp.transform_inverse(t)
+
+    q = wp.transform_get_rotation(t_inv)
+    p = wp.transform_get_translation(t_inv)
+
+    r1 = wp.quat_rotate(q, wp.vec3(1.0, 0.0, 0.0))
+    r2 = wp.quat_rotate(q, wp.vec3(0.0, 1.0, 0.0))
+    r3 = wp.quat_rotate(q, wp.vec3(0.0, 0.0, 1.0))
+
+    R = wp.matrix_from_cols(r1, r2, r3)
+    S = wp.skew(p) @ R
+
+    T = wp.spatial_matrix(
+        R[0, 0], R[0, 1], R[0, 2], 0.0,     0.0,     0.0,
+        R[1, 0], R[1, 1], R[1, 2], 0.0,     0.0,     0.0,
+        R[2, 0], R[2, 1], R[2, 2], 0.0,     0.0,     0.0,
+        S[0, 0], S[0, 1], S[0, 2], R[0, 0], R[0, 1], R[0, 2],
+        S[1, 0], S[1, 1], S[1, 2], R[1, 0], R[1, 1], R[1, 2],
+        S[2, 0], S[2, 1], S[2, 2], R[2, 0], R[2, 1], R[2, 2],
     )
 
-
-@wp.func
-def motion_cross(u: wp.spatial_vector, v: wp.spatial_vector) -> wp.spatial_vector:
-    """Cross product of two motions."""
-    u0 = wp.vec3(u[0], u[1], u[2])
-    u1 = wp.vec3(u[3], u[4], u[5])
-    v0 = wp.vec3(v[0], v[1], v[2])
-    v1 = wp.vec3(v[3], v[4], v[5])
-
-    ang = wp.cross(u0, v0)
-    vel = wp.cross(u1, v0) + wp.cross(u0, v1)
-
-    return wp.spatial_vector(ang, vel)
-
-
-@wp.func
-def motion_cross_force(v: wp.spatial_vector,
-                       f: wp.spatial_vector) -> wp.spatial_vector:
-    """Cross product of a motion and a force."""
-    v0 = wp.vec3(v[0], v[1], v[2])
-    v1 = wp.vec3(v[3], v[4], v[5])
-    f0 = wp.vec3(f[0], f[1], f[2])
-    f1 = wp.vec3(f[3], f[4], f[5])
-
-    ang = wp.cross(v0, f0) + wp.cross(v1, f1)
-    vel = wp.cross(v0, f1)
-
-    return wp.spatial_vector(ang, vel)
-
+    return wp.mul(wp.mul(wp.transpose(T), I), T)
 
 @wp.func
 def orthogonals(a: wp.vec3):

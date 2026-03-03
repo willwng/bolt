@@ -1,4 +1,5 @@
 # Copyright 2025 The Newton Developers
+# Modified for MSKWarp by Will Wang
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -232,8 +233,7 @@ def _broadphase_filter(m: Model):
             geom_aabb: wp.array2d(dtype=wp.vec3),
             geom_rbound: wp.array(dtype=float),
             # Data in:
-            geom_xpos_in: wp.array2d(dtype=wp.vec3),
-            geom_xmat_in: wp.array2d(dtype=wp.mat33),
+            geom_X: wp.array2d(dtype=wp.transform),
             # In:
             geom1: int,
             geom2: int,
@@ -251,8 +251,10 @@ def _broadphase_filter(m: Model):
         # Bounding sphere
         rbound1, rbound2 = geom_rbound[geom1], geom_rbound[geom2]
 
-        xpos1, xpos2 = geom_xpos_in[worldid, geom1], geom_xpos_in[worldid, geom2]
-        xmat1, xmat2 = geom_xmat_in[worldid, geom1], geom_xmat_in[worldid, geom2]
+        geom_X1, geom_X2 = geom_X[worldid, geom1], geom_X[worldid, geom2]
+        xpos1, xpos2 = wp.transform_get_translation(geom_X1), wp.transform_get_translation(geom_X2)
+        xquat1, xquat2 = wp.transform_get_rotation(geom_X1), wp.transform_get_rotation(geom_X2)
+        xmat1, xmat2 = wp.quat_to_matrix(xquat1), wp.quat_to_matrix(xquat2)
 
         if rbound1 == 0.0 or rbound2 == 0.0:
             return _plane_filter(rbound1, rbound2, xpos1,
@@ -322,8 +324,7 @@ def _nxn_broadphase(broadphase_filter):
             # Data in:
             integration_done_in: wp.array(dtype=bool),
             naconmax_in: int,
-            geom_xpos_in: wp.array2d(dtype=wp.vec3),
-            geom_xmat_in: wp.array2d(dtype=wp.mat33),
+            geom_X_in: wp.array2d(dtype=wp.transform),
             # Data out:
             collision_pair_out: wp.array(dtype=wp.vec2i),
             collision_pairid_out: wp.array(dtype=wp.vec2i),
@@ -338,9 +339,7 @@ def _nxn_broadphase(broadphase_filter):
         geom1 = geom[0]
         geom2 = geom[1]
 
-        if (broadphase_filter(
-                geom_aabb, geom_rbound, geom_xpos_in,
-                geom_xmat_in, geom1, geom2, worldid)
+        if (broadphase_filter(geom_aabb, geom_rbound, geom_X_in, geom1, geom2, worldid)
                 or nxn_pairid[elementid][1] >= 0):
             _add_geom_pair(
                 geom_type,
@@ -385,8 +384,7 @@ def nxn_broadphase(m: Model, d: Data):
             m.nxn_pairid_filtered,
             d.integration_done,
             d.naconmax,
-            d.geom_xpos,
-            d.geom_xmat,
+            d.geom_X,
         ],
         outputs=[
             d.collision_pair,

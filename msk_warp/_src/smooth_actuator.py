@@ -66,7 +66,7 @@ def compute_act_dot(m: Model, d: Data):
 
 
 @event_scope
-def apply_actuator_force(m: Model, d: Data):
+def actuator_force(m: Model, d: Data):
     wp.launch(
         _qfrc_actuators,
         dim=(d.nworld, m.nactuator),
