@@ -333,7 +333,7 @@
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="torso_offset">
 							<socket_parent>/bodyset/torso</socket_parent>
-							<translation>0 0.25 0</translation>
+							<translation>0 -0.25 0</translation>
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
@@ -371,7 +371,7 @@
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="femur_l_offset">
 							<socket_parent>/bodyset/femur_l</socket_parent>
-							<translation>0 -0.17 0</translation>
+							<translation>0 0.17 0</translation>
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
@@ -410,7 +410,7 @@
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="tibia_l_offset">
 							<socket_parent>/bodyset/tibia_l</socket_parent>
-							<translation>0 -0.1867 0</translation>
+							<translation>0 0.1867 0</translation>
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
@@ -448,7 +448,7 @@
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="talus_l_offset">
 							<socket_parent>/bodyset/talus_l</socket_parent>
-							<translation>0.05123 -0.01195 0.0</translation>
+							<translation>-0.05123 0.01195 0.0</translation>
 							<orientation>0 0 0 </orientation>
 						</PhysicalOffsetFrame>
 					</frames>
@@ -486,7 +486,7 @@
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="femur_r_offset">
 							<socket_parent>/bodyset/femur_r</socket_parent>
-							<translation>0 -0.17 0</translation>
+							<translation>0 0.17 0</translation>
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
@@ -525,7 +525,7 @@
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="tibia_r_offset">
 							<socket_parent>/bodyset/tibia_r</socket_parent>
-							<translation>0 -0.1867 0</translation>
+							<translation>0 0.1867 0</translation>
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
@@ -563,7 +563,7 @@
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="talus_r_offset">
 							<socket_parent>/bodyset/talus_r</socket_parent>
-							<translation>0.05123 -0.01195 0.0</translation>
+							<translation>-0.05123 0.01195 0.0</translation>
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
 					</frames>

@@ -42,10 +42,11 @@ def main():
 
     # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
     model_path = "data/osim/upper_spine.osim"
+    # model_path = "data/osim/example_gait3d_pin.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       integrator=msk_warp.types.IntegratorType.EULER_FIXED,
                                       polynomial_data_path="data/muscle_poly_info.json",
-                                      root_free=False)
+                                      root_free=True)
     m, d = load_result.model, load_result.data
     m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
     m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
@@ -75,7 +76,7 @@ def main():
             load_result=load_result,
             renderer_type=RendererType.OPENGL,
             draw_visuals=True,
-            draw_colliders=False,
+            draw_colliders=True,
             draw_muscles=True
         )
         if viewer.viewer_type == RendererType.TILED:

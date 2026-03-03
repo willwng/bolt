@@ -123,7 +123,7 @@ def load_model(
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
 
     if root_free:
-        qpos0[0:3] = [0.0, 1.25, 0.0]  # Root pos
+        qpos0[0:3] = [0.0, 1.5, 0.0]  # Root pos
         qpos0[6] = 1  # root quat
 
     qvel0 = [0.0] * nv  # Placeholder for initial velocities

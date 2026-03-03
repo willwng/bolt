@@ -151,15 +151,28 @@ def upper_trid_index(n: int, i: int, j: int) -> int:
 
 @wp.func
 def calc_unnormalized_quaternion_N(q: wp.quat) -> types.mat43:
-    """ N*u = q_dot """
+    """ N*u = q_dot. See https://arxiv.org/pdf/0811.2889 """
     e = q / 2.0
     e0, e1, e2, e3 = e.w, e.x, e.y, e.z
     ne1, ne2, ne3 = -e1, -e2, -e3
     return types.mat43(
-        ne1, ne2, ne3,
-        e0, e3, ne2,
-        ne3, e0, e1,
-        e2, ne1, e0
+        e0, ne3, e2,
+        e3, e0, ne1,
+        ne2, e1, e0,
+        ne1, ne2, ne3
+    )
+
+
+@wp.func
+def calc_unnormalized_quaternion_N_inv(q: wp.quat) -> types.mat34:
+    """ N_inv*q_dot = u """
+    e = 2.0 * q
+    e0, e1, e2, e3 = e.w, e.x, e.y, e.z
+    ne1, ne2, ne3 = -e1, -e2, -e3
+    return types.mat34(
+        e0, e3, ne2, ne1,
+        ne3, e0, e1, ne2,
+        ne1, e2, e0, ne3,
     )
 
 
@@ -178,16 +191,3 @@ def mul_body_xyz_N_inv(cosxy: wp.vec2, sinxy: wp.vec2, qdot: wp.vec3) -> wp.vec3
     q0, q1, q2 = qdot[0], qdot[1], qdot[2]
     c1q2 = c1 * q2
     return wp.vec3(q0 + s1 * q2, c0 * q1 - s0 * c1q2, s0 * q1 + c0 * c1q2)
-
-
-@wp.func
-def calc_unnormalized_quaternion_N_inv(q: wp.quat) -> types.mat34:
-    """ N*u = q_dot """
-    e = 2.0 * q
-    e0, e1, e2, e3 = e.w, e.x, e.y, e.z
-    ne1, ne2, ne3 = -e1, -e2, -e3
-    return types.mat34(
-        ne1, e0, ne3, e2,
-        ne2, e3, e0, ne1,
-        ne3, ne2, e1, e0
-    )

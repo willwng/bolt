@@ -642,7 +642,6 @@ class Data:
       m_excitations: muscle excitations                            (nworld, nmuscles)
       m_state_dot: time-derivative of muscle state variable        (nworld, nmuscles)
 
-      qacc_warmstart: acceleration used for warmstart             (nworld, nv)
       qfrc_applied: applied generalized force                     (nworld, nv)
       xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
       grf: ground reaction force                                  (nworld, 6)
