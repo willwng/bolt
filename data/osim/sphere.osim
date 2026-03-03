@@ -347,7 +347,7 @@
 					<!--Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).-->
 					<orientation>0 0 0</orientation>
 					<!--Radius of the sphere (default: 0).-->
-					<radius>0.80</radius>
+					<radius>0.10</radius>
 				</ContactSphere>
 			</objects>
 			<groups />

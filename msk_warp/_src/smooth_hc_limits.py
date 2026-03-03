@@ -40,6 +40,8 @@ def _process_joint_limits(
     else:
         force = wp.max(-limit_forces[0] * (qpos - dof_range[0]) * (1.0 - shape_factors[0] * qvel), 0.0)
 
+    # wp.printf("dof %d is %f, range is [%f, %f], force is %f\n", dof_qadr, qpos, dof_range[0], dof_range[1], force)
+
     wp.atomic_add(qfrc_limit_out, worldid, dof_adr, force)
 
 

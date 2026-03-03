@@ -106,20 +106,11 @@ def _compute_path_kernel(
         muscle_num_active: wp.array2d(dtype=int),
         site_diff_len_out: wp.array2d(dtype=float),
         site_diff_vel_out: wp.array2d(dtype=float),
-        muscle_length_in: wp.array2d(dtype=float),
-        muscle_velocity_in: wp.array2d(dtype=float),
         # Data out:
         muscle_length_out: wp.array2d(dtype=float),
         muscle_velocity_out: wp.array2d(dtype=float),
-        muscle_length_prev_out: wp.array2d(dtype=float),
-        muscle_velocity_prev_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
-    # Store previous values
-    muscle_length_prev_out[worldid, muscle_id] = muscle_length_in[
-        worldid, muscle_id]
-    muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[
-        worldid, muscle_id]
 
     # Compute current length and velocity
     muscle_length_out[worldid, muscle_id] = 0.0
@@ -226,11 +217,9 @@ def muscle_path(m: Model, d: Data):
     wp.launch(
         _compute_path_kernel,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_pts_adr, d.muscle_num_active,
-                d.site_diff_len, d.site_diff_vel,
-                d.muscle_length, d.muscle_velocity],
-        outputs=[d.muscle_length, d.muscle_velocity,
-                 d.muscle_length_prev, d.muscle_velocity_prev],
+        inputs=[m.muscle_pts_adr, d.muscle_num_active, d.site_diff_len, d.site_diff_vel],
+        outputs=[d.muscle_length, d.muscle_velocity],
+
     )
 
 

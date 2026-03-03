@@ -231,24 +231,7 @@ def _spring_jnt_passive(
     if jnttype == JointType.FREE:  # no spring forces on free joints
         return
     elif jnttype == JointType.BALL:  # quaternion target
-        if has_stiffness:
-            rot = wp.quat(
-                qpos_in[worldid, qposid + 0],
-                qpos_in[worldid, qposid + 1],
-                qpos_in[worldid, qposid + 2],
-                qpos_in[worldid, qposid + 3],
-            )
-            rot = wp.normalize(rot)
-            ref = wp.quat(
-                qpos_spring[qposid + 0],
-                qpos_spring[qposid + 1],
-                qpos_spring[qposid + 2],
-                qpos_spring[qposid + 3],
-            )
-            dif = math.quat_sub(rot, ref)
-            qfrc_spring_out[worldid, dofid + 0] = -stiffness * dif[0]
-            qfrc_spring_out[worldid, dofid + 1] = -stiffness * dif[1]
-            qfrc_spring_out[worldid, dofid + 2] = -stiffness * dif[2]
+        return # todo!
     else:
         if has_stiffness:
             for i in range(jnt_dofnum[jntid]):

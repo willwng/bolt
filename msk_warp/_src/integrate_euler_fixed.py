@@ -1,6 +1,7 @@
 import warp as wp
 
 from . import forward
+from . import support
 from . import integrate_common
 from .types import Data
 from .types import Model
@@ -55,11 +56,12 @@ def euler(m: Model, d: Data, scale: float):
     Euler integrator, semi-implicit in velocity.
     Requires state derivative is set already
     """
+    support.mul_m(m, d, d.Ma, d.qacc)
     for tile in m.qM_tiles:
         wp.launch_tiled(
             _tile_euler_dense(tile),
             dim=(d.nworld, tile.adr.size),
-            inputs=[m.dof_damping, d.actual_step_size, d.qM, d.efc.Ma, tile.adr, scale],
+            inputs=[m.dof_damping, d.actual_step_size, d.qM, d.Ma, tile.adr, scale],
             outputs=[d.qacc_euler],
             block_dim=m.block_dim.euler_dense,
         )

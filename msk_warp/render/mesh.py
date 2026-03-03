@@ -17,6 +17,8 @@ def load_mesh(mesh_file: str):
      # Load mesh
     if file_path.endswith(".vtp"):
         mesh = pv.read(file_path)
+    elif file_path.endswith(".obj"):
+        mesh = pv.read(file_path)
     else:
         raise ValueError("Unsupported file type: expected .vtp")
 

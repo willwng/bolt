@@ -3,71 +3,26 @@ import enum
 
 import warp as wp
 
-TILE_SIZE_JTDAJ_DENSE = 16
-TILE_SIZE_SITE = 256
-
 
 @dataclasses.dataclass
 class BlockDim:
     """Block dimension 'block_dim' settings for wp.launch_tiled. """
 
-    # collision_driver
-    segmented_sort: int = 128
-    # forward
-    euler_dense: int = 32
-    actuator_velocity: int = 32
-    site_diffs: int = 128
-
+    # Variable-step integration
     adjust_scales: int = 16
     error_step: int = 16
     restore_state: int = 16
 
-    # ray
-    ray: int = 64
-    # sensor
-    contact_sort: int = 64
-    energy_vel_kinetic: int = 32
     # smooth
     cholesky_factorize: int = 32
     cholesky_solve: int = 32
     cholesky_factorize_solve: int = 32
-    # solver
-    update_gradient_cholesky: int = 64
-    update_gradient_cholesky_blocked: int = 32
-    update_gradient_JTDAJ_sparse: int = 64
-    update_gradient_JTDAJ_dense: int = 96
+
     # support
     mul_m_dense: int = 32
 
-
-class BroadphaseType(enum.IntEnum):
-    """Type of broadphase algorithm.
-
-    Attributes:
-       NXN: Broad phase checking all pairs
-       SAP_TILE: Sweep and prune broad phase using tile sort
-       SAP_SEGMENTED: Sweep and prune broad phase using segment sort
-    """
-
-    NXN = 0
-    SAP_TILE = 1
-    SAP_SEGMENTED = 2
-
-
-class BroadphaseFilter(enum.IntFlag):
-    """Bitmask specifying which collision functions to run during broadphase.
-
-    Attributes:
-      PLANE: collision between bounding sphere and plane
-      SPHERE: collision between bounding spheres
-      AABB: collision between axis-aligned bounding boxes
-      OBB: collision between oriented bounding boxes
-    """
-
-    PLANE = 1
-    SPHERE = 2
-    AABB = 4
-    OBB = 8
+    # euler
+    euler_dense: int = 32
 
 
 class JointType(enum.IntEnum):
@@ -122,54 +77,6 @@ class GeomType(enum.IntEnum):
     CYLINDER = 5
     BOX = 6
     MESH = 7
-
-
-class ConstraintState(enum.IntEnum):
-    """State of constraint.
-
-    Attributes:
-      SATISFIED: constraint satisfied, zero cost (limit, contact)
-      QUADRATIC: quadratic cost (equality, friction, limit, contact)
-      LINEARNEG: linear cost, negative side (friction)
-      LINEARPOS: linear cost, positive side (friction)
-      CONE: square distance to cone cost (elliptic contact)
-    """
-
-    SATISFIED = 0
-    QUADRATIC = 1
-    LINEARNEG = 2
-    LINEARPOS = 3
-    CONE = 4
-
-
-class ConstraintType(enum.IntEnum):
-    """Type of constraint.
-
-    Attributes:
-      LIMIT_JOINT: joint limit
-      CONTACT_FRICTIONLESS: frictionless contact
-      CONTACT_ELLIPTIC: frictional contact, elliptic friction cone
-    """
-
-    LIMIT_JOINT = 0
-    CONTACT_FRICTIONLESS = 1
-    CONTACT_ELLIPTIC = 2
-
-
-class EqType(enum.IntEnum):
-    """Type of equality constraint.
-
-    Attributes:
-      CONNECT: connect two bodies at a point (ball joint)
-      JOINT: couple the values of two scalar joints with cubic
-      WELD: fix relative position and orientation of two bodies
-      TENDON: couple the lengths of two tendons with cubic
-    """
-
-    CONNECT = 0
-    WELD = 1
-    JOINT = 2
-    TENDON = 3
 
 
 class CustomFnType(enum.IntEnum):
@@ -237,39 +144,22 @@ def array(*args) -> wp.array:
     return arr
 
 
-class SolverType(enum.IntEnum):
-    """Constraint solver algorithm.
-
-    Attributes:
-      CG: Conjugate gradient (primal)
-      NEWTON: Newton (primal)
-    """
-
-    CG = 1
-    NEWTON = 2
-
-
 class ContactType(enum.IntEnum):
     """ Contact model type.
     Attributes:
-        MUJOCO: MuJoCo contact model (constraint-based)
         HUNT_CROSSLEY: Hunt-Crossley contact model (force-based)
     """
-    MUJOCO = 1
-    HUNT_CROSSLEY = 2
-    HUNT_CROSSLEY_SMOOTH = 3
+    HUNT_CROSSLEY = 1
 
 
 class LimitType(enum.IntEnum):
     """ Contact model type.
     Attributes:
-        MUJOCO: MuJoCo limit model (constraint-based)
         EXPONENTIAL: Exponential Spring Function
         HUNT_CROSSLEY: Hunt-Crossley-like limit model
     """
-    MUJOCO = 1
-    EXPONENTIAL = 2
-    HUNT_CROSSLEY = 3
+    EXPONENTIAL = 1
+    HUNT_CROSSLEY = 2
 
 
 class ActivationType(enum.IntEnum):
@@ -315,18 +205,7 @@ class Option:
     """Physics options.
 
     Attributes:
-      impratio: ratio of friction-to-normal contact impedance
-      tolerance: main solver tolerance
-      ls_tolerance: CG/Newton linesearch tolerance
-      ccd_tolerance: convex collision detection tolerance
       gravity: gravitational acceleration
-      solver: solver algorithm (SolverType)
-      iterations: number of main solver iterations
-      ls_iterations: maximum number of CG/Newton linesearch iterations
-      ccd_iterations: number of iterations in convex collision detection
-      warm_start: flag to enable warm starting of solver
-
-      muscle_dyn_substeps: number of substeps to take for muscle dynamics. 0 = no substeps but still integrate
       use_fn_path: flag to use muscle path functions
 
     variable-step size integrator:
@@ -336,34 +215,15 @@ class Option:
       hysteresis_low:
       hysteresis_high:
       accuracy:
-
-    warp only fields:
-      ls_parallel: evaluate engine solver step sizes in parallel
-      ls_parallel_min_step: minimum step size for solver linesearch
-      graph_conditional: flag to use cuda graph conditional
-      run_collision_detection: if False, skips collision detection and allows user-populated
-        contacts during the physics step (as opposed to DisableBit.CONTACT which explicitly
-        zeros out the contacts at each step)
     """
 
-    impratio: float
-    tolerance: float
-    ls_tolerance: float
-    ccd_tolerance: float
     gravity: float
-    solver: SolverType
     contact_type: ContactType
     limit_type: LimitType
     activation_type: ActivationType
     integrator: IntegratorType
-    iterations: int
-    ls_iterations: int
-    ccd_iterations: int
-    warm_start: bool
 
     enable_drag: bool
-
-    muscle_dyn_substeps: int
     use_fn_path: bool
     metabolic_options: MetabolicOptions
 
@@ -377,13 +237,6 @@ class Option:
 
     qvel_weights: wp.array(dtype=float)
     z_weights: wp.array(dtype=float)
-
-    solref: wp.vec2
-    solimp: vec5
-
-    ls_parallel: bool
-    ls_parallel_min_step: float
-    graph_conditional: bool
 
     visuals: bool
 
@@ -489,79 +342,6 @@ class MuscleDynamicsInfo:
 class MeshLoadResult:
     file: str
     scale: list[float]
-
-
-@dataclasses.dataclass
-class Constraint:
-    """Constraint data.
-
-    Attributes:
-      type: constraint type (ConstraintType)            (nworld, njmax)
-      id: id of object of specific type                 (nworld, njmax)
-      J: constraint Jacobian                            (nworld, njmax, nv)
-      pos: constraint position (equality, contact)      (nworld, njmax)
-      margin: inclusion margin (contact)                (nworld, njmax)
-      D: constraint mass                                (nworld, njmax)
-      vel: velocity in constraint space: J*qvel         (nworld, njmax)
-      aref: reference pseudo-acceleration               (nworld, njmax)
-      frictionloss: frictionloss (friction)             (nworld, njmax)
-      force: constraint force in constraint space       (nworld, njmax)
-      Jaref: Jac*qacc - aref                            (nworld, njmax)
-      Ma: M*qacc                                        (nworld, nv)
-      grad: gradient of master cost                     (nworld, nv)
-      grad_dot: dot(grad, grad)                         (nworld,)
-      Mgrad: M / grad                                   (nworld, nv)
-      search: linesearch vector                         (nworld, nv)
-      search_dot: dot(search, search)                   (nworld,)
-      gauss: Gauss Cost                                 (nworld,)
-      cost: constraint + Gauss cost                     (nworld,)
-      prev_cost: cost from previous iter                (nworld,)
-      state: constraint state                           (nworld, njmax)
-      mv: qM @ search                                   (nworld, nv)
-      jv: efc_J @ search                                (nworld, njmax)
-      quad: quadratic cost coefficients                 (nworld, njmax, 3)
-      quad_gauss: quadratic cost Gauss coefficients     (nworld, 3)
-      h: Hessian                                        (nworld, nv, nv)
-      alpha: line search step size                      (nworld,)
-      prev_grad: previous grad                          (nworld, nv)
-      prev_Mgrad: previous Mgrad                        (nworld, nv)
-      beta: Polak-Ribiere beta                          (nworld,)
-      done: solver done                                 (nworld,)
-    """
-
-    type: array("nworld", "njmax", int)
-    id: array("nworld", "njmax", int)
-    J: array("nworld", "njmax_pad", "nv", float)
-    pos: array("nworld", "njmax", float)
-    margin: array("nworld", "njmax", float)
-    D: array("nworld", "njmax_pad", float)
-    vel: array("nworld", "njmax", float)
-    aref: array("nworld", "njmax", float)
-    frictionloss: array("nworld", "njmax", float)
-    force: array("nworld", "njmax", float)
-    Jaref: array("nworld", "njmax", float)
-    Ma: array("nworld", "nv", float)
-    grad: array("nworld", "nv", float)
-    cholesky_L_tmp: array("nworld", "nv", "nv", float)
-    cholesky_y_tmp: array("nworld", "nv", "nv", float)
-    grad_dot: array("nworld", float)
-    Mgrad: array("nworld", "nv", float)
-    search: array("nworld", "nv", float)
-    search_dot: array("nworld", float)
-    gauss: array("nworld", float)
-    cost: array("nworld", float)
-    prev_cost: array("nworld", float)
-    state: array("nworld", "njmax_pad", int)
-    mv: array("nworld", "nv", float)
-    jv: array("nworld", "njmax", float)
-    quad: array("nworld", "njmax", wp.vec3)
-    quad_gauss: array("nworld", wp.vec3)
-    h: array("nworld", "nv", "nv", float)
-    alpha: array("nworld", float)
-    prev_grad: array("nworld", "nv", float)
-    prev_Mgrad: array("nworld", "nv", float)
-    beta: array("nworld", float)
-    done: array("nworld", bool)
 
 
 @dataclasses.dataclass
@@ -672,9 +452,6 @@ class Model:
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
 
-      mean_inertia: mean diagonal inertia                      ()
-      body_invweight0: mean inv inert in qpos0 (trn, rot)      (nbody, 2)
-      dof_invweight0: diag. inverse inertia in qpos0           (nv)
     """
 
     nbody: int
@@ -789,15 +566,8 @@ class Model:
     muscle_dep_dof_num: array("nmuscle", int)
     muscle_dep_dof_adr: array("nmuscle", int)
 
-    # To be computed at model creation
-    mean_inertia: float
-    body_invweight0: wp.array(dtype=wp.vec2)
-    dof_invweight0: wp.array(dtype=float)
-
     qM_tiles: tuple[TileSet, ...]
     block_dim: BlockDim
-    dof_tri_row: wp.array(dtype=int)
-    dof_tri_col: wp.array(dtype=int)
 
 
 @dataclasses.dataclass
@@ -815,11 +585,7 @@ class Contact:
       dissipation: contact dissipation                                 (naconmax,)
       transition_velocity: contact transition velocity                 (naconmax,)
       geom: geom ids; -1 for flex                                      (naconmax, 2)
-      efc_address: address in efc; -1: not included                    (naconmax, ncondim)
       worldid: world id                                                (naconmax,)
-      geomcollisionid: i-th contact generated for geom                 (naconmax,)
-                       helps uniquely identity contact when multiple
-                       contacts are generated for geom pair
     """
 
     dist: wp.array(dtype=float)
@@ -832,9 +598,7 @@ class Contact:
     dissipation: wp.array(dtype=float)
     transition_velocity: wp.array(dtype=float)
     geom: wp.array(dtype=wp.vec2i)
-    efc_address: wp.array2d(dtype=int)
     worldid: wp.array(dtype=int)
-    geomcollisionid: wp.array(dtype=int)
 
 
 @dataclasses.dataclass
@@ -863,10 +627,6 @@ class Data:
     Attributes:
       world_reset: whether to reset the world                     (nworld,)
 
-      solver_niter: number of solver iterations                   (nworld,)
-      nl: number of limit constraints                             (nworld,)
-      nefc: number of constraints                                 (nworld,)
-
       time: simulation time                                       (nworld,)
       next_time: final target time for integrator (tMax)          (nworld,)
 
@@ -890,7 +650,6 @@ class Data:
 
       xpos: Cartesian position of body frame                      (nworld, nbody, 3)
       xquat: Cartesian orientation of body frame                  (nworld, nbody, 4)
-      xmat: Cartesian orientation of body frame                   (nworld, nbody, 3, 3)
       xipos: Cartesian position of body com                       (nworld, nbody, 3)
       ximat: Cartesian orientation of body inertia                (nworld, nbody, 3, 3)
       xanchor: Cartesian position of joint anchor                 (nworld, njnt, 3)
@@ -929,10 +688,6 @@ class Data:
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
       muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
 
-      * for substepping muscle dynamics *
-      muscle_length_prev: previous muscle lengths                 (nworld, nmuscle)
-      muscle_velocity_prev: previous muscle velocities            (nworld, nmuscle)
-
       cvel: com-based velocity (rot:lin)                          (nworld, nbody, 6)
       xvel: Cartesian body velocity in body frame (ang, vel)      (nworld, nbody, 6)
       xivel: Cartesian body velocity in body-com frame            (nworld, nbody, 6)
@@ -963,7 +718,6 @@ class Data:
       contact: contact data
       efc: constraint data
 
-      dof_lim_efc_address: dof limit efc adr. -1: not limited     (nworld, ndoflimit)
       dof_lim_torque: computed dof limit torque                   (nworld, ndoflimit)
 
     warp only fields:
@@ -975,12 +729,6 @@ class Data:
       subtree_bodyvel: subtree body velocity (ang, vel)           (nworld, nbody, 6)
     """
     world_reset: array("nworld", bool)
-
-    solver_niter: wp.array(dtype=int)
-    nl: wp.array(dtype=int)
-    nefc: wp.array(dtype=int)
-    needs_solve: wp.array(dtype=bool)
-
     time: wp.array(dtype=float)
     next_time: wp.array(dtype=float)
 
@@ -1013,6 +761,7 @@ class Data:
     m_state: wp.array2d(dtype=float)
 
     qacc: wp.array2d(dtype=float)
+    Ma: wp.array2d(dtype=float)
     qacc_euler: wp.array2d(dtype=float)
     m_act_dot: wp.array2d(dtype=float)
     a_act_dot: wp.array2d(dtype=float)
@@ -1025,11 +774,8 @@ class Data:
     integrator_dot_scratch: list[IntegratorDotScratch]  # for higher order integrators
     qvel_buffer: wp.array2d(dtype=float)
 
-    qacc_warmstart: wp.array2d(dtype=float)
-
     xpos: wp.array2d(dtype=wp.vec3)
     xquat: wp.array2d(dtype=wp.quat)
-    xmat: wp.array2d(dtype=wp.mat33)
     xipos: wp.array2d(dtype=wp.vec3)
     ximat: wp.array2d(dtype=wp.mat33)
     xanchor: wp.array2d(dtype=wp.vec3)
@@ -1072,9 +818,6 @@ class Data:
     muscle_actuation: wp.array2d(dtype=float)
     muscle_metabolic: wp.array2d(dtype=float)
 
-    muscle_length_prev: wp.array2d(dtype=float)
-    muscle_velocity_prev: wp.array2d(dtype=float)
-
     muscle_length_info: wp.array2d(dtype=MuscleLengthInfo)
     muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
@@ -1106,16 +849,12 @@ class Data:
     subtree_angmom: wp.array2d(dtype=wp.vec3)
 
     qfrc_smooth: wp.array2d(dtype=float)
-    qacc_smooth: wp.array2d(dtype=float)
     qfrc_constraint: wp.array2d(dtype=float)
     qfrc_inverse: wp.array2d(dtype=float)
     cacc: wp.array2d(dtype=wp.spatial_vector)
     cfrc_int: wp.array2d(dtype=wp.spatial_vector)
     cfrc_ext: wp.array2d(dtype=wp.spatial_vector)
     contact: Contact
-    efc: Constraint
-
-    dof_lim_efc_address: wp.array2d(dtype=int)
 
     #
     nworld: int

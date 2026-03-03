@@ -120,12 +120,13 @@ def load_model(
     nvis = num_visuals(osim_model)
     site_data = get_site_data(osim_model)
     qpos0 = [0.0] * nq
+    qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
+
     if root_free:
         qpos0[0:3] = [0.0, 1.25, 0.0]  # Root pos
-        qpos0[3] = 1  # root quat
+        qpos0[6] = 1  # root quat
 
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
-    qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
 
     b_masses = body_masses(osim_model)
     inertias = get_body_inertias(osim_model)
@@ -186,11 +187,14 @@ def load_model(
             total_poly_dofs += len(poly_dofs)
             max_dep_dof = max(max_dep_dof, len(poly_dofs))
 
-    dof_armature = [0.002] * nv  # Placeholder for DOF armature
-    dof_armature[0:6] = [0.0] * 6  # No armature for free joint
+    dof_armature = [0.0] * nv  # Placeholder for DOF armature
     dof_damping = [5.0] * nv  # Placeholder for DOF
-    dof_damping[0:6] = [0.0] * 6  # No damping for free joint
-    jnt_stiffness = [0.0] * nb  # Placeholder for joint stiffness
+    jnt_stiffness = [25.0] * nb  # Placeholder for joint stiffness
+
+    if root_free:
+        dof_armature[0:6] = [0.0] * 6  # No armature for free joint
+        dof_damping[0:6] = [0.0] * 6  # No damping for free joint
+        jnt_stiffness[0] = 0.0  # No stiffness for free joint
 
     dof_limit_ranges, dof_limit_adr, dof_limit_qadr = get_dof_limits(osim_model)
     n_limits = len(dof_limit_ranges)
@@ -238,24 +242,14 @@ def load_model(
 
     # needs shapes
     opt = types.Option(
-        impratio=1.0,
-        tolerance=1e-8,
-        ls_tolerance=0.01,
-        ccd_tolerance=1e-6,
         gravity=-9.80665,
-        solver=types.SolverType.NEWTON,
         contact_type=types.ContactType.HUNT_CROSSLEY,
         limit_type=types.LimitType.EXPONENTIAL,
         activation_type=types.ActivationType.MILLARD,
         integrator=integrator,
-        iterations=50,
-        ls_iterations=100,
-        ccd_iterations=50,
-        warm_start=True,
 
         enable_drag=True,
 
-        muscle_dyn_substeps=0,
         use_fn_path=use_fn_path,
         metabolic_options=types.MetabolicOptions(
             activation_maintenance_rate_on=True,
@@ -278,15 +272,8 @@ def load_model(
         accuracy=0.01,
         use_inf_norm=False,
 
-        solref=wp.vec2(0.02, 1.0),
-        solimp=types.vec5(0.9, 0.95, 0.001, 0.5, 2.0),
-
         qvel_weights=wp.full(nv, 1.0, dtype=float),
         z_weights=wp.full(nz, 1.0, dtype=float),
-
-        ls_parallel=False,
-        ls_parallel_min_step=1e-8,
-        graph_conditional=True,
 
         visuals=True
     )
@@ -413,13 +400,6 @@ def load_model(
         body_subtreemass=to_warp_array(body_subtree_mass, dtype=float),
         qM_tiles=qM_tiles,
         block_dim=types.BlockDim(),
-        dof_tri_row=to_warp_array(dof_tri_row, dtype=int),
-        dof_tri_col=to_warp_array(dof_tri_col, dtype=int),
-
-        # These are computed with the _model_init function
-        mean_inertia=0.0,
-        body_invweight0=to_warp_array([0.0, 0.0] * nb, dtype=wp.vec2),
-        dof_invweight0=to_warp_array([0.0] * nv, dtype=float),
     )
 
     n_int_states, n_int_dot_states = get_num_scratch_states(integrator)
@@ -446,12 +426,6 @@ def load_model(
 
     d = types.Data(
         world_reset=make_full(True, n_worlds, dtype=bool),
-
-        solver_niter=make_zero(n_worlds, dtype=int),
-
-        nl=make_zero(n_worlds, dtype=int),
-        nefc=make_zero(n_worlds, dtype=int),
-        needs_solve=make_zero(1, dtype=int),
         time=make_zero(n_worlds, dtype=float),
 
         # for adaptive integrators
@@ -487,11 +461,11 @@ def load_model(
         a_act=make_full(0.5, (n_worlds, nactuators), dtype=float),
         m_state=make_zero((n_worlds, nmuscle), dtype=float),
 
-        qacc_warmstart=make_zero((n_worlds, nv), dtype=float),
         grf=make_zero((n_worlds,), dtype=wp.vec3),
         joint_moments=make_zero((n_worlds, nv), dtype=float),
 
         qacc=make_zero((n_worlds, nv), dtype=float),
+        Ma=make_zero((n_worlds, nv), dtype=float),
         qacc_euler=make_zero((n_worlds, nv), dtype=float),
         m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
         a_act_dot=make_zero((n_worlds, nactuators), dtype=float),
@@ -501,7 +475,6 @@ def load_model(
 
         xpos=make_zero((n_worlds, nb), dtype=wp.vec3),
         xquat=make_zero((n_worlds, nb), dtype=wp.quat),
-        xmat=make_zero((n_worlds, nb), dtype=wp.mat33),
         xipos=make_zero((n_worlds, nb), dtype=wp.vec3),
         ximat=make_zero((n_worlds, nb), dtype=wp.mat33),
         xanchor=make_zero((n_worlds, nb), dtype=wp.vec3),
@@ -543,8 +516,6 @@ def load_model(
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_metabolic=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_length_prev=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_velocity_prev=make_zero((n_worlds, nmuscle), dtype=float),
 
         muscle_length_info=make_zero((n_worlds, nmuscle),
                                      dtype=types.MuscleLengthInfo),
@@ -577,7 +548,6 @@ def load_model(
         subtree_angmom=make_zero((n_worlds, nb), dtype=wp.vec3),
 
         qfrc_smooth=make_zero((n_worlds, nv), dtype=float),
-        qacc_smooth=make_zero((n_worlds, nv), dtype=float),
         qfrc_constraint=make_zero((n_worlds, nv), dtype=float),
         qfrc_inverse=make_zero((n_worlds, nv), dtype=float),
 
@@ -596,47 +566,8 @@ def load_model(
             dissipation=make_zero(naconmax, dtype=float),
             transition_velocity=make_zero(naconmax, dtype=float),
             geom=make_zero(naconmax, dtype=wp.vec2i),
-            efc_address=make_zero((naconmax, 4), dtype=int),
-            # assuming condim_max = 3
             worldid=make_zero(naconmax, dtype=int),
-            geomcollisionid=make_zero(naconmax, dtype=int),
         ),
-        efc=types.Constraint(
-            type=make_zero((n_worlds, njmax), dtype=int),
-            id=make_zero((n_worlds, njmax), dtype=int),
-            J=make_zero((n_worlds, njmax, nv), dtype=float),
-            pos=make_zero((n_worlds, njmax), dtype=float),
-            margin=make_zero((n_worlds, njmax), dtype=float),
-            D=make_zero((n_worlds, njmax), dtype=float),
-            vel=make_zero((n_worlds, njmax), dtype=float),
-            aref=make_zero((n_worlds, njmax), dtype=float),
-            frictionloss=make_zero((n_worlds, njmax), dtype=float),
-            force=make_zero((n_worlds, njmax), dtype=float),
-            Jaref=make_zero((n_worlds, njmax), dtype=float),
-            Ma=make_zero((n_worlds, nv), dtype=float),
-            grad=make_zero((n_worlds, nv), dtype=float),
-            cholesky_L_tmp=make_zero((n_worlds, nv, nv), dtype=float),
-            cholesky_y_tmp=make_zero((n_worlds, nv), dtype=float),
-            grad_dot=make_zero(n_worlds, dtype=float),
-            Mgrad=make_zero((n_worlds, nv), dtype=float),
-            search=make_zero((n_worlds, nv), dtype=float),
-            search_dot=make_zero(n_worlds, dtype=float),
-            gauss=make_zero(n_worlds, dtype=float),
-            cost=make_zero(n_worlds, dtype=float),
-            prev_cost=make_zero(n_worlds, dtype=float),
-            state=make_zero((n_worlds, njmax), dtype=int),
-            mv=make_zero((n_worlds, nv), dtype=float),
-            jv=make_zero((n_worlds, njmax), dtype=float),
-            quad=make_zero((n_worlds, njmax), dtype=wp.vec3f),
-            quad_gauss=make_zero(n_worlds, dtype=wp.vec3f),
-            h=make_zero((n_worlds, nv, nv), dtype=float),
-            alpha=make_zero(n_worlds, dtype=float),
-            prev_grad=make_zero((n_worlds, nv), dtype=float),
-            prev_Mgrad=make_zero((n_worlds, nv), dtype=float),
-            beta=make_zero(n_worlds, dtype=float),
-            done=make_zero(n_worlds, dtype=bool),
-        ),
-        dof_lim_efc_address=make_zero((n_worlds, n_limits), dtype=int),
 
         nworld=n_worlds,
         naconmax=naconmax,
@@ -800,10 +731,6 @@ def set_drag_enabled(m: types.Model, enabled: bool):
     m.opt.enable_drag = enabled
 
 
-def set_solver_type(m: types.Model, solver_type: types.SolverType):
-    m.opt.solver = solver_type
-
-
 def set_contact_type(m: types.Model, contact_type: types.ContactType):
     m.opt.contact_type = contact_type
 
@@ -834,13 +761,6 @@ def is_adaptive(integrator_type: types.IntegratorType) -> bool:
         types.IntegratorType.RK4_ADAPTIVE,
     ]
 
-
-def set_muscle_dynamics_substeps(m: types.Model, substeps: int):
-    m.opt.muscle_dyn_substeps = substeps
-
-
-def set_solref(m: types.Model, solref: tuple[float, float]):
-    m.opt.solref = wp.vec2(solref[0], solref[1])
 
 
 def joint_limit_ranges(m: types.Model) -> torch.Tensor:

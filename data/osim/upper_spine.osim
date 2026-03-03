@@ -435,33 +435,13 @@
 					<!--Physical offset frames owned by the Joint that are typically used to satisfy the owning Joint's parent and child frame connections (sockets). PhysicalOffsetFrames are often used to describe the fixed transformation from a Body's origin to another location of interest on the Body (e.g., the joint center). When the joint is deleted, so are the PhysicalOffsetFrame components in this list.-->
 					<frames>
 						<PhysicalOffsetFrame name="lumbar_spine_parent_frame">
-							<!--The geometry used to display the axes of this Frame.-->
-							<FrameGeometry name="frame_geometry">
-								<!--Path to a Component that satisfies the Socket 'frame' of type Frame.-->
-								<socket_frame>..</socket_frame>
-								<!--Scale factors in X, Y, Z directions respectively.-->
-								<scale_factors>0.20000000000000001 0.20000000000000001 0.20000000000000001</scale_factors>
-							</FrameGeometry>
-							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
 							<socket_parent>/bodyset/pelvis</socket_parent>
-							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>-0.089999999999999997 0.074999999999999997 0</translation>
-							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
 							<orientation>-1.5707963267948966 0.25 0</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="lumbar_spine_child_frame">
-							<!--The geometry used to display the axes of this Frame.-->
-							<FrameGeometry name="frame_geometry">
-								<!--Path to a Component that satisfies the Socket 'frame' of type Frame.-->
-								<socket_frame>..</socket_frame>
-								<!--Scale factors in X, Y, Z directions respectively.-->
-								<scale_factors>0.20000000000000001 0.20000000000000001 0.20000000000000001</scale_factors>
-							</FrameGeometry>
-							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
 							<socket_parent>/bodyset/lumbar_spine</socket_parent>
-							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 0 0</translation>
-							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
 							<orientation>-1.5707963267948966 0 0</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
@@ -699,37 +679,38 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.085 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0 0</orientation>
+					<orientation>0.0 0 0</orientation>
 					<radius>0.05</radius>
-					<length>0.02</length>
+					<length>0.03</length>
 				</ContactCapsule>
 				<ContactCapsule name="thorax_col">
 					<!--Body name to connect the contact geometry to-->
 					<socket_frame>thorax</socket_frame>
 					<!--Location of geometry center in the body frame-->
-					<location>0.0 -0.145 0.0</location>
+					<location>0.0 -0.145 0.07</location>
 					<!--Orientation of geometry in the body frame-->
 					<orientation>1.5707 0 0</orientation>
 					<radius>0.08</radius>
-					<length>0.06</length>
+					<length>0.08</length>
+				</ContactCapsule>
+				<ContactCapsule name="thorax_col2">
+					<!--Body name to connect the contact geometry to-->
+					<socket_frame>thorax</socket_frame>
+					<!--Location of geometry center in the body frame-->
+					<location>0.0 -0.145 -0.07</location>
+					<!--Orientation of geometry in the body frame-->
+					<orientation>1.5707 0 0</orientation>
+					<radius>0.08</radius>
+					<length>0.08</length>
 				</ContactCapsule>
 				<ContactSphere name="head_col">
 					<!--Body name to connect the contact geometry to-->
 					<socket_frame>head</socket_frame>
 					<!--Location of geometry center in the body frame-->
-					<location>0.0 0.0375 0.0</location>
+					<location>0.0 0.04 0.0</location>
 					<!--Orientation of geometry in the body frame-->
 					<orientation>0 0 0</orientation>
-					<radius>0.065</radius>
-				</ContactSphere>
-				<ContactSphere name="scapula_col">
-					<!--Body name to connect the contact geometry to-->
-					<socket_frame>scapula_r</socket_frame>
-					<!--Location of geometry center in the body frame-->
-					<location>0.0 0.0 0.0</location>
-					<!--Orientation of geometry in the body frame-->
-					<orientation>0 0 0</orientation>
-					<radius>0.02</radius>
+					<radius>0.12</radius>
 				</ContactSphere>
 			</objects>
 			<groups />

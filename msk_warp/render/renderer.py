@@ -56,7 +56,7 @@ class Renderer:
         else:
             raise ValueError(f"Unsupported viewer type: {renderer_type}")
 
-        self.rot_convert = R.from_euler("z", -90, degrees=True)
+        self.rot_convert = R.from_euler("x", -90, degrees=True)
 
         self.viewer_type = renderer_type
         self.worlds = [0]
@@ -106,10 +106,9 @@ class Renderer:
         self.worlds = worlds
 
     def fix_capsule_rot(self, quat) -> tuple:
-        rot_input = R.from_quat([quat[1], quat[2], quat[3], quat[0]])
-        rot_result = self.rot_convert * rot_input
-        quat_result = rot_result.as_quat()
-        return quat_result[3], quat_result[0], quat_result[1], quat_result[2]
+        rot_input = R.from_quat(quat)
+        rot_result = rot_input * self.rot_convert
+        return rot_result.as_quat(scalar_first=False)
 
     @staticmethod
     def activation_to_color(act: float) -> tuple:
@@ -132,7 +131,6 @@ class Renderer:
 
                 for i in range(m.ngeom):
                     pos, rot = geom_xpos[i], geom_xquat[i]
-                    rot = (rot[1], rot[2], rot[3], rot[0])  # xyzw to wxyz
 
                     if geom_types[i] == types.GeomType.SPHERE:
                         self.renderer.render_sphere(
@@ -170,7 +168,6 @@ class Renderer:
                     mesh = self.meshes[i]
                     scale = self.mesh_scales[i]
                     pos, rot = vis_xpos[i], vis_xquat[i]
-                    rot = (rot[1], rot[2], rot[3], rot[0])
                     self.renderer.render_mesh(
                         name=f"visual_{obj_id}",
                         points=mesh.points.numpy(),
@@ -198,7 +195,6 @@ class Renderer:
                     muscle_pts_active_num[:] = muscle_pts_num
 
                 site_xpos = d.site_xpos.numpy()[wid]
-                site_active = d.site_active.numpy()[wid]
                 muscle_activations = d.m_act.numpy()[wid]
 
                 for i in range(num_muscles):
@@ -211,11 +207,11 @@ class Renderer:
                     end_idx = start_idx + muscle_pts_active_num[i]
                     pt_inds = muscle_sites_active[start_idx:end_idx]
                     # Line segment connecting active points
-                    pts = site_xpos[pt_inds]
+                    pts_xloc = site_xpos[pt_inds]
                     color = self.activation_to_color(muscle_activations[i])
                     self.renderer.render_line_strip(
                         f"muscle_{obj_id}",
-                        pts,
+                        pts_xloc,
                         color=color,
                         radius=radius,
                     )
@@ -224,7 +220,45 @@ class Renderer:
             # Draw any BeamJoints if any
             joint_types = m.jnt_type.numpy()
             ind_beams = np.where(joint_types == types.JointType.BEAM)[0]
+            if len(ind_beams) == 0:
+                return
+
+            jnt_qposadr = m.jnt_qposadr.numpy()
+            joint_extra = m.jnt_extra_info.numpy()
+
+            jnt_rot = d.jnt_rot.numpy()[wid]
+            jnt_pos = d.xanchor.numpy()[wid]
+            qpos = d.qpos.numpy()[wid]
             for idx_beam in ind_beams:
+                q0, q1, q2 = qpos[jnt_qposadr[idx_beam]:jnt_qposadr[idx_beam] + 3]
+                L = joint_extra[idx_beam][0]
+                j_pos = jnt_pos[idx_beam]
+                j_rot = jnt_rot[idx_beam]
+
+                theta_sq = q0 ** 2 + q1 ** 2
+
+                num_pts = 5
+                z = np.linspace(0, L, num_pts)
+                C_deflection = (z * z * (3.0 * L - z)) / (3.0 * L ** 2)
+                C_displacement = -(z ** 3 * (20 * L ** 2 - 15 * L * z + 3 * z ** 2)) / (30 * L ** 4)
+                d_x = q1 * C_deflection
+                d_y = -q0 * C_deflection
+                d_z = C_displacement * theta_sq
+
+                jnt_rot_R = R.from_quat(j_rot)
+
+                # local space
+                pts_xloc = np.stack([d_x, d_y, z + d_z], axis=-1)
+                # to world space
+                pts_xpos = j_pos + jnt_rot_R.apply(pts_xloc)
+                # Apply rotation and translation to pts
+                self.renderer.render_line_strip(
+                    f"beam_{obj_id}",
+                    pts_xpos,
+                    color=(0.8, 0.0, 0.0),
+                    radius=0.01,
+                )
+                obj_id += 1
                 pass
 
         # Render based on viewer type

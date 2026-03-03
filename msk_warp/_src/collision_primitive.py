@@ -30,10 +30,7 @@ from .collision_primitive_core import sphere_capsule
 from .collision_primitive_core import sphere_cylinder
 from .collision_primitive_core import sphere_sphere
 from .math import make_frame
-from .math import safe_div
 from .math import upper_trid_index
-from .consts import MJ_MINMU
-from .consts import MSK_MINVAL
 from .types import Data
 from .types import GeomType
 from .types import Model
@@ -380,7 +377,6 @@ def write_contact(
         contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     active = dist_in < 0
@@ -402,7 +398,6 @@ def write_contact(
         contact_dissipation_out[cid] = dissipation_in
         contact_transition_velocity_out[cid] = transition_velocity_in
         contact_friction_out[cid] = friction_in
-        contact_geomcollisionid_out[cid] = id_
 
 
 @wp.func
@@ -482,7 +477,6 @@ def plane_sphere_wrapper(
         contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contact between a sphere and a plane."""
@@ -516,7 +510,6 @@ def plane_sphere_wrapper(
         contact_transition_velocity_out,
         contact_geom_out,
         contact_worldid_out,
-        contact_geomcollisionid_out,
         nacon_out,
     )
 
@@ -548,7 +541,6 @@ def sphere_sphere_wrapper(
         contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contact between two spheres."""
@@ -582,7 +574,6 @@ def sphere_sphere_wrapper(
         contact_transition_velocity_out,
         contact_geom_out,
         contact_worldid_out,
-        contact_geomcollisionid_out,
         nacon_out,
     )
 
@@ -614,7 +605,6 @@ def sphere_capsule_wrapper(
         contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates one contact between a sphere and a capsule."""
@@ -651,7 +641,6 @@ def sphere_capsule_wrapper(
         contact_transition_velocity_out,
         contact_geom_out,
         contact_worldid_out,
-        contact_geomcollisionid_out,
         nacon_out,
     )
 
@@ -683,7 +672,6 @@ def capsule_capsule_wrapper(
         contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contacts between two capsules."""
@@ -729,7 +717,6 @@ def capsule_capsule_wrapper(
         contact_transition_velocity_out,
         contact_geom_out,
         contact_worldid_out,
-        contact_geomcollisionid_out,
         nacon_out,
     )
 
@@ -761,7 +748,6 @@ def plane_capsule_wrapper(
         contact_transition_velocity_out: wp.array(dtype=float),
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contacts between a capsule and a plane."""
@@ -805,7 +791,6 @@ def plane_capsule_wrapper(
             contact_transition_velocity_out,
             contact_geom_out,
             contact_worldid_out,
-            contact_geomcollisionid_out,
             nacon_out,
         )
 
@@ -838,7 +823,6 @@ def plane_ellipsoid_wrapper(
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_type_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contacts between an ellipsoid and a plane."""
@@ -871,7 +855,6 @@ def plane_ellipsoid_wrapper(
         contact_geom_out,
         contact_worldid_out,
         contact_type_out,
-        contact_geomcollisionid_out,
         nacon_out,
     )
 
@@ -904,7 +887,6 @@ def plane_box_wrapper(
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_type_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contacts between a box and a plane."""
@@ -939,7 +921,6 @@ def plane_box_wrapper(
             contact_geom_out,
             contact_worldid_out,
             contact_type_out,
-            contact_geomcollisionid_out,
             nacon_out,
         )
 
@@ -972,7 +953,6 @@ def plane_convex_wrapper(
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_type_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contacts between a plane and a convex object."""
@@ -1006,7 +986,6 @@ def plane_convex_wrapper(
             contact_geom_out,
             contact_worldid_out,
             contact_type_out,
-            contact_geomcollisionid_out,
             nacon_out,
         )
 
@@ -1039,7 +1018,6 @@ def sphere_cylinder_wrapper(
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_type_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contacts between a sphere and a cylinder."""
@@ -1082,7 +1060,6 @@ def sphere_cylinder_wrapper(
         contact_geom_out,
         contact_worldid_out,
         contact_type_out,
-        contact_geomcollisionid_out,
         nacon_out,
     )
 
@@ -1115,7 +1092,6 @@ def plane_cylinder_wrapper(
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_type_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contacts between a cylinder and a plane."""
@@ -1160,7 +1136,6 @@ def plane_cylinder_wrapper(
             contact_geom_out,
             contact_worldid_out,
             contact_type_out,
-            contact_geomcollisionid_out,
             nacon_out,
         )
 
@@ -1193,7 +1168,6 @@ def sphere_box_wrapper(
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_type_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     dist, pos, normal = sphere_box(sphere.pos, sphere.size[0], box.pos, box.rot,
@@ -1225,7 +1199,6 @@ def sphere_box_wrapper(
         contact_geom_out,
         contact_worldid_out,
         contact_type_out,
-        contact_geomcollisionid_out,
         nacon_out,
     )
 
@@ -1258,7 +1231,6 @@ def capsule_box_wrapper(
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_type_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contacts between a capsule and a box."""
@@ -1304,7 +1276,6 @@ def capsule_box_wrapper(
             contact_geom_out,
             contact_worldid_out,
             contact_type_out,
-            contact_geomcollisionid_out,
             nacon_out,
         )
 
@@ -1337,7 +1308,6 @@ def box_box_wrapper(
         contact_geom_out: wp.array(dtype=wp.vec2i),
         contact_worldid_out: wp.array(dtype=int),
         contact_type_out: wp.array(dtype=int),
-        contact_geomcollisionid_out: wp.array(dtype=int),
         nacon_out: wp.array(dtype=int),
 ):
     """Calculates contacts between two boxes."""
@@ -1378,7 +1348,6 @@ def box_box_wrapper(
             contact_geom_out,
             contact_worldid_out,
             contact_type_out,
-            contact_geomcollisionid_out,
             nacon_out,
         )
 
@@ -1453,7 +1422,6 @@ def _create_narrowphase_kernel(primitive_collisions_types,
             contact_transition_velocity_out: wp.array(dtype=float),
             contact_geom_out: wp.array(dtype=wp.vec2i),
             contact_worldid_out: wp.array(dtype=int),
-            contact_geomcollisionid_out: wp.array(dtype=int),
             nacon_out: wp.array(dtype=int),
     ):
         tid = wp.tid()
@@ -1514,7 +1482,6 @@ def _create_narrowphase_kernel(primitive_collisions_types,
                     contact_transition_velocity_out,
                     contact_geom_out,
                     contact_worldid_out,
-                    contact_geomcollisionid_out,
                     nacon_out,
                 )
 
@@ -1584,7 +1551,6 @@ def primitive_narrowphase(m: Model, d: Data):
             d.contact.transition_velocity,
             d.contact.geom,
             d.contact.worldid,
-            d.contact.geomcollisionid,
             d.nacon,
         ],
     )

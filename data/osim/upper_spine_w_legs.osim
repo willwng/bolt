@@ -810,7 +810,6 @@
 					<!--The length of the beam.-->
 					<beam_length>0.17499999999999999</beam_length>
 				</CantileverFreeBeamJoint>
-
 				<CantileverFreeBeamJoint name="thorax">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>thoracic_spine_parent_frame</socket_parent_frame>
@@ -897,7 +896,6 @@
 					<!--The length of the beam.-->
 					<beam_length>0.27500000000000002</beam_length>
 				</CantileverFreeBeamJoint>
-
 				<CantileverFreeBeamJoint name="cervical">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>cervical_spine_parent_frame</socket_parent_frame>

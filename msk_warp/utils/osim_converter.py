@@ -408,7 +408,7 @@ def get_joint_rel_rot(model: CheckedModel, parent: bool) -> list[list[float]]:
         else:
             frame = get_frame_from_joint(joint, joint.socket_child_frame)
         rot = frame.orientation
-        rel_parent_rots.append([rot.w, rot.x, rot.y, rot.z])
+        rel_parent_rots.append([rot.x, rot.y, rot.z, rot.w])
     return rel_parent_rots
 
 
@@ -438,7 +438,7 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         size = collider.size()
         loc, rot = collider.location, collider.orientation
         pos = [loc.x, loc.y, loc.z]
-        rot = [rot.w, rot.x, rot.y, rot.z]
+        rot = [rot.x, rot.y, rot.z, rot.w]
         # MuJoCo: sliding, torsional, rolling friction
         # Hunt-Crossley: static, dynamic, viscous
         friction = [0.95, 0.3, 0.3]  # default friction values
@@ -477,7 +477,7 @@ def get_visual_data(model: CheckedModel) -> VisualData:
 
         visual_data.body_id.append(body_id)
         visual_data.pos.append([0.0, 0.0, 0.0])
-        visual_data.rot.append([1.0, 0.0, 0.0, 0.0])
+        visual_data.rot.append([0.0, 0.0, 0.0, 1.0])
         visual_data.scale.append([size.x, size.y, size.z])
         visual_data.file.append(mesh_file)
 
@@ -782,10 +782,10 @@ def get_dof_id_lookup(model: CheckedModel) -> dict[str, tuple[int, int]]:
         dof_id_lookup["pelvis_tx"] = (0, 0)
         dof_id_lookup["pelvis_ty"] = (1, 1)
         dof_id_lookup["pelvis_tz"] = (2, 2)
-        dof_id_lookup["pelvis_rot_w"] = (3, -1)
-        dof_id_lookup["pelvis_rot_x"] = (4, 3)
-        dof_id_lookup["pelvis_rot_y"] = (5, 4)
-        dof_id_lookup["pelvis_rot_z"] = (6, 5)
+        dof_id_lookup["pelvis_rot_x"] = (3, 3)
+        dof_id_lookup["pelvis_rot_y"] = (4, 4)
+        dof_id_lookup["pelvis_rot_z"] = (5, 5)
+        dof_id_lookup["pelvis_rot_w"] = (6, -1)
     return dof_id_lookup
 
 

@@ -122,13 +122,12 @@ def _rk_perturb_state(
             inputs=[m.muscle_metadata, d.integration_done, m_act_t0, d.m_act_dot, d.actual_step_size, scale],
             outputs=[d.m_act],
         )
-        if wp.static(m.opt.muscle_dyn_substeps) == 0:
-            wp.launch(
-                integrate_common._next_muscle_state,
-                dim=(d.nworld, m.nmuscle),
-                inputs=[m.muscle_metadata, d.integration_done, m_state_t0, d.m_state_dot, d.actual_step_size, scale],
-                outputs=[d.m_state],
-            )
+        wp.launch(
+            integrate_common._next_muscle_state,
+            dim=(d.nworld, m.nmuscle),
+            inputs=[m.muscle_metadata, d.integration_done, m_state_t0, d.m_state_dot, d.actual_step_size, scale],
+            outputs=[d.m_state],
+        )
 
     if m.nactuator:
         wp.launch(

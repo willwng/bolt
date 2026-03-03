@@ -23,22 +23,14 @@ def _compute_path_kernel(
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
-        muscle_length_in: wp.array2d(dtype=float),
-        muscle_velocity_in: wp.array2d(dtype=float),
         # Data out:
         muscle_length_out: wp.array2d(dtype=float),
         muscle_velocity_out: wp.array2d(dtype=float),
         muscle_moment_arm_out: wp.array3d(dtype=float),
-        muscle_length_prev_out: wp.array2d(dtype=float),
-        muscle_velocity_prev_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
         return
-    # Store previous values
-    muscle_length_prev_out[worldid, muscle_id] = muscle_length_in[worldid, muscle_id]
-    muscle_velocity_prev_out[worldid, muscle_id] = muscle_velocity_in[worldid, muscle_id]
-
     # Fetch polynomial data: address into coeffs, order
     poly_adr = muscle_poly_adr[muscle_id]
     order = muscle_poly_order[muscle_id]
@@ -144,11 +136,9 @@ def muscle_path(m: Model, d: Data):
             m.muscle_poly_coeffs, m.muscle_poly_adr, m.muscle_poly_order,
             m.muscle_poly_qpos_adr, m.muscle_poly_dof_adr,
             m.muscle_dep_dof_num, m.muscle_dep_dof_adr,
-            d.integration_done, d.qpos, d.qvel, d.muscle_length, d.muscle_velocity
+            d.integration_done, d.qpos, d.qvel,
         ],
-        outputs=[d.muscle_length, d.muscle_velocity,
-                 d.muscle_moment_arm, d.muscle_length_prev,
-                 d.muscle_velocity_prev],
+        outputs=[d.muscle_length, d.muscle_velocity, d.muscle_moment_arm],
     )
 
 

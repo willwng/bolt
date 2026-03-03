@@ -77,7 +77,6 @@ def _kinematics_root(
         # Data out:
         xpos_out: wp.array2d(dtype=wp.vec3),
         xquat_out: wp.array2d(dtype=wp.quat),
-        xmat_out: wp.array2d(dtype=wp.mat33),
         xipos_out: wp.array2d(dtype=wp.vec3),
         ximat_out: wp.array2d(dtype=wp.mat33),
 ):
@@ -85,9 +84,8 @@ def _kinematics_root(
     if integration_done_in[worldid]:
         return
     xpos_out[worldid, 0] = wp.vec3(0.0)
-    xquat_out[worldid, 0] = wp.quat(1.0, 0.0, 0.0, 0.0)
+    xquat_out[worldid, 0] = wp.quat_identity(wp.float32)
     xipos_out[worldid, 0] = wp.vec3(0.0)
-    xmat_out[worldid, 0] = wp.identity(n=3, dtype=wp.float32)
     ximat_out[worldid, 0] = wp.identity(n=3, dtype=wp.float32)
 
 
@@ -121,7 +119,6 @@ def _kinematics_level(
         # Data out:
         xpos_out: wp.array2d(dtype=wp.vec3),
         xquat_out: wp.array2d(dtype=wp.quat),
-        xmat_out: wp.array2d(dtype=wp.mat33),
         xipos_out: wp.array2d(dtype=wp.vec3),
         ximat_out: wp.array2d(dtype=wp.mat33),
         xanchor_out: wp.array2d(dtype=wp.vec3),
@@ -149,13 +146,12 @@ def _kinematics_level(
 
     xpos_out[worldid, bodyid] = xpos
     xquat_out[worldid, bodyid] = wp.normalize(xquat)
-    xmat_out[worldid, bodyid] = math.quat_to_mat(xquat)
     xanchor_out[worldid, bodyid] = xanchor
     jnt_rot_out[worldid, bodyid] = jnt_rot
 
     # inertial frame
-    xipos_out[worldid, bodyid] = (xpos + math.rot_vec_quat(body_ipos[bodyid], xquat))
-    ximat_out[worldid, bodyid] = (math.quat_to_mat(math.mul_quat(xquat, body_iquat[bodyid])))
+    xipos_out[worldid, bodyid] = (xpos + wp.quat_rotate(xquat, body_ipos[bodyid]))
+    ximat_out[worldid, bodyid] = (wp.quat_to_matrix(xquat * body_iquat[bodyid]))
 
 
 @wp.kernel
@@ -181,12 +177,9 @@ def _geom_local_to_global(
     xpos = xpos_in[worldid, bodyid]
     xquat = xquat_in[worldid, bodyid]
 
-    geom_xpos_out[worldid, geomid] = (
-            xpos + math.rot_vec_quat(geom_pos[geomid], xquat))
-    geom_xquat_out[worldid, geomid] = (
-        math.mul_quat(xquat, geom_quat[geomid]))
-    geom_xmat_out[worldid, geomid] = (
-        math.quat_to_mat(geom_xquat_out[worldid, geomid]))
+    geom_xpos_out[worldid, geomid] = xpos + wp.quat_rotate(xquat, geom_pos[geomid])
+    geom_xquat_out[worldid, geomid] = xquat * geom_quat[geomid]
+    geom_xmat_out[worldid, geomid] = wp.quat_to_matrix(geom_xquat_out[worldid, geomid])
 
 
 @wp.kernel
@@ -211,10 +204,8 @@ def _vis_local_to_global(
     xpos = xpos_in[worldid, bodyid]
     xquat = xquat_in[worldid, bodyid]
 
-    vis_xpos_out[worldid, visid] = (
-            xpos + math.rot_vec_quat(vis_pos[visid], xquat))
-    vis_xquat_out[worldid, visid] = (
-        math.mul_quat(xquat, vis_quat[visid]))
+    vis_xpos_out[worldid, visid] = xpos + wp.quat_rotate(xquat, vis_pos[visid])
+    vis_xquat_out[worldid, visid] = xquat * vis_quat[visid]
 
 
 @wp.kernel
@@ -238,7 +229,7 @@ def _site_local_to_global(
     xpos = xpos_in[worldid, bodyid]
     xquat = xquat_in[worldid, bodyid]
     # Relative to body and world positions
-    rpos = math.rot_vec_quat(site_pos[siteid], xquat)
+    rpos = wp.quat_rotate(xquat, site_pos[siteid])
     site_rpos_out[worldid, siteid] = rpos
     site_xpos_out[worldid, siteid] = xpos + rpos
 
@@ -251,7 +242,7 @@ def kinematics(m: Model, d: Data):
         _kinematics_root,
         dim=(d.nworld),
         inputs=[d.integration_done],
-        outputs=[d.xpos, d.xquat, d.xmat, d.xipos, d.ximat]
+        outputs=[d.xpos, d.xquat, d.xipos, d.ximat]
     )
 
     for i in range(1, len(m.body_tree)):
@@ -283,7 +274,7 @@ def kinematics(m: Model, d: Data):
                 d.xquat,
                 body_tree,
             ],
-            outputs=[d.xpos, d.xquat, d.xmat, d.xipos, d.ximat, d.xanchor, d.xaxis, d.jnt_rot],
+            outputs=[d.xpos, d.xquat, d.xipos, d.ximat, d.xanchor, d.xaxis, d.jnt_rot],
         )
     wp.launch(
         _geom_local_to_global,
@@ -429,7 +420,6 @@ def _cdof(
         cst_txfm_dofadr: wp.array2d(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        xmat_in: wp.array2d(dtype=wp.mat33),
         xanchor_in: wp.array2d(dtype=wp.vec3),
         xaxis_in: wp.array3d(dtype=wp.vec3),
         jnt_rot_in: wp.array2d(dtype=wp.quat),
@@ -443,7 +433,6 @@ def _cdof(
         return
     dofid = jnt_dofadr[bodyid]
     jnt_type_ = jnt_type[bodyid]
-    xmat = wp.transpose(xmat_in[worldid, bodyid])
     joint_pos = xanchor_in[worldid, bodyid]
 
     # compute com-anchor vector
@@ -452,7 +441,7 @@ def _cdof(
 
     cst_jnt_adr = jnt_cst_adr[bodyid]
     mobilizers.cdof_joint(
-        jnt_type_, dofid, xmat, offset, xaxis_in[worldid, bodyid],
+        jnt_type_, dofid, offset, xaxis_in[worldid, bodyid],
         jnt_rot_in[worldid, bodyid], jnt_dofnum[bodyid], cst_txfm_dofadr[cst_jnt_adr],
         cdof_out[worldid], cdof_tmp_out[worldid, bodyid]
     )
@@ -495,7 +484,7 @@ def com_pos(m: Model, d: Data):
         _cdof,
         dim=(d.nworld, m.nbody),
         inputs=[m.body_rootid, m.jnt_type, m.jnt_dofadr, m.jnt_dofnum, m.jnt_cst_adr, m.cst_txfm_dofadr,
-                d.integration_done, d.xmat, d.xanchor, d.xaxis, d.jnt_rot, d.subtree_com],
+                d.integration_done, d.xanchor, d.xaxis, d.jnt_rot, d.subtree_com],
         outputs=[d.cdof, d.cdof_tmp],
     )
 

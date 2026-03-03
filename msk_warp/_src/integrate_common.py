@@ -186,14 +186,12 @@ def advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float, sym
             inputs=[m.muscle_metadata, d.integration_done, d.m_act, d.m_act_dot, d.actual_step_size, scale],
             outputs=[d.m_act],
         )
-        # If we didn't sub-step, advance here
-        if wp.static(m.opt.muscle_dyn_substeps) == 0:
-            wp.launch(
-                _next_muscle_state,
-                dim=(d.nworld, m.nmuscle),
-                inputs=[m.muscle_metadata, d.integration_done, d.m_state, d.m_state_dot, d.actual_step_size, scale],
-                outputs=[d.m_state],
-            )
+        wp.launch(
+            _next_muscle_state,
+            dim=(d.nworld, m.nmuscle),
+            inputs=[m.muscle_metadata, d.integration_done, d.m_state, d.m_state_dot, d.actual_step_size, scale],
+            outputs=[d.m_state],
+        )
 
     if m.nactuator:
         wp.launch(
@@ -237,9 +235,6 @@ def advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float, sym
         inputs=[d.integration_done, d.time, d.actual_step_size, scale],
         outputs=[d.time],
     )
-
-    if m.opt.warm_start:
-        wp.copy(d.qacc_warmstart, d.qacc)
 
 
 @event_scope

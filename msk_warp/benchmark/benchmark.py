@@ -42,8 +42,7 @@ def benchmark(
         nstep: int,
         event_trace: bool = False,
         measure_alloc: bool = False,
-        measure_solver_niter: bool = False,
-) -> Tuple[float, float, dict, list, list, list, int]:
+) -> Tuple[float, float, dict, list, int]:
     """Benchmark a function of Model and Data.
 
     Args:
@@ -54,7 +53,6 @@ def benchmark(
       nstep: Number of timesteps.
       event_trace: If True, time routines decorated with @event_scope.
       measure_alloc: If True, record number of contacts and constraints.
-      measure_solver_niter: If True, record the number of solver iterations.
 
     Returns:
       - Time to JIT fn.
@@ -66,7 +64,7 @@ def benchmark(
       - Number of converged worlds.
     """
     trace = {}
-    nacon, nefc, solver_niter = [], [], []
+    nacon, nefc = [], []
 
     with warp_util.EventTracer(enabled=event_trace) as tracer:
         # capture the whole function as a CUDA graph
@@ -96,11 +94,8 @@ def benchmark(
             if measure_alloc:
                 nacon.append(
                     np.max([d.nacon.numpy()[0], d.ncollision.numpy()[0]]))
-                nefc.append(np.max(d.nefc.numpy()))
-            if measure_solver_niter:
-                solver_niter.append(d.solver_niter.numpy())
 
         nsuccess = np.sum(~np.any(np.isnan(d.qpos.numpy()), axis=1))
         run_duration = np.sum(time_vec)
 
-    return jit_duration, run_duration, trace, nacon, nefc, solver_niter, nsuccess
+    return jit_duration, run_duration, trace, nacon, nsuccess
