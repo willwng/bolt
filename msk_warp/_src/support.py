@@ -107,12 +107,10 @@ def _apply_ft(
         # Model:
         nbody: int,
         body_parentid: wp.array(dtype=int),
-        body_rootid: wp.array(dtype=int),
         dof_bodyid: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        xipos_in: wp.array2d(dtype=wp.vec3),
-        subtree_com_in: wp.array2d(dtype=wp.vec3),
+        body_X_com_in: wp.array2d(dtype=wp.transform),
         cdof_in: wp.array2d(dtype=wp.spatial_vector),
         # In:
         ft_in: wp.array2d(dtype=wp.spatial_vector),
@@ -141,11 +139,9 @@ def _apply_ft(
             parentid = body_parentid[parentid]
         if parentid == 0:
             continue  # body is not part of the subtree
-        offset = xipos_in[worldid, bodyid] - subtree_com_in[
-            worldid, body_rootid[bodyid]]
+        offset = wp.transform_get_translation(body_X_com_in[worldid, bodyid])
         cross_term = wp.cross(rotational_cdof, offset)
-        accumul += wp.dot(jac, ft_body) + wp.dot(cross_term,
-                                                 wp.spatial_top(ft_body))
+        accumul += wp.dot(jac, ft_body) + wp.dot(cross_term, wp.spatial_top(ft_body))
 
     if flg_add:
         qfrc_out[worldid, dofid] += accumul
@@ -163,8 +159,8 @@ def apply_ft(
     wp.launch(
         kernel=_apply_ft,
         dim=(d.nworld, m.nv),
-        inputs=[m.nbody, m.body_parentid, m.body_rootid, m.dof_bodyid,
-                d.integration_done, d.body_X_com, d.subtree_com, d.cdof, ft, flg_add],
+        inputs=[m.nbody, m.body_parentid,m.dof_bodyid,
+                d.integration_done, d.body_X_com, d.cdof, ft, flg_add],
         outputs=[qfrc],
     )
 
@@ -176,8 +172,7 @@ def force_at_point(frc: wp.vec3, offset: wp.vec3) -> wp.spatial_vector:
 
 
 @wp.func
-def transform_velocity(cvel: wp.spatial_vector,
-                       offset: wp.vec3) -> wp.spatial_vector:
+def transform_velocity(cvel: wp.spatial_vector, offset: wp.vec3) -> wp.spatial_vector:
     ang = wp.spatial_top(cvel)
     lin = wp.spatial_bottom(cvel)
     pvel_lin = lin + wp.cross(ang, offset)

@@ -29,6 +29,8 @@ wp.set_module_options({"enable_backward": False})
 
 @wp.kernel
 def _link_vel_root(
+        # In:
+        gravity: float,
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         # Data out:
@@ -38,8 +40,9 @@ def _link_vel_root(
     worldid, elementid = wp.tid()
     if integration_done_in[worldid]:
         return
+    # v_0 = 0, a_0 = -g
     body_vel_out[worldid, 0] = wp.spatial_vector()
-    body_acc_out[worldid, 0] = wp.spatial_vector()
+    body_acc_out[worldid, 0] = wp.spatial_vector(wp.vec3(), wp.vec3(0.0, gravity, 0.0))
 
 
 @wp.kernel
@@ -84,21 +87,23 @@ def _link_vel_level(
     # Parent mobilizer frame
     X_mp = X_wp * X_pj
 
-    # Compute motion subspace and velocity across joint
+    # Compute motion subspace S and velocity, acceleration across joint
     v_j = mobilizers.joint_motion(jnt_type_, dofadr, qvel_in[worldid], extra_info, S_out)
-    c_j = mobilizers.joint_acc(jnt_type_, dofadr, qvel_in[worldid], extra_info)
+    a_j = mobilizers.joint_acc(jnt_type_, dofadr, qvel_in[worldid], extra_info)
 
-    # Transform motion subspace
+    # Transform to motion subspace
     for i in range(dofnum):
         S_out[dofadr + i] = math.transform_twist(X_mp, S_out[dofadr + i])
+    v_j = math.transform_twist(X_mp, v_j)
+    a_j = math.transform_twist(X_mp, a_j)
 
     # Parent velocity, acceleration
     v_p = body_vel_in[worldid, parentid]
     a_p = body_acc_in[worldid, parentid]
 
     # Child velocity, acceleration
-    v_c = v_p + math.transform_twist(X_mp, v_j)
-    a_c = a_p + wp.spatial_cross(v_p, v_j) + math.transform_twist(X_mp, c_j)
+    v_c = v_p + v_j
+    a_c = a_p + wp.spatial_cross(v_p, v_j) + a_j
 
     body_vel_out[worldid, bodyid] = v_c
     body_acc_out[worldid, bodyid] = a_c
@@ -106,10 +111,11 @@ def _link_vel_level(
 
 @event_scope
 def link_vel(m: Model, d: Data):
+    """ Computes the first (forward) pass of Recursive Newton-Euler """
     wp.launch(
         _link_vel_root,
         dim=(d.nworld),
-        inputs=[d.integration_done],
+        inputs=[m.opt.gravity, d.integration_done],
         outputs=[d.body_vel, d.body_acc]
     )
 

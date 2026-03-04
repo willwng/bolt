@@ -29,41 +29,96 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
-def _link_frc(
-        # Model:
-        body_inertia: wp.array(dtype=wp.spatial_matrix),
+def _link_forces(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        body_X_com_in: wp.array2d(dtype=wp.transform),
+        body_inertia: wp.array2d(dtype=vec10),
         body_vel_in: wp.array2d(dtype=wp.spatial_vector),
         body_acc_in: wp.array2d(dtype=wp.spatial_vector),
         # Out:
         body_f_s_out: wp.array2d(dtype=wp.spatial_vector),
-        body_I_s_out: wp.array2d(dtype=wp.spatial_matrix),
 ):
     worldid, bodyid = wp.tid()
     if integration_done_in[worldid]:
         return
 
-    X_body_com = body_X_com_in[worldid, bodyid]
-    I_body = body_inertia[bodyid]
-
-    I_s = math.transform_spatial_inertia(X_body_com, I_body)
+    # Fetch body spatial inertia, velocity, and acceleration
+    I_body = body_inertia[worldid, bodyid]
     v_s, a_s = body_vel_in[worldid, bodyid], body_acc_in[worldid, bodyid]
 
-    f_body = I_s * a_s + wp.spatial_cross_dual(v_s, I_s * v_s)
+    f_body = math.inert_vec(I_body, a_s) + wp.spatial_cross_dual(v_s, math.inert_vec(I_body, v_s))
     body_f_s_out[worldid, bodyid] = f_body
-    body_I_s_out[worldid, bodyid] = I_s
+    return
+
+
+@wp.kernel
+def _link_tau(
+        # Model:
+        body_parentid: wp.array(dtype=int),
+        jnt_dofadr: wp.array(dtype=int),
+        jnt_dofnum: wp.array(dtype=int),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        body_f_bias_in: wp.array2d(dtype=wp.spatial_vector),
+        cdof_in: wp.array2d(dtype=wp.spatial_vector),
+        # In:
+        body_tree_: wp.array(dtype=int),
+        # Out:
+        qfrc_tau_out: wp.array2d(dtype=float),
+        body_f_s_out: wp.array2d(dtype=wp.spatial_vector),
+):
+    worldid, nodeid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    bodyid = body_tree_[nodeid]
+
+    # Collect joint information
+    parentid = body_parentid[bodyid]
+    dofadr = jnt_dofadr[bodyid]
+    dofnum = jnt_dofnum[bodyid]
+    S = cdof_in[worldid]
+
+    # Total forces on body
+    f_b_s = body_f_bias_in[worldid, bodyid]
+    f_t_s = body_f_s_out[worldid, bodyid]
+    f_i = f_b_s + f_t_s
+
+    # tau_i = S_i^T f_i
+    for i in range(dofnum):
+        S_i = S[dofadr + i]
+        tau_i = -wp.spatial_dot(S_i, f_i)
+        qfrc_tau_out[worldid, dofadr + i] = tau_i
+
+    # Propagate forces to parent body
+    if bodyid != 0:
+        wp.atomic_add(body_f_s_out[worldid], parentid, f_i)
+    return
 
 
 @event_scope
-def link_frc(m: Model, d: Data):
+def bias_force(m: Model, d: Data):
+    """
+    Finishes the Recursive Newton-Euler algorithm
+
+    We only compute bias forces. We don't include external forces here
+    because we want to compute them in isolation
+    """
+    d.body_f_s.zero_()
     wp.launch(
-        _link_frc,
+        _link_forces,
         dim=(d.nworld, m.nbody),
-        inputs=[m.body_inertia, d.integration_done, d.body_X_com, d.body_vel, d.body_acc],
-        outputs=[d.body_f_s, d.body_I_s],
+        inputs=[d.integration_done, d.body_inert, d.body_vel, d.body_acc],
+        outputs=[d.body_fs_bias],
     )
+    for body_tree in reversed(m.body_tree):
+        wp.launch(
+            _link_tau,
+            dim=[d.nworld, body_tree.size],
+            inputs=[m.body_parentid, m.jnt_dofadr, m.jnt_dofnum,
+                    d.integration_done, d.body_fs_bias, d.cdof, body_tree],
+            outputs=[d.qfrc_bias, d.body_f_s],
+        )
 
 
 @wp.kernel
@@ -140,6 +195,7 @@ def spring(m: Model, d: Data):
         outputs=[d.qfrc_spring],
     )
 
+
 @event_scope
 def damping(m: Model, d: Data):
     wp.launch(
@@ -155,7 +211,7 @@ def damping(m: Model, d: Data):
 
 
 @wp.kernel
-def _qfrc_smooth(
+def _qfrc_accumulate(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qfrc_applied_in: wp.array2d(dtype=float),
@@ -168,12 +224,12 @@ def _qfrc_smooth(
         qfrc_damper_in: wp.array2d(dtype=float),
         qfrc_drag_in: wp.array2d(dtype=float),
         # Data out:
-        qfrc_smooth_out: wp.array2d(dtype=float),
+        qfrc_tau_out: wp.array2d(dtype=float),
 ):
     worldid, dofid = wp.tid()
     if integration_done_in[worldid]:
         return
-    qfrc_smooth_out[worldid, dofid] = (
+    qfrc_tau_out[worldid, dofid] = (
             qfrc_applied_in[worldid, dofid]
             - qfrc_bias_in[worldid, dofid]
             + qfrc_muscle_in[worldid, dofid]
@@ -183,6 +239,28 @@ def _qfrc_smooth(
             + qfrc_spring_in[worldid, dofid]
             + qfrc_damper_in[worldid, dofid]
             + qfrc_drag_in[worldid, dofid]
+    )
+
+
+@wp.kernel
+def _xfrc_accumulate(
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        xfrc_applied_in: wp.array2d(dtype=wp.spatial_vector),
+        xfrc_contact_in: wp.array2d(dtype=wp.spatial_vector),
+        xfrc_drag_in: wp.array2d(dtype=wp.spatial_vector),
+        xfrc_muscle_in: wp.array2d(dtype=wp.spatial_vector),
+        # Data out:
+        xfrc_smooth_out: wp.array2d(dtype=wp.spatial_vector)
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+    xfrc_smooth_out[worldid, bodyid] = (
+            xfrc_applied_in[worldid, bodyid] +
+            xfrc_contact_in[worldid, bodyid] +
+            xfrc_drag_in[worldid, bodyid] +
+            xfrc_muscle_in[worldid, bodyid]
     )
 
 
@@ -216,10 +294,10 @@ def accumulate_forces(m: Model, d: Data):
         support.apply_ft(m, d, d.xfrc_muscle, d.qfrc_muscle, True)
 
     wp.launch(
-        _qfrc_smooth,
+        _qfrc_accumulate,
         dim=(d.nworld, m.nv),
         inputs=[d.integration_done,
                 d.qfrc_applied, d.qfrc_bias, d.qfrc_muscle, d.qfrc_actuator, d.qfrc_limit,
                 d.qfrc_contact, d.qfrc_spring, d.qfrc_damper, d.qfrc_drag],
-        outputs=[d.qfrc_smooth],
+        outputs=[d.qfrc_tau],
     )

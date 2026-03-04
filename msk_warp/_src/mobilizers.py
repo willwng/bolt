@@ -41,8 +41,8 @@ def jcalc_transform(
         extra_info: wp.vec3,
 ) -> wp.transform:
     if jnttype == JointType.FREE:
-        p = wp.vec3(qpos[qadr], qpos[qadr + 1], qpos[qadr + 2])
-        r = wp.quat(qpos[qadr + 3], qpos[qadr + 4], qpos[qadr + 5], qpos[qadr + 6])
+        r = wp.quat(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2], qpos[qadr + 3])
+        p = wp.vec3(qpos[qadr + 4], qpos[qadr + 5], qpos[qadr + 6])
         r = wp.normalize(r)
         return wp.transform(p, r)
 
@@ -230,22 +230,23 @@ def integrate(
         qpos_next: wp.array(dtype=float),
 ):
     if jnttype == JointType.FREE:
-        qpos_pos = wp.vec3(qpos[qpos_adr], qpos[qpos_adr + 1], qpos[qpos_adr + 2])
-        qvel_lin = wp.vec3(qvel[dof_adr], qvel[dof_adr + 1], qvel[dof_adr + 2])
-        qpos_new = qpos_pos + timestep * qvel_lin
-
-        qpos_quat = wp.quat(qpos[qpos_adr + 3], qpos[qpos_adr + 4], qpos[qpos_adr + 5], qpos[qpos_adr + 6])
-        qvel_ang = wp.vec3(qvel[dof_adr + 3], qvel[dof_adr + 4], qvel[dof_adr + 5])
+        qpos_quat = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
+        qvel_ang = wp.vec3(qvel[dof_adr + 0], qvel[dof_adr + 1], qvel[dof_adr + 2])
         dq_ang = math.calc_unnormalized_quaternion_N(qpos_quat) @ qvel_ang
 
-        qpos_next[qpos_adr + 0] = qpos_new[0]
-        qpos_next[qpos_adr + 1] = qpos_new[1]
-        qpos_next[qpos_adr + 2] = qpos_new[2]
-        qpos_next[qpos_adr + 3] = qpos_quat[0] + timestep * dq_ang[0]
-        qpos_next[qpos_adr + 4] = qpos_quat[1] + timestep * dq_ang[1]
-        qpos_next[qpos_adr + 5] = qpos_quat[2] + timestep * dq_ang[2]
-        qpos_next[qpos_adr + 6] = qpos_quat[3] + timestep * dq_ang[3]
-        math.quat_normalize_in_place(qpos_next, qpos_adr + 3)
+        qpos_pos = wp.vec3(qpos[qpos_adr + 4], qpos[qpos_adr + 5], qpos[qpos_adr + 6])
+        qvel_lin = wp.vec3(qvel[dof_adr + 3], qvel[dof_adr + 4], qvel[dof_adr + 5])
+        qpos_new = qpos_pos + timestep * qvel_lin
+
+        qpos_next[qpos_adr + 0] = qpos_quat[0] + timestep * dq_ang[0]
+        qpos_next[qpos_adr + 1] = qpos_quat[1] + timestep * dq_ang[1]
+        qpos_next[qpos_adr + 2] = qpos_quat[2] + timestep * dq_ang[2]
+        qpos_next[qpos_adr + 3] = qpos_quat[3] + timestep * dq_ang[3]
+        math.quat_normalize_in_place(qpos_next, qpos_adr)
+
+        qpos_next[qpos_adr + 4] = qpos_new[0]
+        qpos_next[qpos_adr + 5] = qpos_new[1]
+        qpos_next[qpos_adr + 6] = qpos_new[2]
 
     elif jnttype == JointType.BALL:
         qpos_quat = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])

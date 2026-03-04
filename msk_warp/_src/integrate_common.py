@@ -41,9 +41,7 @@ def _next_position(
     qvel = qvel_in[worldid]
     qpos_next = qpos_out[worldid]
 
-    mobilizers.integrate(
-        jnttype, qpos, qvel, qpos_adr, dof_adr, timestep, dof_num, qpos_next
-    )
+    mobilizers.integrate(jnttype, qpos, qvel, qpos_adr, dof_adr, timestep, dof_num, qpos_next)
 
 
 @wp.kernel
@@ -62,8 +60,7 @@ def _next_velocity(
     if integration_done_in[worldid]:
         return
     timestep = actual_step_size_in[worldid] * scale
-    qvel_out[worldid, dofid] = (qvel_in[worldid, dofid] +
-                                qacc_in[worldid, dofid] * timestep)
+    qvel_out[worldid, dofid] = qvel_in[worldid, dofid] + qacc_in[worldid, dofid] * timestep
 
 
 @wp.kernel

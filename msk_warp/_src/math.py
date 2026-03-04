@@ -83,33 +83,19 @@ def transform_twist(t: wp.transform, x: wp.spatial_vector) -> wp.spatial_vector:
 
     return wp.spatial_vector(w, v)
 
+
 @wp.func
-def transform_spatial_inertia(t: wp.transform, I: wp.spatial_matrix):
-    """
-    Transform a spatial inertia tensor to a new coordinate frame.
-    """
-    t_inv = wp.transform_inverse(t)
-
-    q = wp.transform_get_rotation(t_inv)
-    p = wp.transform_get_translation(t_inv)
-
-    r1 = wp.quat_rotate(q, wp.vec3(1.0, 0.0, 0.0))
-    r2 = wp.quat_rotate(q, wp.vec3(0.0, 1.0, 0.0))
-    r3 = wp.quat_rotate(q, wp.vec3(0.0, 0.0, 1.0))
-
-    R = wp.matrix_from_cols(r1, r2, r3)
-    S = wp.skew(p) @ R
-
-    T = wp.spatial_matrix(
-        R[0, 0], R[0, 1], R[0, 2], 0.0,     0.0,     0.0,
-        R[1, 0], R[1, 1], R[1, 2], 0.0,     0.0,     0.0,
-        R[2, 0], R[2, 1], R[2, 2], 0.0,     0.0,     0.0,
-        S[0, 0], S[0, 1], S[0, 2], R[0, 0], R[0, 1], R[0, 2],
-        S[1, 0], S[1, 1], S[1, 2], R[1, 0], R[1, 1], R[1, 2],
-        S[2, 0], S[2, 1], S[2, 2], R[2, 0], R[2, 1], R[2, 2],
+def inert_vec(i: types.vec10, v: wp.spatial_vector) -> wp.spatial_vector:
+    """ Multiply spatial vector (rotation, translation) by spatial inertia matrix """
+    return wp.spatial_vector(
+        i[0] * v[0] + i[3] * v[1] + i[4] * v[2] - i[8] * v[4] + i[7] * v[5],
+        i[3] * v[0] + i[1] * v[1] + i[5] * v[2] + i[8] * v[3] - i[6] * v[5],
+        i[4] * v[0] + i[5] * v[1] + i[2] * v[2] - i[7] * v[3] + i[6] * v[4],
+        i[8] * v[1] - i[7] * v[2] + i[9] * v[3],
+        i[6] * v[2] - i[8] * v[0] + i[9] * v[4],
+        i[7] * v[0] - i[6] * v[1] + i[9] * v[5],
     )
 
-    return wp.mul(wp.mul(wp.transpose(T), I), T)
 
 @wp.func
 def orthogonals(a: wp.vec3):
@@ -179,10 +165,10 @@ def calc_unnormalized_quaternion_N(q: wp.quat) -> types.mat43:
     e0, e1, e2, e3 = e.w, e.x, e.y, e.z
     ne1, ne2, ne3 = -e1, -e2, -e3
     return types.mat43(
-        e0, ne3, e2,
-        e3, e0, ne1,
-        ne2, e1, e0,
-        ne1, ne2, ne3
+        e0,  e3,  ne2,
+        ne3, e0,  e1,
+        e2,  ne1, e0,
+        ne1, ne2, ne3,
     )
 
 
@@ -193,9 +179,9 @@ def calc_unnormalized_quaternion_N_inv(q: wp.quat) -> types.mat34:
     e0, e1, e2, e3 = e.w, e.x, e.y, e.z
     ne1, ne2, ne3 = -e1, -e2, -e3
     return types.mat34(
-        e0, e3, ne2, ne1,
-        ne3, e0, e1, ne2,
-        ne1, e2, e0, ne3,
+        e0,  ne3, e2,  ne1,
+        e3,  e0,  ne1, ne2,
+        ne2, e1, e0,   ne3,
     )
 
 

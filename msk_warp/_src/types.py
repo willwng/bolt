@@ -390,7 +390,7 @@ class Model:
       qpos_spring: reference pose for springs                  (nq,)
 
       body_mass: mass                                          (nbody,)
-      body_inertia: spatial inertia matrix
+      body_inert_diag: spatial inertia matrix
       body_X_com_loc: local transform of center of mass            (nbody, transform)
 
       body_rootid: id of root above body                       (nbody,)
@@ -468,7 +468,7 @@ class Model:
     qpos_spring: array("nq", float)
 
     body_mass: array("nbody", float)
-    body_inertia: array("nbody", wp.spatial_matrix)
+    body_inert_diag: array("nbody", wp.vec3)
     body_X_com_loc: array("nbody", wp.vec3)
 
     body_rootid: array("nbody", int)
@@ -641,8 +641,6 @@ class Data:
 
       subtree_com: center of mass of each subtree                 (nworld, nbody, 3)
       cdof: com-based motion axis of each dof (rot:lin)           (nworld, nv, 6)
-      cdof_tmp: cdof temporaries for custom joints                (nworld, njnts_cst, 6, 6)
-      cinert: com-based body inertia and mass                     (nworld, nbody, 10)
 
       crb: com-based composite inertia and mass                   (nworld, nbody, 10)
       qM: total inertia (sparse) (nworld, 1, nM) or               (nworld, nv, nv) if dense
@@ -671,7 +669,7 @@ class Data:
       subtree_linvel: linear velocity of subtree com              (nworld, nbody, 3)
       subtree_angmom: angular momentum about subtree com          (nworld, nbody, 3)
 
-      qfrc_smooth: net unconstrained force                        (nworld, nv)
+      qfrc_tau: net unconstrained force                        (nworld, nv)
       qacc_smooth: unconstrained acceleration                     (nworld, nv)
       qfrc_constraint: constraint force                           (nworld, nv)
       qfrc_inverse: net external force; should equal:             (nworld, nv)
@@ -742,8 +740,10 @@ class Data:
     body_X_com: wp.array2d(dtype=wp.transform)
     body_vel: wp.array2d(dtype=wp.spatial_vector)
     body_acc: wp.array2d(dtype=wp.spatial_vector)
+    body_fs_bias: wp.array2d(dtype=wp.spatial_vector)
+    body_fs_ext: wp.array2d(dtype=wp.spatial_vector)
+    body_inert: wp.array2d(dtype=vec10)
     body_f_s: wp.array2d(dtype=wp.spatial_vector)
-    body_I_s: wp.array2d(dtype=wp.spatial_matrix)
 
     geom_X: wp.array2d(dtype=wp.transform)
     geom_cforce: wp.array2d(dtype=float)
@@ -766,8 +766,6 @@ class Data:
     subtree_mass: wp.array2d(dtype=float)
     subtree_com: wp.array2d(dtype=wp.vec3)
     cdof: wp.array2d(dtype=wp.spatial_vector)
-    cdof_tmp: wp.array3d(dtype=wp.spatial_vector)
-    cinert: wp.array2d(dtype=vec10)
 
     crb: wp.array2d(dtype=vec10)
     qM: wp.array3d(dtype=float)
@@ -797,6 +795,7 @@ class Data:
     qfrc_actuator: wp.array2d(dtype=float)
     qfrc_contact: wp.array2d(dtype=float)
     qfrc_limit: wp.array2d(dtype=float)
+    qfrc_tau: wp.array2d(dtype=float)
 
     grf: wp.array2d(dtype=wp.vec3)
     joint_moments: wp.array2d(dtype=float)
@@ -804,7 +803,6 @@ class Data:
     subtree_linvel: wp.array2d(dtype=wp.vec3)
     subtree_angmom: wp.array2d(dtype=wp.vec3)
 
-    qfrc_smooth: wp.array2d(dtype=float)
     contact: Contact
 
     #

@@ -342,3 +342,64 @@ def com_pos(m: Model, d: Data):
         dim=(d.nworld, m.nbody),
         inputs=[d.integration_done, d.subtree_mass, d.subtree_com],
         outputs=[d.subtree_com])
+
+
+@wp.kernel
+def _spatial_inertia(
+        # Model:
+        body_mass: wp.array(dtype=float),
+        body_inert_diag: wp.array(dtype=wp.vec3),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        body_X_com_in: wp.array2d(dtype=wp.transform),
+        # Data out:
+        body_inert_out: wp.array2d(dtype=vec10),
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    body_X_com = body_X_com_in[worldid, bodyid]
+    body_X_com_quat = wp.transform_get_rotation(body_X_com)
+    body_X_com_pos = wp.transform_get_translation(body_X_com)
+
+    # express inertia in com-based frame
+    mat = wp.quat_to_matrix(body_X_com_quat)
+    inert = body_inert_diag[bodyid]
+    mass = body_mass[bodyid]
+    # offset from "origin" to body com
+    dif = body_X_com_pos
+    res = vec10()
+    # res_rot = mat * diag(inert) * mat'
+    inertia_wf = mat @ wp.diag(inert) @ wp.transpose(mat)
+    res[0] = inertia_wf[0, 0]
+    res[1] = inertia_wf[1, 1]
+    res[2] = inertia_wf[2, 2]
+    res[3] = inertia_wf[0, 1]
+    res[4] = inertia_wf[0, 2]
+    res[5] = inertia_wf[1, 2]
+    # res_rot -= mass * dif_cross * dif_cross
+    res[0] += mass * (dif[1] * dif[1] + dif[2] * dif[2])
+    res[1] += mass * (dif[0] * dif[0] + dif[2] * dif[2])
+    res[2] += mass * (dif[0] * dif[0] + dif[1] * dif[1])
+    res[3] -= mass * dif[0] * dif[1]
+    res[4] -= mass * dif[0] * dif[2]
+    res[5] -= mass * dif[1] * dif[2]
+    # res_tran = mass * dif
+    res[6] = mass * dif[0]
+    res[7] = mass * dif[1]
+    res[8] = mass * dif[2]
+    # res_mass = mass
+    res[9] = mass
+
+    body_inert_out[worldid, bodyid] = res
+
+
+@event_scope
+def spatial_inertia(m: Model, d: Data):
+    wp.launch(
+        _spatial_inertia,
+        dim=(d.nworld, m.nbody),
+        inputs=[m.body_mass, m.body_inert_diag, d.integration_done, d.body_X_com],
+        outputs=[d.body_inert],
+    )

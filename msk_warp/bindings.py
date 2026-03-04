@@ -122,8 +122,8 @@ def load_model(
     qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
 
     if root_free:
-        qpos0[0:3] = [0.0, 1.5, 0.0]  # Root pos
-        qpos0[6] = 1  # root quat
+        qpos0[0:4] = [0.0, 0.0, 0.0, 1.0]  # Root orientation (quaternion)
+        qpos0[4:7] = [0.0, 1.5, 0.0]  # Root pos
 
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
 
@@ -183,9 +183,9 @@ def load_model(
             total_poly_dofs += len(poly_dofs)
             max_dep_dof = max(max_dep_dof, len(poly_dofs))
 
-    dof_armature = [0.0] * nv  # Placeholder for DOF armature
-    dof_damping = [5.0] * nv  # Placeholder for DOF
-    jnt_stiffness = [25.0] * nb  # Placeholder for joint stiffness
+    dof_armature = [0.02] * nv  # Placeholder for DOF armature
+    dof_damping = [0.1] * nv  # Placeholder for DOF
+    jnt_stiffness = [0.0] * nb  # Placeholder for joint stiffness
 
     if root_free:
         dof_armature[0:6] = [0.0] * 6  # No armature for free joint
@@ -297,7 +297,7 @@ def load_model(
         qpos_spring=to_warp_array(qpos_spring, dtype=float),
 
         body_mass=to_warp_array(b_masses, dtype=float),
-        body_inertia=to_warp_array(inertias, dtype=wp.spatial_matrix),
+        body_inert_diag=to_warp_array(inertias, dtype=wp.vec3),
         body_X_com_loc=to_warp_array(body_local_com, dtype=wp.transform),
 
         body_rootid=to_warp_array(body_rootid, dtype=int),
@@ -440,8 +440,10 @@ def load_model(
 
         body_vel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_fs_bias=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_fs_ext=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_inert=make_zero((n_worlds, nb), dtype=types.vec10),
         body_f_s=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_I_s=make_zero((n_worlds, nb), dtype=wp.spatial_matrix),
 
         geom_X=make_zero((n_worlds, ngeom), dtype=wp.transform),
         geom_cforce=make_zero((n_worlds, ngeom), dtype=float),
@@ -464,8 +466,6 @@ def load_model(
         subtree_mass=make_zero((n_worlds, nb), dtype=float),
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
         cdof=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-        cdof_tmp=make_zero((n_worlds, nb, 6), dtype=wp.spatial_vector),
-        cinert=make_zero((n_worlds, nb), dtype=types.vec10),
 
         crb=make_zero((n_worlds, nb), dtype=types.vec10),
         qM=make_zero((n_worlds, nv, nv), dtype=float),
@@ -502,7 +502,7 @@ def load_model(
         subtree_linvel=make_zero((n_worlds, nb), dtype=wp.vec3),
         subtree_angmom=make_zero((n_worlds, nb), dtype=wp.vec3),
 
-        qfrc_smooth=make_zero((n_worlds, nv), dtype=float),
+        qfrc_tau=make_zero((n_worlds, nv), dtype=float),
 
         contact=types.Contact(
             dist=make_zero(naconmax, dtype=float),

@@ -43,17 +43,26 @@ def main():
     # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
     # model_path = "data/osim/upper_spine.osim"
     model_path = "data/osim/example_gait3d_pin.osim"
+    # model_path = "data/osim/sphere.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       integrator=msk_warp.types.IntegratorType.EULER_FIXED,
                                       polynomial_data_path="data/muscle_poly_info.json",
-                                      root_free=True)
+                                      root_free=False)
     m, d = load_result.model, load_result.data
     m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
     m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
     m.opt.use_inf_norm = False
     m.opt.accuracy = 1.0
+    # print(d.body_X)
+    # quit()
 
-    dt = 0.0 / 1000.0
+    # qpos = wp.to_torch(d.qpos)
+    # qpos[:, 5] = 0.2
+    # qvel = wp.to_torch(d.qvel)
+    # qvel[:, 3] = 10.0
+    quit()
+
+    dt = 1.0 / 1000.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:

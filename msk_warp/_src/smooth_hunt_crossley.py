@@ -13,13 +13,11 @@ wp.set_module_options({"enable_backward": False})
 @wp.kernel
 def _process_contacts_hc(
         # Model:
-        body_rootid: wp.array(dtype=int),
         geom_bodyid: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         body_X_com_in: wp.array2d(dtype=wp.transform),
-        cvel_in: wp.array2d(dtype=wp.spatial_vector),
-        subtree_com_in: wp.array2d(dtype=wp.vec3),
+        body_vel_in: wp.array2d(dtype=wp.spatial_vector),
         nacon_in: wp.array(dtype=int),
         # In:
         dist_in: wp.array(dtype=float),
@@ -72,14 +70,15 @@ def _process_contacts_hc(
     fH = (4.0 / 3.0) * k * depth * wp.sqrt(radius * k * depth)
 
     # Calculate the relative velocity of the two bodies at the contact point
-    cvel1 = cvel_in[worldid, body1]
-    cvel2 = cvel_in[worldid, body2]
-    subtree_com1 = subtree_com_in[worldid, body_rootid[body1]]
-    subtree_com2 = subtree_com_in[worldid, body_rootid[body2]]
-    dif1 = location - subtree_com1
-    dif2 = location - subtree_com2
-    vel1 = support.transform_velocity(cvel1, dif1)
-    vel2 = support.transform_velocity(cvel2, dif2)
+    com_1 = wp.transform_get_translation(body_X_com_in[worldid, body1])
+    com_2 = wp.transform_get_translation(body_X_com_in[worldid, body2])
+    dif1 = location - com_1
+    dif2 = location - com_2
+
+    body_v_s1, body_v_s2 = body_vel_in[worldid, body1], body_vel_in[worldid, body2]
+    vel1 = support.transform_velocity(body_v_s1, dif1)
+    vel2 = support.transform_velocity(body_v_s2, dif2)
+
     # Compute relative velocities of the bodies
     v = wp.spatial_bottom(vel1 - vel2)
     # Project into contact frame
@@ -101,11 +100,8 @@ def _process_contacts_hc(
         force += f_friction * v_t / v_slip
 
     # Apply forces to bodies
-    com1, com2 = xipos_in[worldid, body1], xipos_in[worldid, body2]
-    wp.atomic_add(xfrc_contact_out[worldid], body1,
-                  support.force_at_point(-1.0 * force, location - com1))
-    wp.atomic_add(xfrc_contact_out[worldid], body2,
-                  support.force_at_point(1.0 * force, location - com2))
+    wp.atomic_add(xfrc_contact_out[worldid], body1, support.force_at_point(-1.0 * force, dif1))
+    wp.atomic_add(xfrc_contact_out[worldid], body2, support.force_at_point(1.0 * force, dif2))
 
     wp.atomic_add(geom_cforce_out[worldid], geom[0], wp.length(force))
     wp.atomic_add(geom_cforce_out[worldid], geom[1], wp.length(force))
@@ -122,13 +118,10 @@ def contact_forces(m: Model, d: Data):
     wp.launch(
         _process_contacts_hc,
         dim=(d.naconmax),
-        inputs=[
-            m.body_rootid,
-            m.geom_bodyid,
+        inputs=[m.geom_bodyid,
             d.integration_done,
             d.body_X_com,
             d.body_vel,
-            d.subtree_com,
             d.nacon,
             d.contact.dist,
             d.contact.curvature,

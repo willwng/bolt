@@ -312,21 +312,16 @@ def body_masses(model: CheckedModel) -> list[float]:
     return masses
 
 
-def get_body_inertias(model: CheckedModel) -> list[wp.spatial_matrix]:
+def get_body_inertias(model: CheckedModel) -> list[list[float]]:
     inertias = []
     for _, desc in model.iter_descs():
         body = desc.body
-        m = body.mass
         inertia = body.inertia
-        spat_inertia = wp.spatial_matrix(
-            inertia.xx, inertia.xy, inertia.xz, 0.0, 0.0, 0.0,
-            inertia.xy, inertia.yy, inertia.yz, 0.0, 0.0, 0.0,
-            inertia.xz, inertia.yz, inertia.zz, 0.0, 0.0, 0.0,
-            0.0,        0.0,        0.0,        m,   0.0, 0.0,
-            0.0,        0.0,        0.0,        0.0, m,   0.0,
-            0.0,        0.0,        0.0,        0.0, 0.0, m
-        )
-        inertias.append(spat_inertia)
+        # should be diagonal
+        assert abs(inertia.xy) <= 1e-12
+        assert abs(inertia.xz) <= 1e-12
+        assert abs(inertia.yz) <= 1e-12
+        inertias.append([inertia.xx, inertia.yy, inertia.zz])
     return inertias
 
 
