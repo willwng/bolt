@@ -128,7 +128,7 @@ def load_model(
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
 
     b_masses = body_masses(osim_model)
-    inertias = get_body_inertias(osim_model)
+    inertias = get_body_unit_inertias(osim_model)
     body_local_com = get_local_body_com_transform(osim_model)
     body_parent_ids = get_body_parent_ids(osim_model)
 
@@ -141,9 +141,9 @@ def load_model(
     jnt_qpos_adr = exclusive_scan(jnt_qpos_num, False)
     jnt_dof_adr = exclusive_scan(jnt_dof_num, False)
 
-    jnt_rel_parent = get_joint_rel_transform(osim_model, get_parent_rel=True)
-    jnt_rel_child = get_joint_rel_transform(osim_model, get_parent_rel=False)
-    jnt_extra_info = get_joint_extra_info(osim_model)
+    mob_X_PF = get_joint_rel_transform(osim_model, parent=True)
+    mob_X_MB = get_joint_rel_transform(osim_model, parent=False)
+    mob_extra_info = get_joint_extra_info(osim_model)
 
     geom_data = get_collider_data(osim_model)
     vis_data = get_visual_data(osim_model)
@@ -297,8 +297,8 @@ def load_model(
         qpos_spring=to_warp_array(qpos_spring, dtype=float),
 
         body_mass=to_warp_array(b_masses, dtype=float),
-        body_inert_diag=to_warp_array(inertias, dtype=wp.vec3),
-        body_X_com_loc=to_warp_array(body_local_com, dtype=wp.transform),
+        body_unit_inertia=to_warp_array(inertias, dtype=wp.mat33),
+        body_com_local=to_warp_array(body_local_com, dtype=wp.transform),
 
         body_rootid=to_warp_array(body_rootid, dtype=int),
         body_parentid=to_warp_array(body_parent_ids, dtype=int),
@@ -307,9 +307,9 @@ def load_model(
         jnt_qposadr=to_warp_array(jnt_qpos_adr, dtype=int),
         jnt_dofnum=to_warp_array(jnt_dof_num, dtype=int),
         jnt_dofadr=to_warp_array(jnt_dof_adr, dtype=int),
-        jnt_rel_parent=to_warp_array(jnt_rel_parent, dtype=wp.transform),
-        jnt_rel_child=to_warp_array(jnt_rel_child, dtype=wp.transform),
-        jnt_extra_info=to_warp_array(jnt_extra_info, dtype=wp.vec3),
+        mob_X_PF=to_warp_array(mob_X_PF, dtype=wp.transform),
+        mob_X_MB=to_warp_array(mob_X_MB, dtype=wp.transform),
+        mob_extra_info=to_warp_array(mob_extra_info, dtype=wp.vec3),
 
         limit_dof_range=to_warp_array(dof_limit_ranges, dtype=wp.vec2),
         limit_dof_adr=to_warp_array(dof_limit_adr, dtype=int),
@@ -435,8 +435,22 @@ def load_model(
         a_excitations=make_zero((n_worlds, nactuators), dtype=float),
         m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
 
-        body_X=make_zero((n_worlds, nb), dtype=wp.transform),
-        body_X_com=make_zero((n_worlds, nb), dtype=wp.transform),
+        mob_X_GB=make_zero((n_worlds, nb), dtype=wp.transform),
+        mob_X_FM=make_zero((n_worlds, nb), dtype=wp.transform),
+        mob_X_PB=make_zero((n_worlds, nb), dtype=wp.transform),
+        mob_scratch=make_zero((n_worlds, nb, 3), dtype=wp.vec3),
+        mob_phi=make_zero((n_worlds, nb), dtype=wp.vec3),
+        body_COM_G=make_zero((n_worlds, nb), dtype=wp.vec3),
+        body_Mk_G=make_zero((n_worlds, nb), dtype=types.SpatialInertia),
+        body_V_FM=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_V_PB_G=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_V_GB=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_VD_PB_G=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+
+        body_gyro_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_coriolis_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_total_coriolis_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_total_centrifugal_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
         body_vel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
@@ -465,7 +479,10 @@ def load_model(
 
         subtree_mass=make_zero((n_worlds, nb), dtype=float),
         subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
-        cdof=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
+        mob_H_FM=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
+        mob_H=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
+        mob_HDot_FM=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
+        mob_HDot=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
 
         crb=make_zero((n_worlds, nb), dtype=types.vec10),
         qM=make_zero((n_worlds, nv, nv), dtype=float),
@@ -575,14 +592,16 @@ def create_renderer(
         renderer_type: RendererType,
         draw_colliders: bool,
         draw_visuals: bool,
-        draw_muscles: bool
+        draw_muscles: bool,
+        draw_body_mass: bool,
 ):
     viewer = Renderer(
         m=load_result.model,
         renderer_type=renderer_type,
         draw_colliders=draw_colliders,
         draw_visuals=draw_visuals,
-        draw_muscles=draw_muscles
+        draw_muscles=draw_muscles,
+        draw_body_mass=draw_body_mass,
     )
     viewer.load_meshes(load_result.visuals)
     return viewer
@@ -727,11 +746,11 @@ def time(d: types.Data) -> torch.tensor:
 
 
 def body_positions(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.body_X)
+    return wp.to_torch(d.mob_X_GB)
 
 
 def body_com_positions(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.body_X_com)
+    return wp.to_torch(d.body_COM_G)
 
 
 def body_rotations(d: types.Data) -> torch.Tensor:

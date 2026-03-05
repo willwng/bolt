@@ -1,31 +1,11 @@
-# Copyright 2025 The Newton Developers
-# Modified for MSKWarp by Will Wang
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
-
 import warp as wp
 
 from . import math
 from . import mobilizers
 from .types import Data
 from .types import Model
-from .types import TileSet
-from .types import vec10
-from .warp_util import cache_kernel
+from .types import SpatialInertia
 from .warp_util import event_scope
-from .warp_util import kernel as nested_kernel
 
 wp.set_module_options({"enable_backward": False})
 
@@ -72,72 +52,82 @@ def fix_qpos_limits(m: Model, d: Data):
 
 
 @wp.kernel
-def _kinematics_root(
+def _calc_mobilizer_X_FM(
+        # Model:
+        jnt_type: wp.array(dtype=int),
+        jnt_qposadr: wp.array(dtype=int),
+        mob_extra_info: wp.array(dtype=wp.vec3),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        qpos_in: wp.array2d(dtype=float),
+        # Data out:
+        mob_X_FM_out: wp.array2d(dtype=wp.transform),
+        mob_scratch_out: wp.array3d(dtype=wp.vec3),
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    # Collect joint information
+    jnt_type_ = jnt_type[bodyid]
+    qpos_start = jnt_qposadr[bodyid]
+    extra_info = mob_extra_info[bodyid]
+    mob_scratch = mob_scratch_out[worldid, bodyid]
+
+    # Joint transform: parent mobilizer to child mobilizer
+    X_FM = mobilizers.calcX_FM(jnt_type_, qpos_start, qpos_in[worldid], extra_info, mob_scratch)
+    mob_X_FM_out[worldid, bodyid] = X_FM
+    return
+
+
+@wp.kernel
+def _body_transforms_ground(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         # Data out:
-        body_X_out: wp.array2d(dtype=wp.transform),
-        body_X_com_out: wp.array2d(dtype=wp.transform),
+        mob_X_PB_out: wp.array2d(dtype=wp.transform),
+        mob_X_GB_out: wp.array2d(dtype=wp.transform),
 ):
     worldid = wp.tid()
     if integration_done_in[worldid]:
         return
-    body_X_out[worldid, 0] = wp.transform_identity()
-    body_X_com_out[worldid, 0] = wp.transform_identity()
+    mob_X_PB_out[worldid, 0] = wp.transform_identity()
+    mob_X_GB_out[worldid, 0] = wp.transform_identity()
 
 
 @wp.kernel
-def _kinematics_level(
+def _body_transforms_level(
         # Model:
         body_parentid: wp.array(dtype=int),
-        jnt_type: wp.array(dtype=int),
-        jnt_qposadr: wp.array(dtype=int),
-        jnt_rel_parent: wp.array(dtype=wp.transform),
-        jnt_rel_child: wp.array(dtype=wp.transform),
-        jnt_extra_info: wp.array(dtype=wp.vec3),
-        body_X_com: wp.array(dtype=wp.transform),
+        mob_X_PF: wp.array(dtype=wp.transform),
+        mob_X_MB: wp.array(dtype=wp.transform),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        qpos_in: wp.array2d(dtype=float),
-        body_X_in: wp.array2d(dtype=wp.transform),
+        mob_X_FM_in: wp.array2d(dtype=wp.transform),
+        mob_X_GB_in: wp.array2d(dtype=wp.transform),
         # In:
         body_tree_: wp.array(dtype=int),
         # Data out:
-        body_X_out: wp.array2d(dtype=wp.transform),
-        body_X_com_out: wp.array2d(dtype=wp.transform),
+        mob_X_PB_out: wp.array2d(dtype=wp.transform),
+        mob_X_GB_out: wp.array2d(dtype=wp.transform),
 ):
     worldid, nodeid = wp.tid()
     if integration_done_in[worldid]:
         return
 
     bodyid = body_tree_[nodeid]
+    pid = body_parentid[bodyid]
 
-    # Collect joint information
-    jnt_type_ = jnt_type[bodyid]
-    qpos_start = jnt_qposadr[bodyid]
-    X_pj = jnt_rel_parent[bodyid]
-    X_cj = jnt_rel_child[bodyid]
-    extra_info = jnt_extra_info[bodyid]
+    X_PF = mob_X_PF[bodyid]  # Transform from parent frame P to mobilizer fixed frame F
+    X_MB = mob_X_MB[bodyid]  # Transform from mobilizer frame M to body frame B
+    X_FM = mob_X_FM_in[worldid, bodyid]  # just calculated
+    X_GP = mob_X_GB_in[worldid, pid]  # already calculated
 
-    # Parent world frame
-    parentid = body_parentid[bodyid]
-    X_wp = body_X_in[worldid, parentid]
-    # Parent mobilizer frame
-    X_mp = X_wp * X_pj
+    X_PB = X_PF * X_FM * X_MB
+    X_GB = X_GP * X_PB
 
-    # Joint transform/child mobilizer frame
-    X_j = mobilizers.jcalc_transform(jnt_type_, qpos_start, qpos_in[worldid], extra_info)
-    X_mc = X_mp * X_j
-
-    # Child world frame
-    X_wc = X_mc * wp.transform_inverse(X_cj)
-
-    # Child COM frame
-    X_com_local = body_X_com[bodyid]
-    X_com = X_mc * X_com_local
-
-    body_X_out[worldid, bodyid] = X_wc
-    body_X_com_out[worldid, bodyid] = X_com
+    mob_X_PB_out[worldid, bodyid] = X_PB
+    mob_X_GB_out[worldid, bodyid] = X_GB
     return
 
 
@@ -148,7 +138,7 @@ def _geom_local_to_global(
         geom_X_loc: wp.array(dtype=wp.transform),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        body_X_in: wp.array2d(dtype=wp.transform),
+        mob_X_GB_in: wp.array2d(dtype=wp.transform),
         # Data out:
         geom_X_out: wp.array2d(dtype=wp.transform),
 ):
@@ -157,8 +147,8 @@ def _geom_local_to_global(
         return
 
     bodyid = geom_bodyid[geomid]
-    body_X = body_X_in[worldid, bodyid]
-    geom_X_out[worldid, geomid] = body_X * geom_X_loc[geomid]
+    X_GB = mob_X_GB_in[worldid, bodyid]
+    geom_X_out[worldid, geomid] = X_GB * geom_X_loc[geomid]
 
 
 @wp.kernel
@@ -207,199 +197,235 @@ def _site_local_to_global(
     site_xpos_out[worldid, siteid] = body_pos + rpos
 
 
+@wp.kernel
+def _across_joint_velocity_jacobian(
+        # Model:
+        jnt_type: wp.array(dtype=int),
+        jnt_dofadr: wp.array(dtype=int),
+        mob_extra_info: wp.array(dtype=wp.vec3),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        mob_scratch_in: wp.array3d(dtype=wp.vec3),
+        # Data out:
+        H_FM_out: wp.array2d(dtype=wp.spatial_vector),
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    jnt_type_ = jnt_type[bodyid]
+    dofadr = jnt_dofadr[bodyid]
+    extra_info = mob_extra_info[bodyid]
+    H_FM = H_FM_out[worldid]
+    mob_scratch = mob_scratch_in[worldid, bodyid]
+
+    # Stores Jacobian in H_FM
+    mobilizers.calc_across_joint_velocity_jacobian(jnt_type_, dofadr, extra_info, mob_scratch, H_FM)
+    return
+
+
+@wp.kernel
+def _parent_to_child_joint_velocity_jacobian_in_ground(
+        # Model:
+        body_parentid: wp.array(dtype=int),
+        mob_X_PF: wp.array(dtype=wp.transform),
+        mob_X_MB: wp.array(dtype=wp.transform),
+        jnt_dofnum: wp.array(dtype=int),
+        jnt_dofadr: wp.array(dtype=int),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        body_transforms_in: wp.array2d(dtype=wp.transform),
+        mob_X_FM_in: wp.array2d(dtype=wp.transform),
+        H_FM_in: wp.array2d(dtype=wp.spatial_vector),
+        # Data out:
+        H_PB_G_out: wp.array2d(dtype=wp.spatial_vector),
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    # Collect joint information
+    pid = body_parentid[bodyid]
+    X_PF = mob_X_PF[bodyid]
+    X_MB = mob_X_MB[bodyid]
+    dofnum = jnt_dofnum[bodyid]
+    dofadr = jnt_dofadr[bodyid]
+
+    # Pre-computed transform and cross-joint Jacobian
+    X_FM = mob_X_FM_in[worldid, bodyid]
+    H_FM = H_FM_in[worldid]
+
+    # We want R_GF so we can re-express the cross-joint velocity V_FB (==V_PB)
+    #   in the ground frame, to get V_PB_G.
+    R_PF = wp.transform_get_rotation(X_PF)
+
+    # Compute orientation of the parent joint frame in ground
+    X_GP = body_transforms_in[worldid, pid]
+    R_GP = wp.transform_get_rotation(X_GP)
+    R_GF = R_GP * R_PF
+
+    # We want r_MB_F, that is, the vector from Mo to Bo, expressed in F
+    r_MB = wp.transform_get_translation(X_MB)
+    R_FM = wp.transform_get_rotation(X_FM)
+    r_MB_F = wp.quat_rotate(R_FM, r_MB)
+
+    H_PB_G = H_PB_G_out[worldid]
+    for i in range(dofnum):
+        H_FM_i = H_FM[dofadr + i]
+        H_MB_F_i = wp.spatial_vector(wp.vec3(), -wp.cross(r_MB_F, wp.spatial_top(H_FM_i)))
+        H_PB_G[dofadr + i] = math.rotate_spatial_vec(R_GF, (H_FM_i + H_MB_F_i))
+    return
+
+
+@wp.kernel
+def _joint_independent_kinematics(
+        # Model:
+        body_parentid: wp.array(dtype=int),
+        body_com_local: wp.array(dtype=wp.transform),
+        body_mass: wp.array(dtype=float),
+        body_unit_inertia: wp.array(dtype=wp.mat33),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        mob_X_GB_in: wp.array2d(dtype=wp.transform),
+        mob_X_PB_in: wp.array2d(dtype=wp.transform),
+        # Data out:
+        mob_phi_out: wp.array2d(dtype=wp.vec3),
+        body_COM_G_out: wp.array2d(dtype=wp.vec3),
+        body_Mk_G_out: wp.array2d(dtype=SpatialInertia),
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid] or bodyid == 0:
+        return
+
+    pid = body_parentid[bodyid]
+    X_GB = mob_X_GB_in[worldid, bodyid]
+    X_GP = mob_X_GB_in[worldid, pid]
+    X_PB = mob_X_PB_in[worldid, bodyid]
+
+    # Re-express parent-to-child shift vector (Bo-Po) into the ground frame.
+    p_PB_G = wp.quat_rotate(wp.transform_get_rotation(X_GP), wp.transform_get_translation(X_PB))
+
+    # Phi matrix
+    mob_phi_out[worldid, bodyid] = p_PB_G
+
+    # Calculate spatial mass properties
+    R_GB = wp.transform_get_rotation(X_GB)
+    p_GB = wp.transform_get_translation(X_GB)
+
+    # re-express inertia in ground:
+    G_Bo_G = math.reexpress_inertia(body_unit_inertia[bodyid], wp.quat_inverse(R_GB))
+    p_BBc_G = wp.quat_rotate(R_GB, wp.transform_get_translation(body_com_local[bodyid]))
+
+    body_COM_G_out[worldid, bodyid] = p_GB + p_BBc_G
+
+    # Mk: the spatial inertia matrix about the body origin
+    body_Mk_G_out[worldid, bodyid] = SpatialInertia(body_mass[bodyid], p_BBc_G, G_Bo_G)
+    return
+
+
 @event_scope
-def kinematics(m: Model, d: Data):
-    """ Computes forward kinematics for all bodies, sites, geoms. """
-    # World body
+def calc_mobilizer_X_MF(m: Model, d: Data):
     wp.launch(
-        _kinematics_root,
-        dim=(d.nworld),
-        inputs=[d.integration_done],
-        outputs=[d.body_X, d.body_X_com]
+        _calc_mobilizer_X_FM,
+        dim=(d.nworld, m.nbody),
+        inputs=[
+            m.jnt_type, m.jnt_qposadr, m.mob_extra_info,
+            d.integration_done, d.qpos,
+        ],
+        outputs=[d.mob_X_FM, d.mob_scratch],
     )
 
+
+@event_scope
+def calc_body_transforms(m: Model, d: Data):
+    """ Computes world-space transformations for all bodies """
+    # World body
+    wp.launch(
+        _body_transforms_ground,
+        dim=(d.nworld),
+        inputs=[d.integration_done],
+        outputs=[d.mob_X_PB, d.mob_X_GB]
+    )
+
+    # Forward pass, parallelize over bodies within a tree level
     for i in range(1, len(m.body_tree)):
         body_tree = m.body_tree[i]
         wp.launch(
-            _kinematics_level,
+            _body_transforms_level,
             dim=(d.nworld, body_tree.size),
             inputs=[
-                m.body_parentid, m.jnt_type, m.jnt_qposadr,
-                m.jnt_rel_parent, m.jnt_rel_child, m.jnt_extra_info, m.body_X_com_loc,
-                d.integration_done, d.qpos, d.body_X,
+                m.body_parentid, m.mob_X_PF, m.mob_X_MB,
+                d.integration_done, d.mob_X_FM, d.mob_X_GB,
                 body_tree,
             ],
-            outputs=[d.body_X, d.body_X_com],
+            outputs=[d.mob_X_PB, d.mob_X_GB],
         )
+
+
+@event_scope
+def joint_velocity_jacobian(m: Model, d: Data):
+    """ Computes the Jacobian mapping joint velocities to body velocities """
+    wp.launch(
+        _across_joint_velocity_jacobian,
+        dim=(d.nworld, m.nbody),
+        inputs=[
+            m.jnt_type, m.jnt_dofadr, m.mob_extra_info,
+            d.integration_done, d.mob_scratch,
+        ],
+        outputs=[d.mob_H_FM],
+    )
+    wp.launch(
+        _parent_to_child_joint_velocity_jacobian_in_ground,
+        dim=(d.nworld, m.nbody),
+        inputs=[
+            m.body_parentid, m.mob_X_PF, m.mob_X_MB, m.jnt_dofnum, m.jnt_dofadr,
+            d.integration_done, d.mob_X_PB, d.mob_X_FM, d.mob_H_FM,
+        ],
+        outputs=[d.mob_H],
+    )
+
+
+@event_scope
+def joint_independent_kinematics(m: Model, d: Data):
+    """ Computes remaining kinematic-dependent quantities """
+    wp.launch(
+        _joint_independent_kinematics,
+        dim=(d.nworld, m.nbody),
+        inputs=[
+            m.body_parentid,
+            m.body_com_local,
+            m.body_mass,
+            m.body_unit_inertia,
+            d.integration_done,
+            d.mob_X_GB,
+            d.mob_X_PB,
+        ],
+        outputs=[d.mob_phi, d.body_COM_G, d.body_Mk_G],
+    )
+
+@event_scope
+def attachment_kinematics(m: Model, d: Data):
+    # Collision geometry: only position is needed
     wp.launch(
         _geom_local_to_global,
         dim=(d.nworld, m.ngeom),
-        inputs=[m.geom_bodyid, m.geom_X_loc, d.integration_done, d.body_X],
+        inputs=[m.geom_bodyid, m.geom_X_loc, d.integration_done, d.mob_X_GB],
         outputs=[d.geom_X],
     )
 
+    # Visuals: only position is needed
     if wp.static(m.opt.visuals):
         wp.launch(
             _vis_local_to_global,
             dim=(d.nworld, m.nvis),
-            inputs=[m.vis_bodyid, m.vis_X_loc, d.integration_done, d.body_X],
+            inputs=[m.vis_bodyid, m.vis_X_loc, d.integration_done, d.mob_X_GB],
             outputs=[d.vis_X],
         )
 
+    # Sites
     wp.launch(
         _site_local_to_global,
         dim=(d.nworld, m.nsite),
-        inputs=[m.site_bodyid, m.site_pos, d.integration_done, d.body_X],
+        inputs=[m.site_bodyid, m.site_pos, d.integration_done, d.mob_X_GB],
         outputs=[d.site_rpos, d.site_xpos],
-    )
-
-
-@wp.kernel
-def _subtree_com_init(
-        # Model:
-        body_mass: wp.array(dtype=float),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        body_X_in: wp.array2d(dtype=wp.transform),
-        # Data out:
-        subtree_mass_out: wp.array2d(dtype=float),
-        subtree_com_out: wp.array2d(dtype=wp.vec3),
-):
-    worldid, bodyid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-    body_pos = wp.transform_get_translation(body_X_in[worldid, bodyid])
-    subtree_mass_out[worldid, bodyid] = body_mass[bodyid]
-    subtree_com_out[worldid, bodyid] = body_pos * body_mass[bodyid]
-
-
-@wp.kernel
-def _subtree_com_acc(
-        # Model:
-        body_parentid: wp.array(dtype=int),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        subtree_com_in: wp.array2d(dtype=wp.vec3),
-        # In:
-        body_tree_: wp.array(dtype=int),
-        # Data out:
-        subtree_mass_out: wp.array2d(dtype=float),
-        subtree_com_out: wp.array2d(dtype=wp.vec3),
-):
-    worldid, nodeid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-
-    bodyid = body_tree_[nodeid]
-    pid = body_parentid[bodyid]
-    if bodyid != 0:
-        wp.atomic_add(subtree_mass_out, worldid, pid, subtree_mass_out[worldid, bodyid])
-        wp.atomic_add(subtree_com_out, worldid, pid, subtree_com_in[worldid, bodyid])
-
-
-@wp.kernel
-def _subtree_div(
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        subtree_mass_in: wp.array2d(dtype=float),
-        subtree_com_in: wp.array2d(dtype=wp.vec3),
-        # Data out:
-        subtree_com_out: wp.array2d(dtype=wp.vec3),
-):
-    worldid, bodyid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-    com = subtree_com_in[worldid, bodyid]
-    mass = subtree_mass_in[worldid, bodyid]
-    if mass != 0.0:
-        subtree_com_out[worldid, bodyid] = com / mass
-
-
-@event_scope
-def com_pos(m: Model, d: Data):
-    """ Computes subtree center of mass positions. """
-    d.subtree_mass.zero_()
-
-    # Initialize subtree_com to (current body com * mass)
-    wp.launch(_subtree_com_init,
-              dim=(d.nworld, m.nbody),
-              inputs=[m.body_mass, d.integration_done, d.body_X_com],
-              outputs=[d.subtree_mass, d.subtree_com])
-
-    # Backward pass to propagate subtree com * mass
-    for i in reversed(range(len(m.body_tree))):
-        body_tree = m.body_tree[i]
-        wp.launch(
-            _subtree_com_acc,
-            dim=(d.nworld, body_tree.size),
-            inputs=[m.body_parentid, d.integration_done, d.subtree_com, body_tree],
-            outputs=[d.subtree_mass, d.subtree_com],
-        )
-
-    # Compute the subtree com of each body
-    wp.launch(
-        _subtree_div,
-        dim=(d.nworld, m.nbody),
-        inputs=[d.integration_done, d.subtree_mass, d.subtree_com],
-        outputs=[d.subtree_com])
-
-
-@wp.kernel
-def _spatial_inertia(
-        # Model:
-        body_mass: wp.array(dtype=float),
-        body_inert_diag: wp.array(dtype=wp.vec3),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        body_X_com_in: wp.array2d(dtype=wp.transform),
-        # Data out:
-        body_inert_out: wp.array2d(dtype=vec10),
-):
-    worldid, bodyid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-
-    body_X_com = body_X_com_in[worldid, bodyid]
-    body_X_com_quat = wp.transform_get_rotation(body_X_com)
-    body_X_com_pos = wp.transform_get_translation(body_X_com)
-
-    # express inertia in com-based frame
-    mat = wp.quat_to_matrix(body_X_com_quat)
-    inert = body_inert_diag[bodyid]
-    mass = body_mass[bodyid]
-    # offset from "origin" to body com
-    dif = body_X_com_pos
-    res = vec10()
-    # res_rot = mat * diag(inert) * mat'
-    inertia_wf = mat @ wp.diag(inert) @ wp.transpose(mat)
-    res[0] = inertia_wf[0, 0]
-    res[1] = inertia_wf[1, 1]
-    res[2] = inertia_wf[2, 2]
-    res[3] = inertia_wf[0, 1]
-    res[4] = inertia_wf[0, 2]
-    res[5] = inertia_wf[1, 2]
-    # res_rot -= mass * dif_cross * dif_cross
-    res[0] += mass * (dif[1] * dif[1] + dif[2] * dif[2])
-    res[1] += mass * (dif[0] * dif[0] + dif[2] * dif[2])
-    res[2] += mass * (dif[0] * dif[0] + dif[1] * dif[1])
-    res[3] -= mass * dif[0] * dif[1]
-    res[4] -= mass * dif[0] * dif[2]
-    res[5] -= mass * dif[1] * dif[2]
-    # res_tran = mass * dif
-    res[6] = mass * dif[0]
-    res[7] = mass * dif[1]
-    res[8] = mass * dif[2]
-    # res_mass = mass
-    res[9] = mass
-
-    body_inert_out[worldid, bodyid] = res
-
-
-@event_scope
-def spatial_inertia(m: Model, d: Data):
-    wp.launch(
-        _spatial_inertia,
-        dim=(d.nworld, m.nbody),
-        inputs=[m.body_mass, m.body_inert_diag, d.integration_done, d.body_X_com],
-        outputs=[d.body_inert],
     )

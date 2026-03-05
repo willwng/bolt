@@ -34,11 +34,13 @@ def evaluate_txfm(
 
 
 @wp.func
-def jcalc_transform(
+def calcX_FM(
         jnttype: int,
         qadr: int,
         qpos: wp.array(dtype=float),
         extra_info: wp.vec3,
+        # out:
+        mob_scratch_out: wp.array(dtype=wp.vec3),
 ) -> wp.transform:
     if jnttype == JointType.FREE:
         r = wp.quat(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2], qpos[qadr + 3])
@@ -73,6 +75,8 @@ def jcalc_transform(
     elif jnttype == JointType.GIMBAL:
         # Euler/Body-Fixed XYZ order
         r = math.quat_from_xyz(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2])
+        # store q0, q1, q2 for later
+        mob_scratch_out[0] = wp.vec3(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2])
         return wp.transform(wp.vec3(), r)
 
     elif jnttype == JointType.BEAM:
@@ -86,6 +90,8 @@ def jcalc_transform(
             -qpos[qadr + 0] * deflection_coeff,
             length - displacement_coeff * theta_sq
         )
+        # store values for later
+        mob_scratch_out[0] = wp.vec3(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2])
         return wp.transform(p, r)
 
     elif jnttype == JointType.ELLIPSOID:
@@ -94,6 +100,8 @@ def jcalc_transform(
         n = wp.quat_rotate(r, wp.vec(0.0, 0.0, 1.0))
         semi = extra_info
         p = wp.vec3(semi.x * n.x, semi.y * n.y, semi.z * n.z)
+
+        mob_scratch_out[0] = n
         return wp.transform(p, r)
 
     elif jnttype == JointType.WELD:
@@ -108,48 +116,83 @@ def jcalc_transform(
 
 
 @wp.func
-def joint_motion(
+def calc_across_joint_velocity_jacobian(
         jnttype: int,
         dofadr: int,
-        qvel: wp.array(dtype=float),
         extra_info: wp.vec3,
+        mob_scratch: wp.array(dtype=wp.vec3),
         # Out
-        S_out: wp.array(dtype=wp.spatial_vector),
+        H_FM: wp.array(dtype=wp.spatial_vector),
 ):
     """
     Computes the motion subspace and joint velocity contribution
     """
     if jnttype == JointType.FREE:
         # Rotations
-        S_out[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3())
-        S_out[dofadr + 1] = wp.spatial_vector(wp.vec3(0.0, 1.0, 0.0), wp.vec3())
-        S_out[dofadr + 2] = wp.spatial_vector(wp.vec3(0.0, 0.0, 1.0), wp.vec3())
+        H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3())
+        H_FM[dofadr + 1] = wp.spatial_vector(wp.vec3(0.0, 1.0, 0.0), wp.vec3())
+        H_FM[dofadr + 2] = wp.spatial_vector(wp.vec3(0.0, 0.0, 1.0), wp.vec3())
         # Translations
-        S_out[dofadr + 3] = wp.spatial_vector(wp.vec3(), wp.vec3(1.0, 0.0, 0.0))
-        S_out[dofadr + 4] = wp.spatial_vector(wp.vec3(), wp.vec3(0.0, 1.0, 0.0))
-        S_out[dofadr + 5] = wp.spatial_vector(wp.vec3(), wp.vec3(0.0, 0.0, 1.0))
-
-        return wp.spatial_vector(qvel[dofadr + 0], qvel[dofadr + 1], qvel[dofadr + 2],
-                                 qvel[dofadr + 3], qvel[dofadr + 4], qvel[dofadr + 5])
+        H_FM[dofadr + 3] = wp.spatial_vector(wp.vec3(), wp.vec3(1.0, 0.0, 0.0))
+        H_FM[dofadr + 4] = wp.spatial_vector(wp.vec3(), wp.vec3(0.0, 1.0, 0.0))
+        H_FM[dofadr + 5] = wp.spatial_vector(wp.vec3(), wp.vec3(0.0, 0.0, 1.0))
 
     elif jnttype == JointType.SLIDE:
         slide_axis = wp.vec3(1.0, 0.0, 0.0)
-        S_j = wp.spatial_vector(wp.vec3(), slide_axis)
-        S_out[dofadr] = wp.spatial_vector(wp.vec3(), slide_axis)
-        return S_j * qvel[dofadr]
+        H_FM[dofadr] = wp.spatial_vector(wp.vec3(), slide_axis)
 
     elif jnttype == JointType.PIN:
         pin_axis = wp.vec3(0.0, 0.0, 1.0)
-        S_j = wp.spatial_vector(pin_axis, wp.vec3())
-        S_out[dofadr] = wp.spatial_vector(pin_axis, wp.vec3())
-        return S_j * qvel[dofadr]
+        H_FM[dofadr] = wp.spatial_vector(pin_axis, wp.vec3())
 
     elif jnttype == JointType.BALL:
-        S_out[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3())
-        S_out[dofadr + 1] = wp.spatial_vector(wp.vec3(0.0, 1.0, 0.0), wp.vec3())
-        S_out[dofadr + 2] = wp.spatial_vector(wp.vec3(0.0, 0.0, 1.0), wp.vec3())
-        return wp.spatial_vector(wp.vec3(qvel[dofadr + 0], qvel[dofadr + 1], qvel[dofadr + 2]), wp.vec3())
+        H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3())
+        H_FM[dofadr + 1] = wp.spatial_vector(wp.vec3(0.0, 1.0, 0.0), wp.vec3())
+        H_FM[dofadr + 2] = wp.spatial_vector(wp.vec3(0.0, 0.0, 1.0), wp.vec3())
 
+    elif jnttype == JointType.ELLIPSOID:
+        semi = extra_info
+        n = mob_scratch[0]
+        H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3(0.0, -n[2] * semi[1], n[1] * semi[2]))
+        H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(0.0, 1.0, 0.0), wp.vec3(n[2] * semi[0], 0.0, -n[0] * semi[2]))
+        H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(0.0, 0.0, 1.0), wp.vec3(-n[1] * semi[0], n[0] * semi[1], 0.0))
+
+    elif jnttype == JointType.UNIVERSAL:
+        pass
+    elif jnttype == JointType.GIMBAL:
+        pass
+    elif jnttype == JointType.BEAM:
+        pass
+    elif jnttype == JointType.CUSTOM:
+        pass
+    elif jnttype == JointType.WELD:
+        pass
+    elif jnttype == JointType.DUMMY:
+        pass
+    else:
+        assert False, f"Unknown joint type {jnttype}"
+    return
+
+
+@wp.func
+def calc_across_joint_velocity_jacobian_dot(
+        jnttype: int,
+        dofadr: int,
+        extra_info: wp.vec3,
+        # Out
+        HDot_FM: wp.array(dtype=wp.spatial_vector),
+):
+    """
+    Computes the additional joint acceleration contribution S_dot * q_vel
+    """
+    if jnttype == JointType.FREE:
+        pass
+    elif jnttype == JointType.SLIDE:
+        pass
+    elif jnttype == JointType.PIN:
+        pass
+    elif jnttype == JointType.BALL:
+        pass
     elif jnttype == JointType.ELLIPSOID:
         pass
     elif jnttype == JointType.UNIVERSAL:
@@ -160,60 +203,27 @@ def joint_motion(
         pass
     elif jnttype == JointType.CUSTOM:
         pass
-
     elif jnttype == JointType.WELD:
-        return wp.spatial_vector()
-
+        pass
     elif jnttype == JointType.DUMMY:
-        return wp.spatial_vector()
-
+        pass
     else:
         assert False, f"Unknown joint type {jnttype}"
     return wp.spatial_vector()
 
 
 @wp.func
-def joint_acc(
+def jcalc(
         jnttype: int,
+        qpos: wp.array(dtype=float),
+        qadr: int,
         dofadr: int,
         qvel: wp.array(dtype=float),
         extra_info: wp.vec3,
-):
-    """
-    Computes the additional joint acceleration contribution S_dot * q_vel
-    """
-    if jnttype == JointType.FREE:
-        return wp.spatial_vector()
-
-    elif jnttype == JointType.SLIDE:
-        return wp.spatial_vector()
-
-    elif jnttype == JointType.PIN:
-        return wp.spatial_vector()
-
-    elif jnttype == JointType.BALL:
-        return wp.spatial_vector()
-
-    elif jnttype == JointType.ELLIPSOID:
-        pass
-    elif jnttype == JointType.UNIVERSAL:
-        pass
-    elif jnttype == JointType.GIMBAL:
-        pass
-    elif jnttype == JointType.BEAM:
-        pass
-    elif jnttype == JointType.CUSTOM:
-        pass
-
-    elif jnttype == JointType.WELD:
-        return wp.spatial_vector()
-
-    elif jnttype == JointType.DUMMY:
-        return wp.spatial_vector()
-
-    else:
-        assert False, f"Unknown joint type {jnttype}"
-    return wp.spatial_vector()
+        # Out
+        S_out: wp.array(dtype=wp.spatial_vector),
+) -> tuple[wp.transform, wp.spatial_vector, wp.spatial_vector]:
+    return
 
 
 @wp.func

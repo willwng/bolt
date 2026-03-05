@@ -24,6 +24,7 @@ class Renderer:
             draw_colliders: bool,
             draw_visuals: bool,
             draw_muscles: bool,
+            draw_body_mass: bool,
     ):
         if renderer_type == RendererType.OPENGL:
             self.renderer = wp.render.OpenGLRenderer(
@@ -66,6 +67,7 @@ class Renderer:
         self.draw_colliders = draw_colliders
         self.draw_visuals = draw_visuals
         self.draw_muscles = draw_muscles
+        self.draw_body_mass = draw_body_mass
 
         # Default colors
         self.colors = {
@@ -80,6 +82,10 @@ class Renderer:
             number_instances_per_world += m.nvis
         if self.draw_colliders:
             number_instances_per_world += m.ngeom
+        if self.draw_muscles:
+            number_instances_per_world += m.nmuscle
+        if self.draw_body_mass:
+            number_instances_per_world += m.nbody
         self.num_instances_per_world = number_instances_per_world
 
     def load_meshes(self, mesh_loads: list[types.MeshLoadResult]):
@@ -212,6 +218,18 @@ class Renderer:
                         pts_xloc,
                         color=color,
                         radius=radius,
+                    )
+                    obj_id += 1
+
+            if self.draw_body_mass:
+                body_com = d.body_COM_G.numpy()[wid]
+                for i in range(m.nbody):
+                    self.renderer.render_sphere(
+                        f"mass_{obj_id}",
+                        body_com[i],
+                        (0.0, 0.0, 0.0, 1.0),
+                        color=(1.0, 1.0, 0.0),
+                        radius=0.02,
                     )
                     obj_id += 1
 

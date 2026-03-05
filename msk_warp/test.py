@@ -40,27 +40,26 @@ def main():
     if args.debug:
         wp.config.mode = "debug"
 
-    # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
+    model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
     # model_path = "data/osim/upper_spine.osim"
-    model_path = "data/osim/example_gait3d_pin.osim"
+    # model_path = "data/osim/example_gait3d_pin.osim"
     # model_path = "data/osim/sphere.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       integrator=msk_warp.types.IntegratorType.EULER_FIXED,
                                       polynomial_data_path="data/muscle_poly_info.json",
-                                      root_free=False)
+                                      root_free=True)
     m, d = load_result.model, load_result.data
     m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
     m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
     m.opt.use_inf_norm = False
     m.opt.accuracy = 1.0
-    # print(d.body_X)
     # quit()
 
-    # qpos = wp.to_torch(d.qpos)
-    # qpos[:, 5] = 0.2
+    qpos = wp.to_torch(d.qpos)
+    qpos += torch.randn_like(qpos) * 0.1
+    qpos[:, 5] = 1.2
     # qvel = wp.to_torch(d.qvel)
     # qvel[:, 3] = 10.0
-    quit()
 
     dt = 1.0 / 1000.0
     # dt = 1.0 / 10000.0
@@ -70,8 +69,9 @@ def main():
             load_result=load_result,
             renderer_type=RendererType.OPENGL,
             draw_visuals=True,
-            draw_colliders=True,
-            draw_muscles=True
+            draw_colliders=False,
+            draw_muscles=True,
+            draw_body_mass=True,
         )
         if viewer.viewer_type == RendererType.TILED:
             viewer.setup_tiled_renderer(list(range(args.nworld)))

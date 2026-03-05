@@ -120,7 +120,7 @@ def contact_forces(m: Model, d: Data):
         dim=(d.naconmax),
         inputs=[m.geom_bodyid,
             d.integration_done,
-            d.body_X_com,
+            d.body_COM_G,
             d.body_vel,
             d.nacon,
             d.contact.dist,

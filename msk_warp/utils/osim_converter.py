@@ -312,17 +312,23 @@ def body_masses(model: CheckedModel) -> list[float]:
     return masses
 
 
-def get_body_inertias(model: CheckedModel) -> list[list[float]]:
-    inertias = []
+def get_body_unit_inertias(model: CheckedModel) -> list[list[float]]:
+    unit_inertias = []
     for _, desc in model.iter_descs():
         body = desc.body
+        mass = body.mass
         inertia = body.inertia
-        # should be diagonal
-        assert abs(inertia.xy) <= 1e-12
-        assert abs(inertia.xz) <= 1e-12
-        assert abs(inertia.yz) <= 1e-12
-        inertias.append([inertia.xx, inertia.yy, inertia.zz])
-    return inertias
+        if mass == 0.0:
+            unit_inertias.append(wp.mat33(0.0))
+            continue
+
+        unit_inertia = inertia / mass
+        unit_inertias.append(wp.mat33(
+            unit_inertia.xx, unit_inertia.xy, unit_inertia.xz,
+            unit_inertia.xy, unit_inertia.yy, unit_inertia.yz,
+            unit_inertia.xz, unit_inertia.yz, unit_inertia.zz,
+        ))
+    return unit_inertias
 
 
 def get_local_body_com_transform(model: CheckedModel) -> list[wp.transform]:
@@ -382,32 +388,23 @@ def get_joint_types(model: CheckedModel) -> list[types.JointType]:
 
 def get_joint_rel_transform(
         model: CheckedModel,
-        get_parent_rel: bool
+        parent: bool
 ) -> list[wp.transform]:
     rel_transforms = []
     for _, joint in model.iter_joints():
-        if get_parent_rel:
+        if parent:
             frame = get_frame_from_joint(joint, joint.socket_parent_frame)
         else:
             frame = get_frame_from_joint(joint, joint.socket_child_frame)
         pos = frame.translation
         rot = frame.orientation
         transform = wp.transform(wp.vec3(pos.x, pos.y, pos.z), wp.quat(rot.x, rot.y, rot.z, rot.w))
+
+        if not parent:
+            transform = wp.transform_inverse(transform)
         rel_transforms.append(transform)
 
     return rel_transforms
-
-
-def get_joint_rel_rot(model: CheckedModel, parent: bool) -> list[list[float]]:
-    rel_parent_rots = []
-    for _, joint in model.iter_joints():
-        if parent:
-            frame = get_frame_from_joint(joint, joint.socket_parent_frame)
-        else:
-            frame = get_frame_from_joint(joint, joint.socket_child_frame)
-        rot = frame.orientation
-        rel_parent_rots.append([rot.x, rot.y, rot.z, rot.w])
-    return rel_parent_rots
 
 
 def get_joint_extra_info(model: CheckedModel) -> list[list[float]]:

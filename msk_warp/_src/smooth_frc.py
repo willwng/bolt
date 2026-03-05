@@ -116,7 +116,7 @@ def bias_force(m: Model, d: Data):
             _link_tau,
             dim=[d.nworld, body_tree.size],
             inputs=[m.body_parentid, m.jnt_dofadr, m.jnt_dofnum,
-                    d.integration_done, d.body_fs_bias, d.cdof, body_tree],
+                    d.integration_done, d.body_fs_bias, d.mob_H_FM, body_tree],
             outputs=[d.qfrc_bias, d.body_f_s],
         )
 

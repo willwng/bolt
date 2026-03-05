@@ -130,6 +130,13 @@ mat43 = mat43f
 mat411 = mat411f
 
 
+@wp.struct
+class SpatialInertia:
+    mass: float
+    offset: wp.vec3
+    inertia: wp.mat33
+
+
 def array(*args) -> wp.array:
     """A wrapper around wp.array that adds extra metadata to ease type introspection.
 
@@ -390,8 +397,8 @@ class Model:
       qpos_spring: reference pose for springs                  (nq,)
 
       body_mass: mass                                          (nbody,)
-      body_inert_diag: spatial inertia matrix
-      body_X_com_loc: local transform of center of mass            (nbody, transform)
+      body_unit_inertia: spatial inertia matrix
+      body_com_local: local transform of center of mass            (nbody, transform)
 
       body_rootid: id of root above body                       (nbody,)
       body_parentid: id of body's parent                       (nbody,)
@@ -401,8 +408,8 @@ class Model:
       jnt_stiffness: joint stiffness                           (nbody,)
       jnt_qposadr: start addr in 'qpos' for joint's data       (nbody,)
       jnt_dofadr: start addr in 'qvel' for joint's data        (nbody,)
-      jnt_rel_parent: parent -> joint                          (nbody, transform)
-      jnt_rel_child: child -> joint                            (nbody, transform)
+      mob_X_PF: parent -> joint                          (nbody, transform)
+      mob_X_MB: child -> joint                            (nbody, transform)
 
       dof_bodyid: id of dof's body                             (nv,)
       dof_parentid: id of dof's parent; -1: none               (nv,)
@@ -417,8 +424,6 @@ class Model:
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
       geom_size: geom-specific size parameters                 (ngeom, 3)
-      geom_pos: local position offset rel. to body             (ngeom, 3)
-      geom_quat: local orientation offset rel. to body         (ngeom, 4)
       geom_friction: friction for (slide, spin, roll)          (ngeom, 3)
       geom_stiffness: contact stiffness (Hunt-Crossley)        (ngeom,)
       geom_dissipation: contact dissipation (Hunt-Crossley)    (ngeom,)
@@ -468,8 +473,8 @@ class Model:
     qpos_spring: array("nq", float)
 
     body_mass: array("nbody", float)
-    body_inert_diag: array("nbody", wp.vec3)
-    body_X_com_loc: array("nbody", wp.vec3)
+    body_unit_inertia: array("nbody", wp.mat33)
+    body_com_local: array("nbody", wp.transform)
 
     body_rootid: array("nbody", int)
     body_parentid: array("nbody", int)
@@ -480,9 +485,9 @@ class Model:
     jnt_qposadr: array("nbody", int)
     jnt_dofnum: array("nbody", int)
     jnt_dofadr: array("nbody", int)
-    jnt_rel_parent: array("nbody", wp.transform)
-    jnt_rel_child: array("nbody", wp.transform)
-    jnt_extra_info: array("nbody", wp.vec3)
+    mob_X_PF: array("nbody", wp.transform)
+    mob_X_MB: array("nbody", wp.transform)
+    mob_extra_info: array("nbody", wp.vec3)
 
     # Dof data
     dof_armature: wp.array(dtype=float)
@@ -597,34 +602,33 @@ class Data:
     """Dynamic state that updates each step.
 
     Attributes:
-      world_reset: whether to reset the world                     (nworld,)
-
+      * Current state *
       time: simulation time                                       (nworld,)
-      next_time: final target time for integrator (tMax)          (nworld,)
-
       qpos: position                                              (nworld, nq)
       qvel: velocity                                              (nworld, nv)
       m_act: muscle activation                                    (nworld, nmuscles)
       a_act: actuator activation                                  (nworld, nactuator)
-      m_state: muscle state variable                               (nworld, nmuscles)
+      m_state: muscle state variable                              (nworld, nmuscles)
 
+     * State derivatives *
       qacc: acceleration                                          (nworld, nv)
       m_act_dot: time-derivative of actuator activation           (nworld, na)
       a_act_dot: time-derivative of actuator activation           (nworld, nactuator)
-      m_excitations: muscle excitations                            (nworld, nmuscles)
-      m_state_dot: time-derivative of muscle state variable        (nworld, nmuscles)
+      m_excitations: muscle excitations                           (nworld, nmuscles)
+      m_state_dot: time-derivative of muscle state variable       (nworld, nmuscles)
+
+      next_time: final target time for integrator (tMax)          (nworld,)
+      world_reset: whether to reset the world                     (nworld,)
 
       qfrc_applied: applied generalized force                     (nworld, nv)
       xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
       grf: ground reaction force                                  (nworld, 6)
       joint_moments: joint moments                                (nworld, nv)
 
-      body_X: Cartesian position of body frame                      (nworld, nbody, 3)
-      body_X_com: Cartesian position of body com                       (nworld, nbody, 3)
+      mob_X_GB: Cartesian position of body frame                      (nworld, nbody, 3)
+      body_COM_G: Position of body com relative to ground             (nworld, nbody, 3)
 
       geom_X: Cartesian geom position                          (nworld, ngeom, 3)
-      geom_xquat: Cartesian geom orientation                      (nworld, ngeom, 4)
-      geom_xmat: Cartesian geom orientation                       (nworld, ngeom, 3, 3)
 
       site_rpos: local position of site rel. to body              (nworld, nsite, 3)
       site_xpos: Cartesian site position                          (nworld, nsite, 3)
@@ -640,7 +644,7 @@ class Data:
       site_diff_vel: projected velocity b/w active sites          (nworld, nsite-1)
 
       subtree_com: center of mass of each subtree                 (nworld, nbody, 3)
-      cdof: com-based motion axis of each dof (rot:lin)           (nworld, nv, 6)
+      mob_H_FM: com-based motion axis of each dof (rot:lin)           (nworld, nv, 6)
 
       crb: com-based composite inertia and mass                   (nworld, nbody, 10)
       qM: total inertia (sparse) (nworld, 1, nM) or               (nworld, nv, nv) if dense
@@ -670,17 +674,7 @@ class Data:
       subtree_angmom: angular momentum about subtree com          (nworld, nbody, 3)
 
       qfrc_tau: net unconstrained force                        (nworld, nv)
-      qacc_smooth: unconstrained acceleration                     (nworld, nv)
-      qfrc_constraint: constraint force                           (nworld, nv)
-      qfrc_inverse: net external force; should equal:             (nworld, nv)
-                    qfrc_applied + J.T @ xfrc_applied
-      cacc: com-based acceleration                                (nworld, nbody, 6)
-      cfrc_int: com-based interaction force with parent           (nworld, nbody, 6)
-      cfrc_ext: com-based external force on body                  (nworld, nbody, 6)
       contact: contact data
-      efc: constraint data
-
-      dof_lim_torque: computed dof limit torque                   (nworld, ndoflimit)
 
     warp only fields:
       nworld: number of worlds
@@ -736,8 +730,29 @@ class Data:
     integrator_dot_scratch: list[IntegratorDotScratch]  # for higher order integrators
     qvel_buffer: wp.array2d(dtype=float)
 
-    body_X: wp.array2d(dtype=wp.transform)
-    body_X_com: wp.array2d(dtype=wp.transform)
+    #
+    mob_X_GB: wp.array2d(dtype=wp.transform)
+    mob_X_FM: wp.array2d(dtype=wp.transform)
+    mob_X_PB: wp.array2d(dtype=wp.transform)
+    mob_scratch: wp.array3d(dtype=wp.vec3)  # used for storing precomputed values
+    mob_phi: wp.array2d(dtype=wp.vec3)
+    mob_H_FM: wp.array2d(dtype=wp.spatial_vector)
+    mob_H: wp.array2d(dtype=wp.spatial_vector)
+    mob_HDot_FM: wp.array2d(dtype=wp.spatial_vector)
+    mob_HDot: wp.array2d(dtype=wp.spatial_vector)
+
+    body_COM_G: wp.array2d(dtype=wp.vec3)
+    body_Mk_G: wp.array2d(dtype=SpatialInertia)
+    body_V_FM: wp.array2d(dtype=wp.spatial_vector)
+    body_V_PB_G: wp.array2d(dtype=wp.spatial_vector)
+    body_V_GB: wp.array2d(dtype=wp.spatial_vector)
+    body_VD_PB_G: wp.array2d(dtype=wp.spatial_vector)
+
+    body_gyro_force: wp.array2d(dtype=wp.spatial_vector)
+    body_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
+    body_total_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
+    body_total_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
+
     body_vel: wp.array2d(dtype=wp.spatial_vector)
     body_acc: wp.array2d(dtype=wp.spatial_vector)
     body_fs_bias: wp.array2d(dtype=wp.spatial_vector)
@@ -765,7 +780,6 @@ class Data:
 
     subtree_mass: wp.array2d(dtype=float)
     subtree_com: wp.array2d(dtype=wp.vec3)
-    cdof: wp.array2d(dtype=wp.spatial_vector)
 
     crb: wp.array2d(dtype=vec10)
     qM: wp.array3d(dtype=float)

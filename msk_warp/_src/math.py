@@ -56,6 +56,38 @@ def quat_normalize_in_place(q: wp.array(dtype=float), adr: int):
 
 
 @wp.func
+def rotate_spatial_vec(q: wp.quat, x: wp.spatial_vector) -> wp.spatial_vector:
+    w, v = wp.spatial_top(x), wp.spatial_bottom(x)
+    w_rot, v_rot = wp.quat_rotate(q, w), wp.quat_rotate(q, v)
+    return wp.spatial_vector(w_rot, v_rot)
+
+
+@wp.func
+def reexpress_inertia(inert: wp.mat33, q: wp.quat) -> wp.mat33:
+    R = wp.quat_to_matrix(q)
+    return R @ inert @ wp.transpose(R)
+
+
+@wp.func
+def multiply_phi(phi: wp.vec3, sv: wp.spatial_vector) -> wp.spatial_vector:
+    w, v = wp.spatial_top(sv), wp.spatial_bottom(sv)
+    return wp.spatial_vector(w + wp.cross(phi, v), v)
+
+
+@wp.func
+def multiply_phi_transpose(phi: wp.vec3, sv: wp.spatial_vector) -> wp.spatial_vector:
+    w, v = wp.spatial_top(sv), wp.spatial_bottom(sv)
+    return wp.spatial_vector(w, v + wp.cross(w, phi))
+
+
+@wp.func
+def multiply_spatial_inertia(Mk_G: types.SpatialInertia, sv: wp.spatial_vector) -> wp.spatial_vector:
+    w, v = wp.spatial_top(sv), wp.spatial_bottom(sv)
+    m, p, G = Mk_G.mass, Mk_G.offset, Mk_G.inertia
+    return m * wp.spatial_vector(G @ w + wp.cross(p, v), v - wp.cross(p, w))
+
+
+@wp.func
 def transform_twist(t: wp.transform, x: wp.spatial_vector) -> wp.spatial_vector:
     """Transform a spatial twist between coordinate frames.
 
@@ -165,9 +197,9 @@ def calc_unnormalized_quaternion_N(q: wp.quat) -> types.mat43:
     e0, e1, e2, e3 = e.w, e.x, e.y, e.z
     ne1, ne2, ne3 = -e1, -e2, -e3
     return types.mat43(
-        e0,  e3,  ne2,
-        ne3, e0,  e1,
-        e2,  ne1, e0,
+        e0, e3, ne2,
+        ne3, e0, e1,
+        e2, ne1, e0,
         ne1, ne2, ne3,
     )
 
@@ -179,9 +211,9 @@ def calc_unnormalized_quaternion_N_inv(q: wp.quat) -> types.mat34:
     e0, e1, e2, e3 = e.w, e.x, e.y, e.z
     ne1, ne2, ne3 = -e1, -e2, -e3
     return types.mat34(
-        e0,  ne3, e2,  ne1,
-        e3,  e0,  ne1, ne2,
-        ne2, e1, e0,   ne3,
+        e0, ne3, e2, ne1,
+        e3, e0, ne1, ne2,
+        ne2, e1, e0, ne3,
     )
 
 

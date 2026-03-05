@@ -107,7 +107,7 @@ def crb(m: Model, d: Data):
     wp.launch(
         _qM_dense,
         dim=(d.nworld, m.nv),
-        inputs=[m.dof_bodyid, m.dof_parentid, m.dof_armature, d.integration_done, d.cdof, d.crb],
+        inputs=[m.dof_bodyid, m.dof_parentid, m.dof_armature, d.integration_done, d.mob_H_FM, d.crb],
         outputs=[d.qM]
     )
 

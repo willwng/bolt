@@ -238,7 +238,7 @@ def muscle_force(m: Model, d: Data):
                 d.muscle_active_sites,
                 d.site_diff_vec,
                 d.site_diff_len,
-                d.body_X_com,
+                d.body_COM_G,
                 d.site_xpos,
             ],
             outputs=[d.xfrc_muscle],

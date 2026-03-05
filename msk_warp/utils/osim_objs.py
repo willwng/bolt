@@ -95,6 +95,16 @@ class Inertia:
     xz: float
     yz: float
 
+    def __truediv__(self, scalar: float) -> "Inertia":
+        return Inertia(
+            xx=self.xx / scalar,
+            yy=self.yy / scalar,
+            zz=self.zz / scalar,
+            xy=self.xy / scalar,
+            xz=self.xz / scalar,
+            yz=self.yz / scalar,
+        )
+
 
 @dataclass
 class Ground:

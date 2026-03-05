@@ -159,8 +159,8 @@ def apply_ft(
     wp.launch(
         kernel=_apply_ft,
         dim=(d.nworld, m.nv),
-        inputs=[m.nbody, m.body_parentid,m.dof_bodyid,
-                d.integration_done, d.body_X_com, d.cdof, ft, flg_add],
+        inputs=[m.nbody, m.body_parentid, m.dof_bodyid,
+                d.integration_done, d.body_COM_G, d.mob_H_FM, ft, flg_add],
         outputs=[qfrc],
     )
 
