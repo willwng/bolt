@@ -242,13 +242,17 @@ def _coriolis_acceleration(
         mob_phi_in: wp.array2d(dtype=wp.vec3),
         body_V_GB_in: wp.array2d(dtype=wp.spatial_vector),
         body_VD_PB_G_in: wp.array2d(dtype=wp.spatial_vector),
+        # In:
+        body_tree_: wp.array(dtype=int),
         # Data out:
         body_coriolis_acc_out: wp.array2d(dtype=wp.spatial_vector),
         body_total_coriolis_acc_out: wp.array2d(dtype=wp.spatial_vector)
 ):
-    worldid, bodyid = wp.tid()
-    if integration_done_in[worldid] or bodyid == 0:
+    worldid, nodeid = wp.tid()
+    if integration_done_in[worldid]:
         return
+
+    bodyid = body_tree_[nodeid]
 
     V_GB = body_V_GB_in[worldid, bodyid]
     w_GB = wp.spatial_top(V_GB)
@@ -391,7 +395,8 @@ def joint_independent_kinematics_vel(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[
                 m.body_parentid,
-                d.integration_done, d.mob_phi, d.body_V_GB, d.body_VD_PB_G
+                d.integration_done, d.mob_phi, d.body_V_GB, d.body_VD_PB_G,
+                body_tree
             ],
             outputs=[d.body_coriolis_acc, d.body_total_coriolis_acc],
         )

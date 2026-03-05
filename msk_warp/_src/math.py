@@ -88,6 +88,185 @@ def multiply_spatial_inertia(Mk_G: types.SpatialInertia, sv: wp.spatial_vector) 
 
 
 @wp.func
+def invert_upper_left(D: types.mat66, dofnum: int) -> types.mat66:
+    """ D is a 6x6 matrix but only the top-left dofnum x dofnum block is actually used """
+    ret = types.mat66(0.0)
+    if dofnum == 1:
+        ret[0, 0] = 1.0 / D[0, 0]
+    elif dofnum == 2:
+        D_upper_22 = wp.mat22(D[0, 0], D[0, 1], D[1, 0], D[1, 1])
+        D_upper_inv_22 = wp.inverse(D_upper_22)
+        ret[0, 0] = D_upper_inv_22[0, 0]
+        ret[0, 1] = D_upper_inv_22[0, 1]
+        ret[1, 0] = D_upper_inv_22[1, 0]
+        ret[1, 1] = D_upper_inv_22[1, 1]
+    elif dofnum == 3:
+        D_upper_33 = wp.mat33(
+            D[0, 0], D[0, 1], D[0, 2],
+            D[1, 0], D[1, 1], D[1, 2],
+            D[2, 0], D[2, 1], D[2, 2],
+        )
+        D_upper_inv_33 = wp.inverse(D_upper_33)
+        for i in range(3):
+            for j in range(3):
+                ret[i, j] = D_upper_inv_33[i, j]
+
+    elif dofnum == 4:
+        D_upper_44 = wp.mat44(
+            D[0, 0], D[0, 1], D[0, 2], D[0, 3],
+            D[1, 0], D[1, 1], D[1, 2], D[1, 3],
+            D[2, 0], D[2, 1], D[2, 2], D[2, 3],
+            D[3, 0], D[3, 1], D[3, 2], D[3, 3],
+        )
+        D_upper_inv_44 = wp.inverse(D_upper_44)
+        for i in range(4):
+            for j in range(4):
+                ret[i, j] = D_upper_inv_44[i, j]
+    elif dofnum == 5:
+        assert False  # TODO
+    else:
+        assert dofnum == 6
+        return invert_mat66(D)
+    return ret
+
+
+@wp.func
+def extract_33_blocks(m: types.mat66) -> Tuple[wp.mat33, wp.mat33, wp.mat33, wp.mat33]:
+    """Extracts 3x3 blocks A, B, C, D from a 6x6 matrix M = [[A, B], [C, D]]"""
+    A = wp.mat33(
+        m[0, 0], m[0, 1], m[0, 2],
+        m[1, 0], m[1, 1], m[1, 2],
+        m[2, 0], m[2, 1], m[2, 2],
+    )
+    B = wp.mat33(
+        m[0, 3], m[0, 4], m[0, 5],
+        m[1, 3], m[1, 4], m[1, 5],
+        m[2, 3], m[2, 4], m[2, 5],
+    )
+    C = wp.mat33(
+        m[3, 0], m[3, 1], m[3, 2],
+        m[4, 0], m[4, 1], m[4, 2],
+        m[5, 0], m[5, 1], m[5, 2],
+    )
+    D = wp.mat33(
+        m[3, 3], m[3, 4], m[3, 5],
+        m[4, 3], m[4, 4], m[4, 5],
+        m[5, 3], m[5, 4], m[5, 5],
+    )
+    return A, B, C, D
+
+
+@wp.func
+def invert_mat66(m: types.mat66) -> types.mat66:
+    # Use block matrix inversion: M = [[A, B], [C, D]]
+    # where A, B, C, D are 3x3 blocks
+    # M^-1 = [[A-BD^-1C)^-1, -(A-BD^-1C)^-1 BD^-1], [−D^-1C(A−BD^-1C)^-1, D^-1+D^-1C(A−BD^-1C)^-1 BD^-1]]
+
+    A, B, C, D = extract_33_blocks(m)
+
+    D_inv = wp.inverse(D)
+    BD_inv = B * D_inv  # B @ D^-1
+    BD_inv_C = BD_inv * C  # B @ D^-1 @ C
+    schur = A - BD_inv_C  # Schur complement: A - B D^-1 C
+    schur_inv = wp.inverse(schur)  # (A - B D^-1 C)^-1
+
+    D_inv_C = D_inv * C  # D^-1 @ C
+
+    # Top-left block
+    TL = schur_inv
+
+    # Top-right block: -schur_inv @ B @ D^-1
+    TR = wp.mat33(0.0) - schur_inv * BD_inv
+
+    # Bottom-left block: -D^-1 @ C @ schur_inv
+    BL = wp.mat33(0.0) - D_inv_C * schur_inv
+
+    # Bottom-right block: D^-1 + D^-1 @ C @ schur_inv @ B @ D^-1
+    BR = D_inv + D_inv_C * schur_inv * BD_inv
+
+    return types.mat66(
+        TL[0, 0], TL[0, 1], TL[0, 2], TR[0, 0], TR[0, 1], TR[0, 2],
+        TL[1, 0], TL[1, 1], TL[1, 2], TR[1, 0], TR[1, 1], TR[1, 2],
+        TL[2, 0], TL[2, 1], TL[2, 2], TR[2, 0], TR[2, 1], TR[2, 2],
+        BL[0, 0], BL[0, 1], BL[0, 2], BR[0, 0], BR[0, 1], BR[0, 2],
+        BL[1, 0], BL[1, 1], BL[1, 2], BR[1, 0], BR[1, 1], BR[1, 2],
+        BL[2, 0], BL[2, 1], BL[2, 2], BR[2, 0], BR[2, 1], BR[2, 2],
+    )
+
+
+@wp.func
+def spatial_inertia_to_articulated_inertia(Mk_G: types.SpatialInertia) -> types.ArticulatedInertia:
+    m, p, G = Mk_G.mass, Mk_G.offset, Mk_G.inertia
+    mass_moment = m * p
+    return types.ArticulatedInertia(
+        M=m * wp.identity(3, dtype=float),
+        J=m * G,
+        F=wp.skew(mass_moment)
+    )
+
+
+@wp.func
+def articulated_inertia_mul(P: types.ArticulatedInertia, sv: wp.spatial_vector) -> wp.spatial_vector:
+    M, J, F = P.M, P.J, P.F
+    w, v = wp.spatial_top(sv), wp.spatial_bottom(sv)
+    return wp.spatial_vector(J @ w + F @ v, wp.transpose(F) @ w + M * v)
+
+
+@wp.func
+def articulated_inertia_shift(P: types.ArticulatedInertia, s: wp.vec3) -> types.ArticulatedInertia:
+    """
+    Rigid-shift the origin of this Articulated Body Inertia P by a
+    shift vector -s to produce a new ABI P'. The calculation is
+    <pre>
+    P' =  [ J'  F' ]  =  [ 1  sx ] [ J  F ] [ 1  0 ]
+          [~F'  M  ]     [ 0  1  ] [~F  M ] [-sx 1 ]
+    """
+    M, J, F = P.M, P.J, P.F
+    sx = wp.skew(s)
+    sx_M = sx * M
+
+    M_new = M
+    J_new = J + sx * wp.transpose(F) - F * sx - sx_M * sx
+    F_new = F + sx_M
+
+    return types.ArticulatedInertia(M_new, J_new, F_new)
+
+
+
+@wp.func
+def articulated_inertia_add(P1: types.ArticulatedInertia, P2: types.ArticulatedInertia) -> types.ArticulatedInertia:
+    """ Returns P1 + P2 """
+    M1, J1, F1 = P1.M, P1.J, P1.F
+    M2, J2, F2 = P2.M, P2.J, P2.F
+    return types.ArticulatedInertia(
+        M=M1 + M2,
+        J=J1 + J2,
+        F=F1 + F2,
+    )
+
+
+@wp.func
+def articulated_inertia_sub(P1: types.ArticulatedInertia, P2: types.ArticulatedInertia) -> types.ArticulatedInertia:
+    """ Returns P1 - P2 """
+    M1, J1, F1 = P1.M, P1.J, P1.F
+    M2, J2, F2 = P2.M, P2.J, P2.F
+    return types.ArticulatedInertia(
+        M=M1 - M2,
+        J=J1 - J2,
+        F=F1 - F2,
+    )
+
+
+@wp.func
+def atomic_add_articulated_inertia(P_dest: wp.array(dtype=types.ArticulatedInertia), idx: int,
+                                   P: types.ArticulatedInertia):
+    """ Atomically adds articulated inertia P to P_dest """
+    wp.atomic_add(P_dest, idx, "M", P.M)
+    wp.atomic_add(P_dest, idx, "J", P.J)
+    wp.atomic_add(P_dest, idx, "F", P.F)
+
+
+@wp.func
 def transform_twist(t: wp.transform, x: wp.spatial_vector) -> wp.spatial_vector:
     """Transform a spatial twist between coordinate frames.
 

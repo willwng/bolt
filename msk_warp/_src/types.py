@@ -122,12 +122,17 @@ class mat411f(wp.types.matrix(shape=(4, 11), dtype=float)):
     pass
 
 
+class mat66f(wp.types.matrix(shape=(6, 6), dtype=float)):
+    pass
+
+
 vec5 = vec5f
 vec6 = vec6f
 vec10 = vec10f
 mat34 = mat34f
 mat43 = mat43f
 mat411 = mat411f
+mat66 = mat66f
 
 
 @wp.struct
@@ -135,6 +140,13 @@ class SpatialInertia:
     mass: float
     offset: wp.vec3
     inertia: wp.mat33
+
+
+@wp.struct
+class ArticulatedInertia:
+    M: wp.mat33  # mass
+    J: wp.mat33  # inertia
+    F: wp.mat33  # mass moment
 
 
 def array(*args) -> wp.array:
@@ -479,6 +491,9 @@ class Model:
     body_rootid: array("nbody", int)
     body_parentid: array("nbody", int)
     body_tree: tuple[wp.array(dtype=int), ...]
+    body_children: wp.array(dtype=int)
+    body_children_adr: wp.array(dtype=int)
+    body_children_num: wp.array(dtype=int)
 
     jnt_type: array("nbody", int)
     jnt_stiffness: array("nbody", float)
@@ -644,7 +659,7 @@ class Data:
       site_diff_vel: projected velocity b/w active sites          (nworld, nsite-1)
 
       subtree_com: center of mass of each subtree                 (nworld, nbody, 3)
-      mob_H_FM: com-based motion axis of each dof (rot:lin)           (nworld, nv, 6)
+      mob_H_FM: com-based motion axis of each dof (rot:lin)       (nworld, nv, 6)
 
       crb: com-based composite inertia and mass                   (nworld, nbody, 10)
       qM: total inertia (sparse) (nworld, 1, nM) or               (nworld, nv, nv) if dense
@@ -743,6 +758,7 @@ class Data:
 
     body_COM_G: wp.array2d(dtype=wp.vec3)
     body_Mk_G: wp.array2d(dtype=SpatialInertia)
+    body_PPlus: wp.array2d(dtype=ArticulatedInertia)
     body_V_FM: wp.array2d(dtype=wp.spatial_vector)
     body_V_PB_G: wp.array2d(dtype=wp.spatial_vector)
     body_V_GB: wp.array2d(dtype=wp.spatial_vector)

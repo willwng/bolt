@@ -201,6 +201,16 @@ def load_model(
     body_tree = create_body_tree(osim_model)
     body_tree_warp = tuple([wp.array(bt, dtype=int) for bt in body_tree])
 
+    # Create array for indices of children
+    body_children = []
+    for i in range(1, nb):  # all bodies except ground
+        children = [j for j, parent in enumerate(body_parent_ids) if parent == i]
+        body_children.append(children)
+    body_children_num = [len(children) for children in body_children]
+    body_children_adr = exclusive_scan(body_children_num, False)
+    # flatten
+    body_children = [child for children in body_children for child in children]
+
     dof_body_id = get_dof_body_ids(osim_model)
     dof_parent_id = compute_dof_parent_id(osim_model, jnt_dof_num, jnt_dof_adr)
 
@@ -360,6 +370,9 @@ def load_model(
         dof_parentid=to_warp_array(dof_parent_id, dtype=int),
 
         body_tree=body_tree_warp,
+        body_children=to_warp_array(body_children, dtype=int),
+        body_children_num=to_warp_array(body_children_num, dtype=int),
+        body_children_adr=to_warp_array(body_children_adr, dtype=int),
         qM_tiles=qM_tiles,
         block_dim=types.BlockDim(),
     )
@@ -442,6 +455,7 @@ def load_model(
         mob_phi=make_zero((n_worlds, nb), dtype=wp.vec3),
         body_COM_G=make_zero((n_worlds, nb), dtype=wp.vec3),
         body_Mk_G=make_zero((n_worlds, nb), dtype=types.SpatialInertia),
+        body_PPlus=make_zero((n_worlds, nb), dtype=types.ArticulatedInertia),
         body_V_FM=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_V_PB_G=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_V_GB=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
