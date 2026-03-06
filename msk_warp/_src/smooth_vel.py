@@ -336,6 +336,7 @@ def compute_body_velocities(m: Model, d: Data):
     Compute mobilizer relative velocities and body velocities in parent frame,
      then body velocities in the ground frame.
     """
+    # Compute mobilizer spatial velocity and body velocity in parent (measured in ground)
     wp.launch(
         _compute_body_velocities,
         dim=(d.nworld, m.nbody),
@@ -346,7 +347,7 @@ def compute_body_velocities(m: Model, d: Data):
         outputs=[d.body_V_FM, d.body_V_PB_G],
     )
 
-    # Velocity in ground frame: requires forward pass
+    # Body velocity in ground frame: requires forward pass
     for i in range(1, len(m.body_tree)):
         body_tree = m.body_tree[i]
         wp.launch(
