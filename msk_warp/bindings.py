@@ -203,8 +203,11 @@ def load_model(
 
     # Create array for indices of children
     body_children = []
-    for i in range(1, nb):  # all bodies except ground
-        children = [j for j, parent in enumerate(body_parent_ids) if parent == i]
+    for i in range(0, nb):
+        if i == 0:  # ignore ground
+            children = []
+        else:
+            children = [j for j, parent in enumerate(body_parent_ids) if parent == i]
         body_children.append(children)
     body_children_num = [len(children) for children in body_children]
     body_children_adr = exclusive_scan(body_children_num, False)

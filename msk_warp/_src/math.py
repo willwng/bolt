@@ -212,11 +212,10 @@ def invert_mat66(m: wp.spatial_matrix) -> wp.spatial_matrix:
 @wp.func
 def spatial_inertia_to_articulated_inertia(Mk_G: types.SpatialInertia) -> types.ArticulatedInertia:
     m, p, G = Mk_G.m, Mk_G.p, Mk_G.G
-    mass_moment = m * p
     return types.ArticulatedInertia(
         M=m * wp.identity(3, dtype=float),
         J=m * G,
-        F=wp.skew(mass_moment)
+        F=wp.skew(m * p)
     )
 
 
@@ -238,13 +237,28 @@ def articulated_inertia_shift(P: types.ArticulatedInertia, s: wp.vec3) -> types.
     """
     M, J, F = P.M, P.J, P.F
     sx = wp.skew(s)
-    sx_M = sx * M
+    sxM = sx * M
 
-    M_new = M
-    J_new = J + sx * wp.transpose(F) - F * sx - sx_M * sx
-    F_new = F + sx_M
+    Fp = F + sxM
+    Jp = J - F * sx + sx * wp.transpose(F) - (sxM) * sx
 
-    return types.ArticulatedInertia(M_new, J_new, F_new)
+    return types.ArticulatedInertia(M, Jp, Fp)
+
+
+@wp.func
+def symmetrize(M: wp.mat33) -> wp.mat33:
+    """ Ensures numerical symmetry of a matrix by averaging it with its transpose. """
+    return 0.5 * (M + wp.transpose(M))
+
+
+@wp.func
+def symmetrize_articulated_inertia(P: types.ArticulatedInertia) -> types.ArticulatedInertia:
+    """ Ensures numerical symmetry of the inertia and mass moment matrices. """
+    return types.ArticulatedInertia(
+        M=symmetrize(P.M),
+        J=symmetrize(P.J),
+        F=P.F,  # not necessarily symmetric
+    )
 
 
 @wp.func

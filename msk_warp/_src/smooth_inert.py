@@ -47,6 +47,7 @@ def _accumulate_articulated_inertia(
         # Data out:
         mob_G_out: wp.array2d(dtype=wp.spatial_vector),
         mob_DI_out: wp.array2d(dtype=wp.spatial_vector),
+        body_P_out: wp.array2d(dtype=ArticulatedInertia),
         body_PPlus_out: wp.array2d(dtype=ArticulatedInertia),
 ):
     worldid, nodeid = wp.tid()
@@ -69,6 +70,7 @@ def _accumulate_articulated_inertia(
         phi_child = mob_phi_in[worldid, childid]
         PPlus_child = body_PPlus_in[worldid, childid]
         P = math.articulated_inertia_add(P, math.articulated_inertia_shift(PPlus_child, phi_child))
+    body_P_out[worldid, bodyid] = P
 
     # Now compute P+.
     # We're going to shove H, PH into matrices to make our life easier.
@@ -95,6 +97,7 @@ def _accumulate_articulated_inertia(
     inertia, mass_moment, _, mass = math.extract_33_blocks(G_PH_T)
 
     PPlus = math.articulated_inertia_sub(P, ArticulatedInertia(mass, inertia, mass_moment))
+    PPlus = math.symmetrize_articulated_inertia(PPlus)
     body_PPlus_out[worldid, bodyid] = PPlus
     return
 
@@ -141,7 +144,7 @@ def articulated_body_inertia(m: Model, d: Data):
                 d.integration_done, d.mob_H, d.mob_phi, d.body_P, d.body_PPlus,
                 body_tree,
             ],
-            outputs=[d.mob_G, d.mob_DI, d.body_PPlus],
+            outputs=[d.mob_G, d.mob_DI, d.body_P, d.body_PPlus],
         )
 
 
