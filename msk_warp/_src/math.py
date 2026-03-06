@@ -88,6 +88,22 @@ def multiply_spatial_inertia(Mk_G: types.SpatialInertia, sv: wp.spatial_vector) 
 
 
 @wp.func
+def store_mat66(dest: wp.array(dtype=wp.spatial_vector), M: types.mat66, adr: int, dofnum: int):
+    MT = wp.transpose(M)
+    for i in range(dofnum):
+        dest[adr + i] = MT[i]
+    return
+
+
+@wp.func
+def load_mat66(src: wp.array(dtype=wp.spatial_vector), adr: int, dofnum: int) -> types.mat66:
+    M = types.mat66(0.0)
+    for i in range(dofnum):
+        M[i] = src[adr + i]
+    return wp.transpose(M)  # We stored as columns, but filled up the matrix row by row
+
+
+@wp.func
 def invert_upper_left(D: types.mat66, dofnum: int) -> types.mat66:
     """ D is a 6x6 matrix but only the top-left dofnum x dofnum block is actually used """
     ret = types.mat66(0.0)
@@ -230,7 +246,6 @@ def articulated_inertia_shift(P: types.ArticulatedInertia, s: wp.vec3) -> types.
     F_new = F + sx_M
 
     return types.ArticulatedInertia(M_new, J_new, F_new)
-
 
 
 @wp.func

@@ -61,7 +61,7 @@ def main():
     # qvel = wp.to_torch(d.qvel)
     # qvel[:, 3] = 10.0
 
-    dt = 1.0 / 1000.0
+    dt = 1.0 / 300.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:

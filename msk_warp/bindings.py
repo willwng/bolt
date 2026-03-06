@@ -453,18 +453,24 @@ def load_model(
         mob_X_PB=make_zero((n_worlds, nb), dtype=wp.transform),
         mob_scratch=make_zero((n_worlds, nb, 3), dtype=wp.vec3),
         mob_phi=make_zero((n_worlds, nb), dtype=wp.vec3),
+        mob_coriolis_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+
         body_COM_G=make_zero((n_worlds, nb), dtype=wp.vec3),
         body_Mk_G=make_zero((n_worlds, nb), dtype=types.SpatialInertia),
+        body_P=make_zero((n_worlds, nb), dtype=types.ArticulatedInertia),
         body_PPlus=make_zero((n_worlds, nb), dtype=types.ArticulatedInertia),
         body_V_FM=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_V_PB_G=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_V_GB=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_VD_PB_G=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_A_GB=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_eps=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
         body_gyro_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_coriolis_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_total_coriolis_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_total_centrifugal_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_articulated_centrifugal_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_zPlus=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
         body_vel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
@@ -497,6 +503,9 @@ def load_model(
         mob_H=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
         mob_HDot_FM=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
         mob_HDot=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
+
+        mob_G=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
+        mob_DI=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
 
         crb=make_zero((n_worlds, nb), dtype=types.vec10),
         qM=make_zero((n_worlds, nv, nv), dtype=float),

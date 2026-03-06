@@ -755,19 +755,27 @@ class Data:
     mob_H: wp.array2d(dtype=wp.spatial_vector)
     mob_HDot_FM: wp.array2d(dtype=wp.spatial_vector)
     mob_HDot: wp.array2d(dtype=wp.spatial_vector)
+    mob_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
+
+    mob_G: wp.array2d(dtype=wp.spatial_vector)
+    mob_DI: wp.array2d(dtype=wp.spatial_vector)  # ndof x ndof, so we won't use all 6 of spatial vector
 
     body_COM_G: wp.array2d(dtype=wp.vec3)
     body_Mk_G: wp.array2d(dtype=SpatialInertia)
+    body_P: wp.array2d(dtype=ArticulatedInertia)
     body_PPlus: wp.array2d(dtype=ArticulatedInertia)
     body_V_FM: wp.array2d(dtype=wp.spatial_vector)
     body_V_PB_G: wp.array2d(dtype=wp.spatial_vector)
     body_V_GB: wp.array2d(dtype=wp.spatial_vector)
     body_VD_PB_G: wp.array2d(dtype=wp.spatial_vector)
+    body_A_GB: wp.array2d(dtype=wp.spatial_vector)
+    body_eps: wp.array2d(dtype=wp.spatial_vector)
 
     body_gyro_force: wp.array2d(dtype=wp.spatial_vector)
-    body_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
     body_total_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
     body_total_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
+    body_articulated_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
+    body_zPlus: wp.array2d(dtype=wp.spatial_vector)
 
     body_vel: wp.array2d(dtype=wp.spatial_vector)
     body_acc: wp.array2d(dtype=wp.spatial_vector)

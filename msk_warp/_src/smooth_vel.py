@@ -242,10 +242,11 @@ def _coriolis_acceleration(
         mob_phi_in: wp.array2d(dtype=wp.vec3),
         body_V_GB_in: wp.array2d(dtype=wp.spatial_vector),
         body_VD_PB_G_in: wp.array2d(dtype=wp.spatial_vector),
+        body_total_coriolis_acc_in: wp.array2d(dtype=wp.spatial_vector),
         # In:
         body_tree_: wp.array(dtype=int),
         # Data out:
-        body_coriolis_acc_out: wp.array2d(dtype=wp.spatial_vector),
+        mob_coriolis_acc_out: wp.array2d(dtype=wp.spatial_vector),
         body_total_coriolis_acc_out: wp.array2d(dtype=wp.spatial_vector)
 ):
     worldid, nodeid = wp.tid()
@@ -270,12 +271,12 @@ def _coriolis_acceleration(
         wp.spatial_top(VD_PB_G),
         wp.spatial_bottom(VD_PB_G) + wp.cross(w_GP, v_GB - v_GP)
     )
-    body_coriolis_acc_out[worldid, bodyid] = A
+    mob_coriolis_acc_out[worldid, bodyid] = A
 
     # Next, the total coriolis acceleration a of body B is the total coriolis acceleration
     # of parent shifted outward, plus B's local contribution A
-    parentA = body_coriolis_acc_out[worldid, pid]
-    phi = mob_phi_in[worldid, bodyid]  # need the "transpose" to shift outward
+    parentA = body_total_coriolis_acc_in[worldid, pid]
+    phi = mob_phi_in[worldid, bodyid]
     a = math.multiply_phi_transpose(phi, parentA) + A
     body_total_coriolis_acc_out[worldid, bodyid] = a
     return
@@ -395,10 +396,10 @@ def joint_independent_kinematics_vel(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[
                 m.body_parentid,
-                d.integration_done, d.mob_phi, d.body_V_GB, d.body_VD_PB_G,
+                d.integration_done, d.mob_phi, d.body_V_GB, d.body_VD_PB_G, d.body_total_coriolis_acc,
                 body_tree
             ],
-            outputs=[d.body_coriolis_acc, d.body_total_coriolis_acc],
+            outputs=[d.mob_coriolis_acc, d.body_total_coriolis_acc],
         )
 
     # Total of the rotational velocity-dependent forces acting on this body
