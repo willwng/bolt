@@ -64,7 +64,7 @@ def rotate_spatial_vec(q: wp.quat, x: wp.spatial_vector) -> wp.spatial_vector:
 @wp.func
 def reexpress_inertia(inert: wp.mat33, q: wp.quat) -> wp.mat33:
     R = wp.quat_to_matrix(q)
-    return R @ inert @ wp.transpose(R)
+    return wp.transpose(R) @ inert @ R
 
 
 @wp.func
@@ -82,7 +82,7 @@ def multiply_phi_transpose(phi: wp.vec3, sv: wp.spatial_vector) -> wp.spatial_ve
 @wp.func
 def multiply_spatial_inertia(Mk_G: types.SpatialInertia, sv: wp.spatial_vector) -> wp.spatial_vector:
     w, v = wp.spatial_top(sv), wp.spatial_bottom(sv)
-    m, p, G = Mk_G.mass, Mk_G.offset, Mk_G.inertia
+    m, p, G = Mk_G.m, Mk_G.p, Mk_G.G
     return m * wp.spatial_vector(G @ w + wp.cross(p, v), v - wp.cross(p, w))
 
 
@@ -211,7 +211,7 @@ def invert_mat66(m: wp.spatial_matrix) -> wp.spatial_matrix:
 
 @wp.func
 def spatial_inertia_to_articulated_inertia(Mk_G: types.SpatialInertia) -> types.ArticulatedInertia:
-    m, p, G = Mk_G.mass, Mk_G.offset, Mk_G.inertia
+    m, p, G = Mk_G.m, Mk_G.p, Mk_G.G
     mass_moment = m * p
     return types.ArticulatedInertia(
         M=m * wp.identity(3, dtype=float),
@@ -307,19 +307,6 @@ def transform_twist(t: wp.transform, x: wp.spatial_vector) -> wp.spatial_vector:
     v = wp.quat_rotate(q, v) + wp.cross(p, w)
 
     return wp.spatial_vector(w, v)
-
-
-@wp.func
-def inert_vec(i: types.vec10, v: wp.spatial_vector) -> wp.spatial_vector:
-    """ Multiply spatial vector (rotation, translation) by spatial inertia matrix """
-    return wp.spatial_vector(
-        i[0] * v[0] + i[3] * v[1] + i[4] * v[2] - i[8] * v[4] + i[7] * v[5],
-        i[3] * v[0] + i[1] * v[1] + i[5] * v[2] + i[8] * v[3] - i[6] * v[5],
-        i[4] * v[0] + i[5] * v[1] + i[2] * v[2] - i[7] * v[3] + i[6] * v[4],
-        i[8] * v[1] - i[7] * v[2] + i[9] * v[3],
-        i[6] * v[2] - i[8] * v[0] + i[9] * v[4],
-        i[7] * v[0] - i[6] * v[1] + i[9] * v[5],
-    )
 
 
 @wp.func

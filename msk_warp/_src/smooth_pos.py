@@ -118,8 +118,8 @@ def _body_transforms_level(
     bodyid = body_tree_[nodeid]
     pid = body_parentid[bodyid]
 
-    X_PF = mob_X_PF[bodyid]  # Transform from parent frame P to mobilizer fixed frame F
     X_MB = mob_X_MB[bodyid]  # Transform from mobilizer frame M to body frame B
+    X_PF = mob_X_PF[bodyid]  # Transform from parent frame P to mobilizer fixed frame F
     X_FM = mob_X_FM_in[worldid, bodyid]  # just calculated
     X_GP = mob_X_GB_in[worldid, pid]  # already calculated
 
@@ -234,7 +234,7 @@ def _parent_to_child_joint_velocity_jacobian_in_ground(
         jnt_dofadr: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        body_transforms_in: wp.array2d(dtype=wp.transform),
+        mob_X_GB_in: wp.array2d(dtype=wp.transform),
         mob_X_FM_in: wp.array2d(dtype=wp.transform),
         H_FM_in: wp.array2d(dtype=wp.spatial_vector),
         # Data out:
@@ -260,7 +260,7 @@ def _parent_to_child_joint_velocity_jacobian_in_ground(
     R_PF = wp.transform_get_rotation(X_PF)
 
     # Compute orientation of the parent joint frame in ground
-    X_GP = body_transforms_in[worldid, pid]
+    X_GP = mob_X_GB_in[worldid, pid]
     R_GP = wp.transform_get_rotation(X_GP)
     R_GF = R_GP * R_PF
 
@@ -379,7 +379,7 @@ def joint_velocity_jacobian(m: Model, d: Data):
         dim=(d.nworld, m.nbody),
         inputs=[
             m.body_parentid, m.mob_X_PF, m.mob_X_MB, m.jnt_dofnum, m.jnt_dofadr,
-            d.integration_done, d.mob_X_PB, d.mob_X_FM, d.mob_H_FM,
+            d.integration_done, d.mob_X_GB, d.mob_X_FM, d.mob_H_FM,
         ],
         outputs=[d.mob_H],
     )

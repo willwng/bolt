@@ -1,6 +1,7 @@
 import argparse
 
 import warp as wp
+import numpy as np
 import torch
 
 import msk_warp
@@ -42,8 +43,8 @@ def main():
 
     # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
     # model_path = "data/osim/upper_spine.osim"
-    # model_path = "data/osim/example_gait3d_pin.osim"
-    model_path = "data/osim/sphere.osim"
+    model_path = "data/osim/example_gait3d_pin.osim"
+    # model_path = "data/osim/sphere.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       integrator=msk_warp.types.IntegratorType.EULER_FIXED,
                                       polynomial_data_path="data/muscle_poly_info.json",
@@ -55,12 +56,39 @@ def main():
     m.opt.accuracy = 1.0
     # quit()
 
+    def dof_id(name):
+        return load_result.dof_id_lookup[name][0]
+
+
     qpos = wp.to_torch(d.qpos)
-    qpos += torch.randn_like(qpos) * 0.1
-    qpos[:, 5] = 1.2
-    qvel = wp.to_torch(d.qvel)
-    # qvel[:, 3] = 10.0
-    # qvel += torch.randn_like(qvel) * 0.1
+    qpos[:, dof_id("pelvis_ty")] = 1.05
+    qpos[:, dof_id("lumbar_bending")] = -np.pi / 6.0
+
+    qpos[:, dof_id("hip_flexion_l")] = 15.0 * np.pi / 180.0
+    qpos[:, dof_id("knee_angle_l")] = -60.0 * np.pi / 180.0
+    qpos[:, dof_id("ankle_angle_l")] = 20.0 * np.pi / 180.0
+
+    qpos[:, dof_id("hip_flexion_r")] = 15.0 * np.pi / 180.0
+    qpos[:, dof_id("knee_angle_r")] = -60.0 * np.pi / 180.0
+    qpos[:, dof_id("ankle_angle_r")] = 20.0 * np.pi / 180.0
+
+    forward.fwd(m, d)
+
+    body_X = wp.to_torch(d.mob_X_GB)[0]
+    body_COM = wp.to_torch(d.body_COM_G)[0]
+    Mk_G = d.body_Mk_G.numpy()[0]
+    id_to_body = {v: k for k, v in load_result.body_id_lookup.items()}
+    for i, v in enumerate(body_X):
+        p, r = v[:3], v[3:]
+        print(i, id_to_body[i])
+        print("position", p)
+        print("com", body_COM[i])
+        print("MKG mass", Mk_G[i]["m"])
+        print("MKG moment", Mk_G[i]["p"])
+        print("MKG inerta\n", Mk_G[i]["G"])
+
+        print()
+    quit()
 
     dt = 1.0 / 1000.0
     # dt = 1.0 / 10000.0

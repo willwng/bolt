@@ -17,108 +17,12 @@
 
 import warp as wp
 
-from . import math
-from . import support
 from .types import Data
 from .types import JointType
 from .types import Model
-from .types import vec10
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
-
-
-@wp.kernel
-def _link_forces(
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        body_inertia: wp.array2d(dtype=vec10),
-        body_vel_in: wp.array2d(dtype=wp.spatial_vector),
-        body_acc_in: wp.array2d(dtype=wp.spatial_vector),
-        # Out:
-        body_f_s_out: wp.array2d(dtype=wp.spatial_vector),
-):
-    worldid, bodyid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-
-    # Fetch body spatial inertia, velocity, and acceleration
-    I_body = body_inertia[worldid, bodyid]
-    v_s, a_s = body_vel_in[worldid, bodyid], body_acc_in[worldid, bodyid]
-
-    f_body = math.inert_vec(I_body, a_s) + wp.spatial_cross_dual(v_s, math.inert_vec(I_body, v_s))
-    body_f_s_out[worldid, bodyid] = f_body
-    return
-
-
-@wp.kernel
-def _link_tau(
-        # Model:
-        body_parentid: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
-        jnt_dofnum: wp.array(dtype=int),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        body_f_bias_in: wp.array2d(dtype=wp.spatial_vector),
-        cdof_in: wp.array2d(dtype=wp.spatial_vector),
-        # In:
-        body_tree_: wp.array(dtype=int),
-        # Out:
-        qfrc_tau_out: wp.array2d(dtype=float),
-        body_f_s_out: wp.array2d(dtype=wp.spatial_vector),
-):
-    worldid, nodeid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-
-    bodyid = body_tree_[nodeid]
-
-    # Collect joint information
-    parentid = body_parentid[bodyid]
-    dofadr = jnt_dofadr[bodyid]
-    dofnum = jnt_dofnum[bodyid]
-    S = cdof_in[worldid]
-
-    # Total forces on body
-    f_b_s = body_f_bias_in[worldid, bodyid]
-    f_t_s = body_f_s_out[worldid, bodyid]
-    f_i = f_b_s + f_t_s
-
-    # tau_i = S_i^T f_i
-    for i in range(dofnum):
-        S_i = S[dofadr + i]
-        tau_i = -wp.spatial_dot(S_i, f_i)
-        qfrc_tau_out[worldid, dofadr + i] = tau_i
-
-    # Propagate forces to parent body
-    if bodyid != 0:
-        wp.atomic_add(body_f_s_out[worldid], parentid, f_i)
-    return
-
-
-@event_scope
-def bias_force(m: Model, d: Data):
-    """
-    Finishes the Recursive Newton-Euler algorithm
-
-    We only compute bias forces. We don't include external forces here
-    because we want to compute them in isolation
-    """
-    d.body_f_s.zero_()
-    wp.launch(
-        _link_forces,
-        dim=(d.nworld, m.nbody),
-        inputs=[d.integration_done, d.body_inert, d.body_vel, d.body_acc],
-        outputs=[d.body_fs_bias],
-    )
-    for body_tree in reversed(m.body_tree):
-        wp.launch(
-            _link_tau,
-            dim=[d.nworld, body_tree.size],
-            inputs=[m.body_parentid, m.jnt_dofadr, m.jnt_dofnum,
-                    d.integration_done, d.body_fs_bias, d.mob_H_FM, body_tree],
-            outputs=[d.qfrc_bias, d.body_f_s],
-        )
 
 
 @wp.kernel
@@ -287,12 +191,6 @@ def reset_forces(m: Model, d: Data):
 @event_scope
 def accumulate_forces(m: Model, d: Data):
     """ Accumulate all forces into qfrc_applied smooth"""
-    support.apply_ft(m, d, d.xfrc_drag, d.qfrc_drag, True)
-    support.apply_ft(m, d, d.xfrc_contact, d.qfrc_contact, True)
-    support.apply_ft(m, d, d.xfrc_applied, d.qfrc_applied, True)
-    if not wp.static(m.opt.use_fn_path):
-        support.apply_ft(m, d, d.xfrc_muscle, d.qfrc_muscle, True)
-
     wp.launch(
         _qfrc_accumulate,
         dim=(d.nworld, m.nv),

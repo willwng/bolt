@@ -211,14 +211,6 @@ def load_model(
     # flatten
     body_children = [child for children in body_children for child in children]
 
-    dof_body_id = get_dof_body_ids(osim_model)
-    dof_parent_id = compute_dof_parent_id(osim_model, jnt_dof_num, jnt_dof_adr)
-
-    tiles = make_tiles(osim_model, dof_parent_id)
-    qM_tiles = tuple(
-        types.TileSet(adr=wp.array(tiles[sz], dtype=int), size=sz) for sz in
-        sorted(tiles.keys()))
-
     # Prepare contacts
     geom_types, geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = prepare_contacts(
         geom_data, body_parent_ids, ngeom)
@@ -363,18 +355,13 @@ def load_model(
         muscle_dep_dof_num=to_warp_array(poly_dep_dof_num, dtype=int),
         muscle_dep_dof_adr=to_warp_array(poly_dep_dof_adr, dtype=int),
 
-        dof_armature=to_warp_array(dof_armature, dtype=float),
         dof_damping=to_warp_array(dof_damping, dtype=float),
-
-        dof_bodyid=to_warp_array(dof_body_id, dtype=int),
-        dof_parentid=to_warp_array(dof_parent_id, dtype=int),
 
         body_tree=body_tree_warp,
         body_children=to_warp_array(body_children, dtype=int),
         body_children_num=to_warp_array(body_children_num, dtype=int),
         body_children_adr=to_warp_array(body_children_adr, dtype=int),
-        qM_tiles=qM_tiles,
-        block_dim=types.BlockDim(),
+        block_dim=types.TileBlockDim(),
     )
 
     n_int_states, n_int_dot_states = get_num_scratch_states(integrator)
@@ -490,8 +477,6 @@ def load_model(
         site_diff_len=make_zero((n_worlds, max(0, nsite - 1)), dtype=float),
         site_diff_vel=make_zero((n_worlds, max(0, nsite - 1)), dtype=float),
 
-        subtree_mass=make_zero((n_worlds, nb), dtype=float),
-        subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
         mob_H_FM=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
         mob_H=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
         mob_HDot_FM=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
@@ -499,11 +484,6 @@ def load_model(
 
         mob_G=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
         mob_DI=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-
-        crb=make_zero((n_worlds, nb), dtype=types.vec10),
-        qM=make_zero((n_worlds, nv, nv), dtype=float),
-        qLD=make_zero((n_worlds, nv, nv), dtype=float),
-        qLDiagInv=make_zero((n_worlds, nv), dtype=float),
 
         muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
@@ -532,9 +512,6 @@ def load_model(
         qfrc_actuator=make_zero((n_worlds, nv), dtype=float),
         qfrc_limit=make_zero((n_worlds, nv), dtype=float),
         qfrc_contact=make_zero((n_worlds, nv), dtype=float),
-
-        subtree_linvel=make_zero((n_worlds, nb), dtype=wp.vec3),
-        subtree_angmom=make_zero((n_worlds, nb), dtype=wp.vec3),
 
         qfrc_tau=make_zero((n_worlds, nv), dtype=float),
 
@@ -566,7 +543,7 @@ def load_model(
         ncollision=wp.zeros((1,), dtype=int),
     )
 
-    forward.reset(m, d)
+    # forward.reset(m, d)
 
     mesh_load_results = []
     for vis_idx in range(len(vis_data.file)):
@@ -632,10 +609,6 @@ def set_reset(d: types.Data, reset_worlds: torch.Tensor):
 # --- Model Fields ---
 def damping(m: types.Model) -> torch.Tensor:
     return wp.to_torch(m.dof_damping)
-
-
-def armature(m: types.Model) -> torch.Tensor:
-    return wp.to_torch(m.dof_armature)
 
 
 def stiffness(m: types.Model) -> torch.Tensor:

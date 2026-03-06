@@ -224,8 +224,8 @@ def _gyroscopic_forces(
     w_GB = wp.spatial_top(V_GB)
 
     # Calculate gyroscopic moment and force
-    unit_inertia_OB_G = body_Mk_G_in[worldid, bodyid].inertia
-    CB_G = body_Mk_G_in[worldid, bodyid].offset
+    unit_inertia_OB_G = body_Mk_G_in[worldid, bodyid].G
+    CB_G = body_Mk_G_in[worldid, bodyid].p
     b = (body_mass[bodyid] *
          wp.spatial_vector(wp.cross(w_GB, unit_inertia_OB_G * w_GB),
                            wp.cross(w_GB, wp.cross(w_GB, CB_G))))

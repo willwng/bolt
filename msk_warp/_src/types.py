@@ -1,25 +1,17 @@
-import dataclasses
 import enum
+from dataclasses import dataclass
 
 import warp as wp
 
 
-@dataclasses.dataclass
-class BlockDim:
+@dataclass
+class TileBlockDim:
     """Block dimension 'block_dim' settings for wp.launch_tiled. """
 
     # Variable-step integration
     adjust_scales: int = 16
     error_step: int = 16
     restore_state: int = 16
-
-    # smooth
-    cholesky_factorize: int = 32
-    cholesky_solve: int = 32
-    cholesky_factorize_solve: int = 32
-
-    # support
-    mul_m_dense: int = 32
 
     # euler
     euler_dense: int = 32
@@ -94,22 +86,6 @@ class vec5f(wp.types.vector(length=5, dtype=float)):
     pass
 
 
-class vec6f(wp.types.vector(length=6, dtype=float)):
-    pass
-
-
-class vec8f(wp.types.vector(length=8, dtype=float)):
-    pass
-
-
-class vec8i(wp.types.vector(length=8, dtype=int)):
-    pass
-
-
-class vec10f(wp.types.vector(length=10, dtype=float)):
-    pass
-
-
 class mat34f(wp.types.matrix(shape=(3, 4), dtype=float)):
     pass
 
@@ -123,8 +99,6 @@ class mat411f(wp.types.matrix(shape=(4, 11), dtype=float)):
 
 
 vec5 = vec5f
-vec6 = vec6f
-vec10 = vec10f
 mat34 = mat34f
 mat43 = mat43f
 mat411 = mat411f
@@ -132,9 +106,9 @@ mat411 = mat411f
 
 @wp.struct
 class SpatialInertia:
-    mass: float
-    offset: wp.vec3
-    inertia: wp.mat33
+    m: float  # mass
+    p: wp.vec3  # mass center
+    G: wp.mat33  # inertia
 
 
 @wp.struct
@@ -202,7 +176,7 @@ class IntegratorType(enum.IntEnum):
     RK4_ADAPTIVE = 5
 
 
-@dataclasses.dataclass
+@dataclass
 class MetabolicOptions:
     activation_maintenance_rate_on: bool
     shortening_rate_on: bool
@@ -216,7 +190,7 @@ class MetabolicOptions:
     forbid_negative_total_power: bool
 
 
-@dataclasses.dataclass
+@dataclass
 class Option:
     """Physics options.
 
@@ -354,13 +328,13 @@ class MuscleDynamicsInfo:
     norm_tendon_force: float
 
 
-@dataclasses.dataclass
+@dataclass
 class MeshLoadResult:
     file: str
     scale: list[float]
 
 
-@dataclasses.dataclass
+@dataclass
 class TileSet:
     """Tiling configuration for decomposable block diagonal matrix.
 
@@ -375,7 +349,7 @@ class TileSet:
     size: int
 
 
-@dataclasses.dataclass
+@dataclass
 class Model:
     """Model definition and parameters.
 
@@ -418,9 +392,6 @@ class Model:
       mob_X_PF: parent -> joint                          (nbody, transform)
       mob_X_MB: child -> joint                            (nbody, transform)
 
-      dof_bodyid: id of dof's body                             (nv,)
-      dof_parentid: id of dof's parent; -1: none               (nv,)
-      dof_armature: dof armature inertia/mass                  (nv)
       dof_damping: damping coefficient                         (nv)
 
       * dof limits
@@ -499,13 +470,8 @@ class Model:
     mob_X_MB: array("nbody", wp.transform)
     mob_extra_info: array("nbody", wp.vec3)
 
-    # Dof data
-    dof_armature: wp.array(dtype=float)
-    dof_damping: wp.array(dtype=float)
-    dof_bodyid: wp.array(dtype=int)
-    dof_parentid: wp.array(dtype=int)
-
     # Dof limits
+    dof_damping: wp.array(dtype=float)
     limit_dof_range: wp.array2d(dtype=wp.vec2)
     limit_dof_adr: wp.array(dtype=int)
     limit_dof_qadr: wp.array(dtype=int)
@@ -553,11 +519,10 @@ class Model:
     muscle_dep_dof_num: array("nmuscle", int)
     muscle_dep_dof_adr: array("nmuscle", int)
 
-    qM_tiles: tuple[TileSet, ...]
-    block_dim: BlockDim
+    block_dim: TileBlockDim
 
 
-@dataclasses.dataclass
+@dataclass
 class Contact:
     """Contact data.
 
@@ -588,7 +553,7 @@ class Contact:
     worldid: wp.array(dtype=int)
 
 
-@dataclasses.dataclass
+@dataclass
 class IntegratorStateScratch:
     time: wp.array(dtype=float)
     qpos: wp.array2d(dtype=float)
@@ -598,7 +563,7 @@ class IntegratorStateScratch:
     a_act: wp.array2d(dtype=float)
 
 
-@dataclasses.dataclass
+@dataclass
 class IntegratorDotScratch:
     qvel: wp.array2d(dtype=float)
     qacc: wp.array2d(dtype=float)
@@ -607,7 +572,7 @@ class IntegratorDotScratch:
     a_act_dot: wp.array2d(dtype=float)
 
 
-@dataclasses.dataclass
+@dataclass
 class Data:
     """Dynamic state that updates each step.
 
@@ -790,14 +755,6 @@ class Data:
     site_diff_len: wp.array2d(dtype=float)
     site_diff_vel: wp.array2d(dtype=float)
 
-    subtree_mass: wp.array2d(dtype=float)
-    subtree_com: wp.array2d(dtype=wp.vec3)
-
-    crb: wp.array2d(dtype=vec10)
-    qM: wp.array3d(dtype=float)
-    qLD: wp.array3d(dtype=float)
-    qLDiagInv: wp.array2d(dtype=float)
-
     muscle_length: wp.array2d(dtype=float)
     muscle_velocity: wp.array2d(dtype=float)
     muscle_actuation: wp.array2d(dtype=float)
@@ -826,9 +783,6 @@ class Data:
 
     grf: wp.array2d(dtype=wp.vec3)
     joint_moments: wp.array2d(dtype=float)
-
-    subtree_linvel: wp.array2d(dtype=wp.vec3)
-    subtree_angmom: wp.array2d(dtype=wp.vec3)
 
     contact: Contact
 

@@ -437,10 +437,10 @@ def get_collider_data(model: CheckedModel) -> ColliderData:
         transform = wp.transform(wp.vec3(pos[0], pos[1], pos[2]), wp.quat(rot[0], rot[1], rot[2], rot[3]))
         # MuJoCo: sliding, torsional, rolling friction
         # Hunt-Crossley: static, dynamic, viscous
-        friction = [0.95, 0.3, 0.3]  # default friction values
+        friction = [0.9, 0.6, 0.]  # default friction values
         stiffness = 5e6 ** (2.0 / 3.0)
         dissipation = 1.0
-        transition_velocity = 0.01
+        transition_velocity = 0.1
         priority = 0
         aabb = collider.get_aabb()
         rbound = collider.get_rbound()
@@ -757,13 +757,13 @@ def get_dof_id_lookup(model: CheckedModel) -> dict[str, tuple[int, int]]:
 
     # Manually add pelvis dofs
     if model.root_free:
-        dof_id_lookup["pelvis_tx"] = (0, 0)
-        dof_id_lookup["pelvis_ty"] = (1, 1)
-        dof_id_lookup["pelvis_tz"] = (2, 2)
-        dof_id_lookup["pelvis_rot_x"] = (3, 3)
-        dof_id_lookup["pelvis_rot_y"] = (4, 4)
-        dof_id_lookup["pelvis_rot_z"] = (5, 5)
-        dof_id_lookup["pelvis_rot_w"] = (6, -1)
+        dof_id_lookup["pelvis_rot_x"] = (0, 0)
+        dof_id_lookup["pelvis_rot_y"] = (1, 1)
+        dof_id_lookup["pelvis_rot_z"] = (2, 2)
+        dof_id_lookup["pelvis_rot_w"] = (3, -1)
+        dof_id_lookup["pelvis_tx"] = (4, 3)
+        dof_id_lookup["pelvis_ty"] = (5, 4)
+        dof_id_lookup["pelvis_tz"] = (6, 5)
     return dof_id_lookup
 
 

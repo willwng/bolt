@@ -1907,7 +1907,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 -0.48111799999999999 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>0.1758956170045951 -0.1052075258766657 0.009285201008164734</orientation>
+							<orientation>0.009285201008164734 -0.1052075258766657 0.1758956170045951</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="talus_r_offset">
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
@@ -1915,7 +1915,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 0 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>0.1758956170045951 -0.1052075258766657 0.009285201008164734</orientation>
+							<orientation>0.009285201008164734 -0.1052075258766657 0.1758956170045951</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
 				</PinJoint>
@@ -1951,7 +1951,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>-0.040698900000000003 -0.036807800000000002 0.0069491700000000002</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>-1.7696129007854051 0.8968919263424606 1.0744257965192503</orientation>
+							<orientation>1.0744257965192503 0.8968919263424606 -1.7696129007854051</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="calcn_r_offset">
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
@@ -1959,7 +1959,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 0 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>-1.7696129007854051 0.8968919263424606 1.0744257965192503</orientation>
+							<orientation>1.0744257965192503 0.8968919263424606 -1.7696129007854051</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
 				</PinJoint>
@@ -2159,7 +2159,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 -0.48111799999999999 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>-0.1758956170045951 0.1052075258766657 0.009285201008164734</orientation>
+							<orientation>0.009285201008164734 0.1052075258766657 -0.1758956170045951</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="talus_l_offset">
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
@@ -2167,7 +2167,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 0 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>-0.1758956170045951 0.1052075258766657 0.009285201008164734</orientation>
+							<orientation>0.009285201008164734 0.1052075258766657 -0.1758956170045951</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
 				</PinJoint>
@@ -2203,7 +2203,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>-0.040698900000000003 -0.036807800000000002 -0.0069491700000000002</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>1.7681918834648105 -0.9062223689206189 1.0718739679949656</orientation>
+							<orientation>1.0718739679949656 -0.9062223689206189 1.7681918834648105</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="calcn_l_offset">
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
@@ -2211,7 +2211,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 0 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>1.7681918834648105 -0.9062223689206189 1.0718739679949656</orientation>
+							<orientation>1.0718739679949656 -0.9062223689206189 1.7681918834648105</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
 				</PinJoint>
@@ -2443,7 +2443,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0.011167 -0.34210200000000002 -0.0081518400000000005</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>-0.0228627092170848 0.22801768148950924 0.0026180158741453295</orientation>
+							<orientation>0.0026180158741453295 0.22801768148950924 -0.0228627092170848</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="ulna_r_offset">
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
@@ -2451,7 +2451,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 0 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>-0.0228627092170848 0.22801768148950924 0.0026180158741453295</orientation>
+							<orientation>0.0026180158741453295 0.22801768148950924 -0.0228627092170848</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
 				</PinJoint>
@@ -2487,7 +2487,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>-0.00508764 -0.0138963 0.0197266</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>-1.5688412137311776 0.056427970555123504 0.05631781350868147</orientation>
+							<orientation>0.05631781350868147 0.056427970555123504 -1.5688412137311776</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="radius_r_offset">
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
@@ -2495,7 +2495,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 0 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>-1.5688412137311776 0.056427970555123504 0.05631781350868147</orientation>
+							<orientation>0.05631781350868147 0.056427970555123504 -1.5688412137311776</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
 				</PinJoint>
@@ -2635,7 +2635,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0.011167 -0.34210200000000002 0.0081518400000000005</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>0.0228627092170848 -0.22801768148950924 0.0026180158741453295</orientation>
+							<orientation>0.0026180158741453295 -0.22801768148950924 0.0228627092170848</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="ulna_l_offset">
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
@@ -2643,7 +2643,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 0 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>0.0228627092170848 -0.22801768148950924 0.0026180158741453295</orientation>
+							<orientation>0.0026180158741453295 -0.22801768148950924 0.0228627092170848</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
 				</PinJoint>
@@ -2679,7 +2679,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>-0.00508764 -0.0138963 -0.0197266</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>1.5688412137311776 -0.056427970555123504 0.05631781350868147</orientation>
+							<orientation>0.05631781350868147 -0.056427970555123504 1.5688412137311776</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="radius_l_offset">
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
@@ -2687,7 +2687,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>0 0 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>1.5688412137311776 -0.056427970555123504 0.05631781350868147</orientation>
+							<orientation>0.05631781350868147 -0.056427970555123504 1.5688412137311776</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
 				</PinJoint>
@@ -9582,7 +9582,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.225 0.01</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0.1 0</orientation>
+					<orientation>0 0.1 1.5707</orientation>
 					<radius>0.06</radius>
 					<length>0.16</length>
 				</ContactCapsule>
@@ -9592,7 +9592,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.245 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0 0</orientation>
+					<orientation>0 0 1.5707</orientation>
 					<radius>0.05</radius>
 					<length>0.18</length>
 				</ContactCapsule>
@@ -9602,7 +9602,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.225 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0.1 0</orientation>
+					<orientation>0 0.1 1.5707</orientation>
 					<radius>0.06</radius>
 					<length>0.16</length>
 				</ContactCapsule>
@@ -9612,7 +9612,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.245 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0 0</orientation>
+					<orientation>0 0 1.5707</orientation>
 					<radius>0.05</radius>
 					<length>0.18</length>
 				</ContactCapsule>
@@ -9632,7 +9632,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 0.185 -0.045</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0.1 0.0</orientation>
+					<orientation>0.0 0.1 1.5707</orientation>
 					<radius>0.09</radius>
 					<length>0.135</length>
 					<filter>false</filter>
@@ -9643,7 +9643,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 0.185 0.045</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0.1 0</orientation>
+					<orientation>0 0.1 1.5707</orientation>
 					<radius>0.09</radius>
 					<length>0.135</length>
 					<filter>false</filter>
@@ -9663,7 +9663,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.15 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0 0</orientation>
+					<orientation>0 0 1.5707</orientation>
 					<radius>0.035</radius>
 					<length>0.15</length>
 					<filter>false</filter>
@@ -9674,7 +9674,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>-0.01 -0.18 0.02</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0 0</orientation>
+					<orientation>0 0 1.5707</orientation>
 					<radius>0.025</radius>
 					<length>0.15</length>
 				</ContactCapsule>
@@ -9685,7 +9685,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.15 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0 0</orientation>
+					<orientation>0 0 1.5707</orientation>
 					<radius>0.035</radius>
 					<length>0.15</length>
 					<filter>false</filter>
@@ -9696,7 +9696,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>-0.01 -0.18 -0.02</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>1.5707 0 0</orientation>
+					<orientation>0 0 1.5707</orientation>
 					<radius>0.025</radius>
 					<length>0.15</length>
 				</ContactCapsule>
