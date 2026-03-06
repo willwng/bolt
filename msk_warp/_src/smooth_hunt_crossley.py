@@ -16,8 +16,8 @@ def _process_contacts_hc(
         geom_bodyid: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        body_X_com_in: wp.array2d(dtype=wp.transform),
-        body_vel_in: wp.array2d(dtype=wp.spatial_vector),
+        mob_X_GB_in: wp.array2d(dtype=wp.transform),
+        body_V_GB_in: wp.array2d(dtype=wp.spatial_vector),
         nacon_in: wp.array(dtype=int),
         # In:
         dist_in: wp.array(dtype=float),
@@ -70,12 +70,12 @@ def _process_contacts_hc(
     fH = (4.0 / 3.0) * k * depth * wp.sqrt(radius * k * depth)
 
     # Calculate the relative velocity of the two bodies at the contact point
-    com_1 = wp.transform_get_translation(body_X_com_in[worldid, body1])
-    com_2 = wp.transform_get_translation(body_X_com_in[worldid, body2])
-    dif1 = location - com_1
-    dif2 = location - com_2
+    p1 = wp.transform_get_translation(mob_X_GB_in[worldid, body1])
+    p2 = wp.transform_get_translation(mob_X_GB_in[worldid, body2])
+    dif1 = location - p1
+    dif2 = location - p2
 
-    body_v_s1, body_v_s2 = body_vel_in[worldid, body1], body_vel_in[worldid, body2]
+    body_v_s1, body_v_s2 = body_V_GB_in[worldid, body1], body_V_GB_in[worldid, body2]
     vel1 = support.transform_velocity(body_v_s1, dif1)
     vel2 = support.transform_velocity(body_v_s2, dif2)
 
@@ -103,9 +103,11 @@ def _process_contacts_hc(
     wp.atomic_add(xfrc_contact_out[worldid], body1, support.force_at_point(-1.0 * force, dif1))
     wp.atomic_add(xfrc_contact_out[worldid], body2, support.force_at_point(1.0 * force, dif2))
 
+    # Keep track of contact forces on the geom for output
     wp.atomic_add(geom_cforce_out[worldid], geom[0], wp.length(force))
     wp.atomic_add(geom_cforce_out[worldid], geom[1], wp.length(force))
 
+    # Keep track of ground reaction forces
     if body1 == 0:
         wp.atomic_add(grf_out, worldid, force)
     elif body2 == 0:
@@ -120,8 +122,8 @@ def contact_forces(m: Model, d: Data):
         dim=(d.naconmax),
         inputs=[m.geom_bodyid,
             d.integration_done,
-            d.body_COM_G,
-            d.body_vel,
+            d.mob_X_GB,
+            d.body_V_GB,
             d.nacon,
             d.contact.dist,
             d.contact.curvature,

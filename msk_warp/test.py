@@ -42,8 +42,8 @@ def main():
 
     # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
     # model_path = "data/osim/upper_spine.osim"
-    model_path = "data/osim/example_gait3d_pin.osim"
-    # model_path = "data/osim/sphere.osim"
+    # model_path = "data/osim/example_gait3d_pin.osim"
+    model_path = "data/osim/sphere.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       integrator=msk_warp.types.IntegratorType.EULER_FIXED,
                                       polynomial_data_path="data/muscle_poly_info.json",
@@ -58,10 +58,11 @@ def main():
     qpos = wp.to_torch(d.qpos)
     qpos += torch.randn_like(qpos) * 0.1
     qpos[:, 5] = 1.2
-    # qvel = wp.to_torch(d.qvel)
+    qvel = wp.to_torch(d.qvel)
     # qvel[:, 3] = 10.0
+    # qvel += torch.randn_like(qvel) * 0.1
 
-    dt = 1.0 / 300.0
+    dt = 1.0 / 1000.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:
@@ -88,7 +89,6 @@ def main():
             else:
                 step.step(m, d)
             viewer.render(m, d)
-
         viewer.close()
 
     else:

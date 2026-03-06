@@ -19,7 +19,6 @@ from typing import Any, Tuple
 import warp as wp
 
 from msk_warp._src import types
-from msk_warp._src import consts
 
 
 @wp.func
@@ -88,7 +87,7 @@ def multiply_spatial_inertia(Mk_G: types.SpatialInertia, sv: wp.spatial_vector) 
 
 
 @wp.func
-def store_mat66(dest: wp.array(dtype=wp.spatial_vector), M: types.mat66, adr: int, dofnum: int):
+def store_mat66(dest: wp.array(dtype=wp.spatial_vector), M: wp.spatial_matrix, adr: int, dofnum: int):
     MT = wp.transpose(M)
     for i in range(dofnum):
         dest[adr + i] = MT[i]
@@ -96,17 +95,17 @@ def store_mat66(dest: wp.array(dtype=wp.spatial_vector), M: types.mat66, adr: in
 
 
 @wp.func
-def load_mat66(src: wp.array(dtype=wp.spatial_vector), adr: int, dofnum: int) -> types.mat66:
-    M = types.mat66(0.0)
+def load_mat66(src: wp.array(dtype=wp.spatial_vector), adr: int, dofnum: int) -> wp.spatial_matrix:
+    M = wp.spatial_matrix(0.0)
     for i in range(dofnum):
         M[i] = src[adr + i]
     return wp.transpose(M)  # We stored as columns, but filled up the matrix row by row
 
 
 @wp.func
-def invert_upper_left(D: types.mat66, dofnum: int) -> types.mat66:
+def invert_upper_left(D: wp.spatial_matrix, dofnum: int) -> wp.spatial_matrix:
     """ D is a 6x6 matrix but only the top-left dofnum x dofnum block is actually used """
-    ret = types.mat66(0.0)
+    ret = wp.spatial_matrix(0.0)
     if dofnum == 1:
         ret[0, 0] = 1.0 / D[0, 0]
     elif dofnum == 2:
@@ -147,7 +146,7 @@ def invert_upper_left(D: types.mat66, dofnum: int) -> types.mat66:
 
 
 @wp.func
-def extract_33_blocks(m: types.mat66) -> Tuple[wp.mat33, wp.mat33, wp.mat33, wp.mat33]:
+def extract_33_blocks(m: wp.spatial_matrix) -> Tuple[wp.mat33, wp.mat33, wp.mat33, wp.mat33]:
     """Extracts 3x3 blocks A, B, C, D from a 6x6 matrix M = [[A, B], [C, D]]"""
     A = wp.mat33(
         m[0, 0], m[0, 1], m[0, 2],
@@ -173,7 +172,7 @@ def extract_33_blocks(m: types.mat66) -> Tuple[wp.mat33, wp.mat33, wp.mat33, wp.
 
 
 @wp.func
-def invert_mat66(m: types.mat66) -> types.mat66:
+def invert_mat66(m: wp.spatial_matrix) -> wp.spatial_matrix:
     # Use block matrix inversion: M = [[A, B], [C, D]]
     # where A, B, C, D are 3x3 blocks
     # M^-1 = [[A-BD^-1C)^-1, -(A-BD^-1C)^-1 BD^-1], [−D^-1C(A−BD^-1C)^-1, D^-1+D^-1C(A−BD^-1C)^-1 BD^-1]]
@@ -200,7 +199,7 @@ def invert_mat66(m: types.mat66) -> types.mat66:
     # Bottom-right block: D^-1 + D^-1 @ C @ schur_inv @ B @ D^-1
     BR = D_inv + D_inv_C * schur_inv * BD_inv
 
-    return types.mat66(
+    return wp.spatial_matrix(
         TL[0, 0], TL[0, 1], TL[0, 2], TR[0, 0], TR[0, 1], TR[0, 2],
         TL[1, 0], TL[1, 1], TL[1, 2], TR[1, 0], TR[1, 1], TR[1, 2],
         TL[2, 0], TL[2, 1], TL[2, 2], TR[2, 0], TR[2, 1], TR[2, 2],

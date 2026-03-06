@@ -168,7 +168,7 @@ def apply_ft(
 @wp.func
 def force_at_point(frc: wp.vec3, offset: wp.vec3) -> wp.spatial_vector:
     torque = wp.cross(offset, frc)
-    return wp.spatial_vector(frc, torque)
+    return wp.spatial_vector(torque, frc)
 
 
 @wp.func

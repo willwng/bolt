@@ -51,6 +51,7 @@ def _calc_udot_pass_inward(
         jnt_dofadr: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
+        xfrc_in: wp.array2d(dtype=wp.spatial_vector),
         mob_phi_in: wp.array2d(dtype=wp.vec3),
         mob_H_in: wp.array2d(dtype=wp.spatial_vector),
         mob_G_in: wp.array2d(dtype=wp.spatial_vector),
@@ -73,7 +74,8 @@ def _calc_udot_pass_inward(
     G = math.load_mat66(mob_G_in[worldid], dofadr, dofnum)
 
     # z = Pa + b - F
-    z = body_articulated_centrifugal_force_in[worldid, bodyid]  # todo ext forces
+    F = xfrc_in[worldid, bodyid]
+    z = body_articulated_centrifugal_force_in[worldid, bodyid] - F
 
     # z += sum(Phi(child) * zPlus(child)) for all children
     body_children_adr_ = body_children_adr[bodyid]
@@ -84,7 +86,7 @@ def _calc_udot_pass_inward(
         zPlus_child = body_zPlus_out[worldid, childid]
         z += math.multiply_phi(phi_child, zPlus_child)
 
-    # eps = f - ~H * z
+    # eps = f - ~H * z. # TODO ext torque
     eps = -wp.transpose(H) @ z
     # zPlus = z + G * eps
     zPlus = z + G @ eps
@@ -164,7 +166,7 @@ def calc_udot(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[
                 m.body_children, m.body_children_num, m.body_children_adr, m.jnt_dofnum, m.jnt_dofadr,
-                d.integration_done, d.mob_phi, d.mob_H, d.mob_G, d.body_articulated_centrifugal_force,
+                d.integration_done, d.xfrc, d.mob_phi, d.mob_H, d.mob_G, d.body_articulated_centrifugal_force,
                 body_tree,
             ],
             outputs=[d.body_eps, d.body_zPlus]

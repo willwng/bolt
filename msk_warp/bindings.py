@@ -472,13 +472,6 @@ def load_model(
         body_articulated_centrifugal_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_zPlus=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
-        body_vel=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_fs_bias=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_fs_ext=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_inert=make_zero((n_worlds, nb), dtype=types.vec10),
-        body_f_s=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-
         geom_X=make_zero((n_worlds, ngeom), dtype=wp.transform),
         geom_cforce=make_zero((n_worlds, ngeom), dtype=float),
 
@@ -524,6 +517,7 @@ def load_model(
         muscle_dynamics_info=make_zero((n_worlds, nmuscle),
                                        dtype=types.MuscleDynamicsInfo),
 
+        xfrc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),

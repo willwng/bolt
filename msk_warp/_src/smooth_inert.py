@@ -5,7 +5,6 @@ from .types import Data
 from .types import Model
 from .types import ArticulatedInertia
 from .types import SpatialInertia
-from .types import mat66
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -74,7 +73,7 @@ def _accumulate_articulated_inertia(
     # Now compute P+.
     # We're going to shove H, PH into matrices to make our life easier.
     # todo: optimize this
-    H, PH = mat66(0.0), mat66(0.0)
+    H, PH = wp.spatial_matrix(0.0), wp.spatial_matrix(0.0)
     for i in range(dofnum):
         H[i] = mob_H_in[worldid, dofadr + i]
         PH[i] = math.articulated_inertia_mul(P, H[i])
@@ -89,7 +88,7 @@ def _accumulate_articulated_inertia(
 
     # Store G and DI for later forward dynamics. here we store col by col
     math.store_mat66(mob_G_out[worldid], G, dofadr, dofnum)
-    math.store_mat66(mob_G_out[worldid], DI, dofadr, dofnum)
+    math.store_mat66(mob_DI_out[worldid], DI, dofadr, dofnum)
 
     # Want P+ = P - G * ~PH
     G_PH_T = G @ wp.transpose(PH)

@@ -122,17 +122,12 @@ class mat411f(wp.types.matrix(shape=(4, 11), dtype=float)):
     pass
 
 
-class mat66f(wp.types.matrix(shape=(6, 6), dtype=float)):
-    pass
-
-
 vec5 = vec5f
 vec6 = vec6f
 vec10 = vec10f
 mat34 = mat34f
 mat43 = mat43f
 mat411 = mat411f
-mat66 = mat66f
 
 
 @wp.struct
@@ -777,13 +772,6 @@ class Data:
     body_articulated_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
     body_zPlus: wp.array2d(dtype=wp.spatial_vector)
 
-    body_vel: wp.array2d(dtype=wp.spatial_vector)
-    body_acc: wp.array2d(dtype=wp.spatial_vector)
-    body_fs_bias: wp.array2d(dtype=wp.spatial_vector)
-    body_fs_ext: wp.array2d(dtype=wp.spatial_vector)
-    body_inert: wp.array2d(dtype=vec10)
-    body_f_s: wp.array2d(dtype=wp.spatial_vector)
-
     geom_X: wp.array2d(dtype=wp.transform)
     geom_cforce: wp.array2d(dtype=float)
 
@@ -819,6 +807,7 @@ class Data:
     muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
 
+    xfrc: wp.array2d(dtype=wp.spatial_vector)
     xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
     xfrc_muscle: wp.array2d(dtype=wp.spatial_vector)
     xfrc_contact: wp.array2d(dtype=wp.spatial_vector)
