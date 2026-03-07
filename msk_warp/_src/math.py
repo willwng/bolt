@@ -106,7 +106,9 @@ def load_mat66(src: wp.array(dtype=wp.spatial_vector), adr: int, dofnum: int) ->
 def invert_upper_left(D: wp.spatial_matrix, dofnum: int) -> wp.spatial_matrix:
     """ D is a 6x6 matrix but only the top-left dofnum x dofnum block is actually used """
     ret = wp.spatial_matrix(0.0)
-    if dofnum == 1:
+    if dofnum == 0:
+        return ret
+    elif dofnum == 1:
         ret[0, 0] = 1.0 / D[0, 0]
     elif dofnum == 2:
         D_upper_22 = wp.mat22(D[0, 0], D[0, 1], D[1, 0], D[1, 1])
