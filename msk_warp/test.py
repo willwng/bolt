@@ -54,41 +54,63 @@ def main():
     m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
     m.opt.use_inf_norm = False
     m.opt.accuracy = 1.0
+
     # quit()
 
-    def dof_id(name):
+    def qpos_id(name):
         return load_result.dof_id_lookup[name][0]
 
+    def dof_id(name):
+        return load_result.dof_id_lookup[name][1]
 
-    qpos = wp.to_torch(d.qpos)
-    qpos[:, dof_id("pelvis_ty")] = 1.05
-    qpos[:, dof_id("lumbar_bending")] = -np.pi / 6.0
-
-    qpos[:, dof_id("hip_flexion_l")] = 15.0 * np.pi / 180.0
-    qpos[:, dof_id("knee_angle_l")] = -60.0 * np.pi / 180.0
-    qpos[:, dof_id("ankle_angle_l")] = 20.0 * np.pi / 180.0
-
-    qpos[:, dof_id("hip_flexion_r")] = 15.0 * np.pi / 180.0
-    qpos[:, dof_id("knee_angle_r")] = -60.0 * np.pi / 180.0
-    qpos[:, dof_id("ankle_angle_r")] = 20.0 * np.pi / 180.0
-
+    # qpos = wp.to_torch(d.qpos)
+    # qpos[:, qpos_id("pelvis_ty")] = 1.05
+    # qpos[:, qpos_id("lumbar_bending")] = -np.pi / 6.0
+    #
+    # qpos[:, qpos_id("hip_flexion_l")] = 15.0 * np.pi / 180.0
+    # qpos[:, qpos_id("knee_angle_l")] = -60.0 * np.pi / 180.0
+    # qpos[:, qpos_id("ankle_angle_l")] = 20.0 * np.pi / 180.0
+    #
+    # qpos[:, qpos_id("hip_flexion_r")] = 15.0 * np.pi / 180.0
+    # qpos[:, qpos_id("knee_angle_r")] = -60.0 * np.pi / 180.0
+    # qpos[:, qpos_id("ankle_angle_r")] = 20.0 * np.pi / 180.0
+    #
+    # qvel = wp.to_torch(d.qvel)
+    # qvel[:, dof_id("lumbar_bending")] = 2.2
+    #
+    # qvel[:, dof_id("hip_flexion_l")] = 10.0
+    # qvel[:, dof_id("knee_angle_l")] = -5.1
+    # qvel[:, dof_id("ankle_angle_l")] = 3.3
+    #
+    # qvel[:, dof_id("hip_flexion_r")] = 10.0
+    # qvel[:, dof_id("knee_angle_r")] = -5.1
+    # qvel[:, dof_id("ankle_angle_r")] = 3.3
     forward.fwd(m, d)
 
     body_X = wp.to_torch(d.mob_X_GB)[0]
     body_COM = wp.to_torch(d.body_COM_G)[0]
+    body_V_FM = wp.to_torch(d.body_V_FM)[0]
+    body_V_PB_G = wp.to_torch(d.body_V_PB_G)[0]
+    body_VD_PB_G = wp.to_torch(d.body_VD_PB_G)[0]
+    body_V_GB = wp.to_torch(d.body_V_GB)[0]
+    body_gyro = wp.to_torch(d.body_gyro_force)[0]
+    mob_coriolis = wp.to_torch(d.mob_coriolis_acc)[0]
+    tot_coriolis = wp.to_torch(d.body_total_coriolis_acc)[0]
+    tot_centrifugal = wp.to_torch(d.body_total_centrifugal_force)[0]
+    art_centrifugal = wp.to_torch(d.body_articulated_centrifugal_force)[0]
+    phi = wp.to_torch(d.mob_phi)[0]
     Mk_G = d.body_Mk_G.numpy()[0]
     id_to_body = {v: k for k, v in load_result.body_id_lookup.items()}
     for i, v in enumerate(body_X):
         p, r = v[:3], v[3:]
-        print(i, id_to_body[i])
-        print("position", p)
-        print("com", body_COM[i])
-        print("MKG mass", Mk_G[i]["m"])
-        print("MKG moment", Mk_G[i]["p"])
-        print("MKG inerta\n", Mk_G[i]["G"])
-
-        print()
-    quit()
+        # print(i, id_to_body[i])
+        # print("mass", Mk_G[i]["m"])
+        # print("art centrifugal", art_centrifugal[i])
+        # print("total coriolis", tot_coriolis[i])
+        # print("total centrifugal", tot_centrifugal[i])
+        #
+        # print()
+    # quit()
 
     dt = 1.0 / 1000.0
     # dt = 1.0 / 10000.0

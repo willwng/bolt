@@ -168,9 +168,44 @@ def _xfrc_accumulate(
     )
 
 
+@wp.kernel
+def _gravity(
+        # Model in:
+        body_mass_in: wp.array(dtype=float),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        # In:
+        gravity: float,
+        # Data out:
+        xfrc_gravity_out: wp.array2d(dtype=wp.spatial_vector)
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+    m = body_mass_in[bodyid]
+    # TODO: this should be applied to COM Frame
+    xfrc_gravity_out[worldid, bodyid] = wp.spatial_vector(wp.vec3(0.0), wp.vec3(0.0, m * gravity, 0.0))
+    return
+
+
+@event_scope
+def apply_gravity(m: Model, d: Data):
+    """
+    Compute gravity forces. Note: this applies an external force.
+    It is more efficient to set the acceleration to -g in the articulated body algorithm
+    """
+    wp.launch(
+        _gravity,
+        dim=(d.nworld, m.nbody),
+        inputs=[m.body_mass, d.integration_done, m.opt.gravity],
+        outputs=[d.xfrc_gravity],
+    )
+
+
 @event_scope
 def reset_forces(m: Model, d: Data):
     """ Compute all applied forces """
+    d.xfrc_gravity.zero_()
     d.xfrc_contact.zero_()
     d.xfrc_drag.zero_()
     d.xfrc_muscle.zero_()

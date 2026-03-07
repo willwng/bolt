@@ -1,20 +1,3 @@
-# Copyright 2025 The Newton Developers
-# Modified for MSKWarp by Will Wang
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
-
 import warp as wp
 
 from . import math
@@ -105,6 +88,7 @@ def _calc_udot_pass_outward(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         mob_phi_in: wp.array2d(dtype=wp.vec3),
+        mob_coriolis_in: wp.array2d(dtype=wp.spatial_vector),
         mob_H_in: wp.array2d(dtype=wp.spatial_vector),
         mob_G_in: wp.array2d(dtype=wp.spatial_vector),
         mob_DI_in: wp.array2d(dtype=wp.spatial_vector),
@@ -129,8 +113,6 @@ def _calc_udot_pass_outward(
     G = math.load_mat66(mob_G_in[worldid], dofadr, dofnum)
     DI = math.load_mat66(mob_DI_in[worldid], dofadr, dofnum)
 
-    A_GB = body_A_GB_in[worldid, bodyid]
-
     # Shift parent's acceleration outward
     phi = mob_phi_in[worldid, bodyid]
     A_GP = body_A_GB_in[worldid, pid]
@@ -143,7 +125,8 @@ def _calc_udot_pass_outward(
     for i in range(dofnum):
         qacc_out[worldid, dofadr + i] = udot[i]
 
-    A_GB = APlus + H @ udot + A_GB
+    a = mob_coriolis_in[worldid, bodyid]
+    A_GB = APlus + H @ udot + a
     body_A_GB_out[worldid, bodyid] = A_GB
     return
 
@@ -180,7 +163,7 @@ def calc_udot(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[
                 m.body_parentid, m.jnt_dofnum, m.jnt_dofadr,
-                d.integration_done, d.mob_phi, d.mob_H, d.mob_G, d.mob_DI, d.body_A_GB, d.body_eps,
+                d.integration_done, d.mob_phi, d.mob_coriolis_acc, d.mob_H, d.mob_G, d.mob_DI, d.body_A_GB, d.body_eps,
                 body_tree,
             ],
             outputs=[d.qacc, d.body_A_GB]

@@ -70,17 +70,15 @@ def _process_contacts_hc(
     fH = (4.0 / 3.0) * k * depth * wp.sqrt(radius * k * depth)
 
     # Calculate the relative velocity of the two bodies at the contact point
-    p1 = wp.transform_get_translation(mob_X_GB_in[worldid, body1])
-    p2 = wp.transform_get_translation(mob_X_GB_in[worldid, body2])
-    dif1 = location - p1
-    dif2 = location - p2
-
-    body_v_s1, body_v_s2 = body_V_GB_in[worldid, body1], body_V_GB_in[worldid, body2]
-    vel1 = support.transform_velocity(body_v_s1, dif1)
-    vel2 = support.transform_velocity(body_v_s2, dif2)
+    X_GB_1, X_GB_2 = mob_X_GB_in[worldid, body1], mob_X_GB_in[worldid, body2]
+    V_GB_1, V_GB_2 = body_V_GB_in[worldid, body1], body_V_GB_in[worldid, body2]
+    station1 = support.find_station_at_ground_point(X_GB_1, location)
+    station2 = support.find_station_at_ground_point(X_GB_2, location)
+    v1 = support.find_station_velocity_in_ground(X_GB_1, V_GB_1, station1)
+    v2 = support.find_station_velocity_in_ground(X_GB_2, V_GB_2, station2)
 
     # Compute relative velocities of the bodies
-    v = wp.spatial_bottom(vel1 - vel2)
+    v = v1 - v2
     # Project into contact frame
     v_n = wp.dot(v, normal)
     v_t = v - (v_n * normal)
@@ -91,7 +89,7 @@ def _process_contacts_hc(
         return
     force = f * normal
 
-    # Friction cone
+    # Friction force
     v_slip = wp.length(v_t)
     if v_slip > MSK_MINVAL:
         v_rel = v_slip / transition_velocity
@@ -100,8 +98,10 @@ def _process_contacts_hc(
         force += f_friction * v_t / v_slip
 
     # Apply forces to bodies
-    wp.atomic_add(xfrc_contact_out[worldid], body1, support.force_at_point(-1.0 * force, dif1))
-    wp.atomic_add(xfrc_contact_out[worldid], body2, support.force_at_point(1.0 * force, dif2))
+    wp.atomic_add(xfrc_contact_out[worldid], body1,
+                  support.apply_force_to_body_point(X_GB_1, station1, -1.0 * force))
+    wp.atomic_add(xfrc_contact_out[worldid], body2,
+                  support.apply_force_to_body_point(X_GB_2, station2, 1.0 * force))
 
     # Keep track of contact forces on the geom for output
     wp.atomic_add(geom_cforce_out[worldid], geom[0], wp.length(force))
@@ -121,21 +121,21 @@ def contact_forces(m: Model, d: Data):
         _process_contacts_hc,
         dim=(d.naconmax),
         inputs=[m.geom_bodyid,
-            d.integration_done,
-            d.mob_X_GB,
-            d.body_V_GB,
-            d.nacon,
-            d.contact.dist,
-            d.contact.curvature,
-            d.contact.stiffness,
-            d.contact.dissipation,
-            d.contact.transition_velocity,
-            d.contact.worldid,
-            d.contact.geom,
-            d.contact.pos,
-            d.contact.frame,
-            d.contact.friction,
-        ],
+                d.integration_done,
+                d.mob_X_GB,
+                d.body_V_GB,
+                d.nacon,
+                d.contact.dist,
+                d.contact.curvature,
+                d.contact.stiffness,
+                d.contact.dissipation,
+                d.contact.transition_velocity,
+                d.contact.worldid,
+                d.contact.geom,
+                d.contact.pos,
+                d.contact.frame,
+                d.contact.friction,
+                ],
         outputs=[
             d.xfrc_contact,
             d.grf,

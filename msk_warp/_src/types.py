@@ -765,6 +765,7 @@ class Data:
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
 
     xfrc: wp.array2d(dtype=wp.spatial_vector)
+    xfrc_gravity: wp.array2d(dtype=wp.spatial_vector)
     xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
     xfrc_muscle: wp.array2d(dtype=wp.spatial_vector)
     xfrc_contact: wp.array2d(dtype=wp.spatial_vector)

@@ -501,6 +501,7 @@ def load_model(
                                        dtype=types.MuscleDynamicsInfo),
 
         xfrc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        xfrc_gravity=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
