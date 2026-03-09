@@ -63,11 +63,6 @@ def _process_contacts_hc(
 
     # Adjust the contact location based on the relative stiffness
     location = cpos
-    # if neither body is the ground, skip
-    if body1 != 0 and body2 != 0:
-        return
-    if radius != 0.02:
-        return
 
     # Calculate the Hertz force.
     k = 0.5 * stiffness
