@@ -42,14 +42,14 @@ def main():
         wp.config.mode = "debug"
 
     # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
-    # model_path = "data/osim/upper_spine.osim"
+    model_path = "data/osim/all_upper.osim"
     # model_path = "data/osim/example_gait3d_pin.osim"
-    model_path = "data/osim/example_gait3d_gimbal.osim"
+    # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       integrator=msk_warp.types.IntegratorType.EULER_FIXED,
                                       polynomial_data_path="data/muscle_poly_info.json",
-                                      root_free=True)
+                                      root_free=False)
     m, d = load_result.model, load_result.data
     m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
     m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
@@ -65,29 +65,29 @@ def main():
         return load_result.dof_id_lookup[name][1]
 
     qpos = wp.to_torch(d.qpos)
-    qpos[:, qpos_id("pelvis_ty")] = 1.05
-    qpos[:, qpos_id("lumbar_bending")] = -np.pi / 6.0
+    # qpos[:, qpos_id("pelvis_ty")] = 1.5
+    # qpos[:, qpos_id("lumbar_bending")] = -np.pi / 6.0
+    #
+    # qpos[:, qpos_id("hip_flexion_l")] = 15.0 * np.pi / 180.0
+    # qpos[:, qpos_id("knee_angle_l")] = -60.0 * np.pi / 180.0
+    # qpos[:, qpos_id("ankle_angle_l")] = 20.0 * np.pi / 180.0
+    #
+    # qpos[:, qpos_id("hip_flexion_r")] = 15.0 * np.pi / 180.0
+    # qpos[:, qpos_id("knee_angle_r")] = -60.0 * np.pi / 180.0
+    # qpos[:, qpos_id("ankle_angle_r")] = 20.0 * np.pi / 180.0
+    #
+    # qvel = wp.to_torch(d.qvel)
+    # qvel[:, dof_id("lumbar_bending")] = 0.2
+    #
+    # qvel[:, dof_id("hip_flexion_l")] = 0.1
+    # qvel[:, dof_id("knee_angle_l")] = -0.1
+    # qvel[:, dof_id("ankle_angle_l")] = 0.3
+    #
+    # qvel[:, dof_id("hip_flexion_r")] = 0.1
+    # qvel[:, dof_id("knee_angle_r")] = -0.1
+    # qvel[:, dof_id("ankle_angle_r")] = 0.3
 
-    qpos[:, qpos_id("hip_flexion_l")] = 15.0 * np.pi / 180.0
-    qpos[:, qpos_id("knee_angle_l")] = -60.0 * np.pi / 180.0
-    qpos[:, qpos_id("ankle_angle_l")] = 20.0 * np.pi / 180.0
-
-    qpos[:, qpos_id("hip_flexion_r")] = 15.0 * np.pi / 180.0
-    qpos[:, qpos_id("knee_angle_r")] = -60.0 * np.pi / 180.0
-    qpos[:, qpos_id("ankle_angle_r")] = 20.0 * np.pi / 180.0
-
-    qvel = wp.to_torch(d.qvel)
-    qvel[:, dof_id("lumbar_bending")] = 0.2
-
-    qvel[:, dof_id("hip_flexion_l")] = 0.1
-    qvel[:, dof_id("knee_angle_l")] = -0.1
-    qvel[:, dof_id("ankle_angle_l")] = 0.3
-
-    qvel[:, dof_id("hip_flexion_r")] = 0.1
-    qvel[:, dof_id("knee_angle_r")] = -0.1
-    qvel[:, dof_id("ankle_angle_r")] = 0.3
-
-    dt = 1.0 / 5000.0
+    dt = 1.0 / 3000.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:
@@ -98,6 +98,7 @@ def main():
             draw_colliders=True,
             draw_muscles=True,
             draw_body_mass=True,
+            draw_beams=True
         )
         if viewer.viewer_type == RendererType.TILED:
             viewer.setup_tiled_renderer(list(range(args.nworld)))

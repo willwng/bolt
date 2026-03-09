@@ -587,6 +587,7 @@ def create_renderer(
         draw_visuals: bool,
         draw_muscles: bool,
         draw_body_mass: bool,
+        draw_beams: bool,
 ):
     viewer = Renderer(
         m=load_result.model,
@@ -595,6 +596,7 @@ def create_renderer(
         draw_visuals=draw_visuals,
         draw_muscles=draw_muscles,
         draw_body_mass=draw_body_mass,
+        draw_beams=draw_beams
     )
     viewer.load_meshes(load_result.visuals)
     return viewer

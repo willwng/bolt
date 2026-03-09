@@ -25,6 +25,7 @@ class Renderer:
             draw_visuals: bool,
             draw_muscles: bool,
             draw_body_mass: bool,
+            draw_beams: bool,
     ):
         if renderer_type == RendererType.OPENGL:
             self.renderer = wp.render.OpenGLRenderer(
@@ -68,6 +69,17 @@ class Renderer:
         self.draw_visuals = draw_visuals
         self.draw_muscles = draw_muscles
         self.draw_body_mass = draw_body_mass
+        self.draw_beams = draw_beams
+
+        # model-specific: doesn't change during each step
+        self.geom_types = m.geom_type.numpy()
+        self.geom_sizes = m.geom_size.numpy()
+        self.joint_types = m.jnt_type.numpy()
+        self.ind_beams = np.where(self.joint_types == types.JointType.BEAM)[0]
+        self.jnt_qposadr = m.jnt_qposadr.numpy()
+        self.joint_extra = m.mob_extra_info.numpy()
+        self.joint_parent_id = m.body_parentid.numpy()
+        self.num_beam_segments = 15
 
         # Default colors
         self.colors = {
@@ -86,6 +98,9 @@ class Renderer:
             number_instances_per_world += m.nmuscle
         if self.draw_body_mass:
             number_instances_per_world += m.nbody
+        if self.draw_beams:
+            number_instances_per_world += len(self.ind_beams)
+
         self.num_instances_per_world = number_instances_per_world
 
     def load_meshes(self, mesh_loads: list[types.MeshLoadResult]):
@@ -130,40 +145,37 @@ class Renderer:
 
             # Colliders
             if self.draw_colliders:
-                geom_types = m.geom_type.numpy()
-                geom_sizes = m.geom_size.numpy()
                 geom_X = d.geom_X.numpy()[wid]
 
                 for i in range(m.ngeom):
                     pos, rot = geom_X[i, :3], geom_X[i, 3:]
 
-                    if geom_types[i] == types.GeomType.SPHERE:
+                    if self.geom_types[i] == types.GeomType.SPHERE:
                         self.renderer.render_sphere(
                             f"sphere_{obj_id}",
                             pos,
                             rot,
                             color=self.colors["sphere"],
-                            radius=float(geom_sizes[i][0]),
+                            radius=float(self.geom_sizes[i][0]),
                         )
-                    elif geom_types[i] == types.GeomType.CAPSULE:
-                        # The capsule renderer is broken for z up axis in OpenGL
-                        if self.viewer_type == RendererType.OPENGL or \
-                                self.viewer_type == RendererType.TILED:
-                            rot = self.fix_capsule_rot(rot)
-                            up_axis = 1
-                        else:
-                            up_axis = 2
+                    elif self.geom_types[i] == types.GeomType.CAPSULE:
+                        # I think the capsule renderer may be broken for z-up axis in OpenGL
+                        # this line might fix it.
+                        rot = self.fix_capsule_rot(rot)
+                        up_axis = 1
+
                         self.renderer.render_capsule(
                             f"capsule_{obj_id}",
                             pos,
                             rot,
-                            radius=geom_sizes[i][0],
-                            half_height=geom_sizes[i][1],
+                            radius=self.geom_sizes[i][0],
+                            half_height=self.geom_sizes[i][1],
                             up_axis=up_axis,
                             color=self.colors["capsule"],
                         )
 
                     obj_id += 1
+                # quit()
 
             # Visuals
             if self.draw_visuals:
@@ -230,6 +242,46 @@ class Renderer:
                         (0.0, 0.0, 0.0, 1.0),
                         color=(1.0, 1.0, 0.0),
                         radius=0.02,
+                    )
+                    obj_id += 1
+
+            # Draw any BeamJoints if any
+            if len(self.ind_beams) > 0 and self.draw_beams:
+                qpos = d.qpos.numpy()[wid]
+                mob_X_GB = d.mob_X_GB.numpy()[wid]
+                mob_X_PF = m.mob_X_PF.numpy()
+                for idx_beam in self.ind_beams:
+                    qpos_adr = self.jnt_qposadr[idx_beam]
+                    q0, q1, q2 = qpos[qpos_adr:qpos_adr + 3]
+                    L = self.joint_extra[idx_beam][0]
+
+                    # compute position and rotation of F frame
+                    pid = self.joint_parent_id[idx_beam]
+                    parent_pos, parent_rot = mob_X_GB[pid, :3], mob_X_GB[pid, 3:]
+                    pf_pos, pf_rot = mob_X_PF[idx_beam, :3], mob_X_PF[idx_beam, 3:]
+                    parent_rot, pf_rot = R.from_quat(parent_rot), R.from_quat(pf_rot)
+                    j_rot = parent_rot * pf_rot
+                    j_pos = parent_pos + parent_rot.apply(pf_pos)
+
+                    # Now compute local X_FM for several values of z
+                    theta_sq = q0 ** 2 + q1 ** 2
+                    z = np.linspace(0, L, self.num_beam_segments)
+                    C_deflection = (z * z * (3.0 * L - z)) / (3.0 * L ** 2)
+                    C_displacement = -(z ** 3 * (20 * L ** 2 - 15 * L * z + 3 * z ** 2)) / (30 * L ** 4)
+                    d_x = q1 * C_deflection
+                    d_y = -q0 * C_deflection
+                    d_z = C_displacement * theta_sq
+
+                    # local space
+                    pts_xloc = np.stack([d_x, d_y, z + d_z], axis=-1)
+                    # to world space
+                    pts_xpos = j_pos + j_rot.apply(pts_xloc)
+                    # Apply rotation and translation to pts
+                    self.renderer.render_line_strip(
+                        f"beam_{obj_id}",
+                        pts_xpos,
+                        color=(0.8, 0.0, 0.0),
+                        radius=0.01,
                     )
                     obj_id += 1
 
