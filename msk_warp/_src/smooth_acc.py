@@ -34,7 +34,8 @@ def _calc_udot_pass_inward(
         jnt_dofadr: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        xfrc_in: wp.array2d(dtype=wp.spatial_vector),
+        qfrc_total_in: wp.array2d(dtype=float),
+        body_F_in: wp.array2d(dtype=wp.spatial_vector),
         mob_phi_in: wp.array2d(dtype=wp.vec3),
         mob_H_in: wp.array2d(dtype=wp.spatial_vector),
         mob_G_in: wp.array2d(dtype=wp.spatial_vector),
@@ -57,7 +58,7 @@ def _calc_udot_pass_inward(
     G = math.load_mat66(mob_G_in[worldid], dofadr, dofnum)
 
     # z = Pa + b - F
-    F = xfrc_in[worldid, bodyid]
+    F = body_F_in[worldid, bodyid]
     z = body_articulated_centrifugal_force_in[worldid, bodyid] - F
 
     # z += sum(Phi(child) * zPlus(child)) for all children
@@ -69,8 +70,9 @@ def _calc_udot_pass_inward(
         zPlus_child = body_zPlus_out[worldid, childid]
         z += math.multiply_phi(phi_child, zPlus_child)
 
-    # eps = f - ~H * z. # TODO ext torque
-    eps = -wp.transpose(H) @ z
+    # eps = f - ~H * z.
+    f = math.load_spatial_vec(qfrc_total_in[worldid], dofadr, dofnum)
+    eps = f - wp.transpose(H) @ z
     # zPlus = z + G * eps
     zPlus = z + G @ eps
 
@@ -133,13 +135,14 @@ def _calc_udot_pass_outward(
 
 @event_scope
 def calc_udot(m: Model, d: Data):
-    # Initialize world acceleration
-    wp.launch(
-        _acc_world,
-        dim=[d.nworld],
-        inputs=[ d.integration_done, m.opt.gravity ],
-        outputs=[d.body_A_GB]
-    )
+    # Initialize world acceleration if not explicitly using gravity force
+    if not m.opt.explicit_gravity:
+        wp.launch(
+            _acc_world,
+            dim=[d.nworld],
+            inputs=[d.integration_done, m.opt.gravity],
+            outputs=[d.body_A_GB]
+        )
 
     # tip to base, first inward pass
     for i in reversed(range(len(m.body_tree))):
@@ -149,7 +152,8 @@ def calc_udot(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[
                 m.body_children, m.body_children_num, m.body_children_adr, m.jnt_dofnum, m.jnt_dofadr,
-                d.integration_done, d.xfrc, d.mob_phi, d.mob_H, d.mob_G, d.body_articulated_centrifugal_force,
+                d.integration_done, d.qfrc_total, d.body_F, d.mob_phi, d.mob_H, d.mob_G,
+                d.body_articulated_centrifugal_force,
                 body_tree,
             ],
             outputs=[d.body_eps, d.body_zPlus]

@@ -53,7 +53,7 @@ def calcX_FM(
         r = wp.quat_from_axis_angle(pin_axis, qpos[qadr])
         return wp.transform(wp.vec3(), r)
 
-    elif jnttype == JointType.SLIDE:
+    elif jnttype == JointType.SLIDER:
         slide_axis = wp.vec3(1.0, 0.0, 0.0)
         p = qpos[qadr] * slide_axis
         return wp.transform(p, wp.quat_identity())
@@ -65,6 +65,8 @@ def calcX_FM(
         qloc0 = wp.quat_from_axis_angle(axis0, qpos[qadr + 0])
         qloc1 = wp.quat_from_axis_angle(axis1, qpos[qadr + 1])
         r = qloc0 * qloc1
+
+        mob_scratch_out[0] = wp.quat_rotate(r, axis1)
         return wp.transform(wp.vec3(), r)
 
     elif jnttype == JointType.BALL:
@@ -82,23 +84,22 @@ def calcX_FM(
     elif jnttype == JointType.BEAM:
         r = math.quat_from_xyz(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2])
         # Beam deflection
-        length = extra_info[0]
-        deflection_coeff, displacement_coeff = (2.0 / 3.0) * length, (4.0 / 15.0) * length
+        length, deflection_coeff, displacement_coeff = extra_info[0], extra_info[1], extra_info[2]
         theta_sq = qpos[qadr + 0] * qpos[qadr + 0] + qpos[qadr + 1] * qpos[qadr + 1]
         p = wp.vec3(
             qpos[qadr + 1] * deflection_coeff,
             -qpos[qadr + 0] * deflection_coeff,
             length - displacement_coeff * theta_sq
         )
-        # store values for later
+        # store q0, q1, q2 for later
         mob_scratch_out[0] = wp.vec3(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2])
         return wp.transform(p, r)
 
     elif jnttype == JointType.ELLIPSOID:
         r = math.quat_from_xyz(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2])
         # Ellipsoid translation: the z axis of body is assumed to be normal to the joint ellipsoid
-        n = wp.quat_rotate(r, wp.vec(0.0, 0.0, 1.0))
         semi = extra_info
+        n = wp.quat_rotate(r, wp.vec(0.0, 0.0, 1.0))
         p = wp.vec3(semi.x * n.x, semi.y * n.y, semi.z * n.z)
 
         mob_scratch_out[0] = n
@@ -137,13 +138,13 @@ def calc_across_joint_velocity_jacobian(
         H_FM[dofadr + 4] = wp.spatial_vector(wp.vec3(), wp.vec3(0.0, 1.0, 0.0))
         H_FM[dofadr + 5] = wp.spatial_vector(wp.vec3(), wp.vec3(0.0, 0.0, 1.0))
 
-    elif jnttype == JointType.SLIDE:
-        slide_axis = wp.vec3(1.0, 0.0, 0.0)
-        H_FM[dofadr] = wp.spatial_vector(wp.vec3(), slide_axis)
-
     elif jnttype == JointType.PIN:
         pin_axis = wp.vec3(0.0, 0.0, 1.0)
         H_FM[dofadr] = wp.spatial_vector(pin_axis, wp.vec3())
+
+    elif jnttype == JointType.SLIDER:
+        slide_axis = wp.vec3(1.0, 0.0, 0.0)
+        H_FM[dofadr] = wp.spatial_vector(wp.vec3(), slide_axis)
 
     elif jnttype == JointType.BALL:
         H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3())
@@ -158,11 +159,30 @@ def calc_across_joint_velocity_jacobian(
         H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(0.0, 0.0, 1.0), wp.vec3(-n[1] * semi[0], n[0] * semi[1], 0.0))
 
     elif jnttype == JointType.UNIVERSAL:
-        pass
+        R_FM_y = mob_scratch[0]
+        H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3(0.0))
+        H_FM[dofadr + 0] = wp.spatial_vector(R_FM_y, wp.vec3(0.0))
+
     elif jnttype == JointType.GIMBAL:
-        pass
+        gimbal_q0, gimbal_q1, gimbal_q2 = mob_scratch[0][0], mob_scratch[0][1], mob_scratch[0][2]
+        c0, c1 = wp.cos(gimbal_q0), wp.cos(gimbal_q1)
+        s0, s1 = wp.sin(gimbal_q0), wp.sin(gimbal_q1)
+        H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3(0.0))
+        H_FM[dofadr + 1] = wp.spatial_vector(wp.vec3(0.0, c0, s0), wp.vec3(0.0))
+        H_FM[dofadr + 2] = wp.spatial_vector(wp.vec3(s1, -s0 * c1, c0 * c1), wp.vec3(0.0))
+
     elif jnttype == JointType.BEAM:
-        pass
+        beam_q0, beam_q1, beam_q2 = mob_scratch[0][0], mob_scratch[0][1], mob_scratch[0][2]
+        length, deflection_coeff, displacement_coeff = extra_info[0], extra_info[1], extra_info[2]
+
+        c0, c1 = wp.cos(beam_q0), wp.cos(beam_q1)
+        s0, s1 = wp.sin(beam_q0), wp.sin(beam_q1)
+        H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0),
+                                             wp.vec3(0.0, -deflection_coeff, -2.0 * displacement_coeff * beam_q0))
+        H_FM[dofadr + 1] = wp.spatial_vector(wp.vec3(0.0, c0, s0),
+                                             wp.vec3(deflection_coeff, 0.0, -2.0 * displacement_coeff * beam_q1))
+        H_FM[dofadr + 2] = wp.spatial_vector(wp.vec3(s1, -s0 * c1, c0 * c1), wp.vec3(0.0))
+
     elif jnttype == JointType.CUSTOM:
         pass
     elif jnttype == JointType.WELD:
@@ -179,6 +199,9 @@ def calc_across_joint_velocity_jacobian_dot(
         jnttype: int,
         dofadr: int,
         extra_info: wp.vec3,
+        mob_scratch: wp.array(dtype=wp.vec3),
+        qvel: wp.array(dtype=float),
+        V_FM: wp.spatial_vector,
         # Out
         HDot_FM: wp.array(dtype=wp.spatial_vector),
 ):
@@ -186,21 +209,70 @@ def calc_across_joint_velocity_jacobian_dot(
     Computes the additional joint acceleration contribution S_dot * q_vel
     """
     if jnttype == JointType.FREE:
-        pass
-    elif jnttype == JointType.SLIDE:
-        pass
+        HDot_FM[dofadr + 0] = wp.spatial_vector()
+        HDot_FM[dofadr + 1] = wp.spatial_vector()
+        HDot_FM[dofadr + 2] = wp.spatial_vector()
+        HDot_FM[dofadr + 3] = wp.spatial_vector()
+        HDot_FM[dofadr + 4] = wp.spatial_vector()
+        HDot_FM[dofadr + 5] = wp.spatial_vector()
+
+    elif jnttype == JointType.SLIDER:
+        HDot_FM[dofadr + 0] = wp.spatial_vector()
+
     elif jnttype == JointType.PIN:
-        pass
+        HDot_FM[dofadr + 0] = wp.spatial_vector()
+
     elif jnttype == JointType.BALL:
-        pass
+        HDot_FM[dofadr + 0] = wp.spatial_vector()
+        HDot_FM[dofadr + 1] = wp.spatial_vector()
+        HDot_FM[dofadr + 2] = wp.spatial_vector()
+
     elif jnttype == JointType.ELLIPSOID:
-        pass
+        semi = extra_info
+        n = mob_scratch[0]
+        w_FM = wp.spatial_top(V_FM)
+        ndot = wp.cross(w_FM, n)
+
+        HDot_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(0.0), wp.vec3(0.0, -ndot[2] * semi[1], ndot[1] * semi[2]))
+        HDot_FM[dofadr + 1] = wp.spatial_vector(wp.vec3(0.0), wp.vec3(ndot[2] * semi[0], 0.0, -ndot[0] * semi[2]))
+        HDot_FM[dofadr + 2] = wp.spatial_vector(wp.vec3(0.0), wp.vec3(-ndot[1] * semi[0], ndot[0] * semi[1], 0.0))
+
     elif jnttype == JointType.UNIVERSAL:
-        pass
+        R_FM_y = mob_scratch[0]
+        w_FM = wp.spatial_top(V_FM)
+        HDot_FM[dofadr + 0] = wp.spatial_vector()
+        HDot_FM[dofadr + 1] = wp.spatial_vector(wp.cross(w_FM, R_FM_y), wp.vec3(0.0))
+
     elif jnttype == JointType.GIMBAL:
-        pass
+        gimbal_q0, gimbal_q1, gimbal_q2 = mob_scratch[0][0], mob_scratch[0][1], mob_scratch[0][2]
+        c0, c1 = wp.cos(gimbal_q0), wp.cos(gimbal_q1)
+        s0, s1 = wp.sin(gimbal_q0), wp.sin(gimbal_q1)
+
+        gimbal_qd0, gimbal_qd1 = qvel[dofadr + 0], qvel[dofadr + 1]
+        dc0, dc1 = -s0 * gimbal_qd0, -s1 * gimbal_qd1  # derivatives of c0,c1,s0,s1
+        ds0, ds1 = c0 * gimbal_qd0, c1 * gimbal_qd1
+
+        HDot_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(0.0, 0.0, 0.0), wp.vec3(0.0))
+        HDot_FM[dofadr + 1] = wp.spatial_vector(wp.vec3(0.0, dc0, ds0), wp.vec3(0.0))
+        HDot_FM[dofadr + 2] = wp.spatial_vector(wp.vec3(ds1, -ds0 * c1 - s0 * dc1, dc0 * c1 + c0 * dc1), wp.vec3(0.0))
+
     elif jnttype == JointType.BEAM:
-        pass
+        beam_q0, beam_q1, beam_q2 = mob_scratch[0][0], mob_scratch[0][1], mob_scratch[0][2]
+        length, deflection_coeff, displacement_coeff = extra_info[0], extra_info[1], extra_info[2]
+
+        c0, c1 = wp.cos(beam_q0), wp.cos(beam_q1)
+        s0, s1 = wp.sin(beam_q0), wp.sin(beam_q1)
+
+        beam_qd0, beam_qd1 = qvel[dofadr + 0], qvel[dofadr + 1]
+        dc0, dc1 = -s0 * beam_qd0, -s1 * beam_qd1
+        ds0, ds1 = c0 * beam_qd0, c1 * beam_qd1
+
+        HDot_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(0.0, 0.0, 0.0),
+                                                wp.vec3(0.0, 0.0, -2.0 * displacement_coeff * beam_qd0))
+        HDot_FM[dofadr + 1] = wp.spatial_vector(wp.vec3(0.0, dc0, ds0),
+                                                wp.vec3(0.0, 0.0, -2.0 * displacement_coeff * beam_qd1))
+        HDot_FM[dofadr + 2] = wp.spatial_vector(wp.vec3(ds1, -ds0 * c1 - s0 * dc1, dc0 * c1 + c0 * dc1), wp.vec3(0.0))
+
     elif jnttype == JointType.CUSTOM:
         pass
     elif jnttype == JointType.WELD:
@@ -278,27 +350,10 @@ def integrate(
         qpos_next[qpos_adr + 1] = qpos[qpos_adr + 1] + timestep * dq[1]
         qpos_next[qpos_adr + 2] = qpos[qpos_adr + 2] + timestep * dq[2]
 
-    elif jnttype == JointType.SLIDE or jnttype == JointType.PIN:
-        qpos_next[qpos_adr] = qpos[qpos_adr] + timestep * qvel[dof_adr]
-
-    elif jnttype == JointType.UNIVERSAL:
-        qpos_next[qpos_adr] = qpos[qpos_adr] + timestep * qvel[dof_adr]
-        qpos_next[qpos_adr + 1] = qpos[qpos_adr + 1] + timestep * qvel[dof_adr + 1]
-
-    elif jnttype == JointType.GIMBAL or jnttype == JointType.BEAM:
-        for i in range(3):
-            qpos_next[qpos_adr + i] = (qpos[qpos_adr + i] + timestep * qvel[dof_adr + i])
-
-    elif jnttype == JointType.CUSTOM:
+    else:
         for i in range(dof_num):
             qpos_next[qpos_adr + i] = (qpos[qpos_adr + i] + timestep * qvel[dof_adr + i])
-
-    elif jnttype == JointType.WELD:
-        return
-    elif jnttype == JointType.DUMMY:
-        return
-    else:
-        assert False
+    return
 
 
 @wp.func

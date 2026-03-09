@@ -23,7 +23,7 @@ class JointType(enum.IntEnum):
     Attributes:
       FREE:  global position and orientation (quat)       (7,)
       BALL:  orientation (quat) relative to parent        (4,)
-      SLIDE: sliding distance along body-fixed axis       (1,)
+      SLIDER: sliding distance along body-fixed axis       (1,)
       PIN: rotation angle (rad) around joint z-axis       (1,)
       UNIVERSAL: two rotation angles (rad) around joint x- and y-axes (2,)
       GIMBAL: three euler angles (XYZ order)              (3,)
@@ -36,7 +36,7 @@ class JointType(enum.IntEnum):
 
     FREE = 0
     BALL = 1
-    SLIDE = 2
+    SLIDER = 2
     PIN = 3
     UNIVERSAL = 4
     GIMBAL = 5
@@ -108,7 +108,7 @@ mat411 = mat411f
 class SpatialInertia:
     m: float  # mass
     p: wp.vec3  # mass center
-    G: wp.mat33  # inertia
+    G: wp.mat33  # unit inertia measured in the body frame (not about COM frame)
 
 
 @wp.struct
@@ -208,6 +208,7 @@ class Option:
     """
 
     gravity: float
+    explicit_gravity: bool
     contact_type: ContactType
     limit_type: LimitType
     activation_type: ActivationType
@@ -378,10 +379,9 @@ class Model:
       qpos_spring: reference pose for springs                  (nq,)
 
       body_mass: mass                                          (nbody,)
-      body_unit_inertia: spatial inertia matrix
-      body_com_local: local transform of center of mass            (nbody, transform)
+      body_unit_inertia_OB_B: inertia about B origin (body frame, not COM frame)
+      body_mass_center: local transform of center of mass            (nbody, transform)
 
-      body_rootid: id of root above body                       (nbody,)
       body_parentid: id of body's parent                       (nbody,)
       body_tree: list of body ids by tree level
 
@@ -451,10 +451,9 @@ class Model:
     qpos_spring: array("nq", float)
 
     body_mass: array("nbody", float)
-    body_unit_inertia: array("nbody", wp.mat33)
-    body_com_local: array("nbody", wp.transform)
+    body_unit_inertia_OB_B: array("nbody", wp.mat33)
+    body_mass_center: array("nbody", wp.vec3)
 
-    body_rootid: array("nbody", int)
     body_parentid: array("nbody", int)
     body_tree: tuple[wp.array(dtype=int), ...]
     body_children: wp.array(dtype=int)
@@ -648,7 +647,7 @@ class Data:
       subtree_linvel: linear velocity of subtree com              (nworld, nbody, 3)
       subtree_angmom: angular momentum about subtree com          (nworld, nbody, 3)
 
-      qfrc_tau: net unconstrained force                        (nworld, nv)
+      qfrc_total: net unconstrained force                        (nworld, nv)
       contact: contact data
 
     warp only fields:
@@ -737,6 +736,11 @@ class Data:
     body_articulated_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
     body_zPlus: wp.array2d(dtype=wp.spatial_vector)
 
+    body_F_contact: wp.array2d(dtype=wp.spatial_vector)
+    body_F: wp.array2d(dtype=wp.spatial_vector)
+
+    qfrc_total: wp.array2d(dtype=float)
+
     geom_X: wp.array2d(dtype=wp.transform)
     geom_cforce: wp.array2d(dtype=float)
 
@@ -764,11 +768,9 @@ class Data:
     muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
 
-    xfrc: wp.array2d(dtype=wp.spatial_vector)
-    xfrc_gravity: wp.array2d(dtype=wp.spatial_vector)
+    body_F_gravity: wp.array2d(dtype=wp.spatial_vector)
     xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
     xfrc_muscle: wp.array2d(dtype=wp.spatial_vector)
-    xfrc_contact: wp.array2d(dtype=wp.spatial_vector)
     xfrc_drag: wp.array2d(dtype=wp.spatial_vector)
 
     qfrc_applied: wp.array2d(dtype=float)
@@ -780,7 +782,6 @@ class Data:
     qfrc_actuator: wp.array2d(dtype=float)
     qfrc_contact: wp.array2d(dtype=float)
     qfrc_limit: wp.array2d(dtype=float)
-    qfrc_tau: wp.array2d(dtype=float)
 
     grf: wp.array2d(dtype=wp.vec3)
     joint_moments: wp.array2d(dtype=float)

@@ -94,13 +94,11 @@ def load_model(
     raw_osim_model = parse_osim_file(model_path)
     osim_model = to_checked_model(raw_osim_model, root_free=root_free)
 
-    # Lookups
     dof_id_lookup = get_dof_id_lookup(osim_model)
 
     nb = num_bodies(osim_model)
     jnt_qpos_num = get_joint_num_dofs(osim_model, vel_dofs=False)
     jnt_dof_num = get_joint_num_dofs(osim_model, vel_dofs=True)
-
     nv = sum(jnt_dof_num)
     nq = sum(jnt_qpos_num)
     nmuscle = num_muscles(osim_model)
@@ -128,8 +126,8 @@ def load_model(
     qvel0 = [0.0] * nv  # Placeholder for initial velocities
 
     b_masses = body_masses(osim_model)
-    inertias = get_body_unit_inertias(osim_model)
-    body_local_com = get_local_body_com_transform(osim_model)
+    inertias_OB_B = get_body_unit_inertias_OB_B(osim_model)
+    body_mass_centers = get_body_mass_center(osim_model)
     body_parent_ids = get_body_parent_ids(osim_model)
 
     # Custom joints: compute address of joint -> custom joint
@@ -183,12 +181,10 @@ def load_model(
             total_poly_dofs += len(poly_dofs)
             max_dep_dof = max(max_dep_dof, len(poly_dofs))
 
-    dof_armature = [0.02] * nv  # Placeholder for DOF armature
     dof_damping = [0.1] * nv  # Placeholder for DOF
     jnt_stiffness = [0.0] * nb  # Placeholder for joint stiffness
 
     if root_free:
-        dof_armature[0:6] = [0.0] * 6  # No armature for free joint
         dof_damping[0:6] = [0.0] * 6  # No damping for free joint
         jnt_stiffness[0] = 0.0  # No stiffness for free joint
 
@@ -197,7 +193,6 @@ def load_model(
     dof_limit_forces = [(500.0, 500.0)] * n_limits  # Placeholder for limit forces
     dof_limit_shapes = [(0.1, 0.1)] * n_limits  # Placeholder for limit shapes
 
-    body_rootid = [1] * nb  # Placeholder for body root IDs
     body_tree = create_body_tree(osim_model)
     body_tree_warp = tuple([wp.array(bt, dtype=int) for bt in body_tree])
 
@@ -225,6 +220,7 @@ def load_model(
     # needs shapes
     opt = types.Option(
         gravity=-9.80665,
+        explicit_gravity=True,
         contact_type=types.ContactType.HUNT_CROSSLEY,
         limit_type=types.LimitType.EXPONENTIAL,
         activation_type=types.ActivationType.MILLARD,
@@ -302,10 +298,9 @@ def load_model(
         qpos_spring=to_warp_array(qpos_spring, dtype=float),
 
         body_mass=to_warp_array(b_masses, dtype=float),
-        body_unit_inertia=to_warp_array(inertias, dtype=wp.mat33),
-        body_com_local=to_warp_array(body_local_com, dtype=wp.transform),
+        body_unit_inertia_OB_B=to_warp_array(inertias_OB_B, dtype=wp.mat33),
+        body_mass_center=to_warp_array(body_mass_centers, dtype=wp.vec3),
 
-        body_rootid=to_warp_array(body_rootid, dtype=int),
         body_parentid=to_warp_array(body_parent_ids, dtype=int),
         jnt_type=to_warp_array(joint_types, dtype=int),
         jnt_stiffness=to_warp_array(jnt_stiffness, dtype=float),
@@ -500,10 +495,10 @@ def load_model(
         muscle_dynamics_info=make_zero((n_worlds, nmuscle),
                                        dtype=types.MuscleDynamicsInfo),
 
-        xfrc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        xfrc_gravity=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_F=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_F_gravity=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        xfrc_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_F_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
@@ -517,7 +512,7 @@ def load_model(
         qfrc_limit=make_zero((n_worlds, nv), dtype=float),
         qfrc_contact=make_zero((n_worlds, nv), dtype=float),
 
-        qfrc_tau=make_zero((n_worlds, nv), dtype=float),
+        qfrc_total=make_zero((n_worlds, nv), dtype=float),
 
         contact=types.Contact(
             dist=make_zero(naconmax, dtype=float),

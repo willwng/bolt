@@ -95,11 +95,27 @@ def store_mat66(dest: wp.array(dtype=wp.spatial_vector), M: wp.spatial_matrix, a
 
 
 @wp.func
+def load_spatial_vec(src: wp.array(dtype=float), adr: int, dofnum: int) -> wp.spatial_vector:
+    sv = wp.spatial_vector()
+    for i in range(dofnum):
+        sv[i] = src[adr + i]
+    return sv
+
+
+@wp.func
 def load_mat66(src: wp.array(dtype=wp.spatial_vector), adr: int, dofnum: int) -> wp.spatial_matrix:
     M = wp.spatial_matrix(0.0)
     for i in range(dofnum):
         M[i] = src[adr + i]
     return wp.transpose(M)  # We stored as columns, but filled up the matrix row by row
+
+
+@wp.func
+def print_mat33(M: wp.mat33):
+    for i in range(3):
+        for j in range(3):
+            wp.printf("%f ", M[i, j])
+        wp.printf("\n")
 
 
 @wp.func
@@ -388,7 +404,10 @@ def upper_trid_index(n: int, i: int, j: int) -> int:
 
 @wp.func
 def calc_unnormalized_quaternion_N(q: wp.quat) -> types.mat43:
-    """ N*u = q_dot. See https://arxiv.org/pdf/0811.2889 """
+    """
+    N*u = q_dot. See https://arxiv.org/pdf/0811.2889
+    Note: warp uses quat conventions (x,y,z,w)
+    """
     e = q / 2.0
     e0, e1, e2, e3 = e.w, e.x, e.y, e.z
     ne1, ne2, ne3 = -e1, -e2, -e3

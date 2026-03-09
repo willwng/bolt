@@ -31,7 +31,7 @@ def _process_contacts_hc(
         frame_in: wp.array(dtype=wp.mat33),
         friction_in: wp.array(dtype=vec5),
         # Data out:
-        xfrc_contact_out: wp.array2d(dtype=wp.spatial_vector),
+        body_F_contact_out: wp.array2d(dtype=wp.spatial_vector),
         grf_out: wp.array(dtype=wp.vec3),
         geom_cforce_out: wp.array2d(dtype=float)
 ):
@@ -63,6 +63,11 @@ def _process_contacts_hc(
 
     # Adjust the contact location based on the relative stiffness
     location = cpos
+    # if neither body is the ground, skip
+    if body1 != 0 and body2 != 0:
+        return
+    if radius != 0.02:
+        return
 
     # Calculate the Hertz force.
     k = 0.5 * stiffness
@@ -98,9 +103,9 @@ def _process_contacts_hc(
         force += f_friction * v_t / v_slip
 
     # Apply forces to bodies
-    wp.atomic_add(xfrc_contact_out[worldid], body1,
+    wp.atomic_add(body_F_contact_out[worldid], body1,
                   support.apply_force_to_body_point(X_GB_1, station1, -1.0 * force))
-    wp.atomic_add(xfrc_contact_out[worldid], body2,
+    wp.atomic_add(body_F_contact_out[worldid], body2,
                   support.apply_force_to_body_point(X_GB_2, station2, 1.0 * force))
 
     # Keep track of contact forces on the geom for output
@@ -137,7 +142,7 @@ def contact_forces(m: Model, d: Data):
                 d.contact.friction,
                 ],
         outputs=[
-            d.xfrc_contact,
+            d.body_F_contact,
             d.grf,
             d.geom_cforce
         ],

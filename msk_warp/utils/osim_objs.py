@@ -366,7 +366,9 @@ class BeamJoint(Joint):
         return 3
 
     def extra_info(self) -> list[float]:
-        return [self.beam_length, self.beam_length, self.beam_length]
+        deflection_coeff = (2.0 / 3.0) * self.beam_length
+        displacement_coeff = (4.0 / 15.0) * self.beam_length
+        return [self.beam_length, deflection_coeff, displacement_coeff]
 
 
 @dataclass

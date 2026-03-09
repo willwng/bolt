@@ -1,4 +1,5 @@
 import warp as wp
+import numpy as np
 from collections import OrderedDict
 from typing import Optional
 
@@ -312,7 +313,7 @@ def body_masses(model: CheckedModel) -> list[float]:
     return masses
 
 
-def get_body_unit_inertias(model: CheckedModel) -> list[list[float]]:
+def get_body_unit_inertias_OB_B(model: CheckedModel) -> list[list[float]]:
     unit_inertias = []
     for _, desc in model.iter_descs():
         body = desc.body
@@ -322,23 +323,46 @@ def get_body_unit_inertias(model: CheckedModel) -> list[list[float]]:
             unit_inertias.append(wp.mat33(0.0))
             continue
 
-        unit_inertia = inertia / mass
+        inertia_in_com = np.array(
+            [
+                [inertia.xx, inertia.xy, inertia.xz],
+                [inertia.xy, inertia.yy, inertia.yz],
+                [inertia.xz, inertia.yz, inertia.zz],
+            ]
+        )
+
+        mass_center = -np.array([body.mass_center.x, body.mass_center.y, body.mass_center.z])
+
+        # Perform shift to body frame
+        mp = mass_center * mass
+        mxx = mp[0] * mass_center[0]
+        myy = mp[1] * mass_center[1]
+        mzz = mp[2] * mass_center[2]
+        nmx = -mp[0]
+        nmy = -mp[1]
+        point_mass = np.array([[myy + mzz, nmx * mass_center[1], nmx * mass_center[2]],
+                               [nmx * mass_center[1], mxx + mzz, nmy * mass_center[2]],
+                               [nmx * mass_center[2], nmy * mass_center[2], mxx + myy]])
+
+        inertia_in_B = inertia_in_com + point_mass
+        unit_inertia_in_B = inertia_in_B / mass
         unit_inertias.append(wp.mat33(
-            unit_inertia.xx, unit_inertia.xy, unit_inertia.xz,
-            unit_inertia.xy, unit_inertia.yy, unit_inertia.yz,
-            unit_inertia.xz, unit_inertia.yz, unit_inertia.zz,
+            unit_inertia_in_B[0, 0], unit_inertia_in_B[0, 1], unit_inertia_in_B[0, 2],
+            unit_inertia_in_B[1, 0], unit_inertia_in_B[1, 1], unit_inertia_in_B[1, 2],
+            unit_inertia_in_B[2, 0], unit_inertia_in_B[2, 1], unit_inertia_in_B[2, 2],
         ))
+
     return unit_inertias
 
 
-def get_local_body_com_transform(model: CheckedModel) -> list[wp.transform]:
-    com_transforms = []
+def get_body_mass_center(model: CheckedModel) -> list[wp.vec3]:
+    mass_centers = []
     for _, desc in model.iter_descs():
         body = desc.body
         com = body.mass_center
-        transform = wp.transform(wp.vec3(com.x, com.y, com.z), wp.quat_identity())
-        com_transforms.append(transform)
-    return com_transforms
+        mass_center = wp.vec3(com.x, com.y, com.z)
+        mass_centers.append(mass_center)
+    return mass_centers
 
 
 def get_frame_from_joint(joint, frame_name: str):
@@ -494,20 +518,6 @@ def get_muscle_num_pts(model: CheckedModel) -> list[int]:
     return muscle_pts_counts
 
 
-def get_dof_body_ids(model: CheckedModel) -> list[int]:
-    dof_body_ids = []
-    for _, joint in model.iter_joints():
-        if len(joint.coordinates) == 0:  # no dofs
-            continue
-        # get child body (the body the dofs belong to)
-        child_frame = get_frame_from_joint(joint, joint.socket_child_frame)
-        child_name = remove_prefix(child_frame.socket_parent)
-        body_idx = model.get_body_index(child_name)
-        for _ in joint.coordinates:
-            dof_body_ids.append(body_idx)
-    return dof_body_ids
-
-
 def create_body_tree(model: CheckedModel) -> list[tuple[int, ...]]:
     body_to_level = {}
     # starting with root
@@ -534,48 +544,6 @@ def create_body_tree(model: CheckedModel) -> list[tuple[int, ...]]:
         body_idx = model.get_body_index(body_name)
         body_tree[level] += (body_idx,)
     return body_tree
-
-
-def compute_dof_parent_id(
-        model: CheckedModel,
-        jnt_dof_num: list[int],
-        jnt_dof_adr: list[int],
-) -> list[int]:
-    nv = sum(get_joint_num_dofs(model, vel_dofs=True))
-    nb = num_bodies(model)
-
-    dof_parent_id = [-1] * nv
-    body_last_dof = [0] * nb
-
-    for i in range(nb):
-        num_dofs = jnt_dof_num[i]
-        parent_id = model.get_body_parent_idx(i)
-        curr_parent_dof = body_last_dof[parent_id] if parent_id >= 0 else -1
-
-        for j in range(num_dofs):
-            dof_adr = jnt_dof_adr[i] + j
-            dof_parent_id[dof_adr] = curr_parent_dof
-            curr_parent_dof = dof_adr
-
-        body_last_dof[i] = curr_parent_dof
-
-    dof_parent_id[0] = -1  # world/ground
-    return dof_parent_id
-
-
-def make_tiles(
-        model: CheckedModel,
-        expanded_parent: list[int]
-) -> dict[int, list[int]]:
-    nv = sum(get_joint_num_dofs(model, vel_dofs=True))
-    # qM_tiles records the block diagonal structure of qM
-    tile_corners = [i for i in range(nv) if expanded_parent[i] == -1]
-    tiles = {}
-    for i in range(len(tile_corners)):
-        tile_beg = tile_corners[i]
-        tile_end = nv if i == len(tile_corners) - 1 else tile_corners[i + 1]
-        tiles.setdefault(tile_end - tile_beg, []).append(tile_beg)
-    return tiles
 
 
 def get_functions(

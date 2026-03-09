@@ -18,6 +18,9 @@ def _across_joint_velocity_jacobian_dot(
         mob_extra_info: wp.array(dtype=wp.vec3),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
+        qvel_in: wp.array2d(dtype=float),
+        mob_scratch_in: wp.array3d(dtype=wp.vec3),
+        mob_V_FM_in: wp.array2d(dtype=wp.spatial_vector),
         # Data out:
         HDot_FM_out: wp.array2d(dtype=wp.spatial_vector),
 ):
@@ -29,8 +32,11 @@ def _across_joint_velocity_jacobian_dot(
     dofadr = jnt_dofadr[bodyid]
     extra_info = mob_extra_info[bodyid]
     HDot_FM = HDot_FM_out[worldid]
+    mob_scratch = mob_scratch_in[worldid, bodyid]
+    qvel = qvel_in[worldid]
+    V_FM = mob_V_FM_in[worldid, bodyid]
     # Stores Jacobian in H_FM
-    mobilizers.calc_across_joint_velocity_jacobian_dot(jnt_type_, dofadr, extra_info, HDot_FM)
+    mobilizers.calc_across_joint_velocity_jacobian_dot(jnt_type_, dofadr, extra_info, mob_scratch, qvel, V_FM, HDot_FM)
     return
 
 
@@ -313,7 +319,7 @@ def joint_velocity_jacobian_dot(m: Model, d: Data):
         dim=(d.nworld, m.nbody),
         inputs=[
             m.jnt_type, m.jnt_dofadr, m.mob_extra_info,
-            d.integration_done,
+            d.integration_done, d.qvel, d.mob_scratch, d.body_V_FM
         ],
         outputs=[d.mob_HDot_FM],
     )

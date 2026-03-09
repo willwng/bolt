@@ -1,22 +1,6 @@
-# Copyright 2025 The Newton Developers
-# Modified for MSKWarp by Will Wang
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
-
 import warp as wp
 
+from . import support
 from .types import Data
 from .types import JointType
 from .types import Model
@@ -43,25 +27,21 @@ def _spring_jnt_passive(
     worldid, jntid = wp.tid()
     if integration_done_in[worldid]:
         return
-    dofid = jnt_dofadr[jntid]
-    stiffness = jnt_stiffness[jntid]
-
-    has_stiffness = stiffness != 0.0
-    if not has_stiffness:
-        qfrc_spring_out[worldid, dofid] = 0.0
 
     jnttype = jnt_type[jntid]
-    qposid = jnt_qposadr[jntid]
+    qposadr = jnt_qposadr[jntid]
+    dofadr = jnt_dofadr[jntid]
+    stiffness = jnt_stiffness[jntid]
+    dofnum = jnt_dofnum[jntid]
 
     if jnttype == JointType.FREE:  # no spring forces on free joints
         return
     elif jnttype == JointType.BALL:  # quaternion target
         return  # todo!
-    else:
-        if has_stiffness:
-            for i in range(jnt_dofnum[jntid]):
-                fdif = qpos_in[worldid, qposid + i] - qpos_spring[qposid + i]
-                qfrc_spring_out[worldid, dofid + i] = -stiffness * fdif
+
+    for i in range(dofnum):
+        dif = qpos_in[worldid, qposadr + i] - qpos_spring[qposadr + i]
+        qfrc_spring_out[worldid, dofadr + i] = -stiffness * dif
 
 
 @wp.kernel
@@ -115,7 +95,45 @@ def damping(m: Model, d: Data):
 
 
 @wp.kernel
-def _qfrc_accumulate(
+def _gravity(
+        # Model in:
+        body_mass_in: wp.array(dtype=float),
+        body_mass_center: wp.array(dtype=wp.vec3),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        X_GB_in: wp.array2d(dtype=wp.transform),
+        # In:
+        gravity: float,
+        # Data out:
+        body_F_gravity: wp.array2d(dtype=wp.spatial_vector)
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+    m = body_mass_in[bodyid]
+    com_local = body_mass_center[bodyid]
+    X_GB = X_GB_in[worldid, bodyid]
+    frc = wp.vec3(0.0, m * gravity, 0.0)
+    body_F_gravity[worldid, bodyid] = support.apply_force_to_body_point(X_GB, com_local, frc)
+    return
+
+
+@event_scope
+def apply_gravity(m: Model, d: Data):
+    """
+    Compute gravity forces. Note: this applies an external force.
+    It is more efficient to set the acceleration to -g in the articulated body algorithm
+    """
+    wp.launch(
+        _gravity,
+        dim=(d.nworld, m.nbody),
+        inputs=[m.body_mass, m.body_mass_center, d.integration_done, d.mob_X_GB, m.opt.gravity],
+        outputs=[d.body_F_gravity],
+    )
+
+
+@wp.kernel
+def _mob_f_accumulate(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qfrc_applied_in: wp.array2d(dtype=float),
@@ -128,12 +146,12 @@ def _qfrc_accumulate(
         qfrc_damper_in: wp.array2d(dtype=float),
         qfrc_drag_in: wp.array2d(dtype=float),
         # Data out:
-        qfrc_tau_out: wp.array2d(dtype=float),
+        mob_f_out: wp.array2d(dtype=float),
 ):
     worldid, dofid = wp.tid()
     if integration_done_in[worldid]:
         return
-    qfrc_tau_out[worldid, dofid] = (
+    mob_f_out[worldid, dofid] = (
             qfrc_applied_in[worldid, dofid]
             - qfrc_bias_in[worldid, dofid]
             + qfrc_muscle_in[worldid, dofid]
@@ -147,66 +165,28 @@ def _qfrc_accumulate(
 
 
 @wp.kernel
-def _xfrc_accumulate(
+def _body_frc_accumulate(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        xfrc_applied_in: wp.array2d(dtype=wp.spatial_vector),
-        xfrc_contact_in: wp.array2d(dtype=wp.spatial_vector),
-        xfrc_drag_in: wp.array2d(dtype=wp.spatial_vector),
-        xfrc_muscle_in: wp.array2d(dtype=wp.spatial_vector),
+        body_F_gravity_in: wp.array2d(dtype=wp.spatial_vector),
+        body_F_contact_in: wp.array2d(dtype=wp.spatial_vector),
         # Data out:
-        xfrc_smooth_out: wp.array2d(dtype=wp.spatial_vector)
+        body_F_out: wp.array2d(dtype=wp.spatial_vector)
 ):
     worldid, bodyid = wp.tid()
     if integration_done_in[worldid]:
         return
-    xfrc_smooth_out[worldid, bodyid] = (
-            xfrc_applied_in[worldid, bodyid] +
-            xfrc_contact_in[worldid, bodyid] +
-            xfrc_drag_in[worldid, bodyid] +
-            xfrc_muscle_in[worldid, bodyid]
-    )
-
-
-@wp.kernel
-def _gravity(
-        # Model in:
-        body_mass_in: wp.array(dtype=float),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        # In:
-        gravity: float,
-        # Data out:
-        xfrc_gravity_out: wp.array2d(dtype=wp.spatial_vector)
-):
-    worldid, bodyid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-    m = body_mass_in[bodyid]
-    # TODO: this should be applied to COM Frame
-    xfrc_gravity_out[worldid, bodyid] = wp.spatial_vector(wp.vec3(0.0), wp.vec3(0.0, m * gravity, 0.0))
-    return
-
-
-@event_scope
-def apply_gravity(m: Model, d: Data):
-    """
-    Compute gravity forces. Note: this applies an external force.
-    It is more efficient to set the acceleration to -g in the articulated body algorithm
-    """
-    wp.launch(
-        _gravity,
-        dim=(d.nworld, m.nbody),
-        inputs=[m.body_mass, d.integration_done, m.opt.gravity],
-        outputs=[d.xfrc_gravity],
+    body_F_out[worldid, bodyid] = (
+            body_F_gravity_in[worldid, bodyid] +
+            body_F_contact_in[worldid, bodyid]
     )
 
 
 @event_scope
 def reset_forces(m: Model, d: Data):
     """ Compute all applied forces """
-    d.xfrc_gravity.zero_()
-    d.xfrc_contact.zero_()
+    d.body_F_gravity.zero_()
+    d.body_F_contact.zero_()
     d.xfrc_drag.zero_()
     d.xfrc_muscle.zero_()
 
@@ -225,12 +205,19 @@ def reset_forces(m: Model, d: Data):
 
 @event_scope
 def accumulate_forces(m: Model, d: Data):
-    """ Accumulate all forces into qfrc_applied smooth"""
+    """ Accumulate all forces into d.body_F and d.mob_f smooth"""
     wp.launch(
-        _qfrc_accumulate,
+        _body_frc_accumulate,
+        dim=(d.nworld, m.nbody),
+        inputs=[d.integration_done, d.body_F_gravity, d.body_F_contact],
+        outputs=[d.body_F]
+    )
+
+    wp.launch(
+        _mob_f_accumulate,
         dim=(d.nworld, m.nv),
         inputs=[d.integration_done,
                 d.qfrc_applied, d.qfrc_bias, d.qfrc_muscle, d.qfrc_actuator, d.qfrc_limit,
                 d.qfrc_contact, d.qfrc_spring, d.qfrc_damper, d.qfrc_drag],
-        outputs=[d.qfrc_tau],
+        outputs=[d.qfrc_total],
     )

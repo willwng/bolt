@@ -5,6 +5,7 @@ from . import mobilizers
 from .types import Data
 from .types import Model
 from .types import SpatialInertia
+from .types import JointType
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -99,6 +100,7 @@ def _body_transforms_ground(
 def _body_transforms_level(
         # Model:
         body_parentid: wp.array(dtype=int),
+        jnt_type: wp.array(dtype=int),
         mob_X_PF: wp.array(dtype=wp.transform),
         mob_X_MB: wp.array(dtype=wp.transform),
         # Data in:
@@ -122,6 +124,8 @@ def _body_transforms_level(
     X_PF = mob_X_PF[bodyid]  # Transform from parent frame P to mobilizer fixed frame F
     X_FM = mob_X_FM_in[worldid, bodyid]  # just calculated
     X_GP = mob_X_GB_in[worldid, pid]  # already calculated
+    if pid == 0 and jnt_type[bodyid] == JointType.FREE:
+        X_PF = wp.transform_identity()
 
     X_PB = X_PF * X_FM * X_MB
     X_GB = X_GP * X_PB
@@ -281,7 +285,7 @@ def _parent_to_child_joint_velocity_jacobian_in_ground(
 def _joint_independent_kinematics(
         # Model:
         body_parentid: wp.array(dtype=int),
-        body_com_local: wp.array(dtype=wp.transform),
+        body_mass_center: wp.array(dtype=wp.vec3),
         body_mass: wp.array(dtype=float),
         body_unit_inertia: wp.array(dtype=wp.mat33),
         # Data in:
@@ -314,7 +318,7 @@ def _joint_independent_kinematics(
 
     # re-express inertia in ground:
     G_Bo_G = math.reexpress_inertia(body_unit_inertia[bodyid], wp.quat_inverse(R_GB))
-    p_BBc_G = wp.quat_rotate(R_GB, wp.transform_get_translation(body_com_local[bodyid]))
+    p_BBc_G = wp.quat_rotate(R_GB, body_mass_center[bodyid])
 
     body_COM_G_out[worldid, bodyid] = p_GB + p_BBc_G
 
@@ -354,7 +358,7 @@ def calc_body_transforms(m: Model, d: Data):
             _body_transforms_level,
             dim=(d.nworld, body_tree.size),
             inputs=[
-                m.body_parentid, m.mob_X_PF, m.mob_X_MB,
+                m.body_parentid, m.jnt_type, m.mob_X_PF, m.mob_X_MB,
                 d.integration_done, d.mob_X_FM, d.mob_X_GB,
                 body_tree,
             ],
@@ -393,9 +397,9 @@ def joint_independent_kinematics(m: Model, d: Data):
         dim=(d.nworld, m.nbody),
         inputs=[
             m.body_parentid,
-            m.body_com_local,
+            m.body_mass_center,
             m.body_mass,
-            m.body_unit_inertia,
+            m.body_unit_inertia_OB_B,
             d.integration_done,
             d.mob_X_GB,
             d.mob_X_PB,
