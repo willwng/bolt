@@ -285,20 +285,6 @@ def calc_across_joint_velocity_jacobian_dot(
 
 
 @wp.func
-def jcalc(
-        jnttype: int,
-        qpos: wp.array(dtype=float),
-        qadr: int,
-        dofadr: int,
-        qvel: wp.array(dtype=float),
-        extra_info: wp.vec3,
-        # Out
-        S_out: wp.array(dtype=wp.spatial_vector),
-) -> tuple[wp.transform, wp.spatial_vector, wp.spatial_vector]:
-    return
-
-
-@wp.func
 def integrate(
         jnttype: int,
         qpos: wp.array(dtype=float),
@@ -306,7 +292,6 @@ def integrate(
         qpos_adr: int,
         dof_adr: int,
         timestep: float,
-        # Custom joints
         dof_num: int,
         # Out:
         qpos_next: wp.array(dtype=float),
@@ -350,6 +335,7 @@ def integrate(
         qpos_next[qpos_adr + 1] = qpos[qpos_adr + 1] + timestep * dq[1]
         qpos_next[qpos_adr + 2] = qpos[qpos_adr + 2] + timestep * dq[2]
 
+    # The remaining use u = q_dot
     else:
         for i in range(dof_num):
             qpos_next[qpos_adr + i] = (qpos[qpos_adr + i] + timestep * qvel[dof_adr + i])

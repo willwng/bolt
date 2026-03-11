@@ -1676,7 +1676,7 @@
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
 							<socket_parent>/ground</socket_parent>
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
-							<translation>0 0 0</translation>
+							<translation>0 1.5 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
@@ -9582,7 +9582,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.225 0.01</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>0 0.1 1.5707</orientation>
+					<orientation>1.5707 0.1 0</orientation>
 					<radius>0.06</radius>
 					<length>0.16</length>
 				</ContactCapsule>
@@ -9592,7 +9592,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.245 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>0 0 1.5707</orientation>
+					<orientation>1.5707 0 0</orientation>
 					<radius>0.05</radius>
 					<length>0.18</length>
 				</ContactCapsule>
@@ -9602,7 +9602,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.225 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>0 0.1 1.5707</orientation>
+					<orientation>1.5707 0.1 0</orientation>
 					<radius>0.06</radius>
 					<length>0.16</length>
 				</ContactCapsule>
@@ -9612,7 +9612,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.245 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>0 0 1.5707</orientation>
+					<orientation>1.5707 0.1 0</orientation>
 					<radius>0.05</radius>
 					<length>0.18</length>
 				</ContactCapsule>
@@ -9632,7 +9632,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 0.185 -0.045</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>0.0 0.1 1.5707</orientation>
+					<orientation>1.5707 0.1 0</orientation>
 					<radius>0.09</radius>
 					<length>0.135</length>
 					<filter>false</filter>
@@ -9643,7 +9643,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 0.185 0.045</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>0 0.1 1.5707</orientation>
+					<orientation>1.5707 0.1 0</orientation>
 					<radius>0.09</radius>
 					<length>0.135</length>
 					<filter>false</filter>
@@ -9663,7 +9663,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.15 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>0 0 1.5707</orientation>
+					<orientation>1.5707 0 0</orientation>
 					<radius>0.035</radius>
 					<length>0.15</length>
 					<filter>false</filter>
@@ -9674,7 +9674,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>-0.01 -0.18 0.02</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>0 0 1.5707</orientation>
+					<orientation>1.5707 0 0</orientation>
 					<radius>0.025</radius>
 					<length>0.15</length>
 				</ContactCapsule>
@@ -9685,7 +9685,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>0.0 -0.15 0.0</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>0 0 1.5707</orientation>
+					<orientation>1.5707 0 0</orientation>
 					<radius>0.035</radius>
 					<length>0.15</length>
 					<filter>false</filter>
@@ -9696,7 +9696,7 @@
 					<!--Location of geometry center in the body frame-->
 					<location>-0.01 -0.18 -0.02</location>
 					<!--Orientation of geometry in the body frame-->
-					<orientation>0 0 1.5707</orientation>
+					<orientation>1.5707 0 0</orientation>
 					<radius>0.025</radius>
 					<length>0.15</length>
 				</ContactCapsule>

@@ -339,16 +339,17 @@
 						<color>0 1 1</color>
 					</Appearance>
 				</ContactHalfSpace>
-				<ContactSphere name="sphere">
+				<ContactCapsule name="sphere">
 					<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this geometry is attached.).-->
 					<socket_frame>/bodyset/pelvis</socket_frame>
 					<!--Location of geometry center in the PhysicalFrame.-->
-					<location>0.3 -0.1 0.0</location>
+					<location>0 0 0.0</location>
 					<!--Orientation of geometry in the PhysicalFrame (body-fixed XYZ Euler angles).-->
-					<orientation>0 0 0</orientation>
+					<orientation>0.3 1.2 0.2</orientation>
 					<!--Radius of the sphere (default: 0).-->
 					<radius>0.10</radius>
-				</ContactSphere>
+					<length>0.30</length>
+				</ContactCapsule>
 			</objects>
 			<groups />
 		</ContactGeometrySet>
