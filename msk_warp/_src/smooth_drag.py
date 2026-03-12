@@ -17,7 +17,7 @@ def _drag_force(
         # In:
         body_tree: wp.array(dtype=int),
         # Data out:
-        xfrc_drag_out: wp.array2d(dtype=wp.spatial_vector),
+        body_F_drag_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, nodeid = wp.tid()
     if integration_done_in[worldid]:
@@ -27,7 +27,7 @@ def _drag_force(
 
     drag_x = -consts.A_AFK * math.sqr(body_vel[0]) * wp.sign(body_vel[0])
     drag_frc = wp.spatial_vector(drag_x, 0.0, 0.0, 0.0, 0.0, 0.0)
-    xfrc_drag_out[worldid, bodyid] += drag_frc
+    body_F_drag_out[worldid, bodyid] += drag_frc
     return
 
 
@@ -39,5 +39,5 @@ def drag(m: Model, d: Data):
         _drag_force,
         dim=(d.nworld, body_roots.size),
         inputs=[d.integration_done, d.body_vel, body_roots],
-        outputs=[d.xfrc_drag],
+        outputs=[d.body_F_drag],
     )

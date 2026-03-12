@@ -135,6 +135,7 @@ class Coordinate:
 class FunctionType(Enum):
     LINEAR = "linear"
     CONSTANT = "constant"
+    POLYNOMIAL = "polynomial"
     SIMM_SPLINE = "simm_spline"
 
 
@@ -168,6 +169,17 @@ class ConstantFunction(Function):
 
     def type(self) -> FunctionType:
         return FunctionType.CONSTANT
+
+
+@dataclass
+class PolynomialFunction(Function):
+    coefficients: list[float]
+
+    def scale(self, factor: float):
+        self.coefficients = [c * factor for c in self.coefficients]
+
+    def type(self) -> FunctionType:
+        return FunctionType.POLYNOMIAL
 
 
 @dataclass

@@ -137,14 +137,11 @@ def _mob_f_accumulate(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qfrc_applied_in: wp.array2d(dtype=float),
-        qfrc_bias_in: wp.array2d(dtype=float),
         qfrc_muscle_in: wp.array2d(dtype=float),
         qfrc_actuator_in: wp.array2d(dtype=float),
         qfrc_limit_in: wp.array2d(dtype=float),
-        qfrc_contact_in: wp.array2d(dtype=float),
         qfrc_spring_in: wp.array2d(dtype=float),
         qfrc_damper_in: wp.array2d(dtype=float),
-        qfrc_drag_in: wp.array2d(dtype=float),
         # Data out:
         mob_f_out: wp.array2d(dtype=float),
 ):
@@ -153,14 +150,11 @@ def _mob_f_accumulate(
         return
     mob_f_out[worldid, dofid] = (
             qfrc_applied_in[worldid, dofid]
-            - qfrc_bias_in[worldid, dofid]
             + qfrc_muscle_in[worldid, dofid]
             + qfrc_actuator_in[worldid, dofid]
             + qfrc_limit_in[worldid, dofid]
-            + qfrc_contact_in[worldid, dofid]
             + qfrc_spring_in[worldid, dofid]
             + qfrc_damper_in[worldid, dofid]
-            + qfrc_drag_in[worldid, dofid]
     )
 
 
@@ -187,17 +181,13 @@ def reset_forces(m: Model, d: Data):
     """ Compute all applied forces """
     d.body_F_gravity.zero_()
     d.body_F_contact.zero_()
-    d.xfrc_drag.zero_()
-    d.xfrc_muscle.zero_()
+    d.body_F_drag.zero_()
+    d.body_F_muscle.zero_()
 
-    d.qfrc_applied.zero_()
-    d.qfrc_bias.zero_()
     d.qfrc_spring.zero_()
     d.qfrc_damper.zero_()
-    d.qfrc_drag.zero_()
     d.qfrc_muscle.zero_()
     d.qfrc_actuator.zero_()
-    d.qfrc_contact.zero_()
     d.qfrc_limit.zero_()
 
     d.geom_cforce.zero_()
@@ -217,7 +207,7 @@ def accumulate_forces(m: Model, d: Data):
         _mob_f_accumulate,
         dim=(d.nworld, m.nv),
         inputs=[d.integration_done,
-                d.qfrc_applied, d.qfrc_bias, d.qfrc_muscle, d.qfrc_actuator, d.qfrc_limit,
-                d.qfrc_contact, d.qfrc_spring, d.qfrc_damper, d.qfrc_drag],
+                d.qfrc_applied, d.qfrc_muscle, d.qfrc_actuator, d.qfrc_limit,
+                d.qfrc_spring, d.qfrc_damper],
         outputs=[d.qfrc_total],
     )

@@ -48,16 +48,16 @@ def _joint_moments_kernel(
 def compute_joint_moments(m: Model, d: Data):
     d.joint_moments.zero_()
     # TODO: fixme
-    math.mul_m(m, d, d.joint_moments, d.qacc)
-    wp.launch(
-        _joint_moments_kernel,
-        dim=(d.nworld, m.nv),
-        inputs=[
-            d.joint_moments,
-            d.qfrc_bias,
-            d.qfrc_contact,
-            d.qfrc_drag,
-        ],
-        outputs=[d.joint_moments],
-    )
-    return
+    # math.mul_m(m, d, d.joint_moments, d.qacc)
+    # wp.launch(
+    #     _joint_moments_kernel,
+    #     dim=(d.nworld, m.nv),
+    #     inputs=[
+    #         d.joint_moments,
+    #         d.qfrc_bias,
+    #         d.qfrc_contact,
+    #         d.qfrc_drag,
+    #     ],
+    #     outputs=[d.joint_moments],
+    # )
+    # return

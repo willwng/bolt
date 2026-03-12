@@ -562,79 +562,120 @@ class Data:
     """Dynamic state that updates each step.
 
     Attributes:
+      nworld: number of parallel worlds being simulated
+      naconmax: maximum number of contacts total
+      world_reset: whether the world needs to be reset            (nworld,)
+      next_time: final target time for integrator (tMax)          (nworld,)
+
       * Current state *
       time: simulation time                                       (nworld,)
       qpos: position                                              (nworld, nq)
       qvel: velocity                                              (nworld, nv)
+      m_state: muscle state variable                              (nworld, nmuscles)
       m_act: muscle activation                                    (nworld, nmuscles)
       a_act: actuator activation                                  (nworld, nactuator)
-      m_state: muscle state variable                              (nworld, nmuscles)
+
+     * current controls *
+      m_excitations: muscle excitations                           (nworld, nmuscles)
+      a_excitations: actuator excitations                         (nworld, nactuator)
 
      * State derivatives *
       qacc: acceleration                                          (nworld, nv)
+      m_state_dot: time-derivative of muscle state variable       (nworld, nmuscles)
       m_act_dot: time-derivative of actuator activation           (nworld, na)
       a_act_dot: time-derivative of actuator activation           (nworld, nactuator)
-      m_excitations: muscle excitations                           (nworld, nmuscles)
-      m_state_dot: time-derivative of muscle state variable       (nworld, nmuscles)
 
-      next_time: final target time for integrator (tMax)          (nworld,)
-      world_reset: whether to reset the world                     (nworld,)
+     * simulator forces *
+      body_F_gravity: gravity Cartesian force/torque on body      (nworld, nbody, 6)
+      body_F_contact: contact Cartesian force/torque on body      (nworld, nbody, 6)
+      body_F_muscle: muscle Cartesian force/torque on body        (nworld, nbody, 6)
+      body_F_drag: drag Cartesian force/torque on body            (nworld, nbody, 6)
+      body_F: net Cartesian force/torque on body                  (nworld, nbody, 6)
+      qfrc_spring: passive spring force                           (nworld, nv)
+      qfrc_damper: passive damper force                           (nworld, nv)
+      qfrc_muscle: muscle generalized force                       (nworld, nv)
+      qfrc_actuator: actuator generalized force                   (nworld, nv)
+      qfrc_limit: dof limit generalized force                     (nworld, nv)
+      qfrc_total: net generalized force                           (nworld, nv)
 
-      qfrc_applied: applied generalized force                     (nworld, nv)
+     * user-facing forces *
+      qfrc_applied: user-facing applied generalized force         (nworld, nv)
       xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
-      grf: ground reaction force                                  (nworld, 6)
+
+     * post-dynamics analytics *
+      grf: ground reaction force                                  (nworld, 3)
       joint_moments: joint moments                                (nworld, nv)
+      geom_cforce: contact force on geoms                         (nworld, ngeom, 3)
 
-      mob_X_GB: Cartesian position of body frame                      (nworld, nbody, 3)
-      body_COM_G: Position of body com relative to ground             (nworld, nbody, 3)
+      contact: contact data
 
-      geom_X: Cartesian geom position                          (nworld, ngeom, 3)
+     * mobilizers *
+      mob_X_GB: Cartesian position of body frame                  (nworld, nbody, 3)
+      mob_X_FM: Mobilizer transformation                          (nworld, nbody, transform)
+      mob_X_PB: Transform from parent to body frame               (nworld, nbody, transform)
+      mob_scratch: scratch space for mobilizer calculations       (nworld, nbody, vec3)
+      mob_phi: parent-to-child shift (Bo-Po) in the ground frame  (nworld, nbody, 3)
+      mob_H_FM: cross joint jacobian of each dof (rot:lin)        (nworld, nv, 6)
+      mob_H: cross joint jacobian of each dof (in ground)         (nworld, nv, 6)
+      mob_HDot_FM: time-derivative of cross joint jacobian        (nworld, nv, 6)
+      mob_HDot: time-derivative of cross joint jacobian in ground (nworld, nv, 6)
+      mob_DI: DI = inverse(~H @ P @ H)                            (nworld, nv, 6) # ndof x ndof, won't use all 6
+      mob_G: G = PH * DI                                          (nworld, nv, nv)
+      mob_coriolis_acc: Coriolis/centrifugal acceleration         (nworld, nbody, 6)
 
+      body_COM_G: Position of body com relative to ground         (nworld, nbody, 3)
+      body_Mk_G: Spatial inertia in ground frame                  (nworld, nbody, SpatialInertia)
+      body_P: Articulated inertia mass matrix in ground frame     (nworld, nbody, ArticulatedInertia)
+      body_PPlus: Articulated inertia (including children)        (nworld, nbody, ArticulatedInertia)
+      body_V_FM: spatial velocity of mobilizer                    (nworld, nbody, 6)
+      body_V_PB_G: spatial velocity of parent to body in ground   (nworld, nbody, 6)
+      body_V_GB: spatial velocity of body in ground frame         (nworld, nbody, 6)
+      body_VD_PB_G: spatial acc of parent to body in ground       (nworld, nbody, 6)
+      body_A_GB: spatial acceleration of body in ground frame     (nworld, nbody, 6)
+      body_gyro_force: gyroscopic force on body                   (nworld, nbody, 6)
+      body_total_coriolis_acc: total coriolis acc                 (nworld, nbody, 6)
+      body_total_centrifugal_force: total centrifugal force       (nworld, nbody, 6)
+      body_articulated_centrifugal_force:                         (nworld, nbody, 6)
+      body_zPlus: z = Pa + b - F, zPlus includes children         (nworld, nbody, 6)
+      body_eps: f - ~H * z                                        (nworld, nbody, 6)
+
+      geom_X: Cartesian geom transform                            (nworld, ngeom, transform)
+      vis_X: Cartesian visual transform                           (nworld, nvis, transform)
+
+     * contacts *
+      collision_pair: pair of geoms in contact                    (nacon, 2)
+      collision_pairid: pair of geom ids in contact               (nacon, 2)
+      collision_worldid: world id of contact                      (nacon,)
+      ncollision: number of detected collisions across all worlds (1,)
+      nacon: numbet of collisions per world                       (nworld,)
+      contact: contact data
+
+     * muscle paths
+      muscle_length: muscle lengths                               (nworld, nmuscle)
+      muscle_velocity: muscle velocities                          (nworld, nmuscle)
+
+     * point-path based muscle paths
       site_rpos: local position of site rel. to body              (nworld, nsite, 3)
       site_xpos: Cartesian site position                          (nworld, nsite, 3)
       site_xvel: Cartesian site velocity                          (nworld, nsite, 3)
       site_active: whether site is active                         (nworld, nsite)
-
+      site_diff_vec: unit vector b/w consecutive active sites     (nworld, nsite-1, 3)
+      site_diff_len: length b/w consecutive active sites          (nworld, nsite-1)
+      site_diff_vel: projected velocity b/w active sites          (nworld, nsite-1)
       muscle_active_sites: "compacted" active sites               (nworld, nsite)
        [ for muscle i, active sites indices are consecutive ]
       muscle_num_active: number of active sites per muscle        (nworld, nmuscle)
 
-      site_diff_vec: unit vector b/w consecutive active sites     (nworld, nsite-1, 3)
-      site_diff_len: length b/w consecutive active sites          (nworld, nsite-1)
-      site_diff_vel: projected velocity b/w active sites          (nworld, nsite-1)
+     * function-based muscle paths
+      muscle_moment_arm: moment arm of muscle along each dof       (nworld, nmuscle, nv)
 
-      subtree_com: center of mass of each subtree                 (nworld, nbody, 3)
-      mob_H_FM: com-based motion axis of each dof (rot:lin)       (nworld, nv, 6)
-
-      crb: com-based composite inertia and mass                   (nworld, nbody, 10)
-      qM: total inertia (sparse) (nworld, 1, nM) or               (nworld, nv, nv) if dense
-      qLD: L'*D*L factorization of M (sparse) (nworld, 1, nM) or  (nworld, nv, nv) if dense
-      qLDiagInv: 1/diag(D)                                        (nworld, nv)
-
-      muscle_length: muscle lengths                               (nworld, nmuscle)
-      muscle_velocity: muscle velocities                          (nworld, nmuscle)
+     * muscle dynamics
+      muscle_length_info: info for muscle length calculation      (nworld, nmuscle)
+      muscle_velocity_info: info for muscle velocity calculation  (nworld, nmuscle)
+      muscle_dynamics_info: info for muscle force calculation     (nworld, nmuscle)
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
       muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
 
-      body_vel: com-based velocity (rot:lin)                          (nworld, nbody, 6)
-      body_acc: Cartesian body velocity in body frame (ang, vel)      (nworld, nbody, 6)
-
-      xfrc_drag: drag Cartesian force/torque on body              (nworld, nbody, 6)
-
-      qfrc_bias: C(qpos,qvel)                                     (nworld, nv)
-      qfrc_spring: passive spring force                           (nworld, nv)
-      qfrc_damper: passive damper force                           (nworld, nv)
-      qfrc_drag: drag generalized force                           (nworld, nv)
-      qfrc_muscle: muscle generalized force                       (nworld, nv)
-      qfrc_actuator: actuator generalized force                   (nworld, nv)
-      qfrc_contact: contact generalized force                     (nworld, nv)
-      qfrc_limit: dof limit generalized force                     (nworld, nv)
-
-      subtree_linvel: linear velocity of subtree com              (nworld, nbody, 3)
-      subtree_angmom: angular momentum about subtree com          (nworld, nbody, 3)
-
-      qfrc_total: net unconstrained force                        (nworld, nv)
-      contact: contact data
 
     warp only fields:
       nworld: number of worlds
@@ -644,9 +685,105 @@ class Data:
       nsolving: number of unconverged worlds                      (1,)
       subtree_bodyvel: subtree body velocity (ang, vel)           (nworld, nbody, 6)
     """
+    nworld: int
+    naconmax: int
+
     world_reset: array("nworld", bool)
-    time: wp.array(dtype=float)
-    next_time: wp.array(dtype=float)
+    next_time: array("nworld", float)
+
+    time: array("nworld", float)
+    qpos: array("nworld", "nq", float)
+    qvel: array("nworld", "nv", float)
+    m_state: array("nworld", "nmuscle", float)
+    m_act: array("nworld", "nmuscle", float)
+    a_act: array("nworld", "nactuator", float)
+
+    m_excitations: array("nworld", "nmuscle", float)
+    a_excitations: array("nworld", "nactuator", float)
+
+    qacc: array("nworld", "nv", float)
+    m_state_dot: array("nworld", "nmuscle", float)
+    m_act_dot: array("nworld", "nmuscle", float)
+    a_act_dot: array("nworld", "nactuator", float)
+
+    body_F_gravity: array("nworld", "nbody", wp.spatial_vector)
+    body_F_contact: array("nworld", "nbody", wp.spatial_vector)
+    body_F_muscle: array("nworld", "nbody", wp.spatial_vector)
+    body_F_drag: array("nworld", "nbody", wp.spatial_vector)
+    body_F: array("nworld", "nbody", wp.spatial_vector)
+    qfrc_spring: wp.array2d(dtype=float)
+    qfrc_damper: wp.array2d(dtype=float)
+    qfrc_muscle: wp.array2d(dtype=float)
+    qfrc_actuator: wp.array2d(dtype=float)
+    qfrc_limit: wp.array2d(dtype=float)
+    qfrc_total: wp.array2d(dtype=float)
+
+    qfrc_applied: array("nworld", "nv", float)
+    xfrc_applied: array("nworld", "nbody", wp.spatial_vector)
+
+    grf: array("nworld", wp.vec3)
+    joint_moments: array("nworld", "nv", float)
+    geom_cforce: array("nworld", "ngeom", wp.vec3)
+
+    mob_X_GB: wp.array2d(dtype=wp.transform)
+    mob_X_FM: wp.array2d(dtype=wp.transform)
+    mob_X_PB: wp.array2d(dtype=wp.transform)
+    mob_scratch: wp.array3d(dtype=wp.vec3)  # used for storing precomputed values
+    mob_phi: wp.array2d(dtype=wp.vec3)
+    mob_H_FM: wp.array2d(dtype=wp.spatial_vector)
+    mob_H: wp.array2d(dtype=wp.spatial_vector)
+    mob_HDot_FM: wp.array2d(dtype=wp.spatial_vector)
+    mob_HDot: wp.array2d(dtype=wp.spatial_vector)
+    mob_DI: wp.array2d(dtype=wp.spatial_vector)  # ndof x ndof, so we won't use all 6 of spatial vector
+    mob_G: wp.array2d(dtype=wp.spatial_vector)
+    mob_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
+
+    body_COM_G: wp.array2d(dtype=wp.vec3)
+    body_Mk_G: wp.array2d(dtype=SpatialInertia)
+    body_P: wp.array2d(dtype=ArticulatedInertia)
+    body_PPlus: wp.array2d(dtype=ArticulatedInertia)
+    body_V_FM: wp.array2d(dtype=wp.spatial_vector)
+    body_V_PB_G: wp.array2d(dtype=wp.spatial_vector)
+    body_V_GB: wp.array2d(dtype=wp.spatial_vector)
+    body_VD_PB_G: wp.array2d(dtype=wp.spatial_vector)
+    body_A_GB: wp.array2d(dtype=wp.spatial_vector)
+    body_gyro_force: wp.array2d(dtype=wp.spatial_vector)
+    body_total_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
+    body_total_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
+    body_articulated_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
+    body_zPlus: wp.array2d(dtype=wp.spatial_vector)
+    body_eps: wp.array2d(dtype=wp.spatial_vector)
+
+    geom_X: wp.array2d(dtype=wp.transform)
+    vis_X: wp.array2d(dtype=wp.transform)
+
+    collision_pair: wp.array(dtype=wp.vec2i)
+    collision_pairid: wp.array(dtype=wp.vec2i)
+    collision_worldid: wp.array(dtype=int)
+    ncollision: wp.array(dtype=int)
+    nacon: wp.array(dtype=int)
+    contact: Contact
+
+    muscle_length: wp.array2d(dtype=float)
+    muscle_velocity: wp.array2d(dtype=float)
+
+    site_rpos: wp.array2d(dtype=wp.vec3)
+    site_xpos: wp.array2d(dtype=wp.vec3)
+    site_xvel: wp.array2d(dtype=wp.vec3)
+    site_active: wp.array2d(dtype=bool)
+    site_diff_vec: wp.array2d(dtype=wp.vec3)
+    site_diff_len: wp.array2d(dtype=float)
+    site_diff_vel: wp.array2d(dtype=float)
+    muscle_active_sites: wp.array2d(dtype=int)
+    muscle_num_active: wp.array2d(dtype=int)
+
+    muscle_moment_arm: wp.array3d(dtype=float)
+
+    muscle_length_info: wp.array2d(dtype=MuscleLengthInfo)
+    muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)
+    muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
+    muscle_actuation: wp.array2d(dtype=float)
+    muscle_metabolic: wp.array2d(dtype=float)
 
     # Adaptive integrator fields
     time1: wp.array(dtype=float)
@@ -670,120 +807,8 @@ class Data:
     error: wp.array(dtype=float)
     steps_attempted: wp.array(dtype=int)
 
-    qpos: wp.array2d(dtype=float)
-    qvel: wp.array2d(dtype=float)
-    m_act: wp.array2d(dtype=float)
-    a_act: wp.array2d(dtype=float)
-    m_state: wp.array2d(dtype=float)
-
-    qacc: wp.array2d(dtype=float)
-    Ma: wp.array2d(dtype=float)
-    qacc_euler: wp.array2d(dtype=float)
-    m_act_dot: wp.array2d(dtype=float)
-    a_act_dot: wp.array2d(dtype=float)
-    m_excitations: wp.array2d(dtype=float)
-    a_excitations: wp.array2d(dtype=float)
-    m_state_dot: wp.array2d(dtype=float)
-
     # Stored state for adaptive time-stepper
     integrator_scratch: list[IntegratorStateScratch]
     integrator_dot_scratch: list[IntegratorDotScratch]  # for higher order integrators
     qvel_buffer: wp.array2d(dtype=float)
 
-    #
-    mob_X_GB: wp.array2d(dtype=wp.transform)
-    mob_X_FM: wp.array2d(dtype=wp.transform)
-    mob_X_PB: wp.array2d(dtype=wp.transform)
-    mob_scratch: wp.array3d(dtype=wp.vec3)  # used for storing precomputed values
-    mob_phi: wp.array2d(dtype=wp.vec3)
-    mob_H_FM: wp.array2d(dtype=wp.spatial_vector)
-    mob_H: wp.array2d(dtype=wp.spatial_vector)
-    mob_HDot_FM: wp.array2d(dtype=wp.spatial_vector)
-    mob_HDot: wp.array2d(dtype=wp.spatial_vector)
-    mob_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
-
-    mob_G: wp.array2d(dtype=wp.spatial_vector)
-    mob_DI: wp.array2d(dtype=wp.spatial_vector)  # ndof x ndof, so we won't use all 6 of spatial vector
-
-    body_COM_G: wp.array2d(dtype=wp.vec3)
-    body_Mk_G: wp.array2d(dtype=SpatialInertia)
-    body_P: wp.array2d(dtype=ArticulatedInertia)
-    body_PPlus: wp.array2d(dtype=ArticulatedInertia)
-    body_V_FM: wp.array2d(dtype=wp.spatial_vector)
-    body_V_PB_G: wp.array2d(dtype=wp.spatial_vector)
-    body_V_GB: wp.array2d(dtype=wp.spatial_vector)
-    body_VD_PB_G: wp.array2d(dtype=wp.spatial_vector)
-    body_A_GB: wp.array2d(dtype=wp.spatial_vector)
-    body_eps: wp.array2d(dtype=wp.spatial_vector)
-
-    body_gyro_force: wp.array2d(dtype=wp.spatial_vector)
-    body_total_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
-    body_total_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
-    body_articulated_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
-    body_zPlus: wp.array2d(dtype=wp.spatial_vector)
-
-    body_F_contact: wp.array2d(dtype=wp.spatial_vector)
-    body_F: wp.array2d(dtype=wp.spatial_vector)
-
-    qfrc_total: wp.array2d(dtype=float)
-
-    geom_X: wp.array2d(dtype=wp.transform)
-    geom_cforce: wp.array2d(dtype=float)
-
-    vis_X: wp.array2d(dtype=wp.transform)
-
-    site_rpos: wp.array2d(dtype=wp.vec3)
-    site_xpos: wp.array2d(dtype=wp.vec3)
-    site_xvel: wp.array2d(dtype=wp.vec3)
-    site_active: wp.array2d(dtype=bool)
-
-    muscle_active_sites: wp.array2d(dtype=int)
-    muscle_num_active: wp.array2d(dtype=int)
-    muscle_moment_arm: wp.array3d(dtype=float)
-
-    site_diff_vec: wp.array2d(dtype=wp.vec3)
-    site_diff_len: wp.array2d(dtype=float)
-    site_diff_vel: wp.array2d(dtype=float)
-
-    muscle_length: wp.array2d(dtype=float)
-    muscle_velocity: wp.array2d(dtype=float)
-    muscle_actuation: wp.array2d(dtype=float)
-    muscle_metabolic: wp.array2d(dtype=float)
-
-    muscle_length_info: wp.array2d(dtype=MuscleLengthInfo)
-    muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)
-    muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
-
-    body_F_gravity: wp.array2d(dtype=wp.spatial_vector)
-    xfrc_applied: wp.array2d(dtype=wp.spatial_vector)
-    xfrc_muscle: wp.array2d(dtype=wp.spatial_vector)
-    xfrc_drag: wp.array2d(dtype=wp.spatial_vector)
-
-    qfrc_applied: wp.array2d(dtype=float)
-    qfrc_bias: wp.array2d(dtype=float)
-    qfrc_spring: wp.array2d(dtype=float)
-    qfrc_damper: wp.array2d(dtype=float)
-    qfrc_drag: wp.array2d(dtype=float)
-    qfrc_muscle: wp.array2d(dtype=float)
-    qfrc_actuator: wp.array2d(dtype=float)
-    qfrc_contact: wp.array2d(dtype=float)
-    qfrc_limit: wp.array2d(dtype=float)
-
-    grf: wp.array2d(dtype=wp.vec3)
-    joint_moments: wp.array2d(dtype=float)
-
-    contact: Contact
-
-    #
-    nworld: int
-    naconmax: int
-    njmax: int
-    nacon: wp.array(dtype=int)
-    nsolving: wp.array(dtype=int)
-    subtree_bodyvel: wp.array2d(dtype=wp.spatial_vector)
-
-    # collision driver
-    collision_pair: wp.array(dtype=wp.vec2i)
-    collision_pairid: wp.array(dtype=wp.vec2i)
-    collision_worldid: wp.array(dtype=int)
-    ncollision: wp.array(dtype=int)

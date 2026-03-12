@@ -238,6 +238,10 @@ def num_bodies(model: CheckedModel) -> int:
     return len(model.body_full_desc)
 
 
+def num_functions(model: CheckedModel) -> int:
+    return len(list(model.iter_fns()))
+
+
 def num_muscles(model: CheckedModel) -> int:
     return len(model.force_set.muscles)
 

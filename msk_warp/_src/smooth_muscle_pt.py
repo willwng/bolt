@@ -125,7 +125,7 @@ def _compute_path_kernel(
 
 
 @wp.kernel
-def _xfrc_muscles(
+def _body_F_muscles(
         # Model:
         muscle_pts_adr: wp.array(dtype=int),
         site_bodyid: wp.array(dtype=int),
@@ -139,7 +139,7 @@ def _xfrc_muscles(
         xipos_in: wp.array2d(dtype=wp.vec3),
         site_xpos_in: wp.array2d(dtype=wp.vec3),
         # Data out:
-        xfrc_muscle_out: wp.array2d(dtype=wp.spatial_vector),
+        body_F_muscle_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
@@ -163,8 +163,8 @@ def _xfrc_muscles(
 
         muscle_frc = actuation * vec
         # TODO: fixme
-        wp.atomic_add(xfrc_muscle_out[worldid], body1, math.force_at_point(muscle_frc, p1 - com1))
-        wp.atomic_sub(xfrc_muscle_out[worldid], body2, math.force_at_point(muscle_frc, p2 - com2))
+        wp.atomic_add(body_F_muscle_out[worldid], body1, math.force_at_point(muscle_frc, p1 - com1))
+        wp.atomic_sub(body_F_muscle_out[worldid], body2, math.force_at_point(muscle_frc, p2 - com2))
 
 
 @event_scope
@@ -225,7 +225,7 @@ def muscle_path(m: Model, d: Data):
 def muscle_force(m: Model, d: Data):
     if m.nmuscle:
         wp.launch(
-            _xfrc_muscles,
+            _body_F_muscles,
             dim=(d.nworld, m.nmuscle),
             inputs=[
                 m.muscle_pts_adr,
@@ -239,5 +239,5 @@ def muscle_force(m: Model, d: Data):
                 d.body_COM_G,
                 d.site_xpos,
             ],
-            outputs=[d.xfrc_muscle],
+            outputs=[d.body_F_muscle],
         )

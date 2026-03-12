@@ -4,6 +4,37 @@ from msk_warp._src import types
 
 
 @dataclass
+class FunctionData:
+    type: list[types.GeomType]
+    body_id: list[int]
+    size: list[list[float]]
+    transform: list[list[float]]
+    friction: list[list[float]]
+    stiffness: list[float]
+    dissipation: list[float]
+    transition_velocity: list[float]
+    priority: list[int]
+    aabb: list[list[float]]
+    rbound: list[float]
+    pc_filter: list[bool]  # If true, maintains child-parent contact filter
+
+    # default constructor
+    def __init__(self):
+        self.type = []
+        self.body_id = []
+        self.size = []
+        self.transform = []
+        self.friction = []
+        self.stiffness = []
+        self.dissipation = []
+        self.transition_velocity = []
+        self.priority = []
+        self.aabb = []
+        self.rbound = []
+        self.pc_filter = []
+
+
+@dataclass
 class ColliderData:
     type: list[types.GeomType]
     body_id: list[int]

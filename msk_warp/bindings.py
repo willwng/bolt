@@ -103,15 +103,11 @@ def load_model(
     nq = sum(jnt_qpos_num)
     nmuscle = num_muscles(osim_model)
     nactuators = num_actuators(osim_model)
+    nfunctions = num_functions(osim_model)
     nz = nmuscle + nmuscle + nactuators  # muscle state, muscle activation, actuator activation
 
     joint_types = get_joint_types(osim_model)
-    n_conv_jnts, n_custom_jnts = 0, 0
-    for jt in joint_types:
-        if jt == types.JointType.CUSTOM:
-            n_custom_jnts += 1
-        else:
-            n_conv_jnts += 1
+    n_custom_jnts = len(list(filter(lambda jt: jt == types.JointType.CUSTOM, joint_types)))
 
     ngeom = num_colliders(osim_model)
     nvis = num_visuals(osim_model)
@@ -214,7 +210,6 @@ def load_model(
         geom_data, body_parent_ids, ngeom)
 
     # todo: don't hard code
-    njmax = 128
     naconmax = max(512, n_worlds * 32)
 
     # needs shapes
@@ -427,8 +422,6 @@ def load_model(
         joint_moments=make_zero((n_worlds, nv), dtype=float),
 
         qacc=make_zero((n_worlds, nv), dtype=float),
-        Ma=make_zero((n_worlds, nv), dtype=float),
-        qacc_euler=make_zero((n_worlds, nv), dtype=float),
         m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
         a_act_dot=make_zero((n_worlds, nactuators), dtype=float),
         m_excitations=make_full(0.5, (n_worlds, nmuscle), dtype=float),
@@ -501,18 +494,15 @@ def load_model(
         body_F_gravity=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        xfrc_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        xfrc_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_F_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_F_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
         qfrc_applied=make_zero((n_worlds, nv), dtype=float),
-        qfrc_bias=make_zero((n_worlds, nv), dtype=float),
         qfrc_spring=make_zero((n_worlds, nv), dtype=float),
         qfrc_damper=make_zero((n_worlds, nv), dtype=float),
-        qfrc_drag=make_zero((n_worlds, nv), dtype=float),
         qfrc_muscle=make_zero((n_worlds, nv), dtype=float),
         qfrc_actuator=make_zero((n_worlds, nv), dtype=float),
         qfrc_limit=make_zero((n_worlds, nv), dtype=float),
-        qfrc_contact=make_zero((n_worlds, nv), dtype=float),
 
         qfrc_total=make_zero((n_worlds, nv), dtype=float),
 
@@ -532,10 +522,7 @@ def load_model(
 
         nworld=n_worlds,
         naconmax=naconmax,
-        njmax=njmax,
         nacon=make_zero(n_worlds, dtype=int),
-        nsolving=make_zero(1, dtype=int),
-        subtree_bodyvel=make_zero((n_worlds, nb), dtype=wp.vec3),
 
         # collision driver
         collision_pair=wp.zeros((naconmax,), dtype=wp.vec2i),
@@ -774,20 +761,12 @@ def joint_accelerations(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qacc)
 
 
-def qfrc_bias(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.qfrc_bias)
-
-
 def qfrc_spring(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_spring)
 
 
 def qfrc_damper(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_damper)
-
-
-def qfrc_drag(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.qfrc_drag)
 
 
 def qfrc_muscle(d: types.Data) -> torch.Tensor:
@@ -800,10 +779,6 @@ def qfrc_actuator(d: types.Data) -> torch.Tensor:
 
 def qfrc_limit(d: types.Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_limit)
-
-
-def qfrc_contact(d: types.Data) -> torch.Tensor:
-    return wp.to_torch(d.qfrc_contact)
 
 
 def subtree_com_positions(d: types.Data) -> torch.Tensor:

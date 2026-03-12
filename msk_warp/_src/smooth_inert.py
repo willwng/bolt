@@ -37,9 +37,6 @@ def _accumulate_articulated_inertia(
         jnt_dofnum: wp.array(dtype=int),
         jnt_dofadr: wp.array(dtype=int),
 
-        #debug
-        body_mass_in: wp.array(dtype=float),
-
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         mob_H_in: wp.array2d(dtype=wp.spatial_vector),
@@ -145,8 +142,6 @@ def articulated_body_inertia(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[
                 m.body_children, m.body_children_num, m.body_children_adr, m.jnt_dofnum, m.jnt_dofadr,
-                #debug
-                m.body_mass,
                 d.integration_done, d.mob_H, d.mob_phi, d.body_P, d.body_PPlus,
                 body_tree,
             ],
