@@ -5,7 +5,7 @@ from . import mobilizers
 from .types import Data
 from .types import Model
 from .types import SpatialInertia
-from .types import JointType
+from .types import MobilizerType
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -55,9 +55,11 @@ def fix_qpos_limits(m: Model, d: Data):
 @wp.kernel
 def _calc_mobilizer_X_FM(
         # Model:
-        jnt_type: wp.array(dtype=int),
-        jnt_qposadr: wp.array(dtype=int),
+        mob_type: wp.array(dtype=int),
+        mob_qposadr: wp.array(dtype=int),
         mob_extra_info: wp.array(dtype=wp.vec3),
+        mob_to_cst_id: wp.array(dtype=int),
+        cst_txfm_axes: wp.array2d(dtype=wp.vec3),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
@@ -70,13 +72,15 @@ def _calc_mobilizer_X_FM(
         return
 
     # Collect joint information
-    jnt_type_ = jnt_type[bodyid]
-    qpos_start = jnt_qposadr[bodyid]
+    mob_type_ = mob_type[bodyid]
+    qpos_start = mob_qposadr[bodyid]
     extra_info = mob_extra_info[bodyid]
     mob_scratch = mob_scratch_out[worldid, bodyid]
+    cst_id = mob_to_cst_id[bodyid]
 
     # Joint transform: parent mobilizer to child mobilizer
-    X_FM = mobilizers.calcX_FM(jnt_type_, qpos_start, qpos_in[worldid], extra_info, mob_scratch)
+    X_FM = mobilizers.calcX_FM(mob_type_, qpos_start, qpos_in[worldid], extra_info,
+                               cst_id, cst_txfm_axes, mob_scratch)
     mob_X_FM_out[worldid, bodyid] = X_FM
     return
 
@@ -100,7 +104,7 @@ def _body_transforms_ground(
 def _body_transforms_level(
         # Model:
         body_parentid: wp.array(dtype=int),
-        jnt_type: wp.array(dtype=int),
+        mob_type: wp.array(dtype=int),
         mob_X_PF: wp.array(dtype=wp.transform),
         mob_X_MB: wp.array(dtype=wp.transform),
         # Data in:
@@ -124,7 +128,7 @@ def _body_transforms_level(
     X_PF = mob_X_PF[bodyid]  # Transform from parent frame P to mobilizer fixed frame F
     X_FM = mob_X_FM_in[worldid, bodyid]  # just calculated
     X_GP = mob_X_GB_in[worldid, pid]  # already calculated
-    if pid == 0 and jnt_type[bodyid] == JointType.FREE:
+    if pid == 0 and mob_type[bodyid] == MobilizerType.FREE:
         X_PF = wp.transform_identity()
 
     X_PB = X_PF * X_FM * X_MB
@@ -204,9 +208,13 @@ def _site_local_to_global(
 @wp.kernel
 def _across_joint_velocity_jacobian(
         # Model:
-        jnt_type: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
+        mob_type: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
         mob_extra_info: wp.array(dtype=wp.vec3),
+        mob_dofnum: wp.array(dtype=int),
+        mob_to_cst_id: wp.array(dtype=int),
+        cst_txfm_dof: wp.array2d(dtype=int),
+        cst_txfm_axes: wp.array2d(dtype=wp.vec3),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         mob_scratch_in: wp.array3d(dtype=wp.vec3),
@@ -217,14 +225,17 @@ def _across_joint_velocity_jacobian(
     if integration_done_in[worldid]:
         return
 
-    jnt_type_ = jnt_type[bodyid]
-    dofadr = jnt_dofadr[bodyid]
+    mob_type_ = mob_type[bodyid]
+    dofadr = mob_dofadr[bodyid]
     extra_info = mob_extra_info[bodyid]
     H_FM = H_FM_out[worldid]
     mob_scratch = mob_scratch_in[worldid, bodyid]
+    dofnum = mob_dofnum[bodyid]
+    cst_id = mob_to_cst_id[bodyid]
 
     # Stores Jacobian in H_FM
-    mobilizers.calc_across_joint_velocity_jacobian(jnt_type_, dofadr, extra_info, mob_scratch, H_FM)
+    mobilizers.calc_across_joint_velocity_jacobian(mob_type_, dofadr, extra_info, mob_scratch,
+                                                   dofnum, cst_id, cst_txfm_dof, cst_txfm_axes, H_FM)
     return
 
 
@@ -234,8 +245,8 @@ def _parent_to_child_joint_velocity_jacobian_in_ground(
         body_parentid: wp.array(dtype=int),
         mob_X_PF: wp.array(dtype=wp.transform),
         mob_X_MB: wp.array(dtype=wp.transform),
-        jnt_dofnum: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
+        mob_dofnum: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         mob_X_GB_in: wp.array2d(dtype=wp.transform),
@@ -252,8 +263,8 @@ def _parent_to_child_joint_velocity_jacobian_in_ground(
     pid = body_parentid[bodyid]
     X_PF = mob_X_PF[bodyid]
     X_MB = mob_X_MB[bodyid]
-    dofnum = jnt_dofnum[bodyid]
-    dofadr = jnt_dofadr[bodyid]
+    dofnum = mob_dofnum[bodyid]
+    dofadr = mob_dofadr[bodyid]
 
     # Pre-computed transform and cross-joint Jacobian
     X_FM = mob_X_FM_in[worldid, bodyid]
@@ -328,12 +339,12 @@ def _joint_independent_kinematics(
 
 
 @event_scope
-def calc_mobilizer_X_MF(m: Model, d: Data):
+def calc_mobilizer_X_FM(m: Model, d: Data):
     wp.launch(
         _calc_mobilizer_X_FM,
         dim=(d.nworld, m.nbody),
         inputs=[
-            m.jnt_type, m.jnt_qposadr, m.mob_extra_info,
+            m.mob_type, m.mob_qposadr, m.mob_extra_info, m.mob_to_cst_id, m.cst_txfm_axes,
             d.integration_done, d.qpos,
         ],
         outputs=[d.mob_X_FM, d.mob_scratch],
@@ -358,7 +369,7 @@ def calc_body_transforms(m: Model, d: Data):
             _body_transforms_level,
             dim=(d.nworld, body_tree.size),
             inputs=[
-                m.body_parentid, m.jnt_type, m.mob_X_PF, m.mob_X_MB,
+                m.body_parentid, m.mob_type, m.mob_X_PF, m.mob_X_MB,
                 d.integration_done, d.mob_X_FM, d.mob_X_GB,
                 body_tree,
             ],
@@ -373,7 +384,7 @@ def joint_velocity_jacobian(m: Model, d: Data):
         _across_joint_velocity_jacobian,
         dim=(d.nworld, m.nbody),
         inputs=[
-            m.jnt_type, m.jnt_dofadr, m.mob_extra_info,
+            m.mob_type, m.mob_dofadr, m.mob_extra_info, m.mob_dofnum, m.mob_to_cst_id, m.cst_txfm_dof, m.cst_txfm_axes,
             d.integration_done, d.mob_scratch,
         ],
         outputs=[d.mob_H_FM],
@@ -382,7 +393,7 @@ def joint_velocity_jacobian(m: Model, d: Data):
         _parent_to_child_joint_velocity_jacobian_in_ground,
         dim=(d.nworld, m.nbody),
         inputs=[
-            m.body_parentid, m.mob_X_PF, m.mob_X_MB, m.jnt_dofnum, m.jnt_dofadr,
+            m.body_parentid, m.mob_X_PF, m.mob_X_MB, m.mob_dofnum, m.mob_dofadr,
             d.integration_done, d.mob_X_GB, d.mob_X_FM, d.mob_H_FM,
         ],
         outputs=[d.mob_H],
@@ -406,6 +417,7 @@ def joint_independent_kinematics(m: Model, d: Data):
         ],
         outputs=[d.mob_phi, d.body_COM_G, d.body_Mk_G],
     )
+
 
 @event_scope
 def attachment_kinematics(m: Model, d: Data):

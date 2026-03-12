@@ -17,6 +17,9 @@ class Vector3:
     y: float
     z: float
 
+    def to_list(self) -> list[float]:
+        return [self.x, self.y, self.z]
+
 
 @dataclass
 class Quat:

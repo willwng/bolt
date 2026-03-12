@@ -102,7 +102,7 @@ def _rk_perturb_state(
     wp.launch(
         integrate_common._next_position,
         dim=(d.nworld, m.nbody),
-        inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
+        inputs=[m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
                 d.integration_done, qpos_t0, d.qvel, d.actual_step_size, scale],
         outputs=[d.qpos],
     )

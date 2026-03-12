@@ -13,14 +13,19 @@ wp.set_module_options({"enable_backward": False})
 @wp.kernel
 def _across_joint_velocity_jacobian_dot(
         # Model:
-        jnt_type: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
+        mob_type: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
         mob_extra_info: wp.array(dtype=wp.vec3),
+        mob_dofnum: wp.array(dtype=int),
+        mob_to_cst_id: wp.array(dtype=int),
+        cst_txfm_dof: wp.array2d(dtype=int),
+        cst_txfm_axes: wp.array2d(dtype=wp.vec3),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qvel_in: wp.array2d(dtype=float),
         mob_scratch_in: wp.array3d(dtype=wp.vec3),
         mob_V_FM_in: wp.array2d(dtype=wp.spatial_vector),
+        mob_H_FM_in: wp.array2d(dtype=wp.spatial_vector),
         # Data out:
         HDot_FM_out: wp.array2d(dtype=wp.spatial_vector),
 ):
@@ -28,23 +33,27 @@ def _across_joint_velocity_jacobian_dot(
     if integration_done_in[worldid]:
         return
 
-    jnt_type_ = jnt_type[bodyid]
-    dofadr = jnt_dofadr[bodyid]
+    mob_type_ = mob_type[bodyid]
+    dofadr = mob_dofadr[bodyid]
     extra_info = mob_extra_info[bodyid]
     HDot_FM = HDot_FM_out[worldid]
     mob_scratch = mob_scratch_in[worldid, bodyid]
     qvel = qvel_in[worldid]
     V_FM = mob_V_FM_in[worldid, bodyid]
+    H_FM = mob_H_FM_in[worldid]
+    dofnum = mob_dofnum[bodyid]
+    cst_id = mob_to_cst_id[bodyid]
     # Stores Jacobian in H_FM
-    mobilizers.calc_across_joint_velocity_jacobian_dot(jnt_type_, dofadr, extra_info, mob_scratch, qvel, V_FM, HDot_FM)
+    mobilizers.calc_across_joint_velocity_jacobian_dot(mob_type_, dofadr, extra_info, mob_scratch, qvel, V_FM, H_FM,
+                                                       dofnum, cst_id, cst_txfm_dof, cst_txfm_axes, HDot_FM)
     return
 
 
 @wp.kernel
 def _compute_body_velocities(
         # Model:
-        jnt_dofnum: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
+        mob_dofnum: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qvel_in: wp.array2d(dtype=float),
@@ -58,8 +67,8 @@ def _compute_body_velocities(
     if integration_done_in[worldid]:
         return
 
-    dofnum = jnt_dofnum[bodyid]
-    dofadr = jnt_dofadr[bodyid]
+    dofnum = mob_dofnum[bodyid]
+    dofadr = mob_dofadr[bodyid]
 
     H_FM = mob_H_FM_in[worldid]
     H = mob_H_in[worldid]
@@ -109,8 +118,8 @@ def _compute_body_velocities_in_ground(
 @wp.kernel
 def _compute_parent_to_child_accelerations(
         # Model:
-        jnt_dofnum: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
+        mob_dofnum: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qvel_in: wp.array2d(dtype=float),
@@ -122,8 +131,8 @@ def _compute_parent_to_child_accelerations(
     if integration_done_in[worldid]:
         return
 
-    dofnum = jnt_dofnum[bodyid]
-    dofadr = jnt_dofadr[bodyid]
+    dofnum = mob_dofnum[bodyid]
+    dofadr = mob_dofadr[bodyid]
 
     HDot = mob_HDot_in[worldid]
     qv = qvel_in[worldid]
@@ -142,8 +151,8 @@ def _parent_to_child_joint_velocity_jacobian_in_ground_dot(
         body_parentid: wp.array(dtype=int),
         mob_X_PF: wp.array(dtype=wp.transform),
         mob_X_MB: wp.array(dtype=wp.transform),
-        jnt_dofnum: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
+        mob_dofnum: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         mob_X_GB_in: wp.array2d(dtype=wp.transform),
@@ -164,8 +173,8 @@ def _parent_to_child_joint_velocity_jacobian_in_ground_dot(
     pid = body_parentid[bodyid]
     X_PF = mob_X_PF[bodyid]
     X_MB = mob_X_MB[bodyid]
-    dofnum = jnt_dofnum[bodyid]
-    dofadr = jnt_dofadr[bodyid]
+    dofnum = mob_dofnum[bodyid]
+    dofadr = mob_dofadr[bodyid]
 
     # Pre-computed transform and cross-joint Jacobian
     X_FM = mob_X_FM_in[worldid, bodyid]
@@ -318,8 +327,8 @@ def joint_velocity_jacobian_dot(m: Model, d: Data):
         _across_joint_velocity_jacobian_dot,
         dim=(d.nworld, m.nbody),
         inputs=[
-            m.jnt_type, m.jnt_dofadr, m.mob_extra_info,
-            d.integration_done, d.qvel, d.mob_scratch, d.body_V_FM
+            m.mob_type, m.mob_dofadr, m.mob_extra_info, m.mob_dofnum, m.mob_to_cst_id, m.cst_txfm_dof, m.cst_txfm_axes,
+            d.integration_done, d.qvel, d.mob_scratch, d.body_V_FM, d.mob_H_FM
         ],
         outputs=[d.mob_HDot_FM],
     )
@@ -328,7 +337,7 @@ def joint_velocity_jacobian_dot(m: Model, d: Data):
         _parent_to_child_joint_velocity_jacobian_in_ground_dot,
         dim=(d.nworld, m.nbody),
         inputs=[
-            m.body_parentid, m.mob_X_PF, m.mob_X_MB, m.jnt_dofnum, m.jnt_dofadr,
+            m.body_parentid, m.mob_X_PF, m.mob_X_MB, m.mob_dofnum, m.mob_dofadr,
             d.integration_done, d.mob_X_GB, d.mob_X_FM, d.mob_H_FM, d.mob_H, d.mob_HDot_FM,
             d.body_V_GB, d.body_V_FM
         ],
@@ -347,7 +356,7 @@ def compute_body_velocities(m: Model, d: Data):
         _compute_body_velocities,
         dim=(d.nworld, m.nbody),
         inputs=[
-            m.jnt_dofnum, m.jnt_dofadr,
+            m.mob_dofnum, m.mob_dofadr,
             d.integration_done, d.qvel, d.mob_H_FM, d.mob_H
         ],
         outputs=[d.body_V_FM, d.body_V_PB_G],
@@ -374,7 +383,7 @@ def compute_parent_to_child_accelerations(m: Model, d: Data):
         _compute_parent_to_child_accelerations,
         dim=(d.nworld, m.nbody),
         inputs=[
-            m.jnt_dofnum, m.jnt_dofadr,
+            m.mob_dofnum, m.mob_dofadr,
             d.integration_done, d.qvel, d.mob_HDot
         ],
         outputs=[d.body_VD_PB_G],

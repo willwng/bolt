@@ -2,7 +2,7 @@ import warp as wp
 
 from . import math
 from .types import Data
-from .types import JointType
+from .types import MobilizerType
 from .types import Model
 from .warp_util import event_scope
 
@@ -13,10 +13,10 @@ wp.set_module_options({"enable_backward": False})
 def _spring_jnt_passive(
         # Model:
         qpos_spring: wp.array(dtype=float),
-        jnt_type: wp.array(dtype=int),
-        jnt_qposadr: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
-        jnt_dofnum: wp.array(dtype=int),
+        mob_type: wp.array(dtype=int),
+        mob_qposadr: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
+        mob_dofnum: wp.array(dtype=int),
         jnt_stiffness: wp.array(dtype=float),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
@@ -28,15 +28,15 @@ def _spring_jnt_passive(
     if integration_done_in[worldid]:
         return
 
-    jnttype = jnt_type[jntid]
-    qposadr = jnt_qposadr[jntid]
-    dofadr = jnt_dofadr[jntid]
+    mobtype = mob_type[jntid]
+    qposadr = mob_qposadr[jntid]
+    dofadr = mob_dofadr[jntid]
     stiffness = jnt_stiffness[jntid]
-    dofnum = jnt_dofnum[jntid]
+    dofnum = mob_dofnum[jntid]
 
-    if jnttype == JointType.FREE:  # no spring forces on free joints
+    if mobtype == MobilizerType.FREE:  # no spring forces on free joints
         return
-    elif jnttype == JointType.BALL:  # quaternion target
+    elif mobtype == MobilizerType.BALL:  # quaternion target
         return  # todo!
 
     for i in range(dofnum):
@@ -68,10 +68,10 @@ def spring(m: Model, d: Data):
         dim=(d.nworld, m.nbody),
         inputs=[
             m.qpos_spring,
-            m.jnt_type,
-            m.jnt_qposadr,
-            m.jnt_dofadr,
-            m.jnt_dofnum,
+            m.mob_type,
+            m.mob_qposadr,
+            m.mob_dofadr,
+            m.mob_dofnum,
             m.jnt_stiffness,
             d.integration_done,
             d.qpos,

@@ -30,8 +30,8 @@ def _calc_udot_pass_inward(
         body_children: wp.array(dtype=int),
         body_children_num: wp.array(dtype=int),
         body_children_adr: wp.array(dtype=int),
-        jnt_dofnum: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
+        mob_dofnum: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qfrc_total_in: wp.array2d(dtype=float),
@@ -50,8 +50,8 @@ def _calc_udot_pass_inward(
     if integration_done_in[worldid]:
         return
     bodyid = body_tree_[nodeid]
-    dofnum = jnt_dofnum[bodyid]
-    dofadr = jnt_dofadr[bodyid]
+    dofnum = mob_dofnum[bodyid]
+    dofadr = mob_dofadr[bodyid]
 
     # Load in H, G as matrices for convenience
     H = math.load_mat66(mob_H_in[worldid], dofadr, dofnum)
@@ -85,8 +85,8 @@ def _calc_udot_pass_inward(
 def _calc_udot_pass_outward(
         # Model:
         body_parentid: wp.array(dtype=int),
-        jnt_dofnum: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
+        mob_dofnum: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         mob_phi_in: wp.array2d(dtype=wp.vec3),
@@ -107,8 +107,8 @@ def _calc_udot_pass_outward(
         return
     bodyid = body_tree_[nodeid]
     pid = body_parentid[bodyid]
-    dofnum = jnt_dofnum[bodyid]
-    dofadr = jnt_dofadr[bodyid]
+    dofnum = mob_dofnum[bodyid]
+    dofadr = mob_dofadr[bodyid]
 
     # Load in H, G as matrices for convenience
     H = math.load_mat66(mob_H_in[worldid], dofadr, dofnum)
@@ -151,7 +151,7 @@ def calc_udot(m: Model, d: Data):
             _calc_udot_pass_inward,
             dim=(d.nworld, body_tree.size),
             inputs=[
-                m.body_children, m.body_children_num, m.body_children_adr, m.jnt_dofnum, m.jnt_dofadr,
+                m.body_children, m.body_children_num, m.body_children_adr, m.mob_dofnum, m.mob_dofadr,
                 d.integration_done, d.qfrc_total, d.body_F, d.mob_phi, d.mob_H, d.mob_G,
                 d.body_articulated_centrifugal_force,
                 body_tree,
@@ -166,7 +166,7 @@ def calc_udot(m: Model, d: Data):
             _calc_udot_pass_outward,
             dim=(d.nworld, body_tree.size),
             inputs=[
-                m.body_parentid, m.jnt_dofnum, m.jnt_dofadr,
+                m.body_parentid, m.mob_dofnum, m.mob_dofadr,
                 d.integration_done, d.mob_phi, d.mob_coriolis_acc, d.mob_H, d.mob_G, d.mob_DI, d.body_A_GB, d.body_eps,
                 body_tree,
             ],

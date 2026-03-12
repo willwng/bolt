@@ -34,8 +34,8 @@ def _accumulate_articulated_inertia(
         body_children: wp.array(dtype=int),
         body_children_num: wp.array(dtype=int),
         body_children_adr: wp.array(dtype=int),
-        jnt_dofnum: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
+        mob_dofnum: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
 
         # Data in:
         integration_done_in: wp.array(dtype=bool),
@@ -58,8 +58,8 @@ def _accumulate_articulated_inertia(
 
     body_children_adr_ = body_children_adr[bodyid]
     body_children_num_ = body_children_num[bodyid]
-    dofnum = jnt_dofnum[bodyid]
-    dofadr = jnt_dofadr[bodyid]
+    dofnum = mob_dofnum[bodyid]
+    dofadr = mob_dofadr[bodyid]
 
     # Start with the spatial inertia of the current body (in Ground frame)
     P = body_P_in[worldid, bodyid]
@@ -141,7 +141,7 @@ def articulated_body_inertia(m: Model, d: Data):
             _accumulate_articulated_inertia,
             dim=(d.nworld, body_tree.size),
             inputs=[
-                m.body_children, m.body_children_num, m.body_children_adr, m.jnt_dofnum, m.jnt_dofadr,
+                m.body_children, m.body_children_num, m.body_children_adr, m.mob_dofnum, m.mob_dofadr,
                 d.integration_done, d.mob_H, d.mob_phi, d.body_P, d.body_PPlus,
                 body_tree,
             ],

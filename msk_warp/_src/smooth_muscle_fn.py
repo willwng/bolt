@@ -110,7 +110,7 @@ def _apply_muscle_frc(
     actuation = muscle_actuation_in[worldid, muscle_id]
     moment_arm = muscle_moment_arm_in[worldid, muscle_id]
 
-    # most moment arms are zero, but hopefully not much contention on the adds
+    # most moment arms are zero, hopefully not much contention on the atomic adds
     q_applied = actuation * moment_arm[dofid]
     if q_applied != 0.0:
         wp.atomic_add(qfrc_applied_out[worldid], dofid, q_applied)

@@ -14,31 +14,31 @@ class TileBlockDim:
     restore_state: int = 16
 
 
-class JointType(enum.IntEnum):
-    """Type of degree of freedom.
+class MobilizerType(enum.IntEnum):
+    """Type of mobilizer
 
     Attributes:
       FREE:  global position and orientation (quat)                   (7,)
-      BALL:  orientation (quat) relative to parent                    (4,)
-      SLIDER: sliding distance along body-fixed axis                  (1,)
       PIN: rotation angle (rad) around joint z-axis                   (1,)
+      SLIDER: sliding distance along body-fixed axis                  (1,)
       UNIVERSAL: two rotation angles (rad) around joint x- and y-axes (2,)
       GIMBAL: three euler angles (XYZ order)                          (3,)
       BEAM: Cantilever Free Beam bending model                        (3,)
       ELLIPSOID: Ellipsoid joint                                      (3,)
+      BALL:  orientation (quat) relative to parent                    (4,)
       CUSTOM: custom joint with up to 6 dofs                          (<=6,)
       WELD: no dofs                                                   (0,)
       DUMMY: for ground (represents world body)                       (0,)
     """
 
     FREE = 0
-    BALL = 1
+    PIN = 1
     SLIDER = 2
-    PIN = 3
-    UNIVERSAL = 4
-    GIMBAL = 5
-    BEAM = 6
-    ELLIPSOID = 7
+    UNIVERSAL = 3
+    GIMBAL = 4
+    BEAM = 5
+    ELLIPSOID = 6
+    BALL = 7
     CUSTOM = 8
     WELD = 9
     DUMMY = 10
@@ -73,6 +73,10 @@ class vec5(wp.types.vector(length=5, dtype=float)):
 
 
 class mat34(wp.types.matrix(shape=(3, 4), dtype=float)):
+    pass
+
+
+class mat36(wp.types.matrix(shape=(3, 6), dtype=float)):
     pass
 
 
@@ -367,19 +371,36 @@ class Model:
       body_tree: list of body ids by tree level
       body_children: list of body ids of each body's children
       body_children_adr: start adr in 'body_children'          (nbody,)
-      body_children_num: number of children for each body       (nbody,)
+      body_children_num: number of children for each body      (nbody,)
 
-      jnt_type: type of joint (JointType)                      (nbody,)
-      jnt_stiffness: joint stiffness                           (nbody,)
-      jnt_qposadr: start adr in qpos for joint's data          (nbody,)
-      jnt_dofnum: number of dofs for each joint                (nbody,)
-      jnt_dofadr: start adr in qvel for joint's data           (nbody,)
+      mob_type: type of joint (JointType)                      (nbody,)
+      mob_qposadr: start adr in qpos for joint's data          (nbody,)
+      mob_dofnum: number of dofs for each joint                (nbody,)
+      mob_dofadr: start adr in qvel for joint's data           (nbody,)
       mob_X_PF: parent -> parent joint frame                   (nbody, transform)
       mob_X_MB: mobilizer -> child                             (nbody, transform)
       mob_extra_info: extra info for each mobilizer            (nbody, vec3)
 
+     * custom functions *
+      linear_fn_mb: slope, intercept                           (nlinearfn, vec2)
+      const_fn_c: constant value                               (nconstfn,)
+      linear_fn_adr: "global" fn address for each linear fn    (nlinearfn,)
+      const_fn_adr: "global" fn address for each const fn      (nconstfn,)
+      poly_fn_adr: "global" fn address for each polynomial fn  (npolyfn,)
+      linear_fn_qpos_adr: qpos address for linear fn input     (nlinearfn,)
+      poly_fn_qpos_adr: qpos address for polynomial fn input   (npolyfn,)
+     
+     * custom joints *
+      mob_to_cst_id: map mobilizer idx -> custom joint idx     (nbody,)
+      cst_to_mob_id: map custom joint idx -> mobilizer idx     (njnts_cst,)
+      cst_txfm_axes: custom transform axes (3 rot, 3 trans)    (njnts_cst, 6, vec3)
+      cst_txfm_dof: dof idx offset (FROM JOINT) for each txfm  (njnts_cst, 6)
 
+     * stiffness/damping *
+      jnt_stiffness: joint stiffness                           (nbody,)
       dof_damping: damping coefficient                         (nv)
+      
+     * dof limits * 
       limit_dof_range: joint limits (min, max)                 (ndoflimit, 2)
       limit_dof_adr: dof address of dof-limit                  (ndoflimit,)
       limit_dof_qadr: qpos address of dof-limit                (ndoflimit,)
@@ -429,6 +450,11 @@ class Model:
     nsite: int
     nsite_cond: int
 
+    nfunctions: int
+    nlinearfn: int
+    nconstfn: int
+    npolyfn: int
+
     opt: Option
     muscle_metadata: array("nmuscle", MuscleMetadata)
     muscle_data: list[MuscleMetadata]
@@ -448,16 +474,30 @@ class Model:
     body_children_adr: wp.array(dtype=int)
     body_children_num: wp.array(dtype=int)
 
-    jnt_type: array("nbody", int)
-    jnt_stiffness: array("nbody", float)
-    jnt_qposadr: array("nbody", int)
-    jnt_dofnum: array("nbody", int)
-    jnt_dofadr: array("nbody", int)
+    mob_type: array("nbody", int)
+    mob_qposadr: array("nbody", int)
+    mob_dofnum: array("nbody", int)
+    mob_dofadr: array("nbody", int)
     mob_X_PF: array("nbody", wp.transform)
     mob_X_MB: array("nbody", wp.transform)
     mob_extra_info: array("nbody", wp.vec3)
 
+    mob_to_cst_id: array("nbody", int)
+    cst_to_mob_id: array("njnts_cst", int)
+    cst_txfm_axes: array("njnts_cst", 6, wp.vec3)
+    cst_txfm_dof: array("njnts_cst", 6, int)
+
+    linear_fn_mb: array("nlinearfn", wp.vec2)
+    const_fn_c: array("nconstfn", float)
+    linear_fn_adr: array("nlinearfn", int)
+    const_fn_adr: array("nconstfn", int)
+    poly_fn_adr: array("npolyfn", int)
+    linear_fn_qpos_adr: array("nlinearfn", int)
+    poly_fn_qpos_adr: array("npolyfn", int)
+
+    jnt_stiffness: array("nbody", float)
     dof_damping: array("nv", float)
+
     limit_dof_range: array("ndoflimit", wp.vec2)
     limit_dof_adr: array("ndoflimit", int)
     limit_dof_qadr: array("ndoflimit", int)
@@ -609,6 +649,9 @@ class Data:
 
       contact: contact data
 
+     * custom joints/functions *
+      cst_fn_output: f, f', f'' output of custom joint functions (nworld, nfunction, vec3)
+
      * mobilizers *
       mob_X_GB: Cartesian position of body frame                  (nworld, nbody, 3)
       mob_X_FM: Mobilizer transformation                          (nworld, nbody, transform)
@@ -725,6 +768,8 @@ class Data:
     joint_moments: array("nworld", "nv", float)
     geom_cforce: array("nworld", "ngeom", wp.vec3)
 
+    cst_fn_output: array("nworld", "nfunction", wp.vec3)
+
     mob_X_GB: wp.array2d(dtype=wp.transform)
     mob_X_FM: wp.array2d(dtype=wp.transform)
     mob_X_PB: wp.array2d(dtype=wp.transform)
@@ -811,4 +856,3 @@ class Data:
     integrator_scratch: list[IntegratorStateScratch]
     integrator_dot_scratch: list[IntegratorDotScratch]  # for higher order integrators
     qvel_buffer: wp.array2d(dtype=float)
-

@@ -43,6 +43,7 @@ def main():
 
     # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
     model_path = "data/osim/all_upper.osim"
+    # model_path = "data/osim/gimbal_custom.osim"
     # model_path = "data/osim/example_gait3d_pin.osim"
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
@@ -65,6 +66,15 @@ def main():
         return load_result.dof_id_lookup[name][1]
 
     qpos = wp.to_torch(d.qpos)
+    qvel = wp.to_torch(d.qvel)
+    qpos[:, qpos_id("shoulder_flexion_r")] = 55.0 * np.pi / 180.0
+    qpos[:, qpos_id("shoulder_abduction_r")] = -5.0 * np.pi / 180.0
+    qpos[:, qpos_id("shoulder_rotation_r")] = -15.0 * np.pi / 180.0
+    qvel[:, dof_id("shoulder_flexion_r")] = 55.0 * np.pi / 180.0
+    qvel[:, dof_id("shoulder_abduction_r")] = -5.0 * np.pi / 180.0
+    qvel[:, dof_id("shoulder_rotation_r")] = -15.0 * np.pi / 180.0
+    forward.fwd(m, d)
+    # qpos[:, qpos_id("shoulder_flexion_l")] = -55.0 * np.pi / 180.0
     # qpos += torch.randn_like(qpos) * 0.1
     # qpos[:, qpos_id("pelvis_ty")] = 1.5
     # qpos[:, qpos_id("lumbar_bending")] = -np.pi / 6.0
@@ -77,7 +87,6 @@ def main():
     # qpos[:, qpos_id("knee_angle_r")] = -60.0 * np.pi / 180.0
     # qpos[:, qpos_id("ankle_angle_r")] = 20.0 * np.pi / 180.0
     #
-    # qvel = wp.to_torch(d.qvel)
     # qvel[:, dof_id("lumbar_bending")] = 0.2
     #
     # qvel[:, dof_id("hip_flexion_l")] = 0.1
@@ -98,7 +107,7 @@ def main():
             draw_visuals=True,
             draw_colliders=True,
             draw_muscles=True,
-            draw_body_mass=True,
+            draw_body_mass=False,
             draw_beams=True
         )
         if viewer.viewer_type == RendererType.TILED:

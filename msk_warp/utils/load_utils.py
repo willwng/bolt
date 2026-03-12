@@ -31,9 +31,6 @@ def check_zero(arr: wp.array):
 
 def to_warp_array(lst, dtype):
     arr = np.array(lst)
-    # remove 2nd dimension if it exists
-    if arr.ndim == 2 and arr.shape[1] == 1:
-        arr = arr.squeeze(axis=1)
     return check_zero(wp.from_numpy(arr, dtype=dtype))
 
 

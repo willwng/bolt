@@ -97,17 +97,25 @@ def load_model(
     dof_id_lookup = get_dof_id_lookup(osim_model)
 
     nb = num_bodies(osim_model)
-    jnt_qpos_num = get_joint_num_dofs(osim_model, vel_dofs=False)
+    mob_qpos_num = get_joint_num_dofs(osim_model, vel_dofs=False)
     jnt_dof_num = get_joint_num_dofs(osim_model, vel_dofs=True)
     nv = sum(jnt_dof_num)
-    nq = sum(jnt_qpos_num)
+    nq = sum(mob_qpos_num)
     nmuscle = num_muscles(osim_model)
     nactuators = num_actuators(osim_model)
     nfunctions = num_functions(osim_model)
+    linear_fn_data, const_fn_data, poly_fn_data = get_fn_data(osim_model)
+    nlinearfn, nconstfn, npolyfn = linear_fn_data.count(), const_fn_data.count(), poly_fn_data.count()
     nz = nmuscle + nmuscle + nactuators  # muscle state, muscle activation, actuator activation
 
     joint_types = get_joint_types(osim_model)
-    n_custom_jnts = len(list(filter(lambda jt: jt == types.JointType.CUSTOM, joint_types)))
+    n_custom_jnts = len(list(filter(lambda jt: jt == types.MobilizerType.CUSTOM, joint_types)))
+
+    mob_to_cst_idx = get_mob_to_cst_idx(osim_model)
+    cst_to_mob_idx = get_cst_to_mob_idx(osim_model)
+    cst_txfm_axes = get_cst_txfm_axes(osim_model)
+    cst_txfm_axes = to_warp_array(cst_txfm_axes, dtype=wp.vec3)
+    cst_txfm_dof = get_cst_txfm_dof(osim_model)
 
     ngeom = num_colliders(osim_model)
     nvis = num_visuals(osim_model)
@@ -127,12 +135,12 @@ def load_model(
     body_parent_ids = get_body_parent_ids(osim_model)
 
     # Custom joints: compute address of joint -> custom joint
-    is_custom_joint_mask = [1 if joint_types[i] == types.JointType.CUSTOM else 0
+    is_custom_joint_mask = [1 if joint_types[i] == types.MobilizerType.CUSTOM else 0
                             for i in range(len(joint_types))]
     custom_joint_indices = exclusive_scan(is_custom_joint_mask, True)
     assert (max(custom_joint_indices) == n_custom_jnts - 1)
 
-    jnt_qpos_adr = exclusive_scan(jnt_qpos_num, False)
+    mob_qpos_adr = exclusive_scan(mob_qpos_num, False)
     jnt_dof_adr = exclusive_scan(jnt_dof_num, False)
 
     mob_X_PF = get_joint_rel_transform(osim_model, parent=True)
@@ -273,13 +281,16 @@ def load_model(
         nz=nz,
         nactuator=nactuators,
         ndoflimit=n_limits,
-
         njnts_cst=n_custom_jnts,
-
         ngeom=ngeom,
         nvis=nvis,
         nsite=nsite,
         nsite_cond=nsite_cond,
+
+        nfunctions=nfunctions,
+        nlinearfn=nlinearfn,
+        nconstfn=nconstfn,
+        npolyfn=npolyfn,
 
         opt=opt,
         muscle_metadata=mm,
@@ -296,14 +307,27 @@ def load_model(
         body_mass_center=to_warp_array(body_mass_centers, dtype=wp.vec3),
 
         body_parentid=to_warp_array(body_parent_ids, dtype=int),
-        jnt_type=to_warp_array(joint_types, dtype=int),
+        mob_type=to_warp_array(joint_types, dtype=int),
         jnt_stiffness=to_warp_array(jnt_stiffness, dtype=float),
-        jnt_qposadr=to_warp_array(jnt_qpos_adr, dtype=int),
-        jnt_dofnum=to_warp_array(jnt_dof_num, dtype=int),
-        jnt_dofadr=to_warp_array(jnt_dof_adr, dtype=int),
+        mob_qposadr=to_warp_array(mob_qpos_adr, dtype=int),
+        mob_dofnum=to_warp_array(jnt_dof_num, dtype=int),
+        mob_dofadr=to_warp_array(jnt_dof_adr, dtype=int),
         mob_X_PF=to_warp_array(mob_X_PF, dtype=wp.transform),
         mob_X_MB=to_warp_array(mob_X_MB, dtype=wp.transform),
         mob_extra_info=to_warp_array(mob_extra_info, dtype=wp.vec3),
+
+        mob_to_cst_id=to_warp_array(mob_to_cst_idx, dtype=int),
+        cst_to_mob_id=to_warp_array(cst_to_mob_idx, dtype=int),
+        cst_txfm_axes=to_warp_array(cst_txfm_axes, dtype=wp.vec3),
+        cst_txfm_dof=to_warp_array(cst_txfm_dof, dtype=int),
+
+        linear_fn_mb=to_warp_array(linear_fn_data.mb, dtype=wp.vec2),
+        const_fn_c=to_warp_array(const_fn_data.c, dtype=float),
+        linear_fn_adr=to_warp_array(linear_fn_data.fn_idx, dtype=int),
+        const_fn_adr=to_warp_array(const_fn_data.fn_idx, dtype=int),
+        poly_fn_adr=to_warp_array(poly_fn_data.fn_idx, dtype=int),
+        linear_fn_qpos_adr=to_warp_array(linear_fn_data.qpos_adr, dtype=int),
+        poly_fn_qpos_adr=to_warp_array(poly_fn_data.qpos_adr, dtype=int),
 
         limit_dof_range=to_warp_array(dof_limit_ranges, dtype=wp.vec2),
         limit_dof_adr=to_warp_array(dof_limit_adr, dtype=int),
@@ -378,7 +402,7 @@ def load_model(
         ) for _ in range(n_int_dot_states)
     ]
 
-    # Custom joints may need up to 6 additional vectors
+    # Custom joints may need up to 6 additional vectors: [f(q), f'(q), f''(q)] for each 6 functions
     num_scratch = 3 if n_custom_jnts == 0 else 6
 
     d = types.Data(
@@ -427,6 +451,8 @@ def load_model(
         m_excitations=make_full(0.5, (n_worlds, nmuscle), dtype=float),
         a_excitations=make_zero((n_worlds, nactuators), dtype=float),
         m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
+
+        cst_fn_output=make_zero((n_worlds, nfunctions), dtype=wp.vec3),
 
         mob_X_GB=make_zero((n_worlds, nb), dtype=wp.transform),
         mob_X_FM=make_zero((n_worlds, nb), dtype=wp.transform),
@@ -642,22 +668,22 @@ def get_num_limits(m: types.Model) -> int:
 
 
 def get_qpos_adr(m: types.Model, body_id: int) -> torch.Tensor:
-    jnt_qpos_adr = wp.to_torch(m.jnt_qposadr)
-    return jnt_qpos_adr[body_id]
+    mob_qpos_adr = wp.to_torch(m.mob_qposadr)
+    return mob_qpos_adr[body_id]
 
 
 def get_dof_adr(m: types.Model, body_id: int) -> torch.Tensor:
-    jnt_dof_adr = wp.to_torch(m.jnt_dofadr)
+    jnt_dof_adr = wp.to_torch(m.mob_dofadr)
     return jnt_dof_adr[body_id]
 
 
 def get_qpos_num(m: types.Model, body_id: int) -> torch.Tensor:
-    jnt_qpos_num = wp.to_torch(m.jnt_dofnum)
-    return jnt_qpos_num[body_id]
+    mob_qpos_num = wp.to_torch(m.mob_dofnum)
+    return mob_qpos_num[body_id]
 
 
 def get_dof_num(m: types.Model, body_id: int) -> torch.Tensor:
-    jnt_dof_num = wp.to_torch(m.jnt_dofnum)
+    jnt_dof_num = wp.to_torch(m.mob_dofnum)
     return jnt_dof_num[body_id]
 
 

@@ -13,10 +13,10 @@ wp.set_module_options({"enable_backward": False})
 @wp.kernel
 def _next_position(
         # Model:
-        jnt_type: wp.array(dtype=int),
-        jnt_qposadr: wp.array(dtype=int),
-        jnt_dofadr: wp.array(dtype=int),
-        jnt_dofnum: wp.array(dtype=int),
+        mob_type: wp.array(dtype=int),
+        mob_qposadr: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
+        mob_dofnum: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
@@ -32,16 +32,16 @@ def _next_position(
         return
     timestep = actual_step_size_in[worldid] * scale
 
-    jnttype = jnt_type[bodyid]
-    qpos_adr = jnt_qposadr[bodyid]
-    dof_adr = jnt_dofadr[bodyid]
-    dof_num = jnt_dofnum[bodyid]
+    mobtype = mob_type[bodyid]
+    qpos_adr = mob_qposadr[bodyid]
+    dof_adr = mob_dofadr[bodyid]
+    dof_num = mob_dofnum[bodyid]
 
     qpos = qpos_in[worldid]
     qvel = qvel_in[worldid]
     qpos_next = qpos_out[worldid]
 
-    mobilizers.integrate(jnttype, qpos, qvel, qpos_adr, dof_adr, timestep, dof_num, qpos_next)
+    mobilizers.integrate(mobtype, qpos, qvel, qpos_adr, dof_adr, timestep, dof_num, qpos_next)
 
 
 @wp.kernel
@@ -208,7 +208,7 @@ def advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float, sym
         wp.launch(
             _next_position,
             dim=(d.nworld, m.nbody),
-            inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
+            inputs=[m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
                     d.integration_done, d.qpos, qvel, d.actual_step_size, scale],
             outputs=[d.qpos],
         )
@@ -216,7 +216,7 @@ def advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float, sym
         wp.launch(
             _next_position,
             dim=(d.nworld, m.nbody),
-            inputs=[m.jnt_type, m.jnt_qposadr, m.jnt_dofadr, m.jnt_dofnum,
+            inputs=[m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
                     d.integration_done, d.qpos, qvel, d.actual_step_size, scale],
             outputs=[d.qpos],
         )

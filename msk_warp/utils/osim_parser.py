@@ -67,6 +67,7 @@ def parse_spatial_transform(spatial_transform) -> SpatialTransform:
         ta_obj = parse_transform_axis(ta)
         transform_axes.append(ta_obj)
 
+    assert len(transform_axes) == 6, "SpatialTransform must have 6 TransformAxis elements"
     return SpatialTransform(transform_axes=transform_axes)
 
 

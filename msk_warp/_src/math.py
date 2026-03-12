@@ -11,11 +11,33 @@ def sqr(x: float) -> float:
 
 
 @wp.func
-def quat_from_xyz(q0: float, q1: float, q2: float) -> wp.quat:
-    qloc0 = wp.quat_from_axis_angle(wp.vec3(1.0, 0.0, 0.0), q0)
-    qloc1 = wp.quat_from_axis_angle(wp.vec3(0.0, 1.0, 0.0), q1)
-    qloc2 = wp.quat_from_axis_angle(wp.vec3(0.0, 0.0, 1.0), q2)
+def trans_from_three_shift_axes(
+        q0: float, q1: float, q2: float,
+        ax0: wp.vec3, ax1: wp.vec3, ax2: wp.vec3
+) -> wp.vec3:
+    p0 = q0 * ax0
+    p1 = q1 * ax1
+    p2 = q2 * ax2
+    return p0 + p1 + p2
+
+
+@wp.func
+def quat_from_three_angle_axes(
+        q0: float, q1: float, q2: float,
+        ax0: wp.vec3, ax1: wp.vec3, ax2: wp.vec3
+) -> wp.quat:
+    qloc0 = wp.quat_from_axis_angle(ax0, q0)
+    qloc1 = wp.quat_from_axis_angle(ax1, q1)
+    qloc2 = wp.quat_from_axis_angle(ax2, q2)
     return qloc0 * qloc1 * qloc2
+
+
+@wp.func
+def quat_from_xyz(q0: float, q1: float, q2: float) -> wp.quat:
+    return quat_from_three_angle_axes(
+        q0, q1, q2,
+        wp.vec3(1.0, 0.0, 0.0), wp.vec3(0.0, 1.0, 0.0), wp.vec3(0.0, 0.0, 1.0)
+    )
 
 
 @wp.func

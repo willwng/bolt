@@ -68,7 +68,7 @@ class CheckedModel:
     def iter_fns(self):
         """ iterator for functions used in transform axes """
         for axis in self.iter_transform_axes():
-            yield axis.function
+            yield axis.function, axis.coordinates
 
     def iter_muscles(self):
         """ iterator for muscles """
@@ -385,30 +385,30 @@ def get_body_parent_ids(model: CheckedModel) -> list[int]:
     return parent_ids
 
 
-def get_joint_types(model: CheckedModel) -> list[types.JointType]:
+def get_joint_types(model: CheckedModel) -> list[types.MobilizerType]:
     joint_types = []
     for _, joint in model.iter_joints():
         class_name = joint.__class__.__name__
         if class_name == "FreeJoint":
-            joint_types.append(types.JointType.FREE)
+            joint_types.append(types.MobilizerType.FREE)
         elif class_name == "PinJoint":
-            joint_types.append(types.JointType.PIN)
+            joint_types.append(types.MobilizerType.PIN)
         elif class_name == "UniversalJoint":
-            joint_types.append(types.JointType.UNIVERSAL)
+            joint_types.append(types.MobilizerType.UNIVERSAL)
         elif class_name == "GimbalJoint":
-            joint_types.append(types.JointType.GIMBAL)
+            joint_types.append(types.MobilizerType.GIMBAL)
         elif class_name == "BallJoint":
-            joint_types.append(types.JointType.BALL)
+            joint_types.append(types.MobilizerType.BALL)
         elif class_name == "BeamJoint":
-            joint_types.append(types.JointType.BEAM)
+            joint_types.append(types.MobilizerType.BEAM)
         elif class_name == "EllipsoidJoint":
-            joint_types.append(types.JointType.ELLIPSOID)
+            joint_types.append(types.MobilizerType.ELLIPSOID)
         elif class_name == "CustomJoint":
-            joint_types.append(types.JointType.CUSTOM)
+            joint_types.append(types.MobilizerType.CUSTOM)
         elif class_name == "WeldJoint":
-            joint_types.append(types.JointType.WELD)
+            joint_types.append(types.MobilizerType.WELD)
         elif class_name == "DummyJoint":
-            joint_types.append(types.JointType.DUMMY)
+            joint_types.append(types.MobilizerType.DUMMY)
         else:
             assert False, f"Unrecognized joint type {joint.__class__.__name__}"
     return joint_types
@@ -550,73 +550,80 @@ def create_body_tree(model: CheckedModel) -> list[tuple[int, ...]]:
     return body_tree
 
 
-def get_functions(
-        model: CheckedModel
-) -> tuple[list[tuple[float, float]], list[float]]:
-    """
-    Returns linear functions and constant functions
-    [(m1, b1), (m2, b2), ...] for linear functions
-    [c1, c2, ...] for constant functions
-    """
-    linear_fns = []
-    constant_fns = []
-    for fn in model.iter_fns():
+def get_fn_data(model: CheckedModel) -> tuple[LinearFunctionData, ConstantFunctionData, PolynomialFunctionData]:
+    linear_fn_data = LinearFunctionData()
+    constant_fn_data = ConstantFunctionData()
+    poly_fn_data = PolynomialFunctionData()
+
+    for fn_idx, (fn, coordinates) in enumerate(model.iter_fns()):
         if fn.type() == FunctionType.LINEAR:
             coefficients = fn.coefficients
             m, b = coefficients.x, coefficients.y
-            linear_fns.append((m, b))
+            linear_fn_data.mb.append((m, b))
+            linear_fn_data.fn_idx.append(fn_idx)
+            linear_fn_data.qpos_adr.append(model.lookup_dof_idx(coordinates, True))
         elif fn.type() == FunctionType.CONSTANT:
             c = fn.value
-            constant_fns.append(c)
+            constant_fn_data.c.append(c)
+            constant_fn_data.fn_idx.append(fn_idx)
         else:
-            print(f"Warning: Unrecognized function type {fn.type()}")
+            print(f"Warning: Unsupported function type {fn.type()}")
             assert False
-    return linear_fns, constant_fns
+    return linear_fn_data, constant_fn_data, poly_fn_data
 
 
-def get_txfm_fns(
-        model: CheckedModel
-) -> tuple[list[int], list[int], list[int], list[int], list[list[float]]]:
-    from .._src.types import CustomFnType
+def get_mob_to_cst_idx(model: CheckedModel) -> list[int]:
+    mob_to_cst_idx = [-1 for _ in model.iter_joints()]
+    num_cst_joints = 0
+    for i, (_, jnt) in enumerate(model.iter_joints()):
+        if jnt.__class__.__name__ == "CustomJoint":
+            mob_to_cst_idx[i] = num_cst_joints
+            num_cst_joints += 1
+    return mob_to_cst_idx
 
-    txfm_axes = []
-    txfm_qpos_adr = []
-    txfm_dof_adr = []
-    fn_types = []
-    fn_addresses = []
 
-    const_idx, linear_idx = 0, 0
-    for axis in model.iter_transform_axes():
-        # function type
-        fn = axis.function
-        if fn.type() == FunctionType.LINEAR:
-            fn_types.append(CustomFnType.LINEAR)
-            fn_addresses.append(linear_idx)
-            linear_idx += 1
-            requires_dof = True
-        elif fn.type() == FunctionType.CONSTANT:
-            fn_types.append(CustomFnType.CONSTANT)
-            fn_addresses.append(const_idx)
-            const_idx += 1
-            requires_dof = False
-        else:
-            print(f"Warning: Unrecognized function type {fn.type()}")
-            assert False
+def get_cst_to_mob_idx(model: CheckedModel) -> list[int]:
+    cst_mob_idx = []
+    for i, (_, jnt) in enumerate(model.iter_joints()):
+        if jnt.__class__.__name__ == "CustomJoint":
+            cst_mob_idx.append(i)
+    return cst_mob_idx
 
-        # coordinates
-        coordinates = axis.coordinates
-        if coordinates is None or not requires_dof:
-            txfm_qpos_adr.append(-1)
-            txfm_dof_adr.append(-1)
-        else:
-            qpos_adr = model.lookup_dof_idx(coordinates, True)
-            dof_adr = model.lookup_dof_idx(coordinates, False)
-            txfm_qpos_adr.append(qpos_adr)
-            txfm_dof_adr.append(dof_adr)
 
-        # axes
-        txfm_axes.append([axis.axis.x, axis.axis.y, axis.axis.z])
-    return fn_types, fn_addresses, txfm_qpos_adr, txfm_dof_adr, txfm_axes
+def get_cst_txfm_axes(model: CheckedModel) -> list[list[int]]:
+    cst_txfm_axes = []
+    for jnt in model.iter_cst_joints():
+        spt_txfm = jnt.spatial_transform
+        transform_axes = spt_txfm.transform_axes
+        txfm_axes = [axis.axis.to_list() for axis in transform_axes]
+        cst_txfm_axes.append(txfm_axes)
+
+    # hacky: if there are no custom joints, we still need to return something
+    if len(cst_txfm_axes) == 0:
+        cst_txfm_axes.append([0, 0, 0] * 6)
+    return cst_txfm_axes
+
+
+def get_cst_txfm_dof(model: CheckedModel) -> list[list[int]]:
+    cst_txfm_dof = []
+    for jnt in model.iter_cst_joints():
+        # The joint starts at this dof address
+        joint_coords = [joint_coord.name for joint_coord in jnt.coordinates]
+        joint_coord_adr = min([model.lookup_dof_idx(joint_coord, False) for joint_coord in joint_coords])
+
+        # Compute the relative dof addresses of the transform axes
+        spt_txfm = jnt.spatial_transform
+        transform_axes = spt_txfm.transform_axes
+        txfm_coords = [axis.coordinates for axis in transform_axes]
+        txfm_dof_adr = [model.lookup_dof_idx(txfm_coord, False) for txfm_coord in txfm_coords]
+        txfm_dof_adr = [adr - joint_coord_adr for adr in txfm_dof_adr]
+
+        cst_txfm_dof.append(txfm_dof_adr)
+
+    # hacky: if there are no custom joints, we still need to return something
+    if len(cst_txfm_dof) == 0:
+        cst_txfm_dof.append([0] * 6)
+    return cst_txfm_dof
 
 
 def get_dof_limits(

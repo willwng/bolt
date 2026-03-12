@@ -74,12 +74,12 @@ class Renderer:
         # model-specific: doesn't change during each step
         self.geom_types = m.geom_type.numpy()
         self.geom_sizes = m.geom_size.numpy()
-        self.joint_types = m.jnt_type.numpy()
-        self.ind_beams = np.where(self.joint_types == types.JointType.BEAM)[0]
-        self.jnt_qposadr = m.jnt_qposadr.numpy()
+        self.joint_types = m.mob_type.numpy()
+        self.ind_beams = np.where(self.joint_types == types.MobilizerType.BEAM)[0]
+        self.mob_qposadr = m.mob_qposadr.numpy()
         self.joint_extra = m.mob_extra_info.numpy()
         self.joint_parent_id = m.body_parentid.numpy()
-        self.num_beam_segments = 15
+        self.num_beam_segments = 5
 
         # Default colors
         self.colors = {
@@ -251,7 +251,7 @@ class Renderer:
                 mob_X_GB = d.mob_X_GB.numpy()[wid]
                 mob_X_PF = m.mob_X_PF.numpy()
                 for idx_beam in self.ind_beams:
-                    qpos_adr = self.jnt_qposadr[idx_beam]
+                    qpos_adr = self.mob_qposadr[idx_beam]
                     q0, q1, q2 = qpos[qpos_adr:qpos_adr + 3]
                     L = self.joint_extra[idx_beam][0]
 

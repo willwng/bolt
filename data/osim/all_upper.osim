@@ -1327,7 +1327,7 @@
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
 							<socket_parent>/ground</socket_parent>
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
-							<translation>0 0 0</translation>
+							<translation>0 1 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
@@ -1335,7 +1335,7 @@
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
 							<socket_parent>/bodyset/pelvis</socket_parent>
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
-							<translation>0 -2 0</translation>
+							<translation>0 0 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
@@ -1930,7 +1930,7 @@
 					</Appearance>
 				</EllipsoidJoint>
 
-				<CustomJoint name="glenohumeral_r">
+				<GimbalJoint name="glenohumeral_r">
 					<socket_parent_frame>glenohumeral_r_parent_frame</socket_parent_frame>
 					<socket_child_frame>glenohumeral_r_child_frame</socket_child_frame>
 					<coordinates>
@@ -2048,7 +2048,7 @@
 							</Constant>
 						</TransformAxis>
 					</SpatialTransform>
-				</CustomJoint>
+				</GimbalJoint>
 
 				<CustomJoint name="glenohumeral_l">
 					<socket_parent_frame>glenohumeral_l_parent_frame</socket_parent_frame>
