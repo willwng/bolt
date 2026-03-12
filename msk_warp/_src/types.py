@@ -13,25 +13,22 @@ class TileBlockDim:
     error_step: int = 16
     restore_state: int = 16
 
-    # euler
-    euler_dense: int = 32
-
 
 class JointType(enum.IntEnum):
     """Type of degree of freedom.
 
     Attributes:
-      FREE:  global position and orientation (quat)       (7,)
-      BALL:  orientation (quat) relative to parent        (4,)
-      SLIDER: sliding distance along body-fixed axis       (1,)
-      PIN: rotation angle (rad) around joint z-axis       (1,)
+      FREE:  global position and orientation (quat)                   (7,)
+      BALL:  orientation (quat) relative to parent                    (4,)
+      SLIDER: sliding distance along body-fixed axis                  (1,)
+      PIN: rotation angle (rad) around joint z-axis                   (1,)
       UNIVERSAL: two rotation angles (rad) around joint x- and y-axes (2,)
-      GIMBAL: three euler angles (XYZ order)              (3,)
-      BEAM: Cantilever Free Beam bending model            (3,)
-      ELLIPSOID: Ellipsoid joint                          (3,)
-      CUSTOM: custom joint with up to 6 dofs              (<=6,)
-      WELD: no dofs
-      DUMMY: for ground (represents world body)
+      GIMBAL: three euler angles (XYZ order)                          (3,)
+      BEAM: Cantilever Free Beam bending model                        (3,)
+      ELLIPSOID: Ellipsoid joint                                      (3,)
+      CUSTOM: custom joint with up to 6 dofs                          (<=6,)
+      WELD: no dofs                                                   (0,)
+      DUMMY: for ground (represents world body)                       (0,)
     """
 
     FREE = 0
@@ -44,7 +41,7 @@ class JointType(enum.IntEnum):
     ELLIPSOID = 7
     CUSTOM = 8
     WELD = 9
-    DUMMY = 10  # for ground
+    DUMMY = 10
 
 
 class GeomType(enum.IntEnum):
@@ -71,37 +68,20 @@ class GeomType(enum.IntEnum):
     MESH = 7
 
 
-class CustomFnType(enum.IntEnum):
-    """
-    Custom function
-    CONSTANT: constant function
-    LINEAR: linear function
-    """
-
-    CONSTANT = 0
-    LINEAR = 1
-
-
-class vec5f(wp.types.vector(length=5, dtype=float)):
+class vec5(wp.types.vector(length=5, dtype=float)):
     pass
 
 
-class mat34f(wp.types.matrix(shape=(3, 4), dtype=float)):
+class mat34(wp.types.matrix(shape=(3, 4), dtype=float)):
     pass
 
 
-class mat43f(wp.types.matrix(shape=(4, 3), dtype=float)):
+class mat43(wp.types.matrix(shape=(4, 3), dtype=float)):
     pass
 
 
-class mat411f(wp.types.matrix(shape=(4, 11), dtype=float)):
+class mat411(wp.types.matrix(shape=(4, 11), dtype=float)):
     pass
-
-
-vec5 = vec5f
-mat34 = mat34f
-mat43 = mat43f
-mat411 = mat411f
 
 
 @wp.struct
@@ -164,20 +144,21 @@ class IntegratorType(enum.IntEnum):
     """ Integrator type.
     Attributes:
         EULER_FIXED: Fixed-step Euler (semi-implicit)
-        EULER_DAMPED_FIXED: Fixed-step Euler (semi-implicit with implicit damping)
         RK4_FIXED: Fixed-step 4th-order Runge-Kutta
         EULER_ADAPTIVE: Adaptive-step Euler
         RK4_ADAPTIVE: Adaptive-step 4th-order Runge-Kutta-Merson
     """
     EULER_FIXED = 1
-    EULER_DAMPED_FIXED = 2
-    RK4_FIXED = 3
-    EULER_ADAPTIVE = 4
-    RK4_ADAPTIVE = 5
+    RK4_FIXED = 2
+    EULER_ADAPTIVE = 3
+    RK4_ADAPTIVE = 4
 
 
 @dataclass
 class MetabolicOptions:
+    """
+    Settings for muscle metabolic energy calculations
+    """
     activation_maintenance_rate_on: bool
     shortening_rate_on: bool
     mechanical_work_rate_on: bool
@@ -196,28 +177,43 @@ class Option:
 
     Attributes:
       gravity: gravitational acceleration
-      use_fn_path: flag to use muscle path functions
+      explicit_gravity: flag to compute gravity as an explicit force (or as fictitious acceleration)
+      enable_drag: flag to enable drag forces
+      use_fn_path: flag to use function-based paths for muscles
+      visuals: whether to handle visual geometry
 
-    variable-step size integrator:
-      safety:
-      min_shrink:
-      max_grow:
-      hysteresis_low:
-      hysteresis_high:
-      accuracy:
+      contact_type: contact model type (ContactType)
+      limit_type: dof limit model type (LimitType)
+      activation_type: muscle activation dynamics type (ActivationType)
+      integrator: integrator type (IntegratorType)
+
+      metabolic_options: options for muscle metabolic energy calculations (MetabolicOptions)
+
+      safety: (variable-step integration) safety factor
+      min_shrink: (variable-step integration) minimum step shrink factor
+      max_grow: (variable-step integration) maximum step grow factor
+      hysteresis_low: (variable-step integration) error hysteresis lower bound
+      hysteresis_high: (variable-step integration) error hysteresis upper bound
+      accuracy: (variable-step integration) target accuracy
+      use_inf_norm: (variable-step integration) whether to use infinity norm for error calculation
+      qvel_weights: (variable-step integration) weights for qvel error calculation
+      z_weights: (variable-step integration) weights for additional state error calculation
     """
 
     gravity: float
     explicit_gravity: bool
+    enable_drag: bool
+    use_fn_path: bool
+    visuals: bool
+
     contact_type: ContactType
     limit_type: LimitType
     activation_type: ActivationType
     integrator: IntegratorType
 
-    enable_drag: bool
-    use_fn_path: bool
     metabolic_options: MetabolicOptions
 
+    # Variable-step integration options
     safety: float
     min_shrink: float
     max_grow: float
@@ -225,11 +221,8 @@ class Option:
     hysteresis_high: float
     accuracy: float
     use_inf_norm: bool
-
     qvel_weights: wp.array(dtype=float)
     z_weights: wp.array(dtype=float)
-
-    visuals: bool
 
 
 @wp.struct
@@ -290,6 +283,7 @@ class ActuatorMetadata:
 
 @wp.struct
 class MuscleLengthInfo:
+    """ Dynamic length info for muscle length calculation """
     fiber_length: float
     fiber_length_along_tendon: float
     norm_fiber_length: float
@@ -308,6 +302,7 @@ class MuscleLengthInfo:
 
 @wp.struct
 class FiberVelocityInfo:
+    """ Dynamic velocity info for muscle velocity calculation """
     fiber_velocity: float
     fiber_velocity_along_tendon: float
     norm_fiber_velocity: float
@@ -320,6 +315,7 @@ class FiberVelocityInfo:
 
 @wp.struct
 class MuscleDynamicsInfo:
+    """ Dynamic info for muscle force calculation """
     fiber_force: float
     fiber_force_along_tendon: float
     norm_fiber_force: float
@@ -331,23 +327,9 @@ class MuscleDynamicsInfo:
 
 @dataclass
 class MeshLoadResult:
+    """ Result of loading a mesh from file """
     file: str
     scale: list[float]
-
-
-@dataclass
-class TileSet:
-    """Tiling configuration for decomposable block diagonal matrix.
-
-    For non-square, non-block-diagonal tiles, use two tilesets.
-
-    Attributes:
-      adr: address of each tile in the set
-      size: size of all the tiles in this set
-    """
-
-    adr: wp.array(dtype=int)
-    size: int
 
 
 @dataclass
@@ -357,21 +339,20 @@ class Model:
     Attributes:
       nbody: number of bodies
       nq: number of generalized coordinates
-      nv: number of degrees of freedom
+      nv: number of generalized speeds
       nmuscle: number of muscles
       nactuator: number of "ideal" actuators
+      nz: number of additional state variables
       ndoflimit: number of dofs with limits
-
-      njnts_conv: number of conventional joints
       njnts_cst: number of custom joints
-
-      ngeom: number of geoms
+      ngeom: number of collision geometry
+      nvis: number of visual geometry
       nsite: number of sites
       nsite_cond: number of conditional sites
 
       opt: physics options
       muscle_metadata: muscle metadata                         (nmuscle,)
-      muscle_data: same as above, but for modification
+      muscle_data: same as above, but intended for future modification
 
       actuator_metadata: actuator metadata                     (nactuator,)
 
@@ -379,28 +360,35 @@ class Model:
       qpos_spring: reference pose for springs                  (nq,)
 
       body_mass: mass                                          (nbody,)
-      body_unit_inertia_OB_B: inertia about B origin (body frame, not COM frame)
-      body_mass_center: local transform of center of mass            (nbody, transform)
+      body_unit_inertia_OB_B: inertia about B body frame       (nbody, mat33)
+      body_mass_center: local transform of center of mass      (nbody, transform)
 
       body_parentid: id of body's parent                       (nbody,)
       body_tree: list of body ids by tree level
+      body_children: list of body ids of each body's children
+      body_children_adr: start adr in 'body_children'          (nbody,)
+      body_children_num: number of children for each body       (nbody,)
 
       jnt_type: type of joint (JointType)                      (nbody,)
       jnt_stiffness: joint stiffness                           (nbody,)
-      jnt_qposadr: start addr in 'qpos' for joint's data       (nbody,)
-      jnt_dofadr: start addr in 'qvel' for joint's data        (nbody,)
-      mob_X_PF: parent -> joint                          (nbody, transform)
-      mob_X_MB: child -> joint                            (nbody, transform)
+      jnt_qposadr: start adr in qpos for joint's data          (nbody,)
+      jnt_dofnum: number of dofs for each joint                (nbody,)
+      jnt_dofadr: start adr in qvel for joint's data           (nbody,)
+      mob_X_PF: parent -> parent joint frame                   (nbody, transform)
+      mob_X_MB: mobilizer -> child                             (nbody, transform)
+      mob_extra_info: extra info for each mobilizer            (nbody, vec3)
+
 
       dof_damping: damping coefficient                         (nv)
-
-      * dof limits
       limit_dof_range: joint limits (min, max)                 (ndoflimit, 2)
       limit_dof_adr: dof address of dof-limit                  (ndoflimit,)
       limit_dof_qadr: qpos address of dof-limit                (ndoflimit,)
+      limit_dof_forces: limit forces                           (ndoflimit, 2)
+      limit_dof_shapes: limit function shape parameters        (ndoflimit, 2)
 
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
+      geom_X_loc: local transform of geom rel. to body         (ngeom, transform)
       geom_size: geom-specific size parameters                 (ngeom, 3)
       geom_friction: friction for (slide, spin, roll)          (ngeom, 3)
       geom_stiffness: contact stiffness (Hunt-Crossley)        (ngeom,)
@@ -413,6 +401,9 @@ class Model:
       geom_pair_type_count: count of max number of each potential collision
       nxn_geom_pair_filtered: valid collision pair geom ids    (<=ngeom*(ngeom-1)/2,)
       nxn_pairid_filtered: active subset of nxn_pairid         (<=ngeom*(ngeom-1)/2, 2)
+
+      vis_bodyid: id of visual geometry's body                 (nvis,)
+      vis_X_loc: local transform of visual rel. to body        (nvis, transform)
 
       site_bodyid: id of site's body                           (nsite,)
       site_pos: local position offset rel. to body             (nsite, 3)
@@ -432,10 +423,7 @@ class Model:
     nactuator: int
     nz: int
     ndoflimit: int
-
-    njnts_conv: int
     njnts_cst: int
-
     ngeom: int
     nvis: int
     nsite: int
@@ -469,42 +457,40 @@ class Model:
     mob_X_MB: array("nbody", wp.transform)
     mob_extra_info: array("nbody", wp.vec3)
 
-    # Dof limits
-    dof_damping: wp.array(dtype=float)
-    limit_dof_range: wp.array2d(dtype=wp.vec2)
-    limit_dof_adr: wp.array(dtype=int)
-    limit_dof_qadr: wp.array(dtype=int)
-    # For exponential-force limits
-    limit_dof_forces: wp.array2d(dtype=wp.vec2)
-    limit_dof_shapes: wp.array2d(dtype=wp.vec2)
+    dof_damping: array("nv", float)
+    limit_dof_range: array("ndoflimit", wp.vec2)
+    limit_dof_adr: array("ndoflimit", int)
+    limit_dof_qadr: array("ndoflimit", int)
+    limit_dof_forces: array("ndoflimit", wp.vec2)
+    limit_dof_shapes: array("ndoflimit", wp.vec2)
 
     # Collision geometry
-    geom_type: wp.array(dtype=int)
-    geom_bodyid: wp.array(dtype=int)
-    geom_X_loc: wp.array(dtype=wp.transform)
-    geom_size: wp.array(dtype=wp.vec3)
-    geom_friction: wp.array(dtype=wp.vec3)
-    geom_stiffness: wp.array(dtype=float)
-    geom_dissipation: wp.array(dtype=float)
-    geom_transition_velocity: wp.array(dtype=float)
-    geom_priority: wp.array(dtype=int)
-    geom_aabb: wp.array2d(dtype=wp.vec3)
-    geom_rbound: wp.array(dtype=float)
+    geom_type: array("ngeom", int)
+    geom_bodyid: array("ngeom", int)
+    geom_X_loc: array("ngeom", wp.transform)
+    geom_size: array("ngeom", wp.vec3)
+    geom_friction: array("ngeom", wp.vec3)
+    geom_stiffness: array("ngeom", float)
+    geom_dissipation: array("ngeom", float)
+    geom_transition_velocity: array("ngeom", float)
+    geom_priority: array("ngeom", int)
+    geom_aabb: array("ngeom", wp.vec3)
+    geom_rbound: array("ngeom", float)
 
     geom_pair_type_count: tuple[int, ...]
-    nxn_geom_pair_filtered: wp.array(dtype=wp.vec2i)
-    nxn_pairid_filtered: wp.array(dtype=wp.vec2i)
+    nxn_geom_pair_filtered: array("<=ngeom*(ngeom-1)/2", wp.vec2i)
+    nxn_pairid_filtered: array("<=ngeom*(ngeom-1)/2", wp.vec2i)
 
     # Visual geometry
-    vis_bodyid: wp.array(dtype=int)
-    vis_X_loc: wp.array(dtype=wp.transform)
+    vis_bodyid: array("nvis", int)
+    vis_X_loc: array("nvis", wp.transform)
 
     # Attachment sites (muscle path)
-    site_bodyid: wp.array(dtype=int)
-    site_pos: wp.array(dtype=wp.vec3)
-    site_cond_id: wp.array(dtype=int)
-    site_cond_qadr: wp.array(dtype=int)
-    site_cond_range: wp.array2d(dtype=wp.vec2)
+    site_bodyid: array("nsite", int)
+    site_pos: array("nsite", wp.vec3)
+    site_cond_id: array("nsite_cond", int)
+    site_cond_qadr: array("nsite_cond", int)
+    site_cond_range: array("nsite_cond", wp.vec2)
 
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)

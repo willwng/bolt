@@ -17,7 +17,7 @@
 
 import warp as wp
 
-from . import support
+from . import math
 from .types import Data
 from .types import Model
 from .warp_util import event_scope
@@ -47,7 +47,8 @@ def _joint_moments_kernel(
 @event_scope
 def compute_joint_moments(m: Model, d: Data):
     d.joint_moments.zero_()
-    support.mul_m(m, d, d.joint_moments, d.qacc)
+    # TODO: fixme
+    math.mul_m(m, d, d.joint_moments, d.qacc)
     wp.launch(
         _joint_moments_kernel,
         dim=(d.nworld, m.nv),

@@ -1,8 +1,3 @@
-import dataclasses
-import enum
-
-import warp as wp
-
 MSK_MINVAL = 1e-15
 MSK_MAXVAL = 10000000000.0
 MSK_SIG_REAL = 1e-6
@@ -16,6 +11,7 @@ A_Af = 0.50641133
 A_rho = 1.20474061
 A_AFK = 0.5 * A_rho * A_Af * A_Cd
 
+# DeGroote-Fregly muscle constants
 DGF_B11 = 0.8150671134243542
 DGF_B21 = 1.055033428970575
 DGF_B31 = 0.162384573599574

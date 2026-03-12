@@ -1,6 +1,6 @@
 import warp as wp
 
-from . import support
+from . import math
 from .types import Data
 from .types import Model
 from .types import vec5
@@ -72,10 +72,10 @@ def _process_contacts_hc(
     # Calculate the relative velocity of the two bodies at the contact point
     X_GB_1, X_GB_2 = mob_X_GB_in[worldid, body1], mob_X_GB_in[worldid, body2]
     V_GB_1, V_GB_2 = body_V_GB_in[worldid, body1], body_V_GB_in[worldid, body2]
-    station1 = support.find_station_at_ground_point(X_GB_1, location)
-    station2 = support.find_station_at_ground_point(X_GB_2, location)
-    v1 = support.find_station_velocity_in_ground(X_GB_1, V_GB_1, station1)
-    v2 = support.find_station_velocity_in_ground(X_GB_2, V_GB_2, station2)
+    station1 = math.find_station_at_ground_point(X_GB_1, location)
+    station2 = math.find_station_at_ground_point(X_GB_2, location)
+    v1 = math.find_station_velocity_in_ground(X_GB_1, V_GB_1, station1)
+    v2 = math.find_station_velocity_in_ground(X_GB_2, V_GB_2, station2)
 
     # Compute relative velocities of the bodies
     v = v1 - v2
@@ -99,9 +99,9 @@ def _process_contacts_hc(
 
     # Apply forces to bodies
     wp.atomic_add(body_F_contact_out[worldid], body1,
-                  support.apply_force_to_body_point(X_GB_1, station1, -1.0 * force))
+                  math.apply_force_to_body_point(X_GB_1, station1, -1.0 * force))
     wp.atomic_add(body_F_contact_out[worldid], body2,
-                  support.apply_force_to_body_point(X_GB_2, station2, 1.0 * force))
+                  math.apply_force_to_body_point(X_GB_2, station2, 1.0 * force))
 
     # Keep track of contact forces on the geom for output
     wp.atomic_add(geom_cforce_out[worldid], geom[0], wp.length(force))

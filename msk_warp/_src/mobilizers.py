@@ -2,7 +2,6 @@ import warp as wp
 
 from . import math
 from .types import JointType
-from .types import CustomFnType
 from .types import Model
 from .types import Data
 from .warp_util import event_scope

@@ -1,6 +1,6 @@
 import warp as wp
 
-from . import support
+from . import math
 from .types import Data
 from .types import JointType
 from .types import Model
@@ -114,7 +114,7 @@ def _gravity(
     com_local = body_mass_center[bodyid]
     X_GB = X_GB_in[worldid, bodyid]
     frc = wp.vec3(0.0, m * gravity, 0.0)
-    body_F_gravity[worldid, bodyid] = support.apply_force_to_body_point(X_GB, com_local, frc)
+    body_F_gravity[worldid, bodyid] = math.apply_force_to_body_point(X_GB, com_local, frc)
     return
 
 

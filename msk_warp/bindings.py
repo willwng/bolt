@@ -279,7 +279,6 @@ def load_model(
         nactuator=nactuators,
         ndoflimit=n_limits,
 
-        njnts_conv=n_conv_jnts,
         njnts_cst=n_custom_jnts,
 
         ngeom=ngeom,
@@ -384,6 +383,9 @@ def load_model(
         ) for _ in range(n_int_dot_states)
     ]
 
+    # Custom joints may need up to 6 additional vectors
+    num_scratch = 3 if n_custom_jnts == 0 else 6
+
     d = types.Data(
         world_reset=make_full(True, n_worlds, dtype=bool),
         time=make_zero(n_worlds, dtype=float),
@@ -436,7 +438,7 @@ def load_model(
         mob_X_GB=make_zero((n_worlds, nb), dtype=wp.transform),
         mob_X_FM=make_zero((n_worlds, nb), dtype=wp.transform),
         mob_X_PB=make_zero((n_worlds, nb), dtype=wp.transform),
-        mob_scratch=make_zero((n_worlds, nb, 3), dtype=wp.vec3),
+        mob_scratch=make_zero((n_worlds, nb, num_scratch), dtype=wp.vec3),
         mob_phi=make_zero((n_worlds, nb), dtype=wp.vec3),
         mob_coriolis_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 

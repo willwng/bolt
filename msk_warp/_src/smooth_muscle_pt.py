@@ -1,7 +1,6 @@
 import warp as wp
 
 from . import math
-from . import support
 from .types import Data
 from .types import Model
 from .warp_util import event_scope
@@ -163,10 +162,9 @@ def _xfrc_muscles(
         com1, com2 = xipos_in[worldid, body1], xipos_in[worldid, body2]
 
         muscle_frc = actuation * vec
-        wp.atomic_add(xfrc_muscle_out[worldid], body1,
-                      support.force_at_point(muscle_frc, p1 - com1))
-        wp.atomic_sub(xfrc_muscle_out[worldid], body2,
-                      support.force_at_point(muscle_frc, p2 - com2))
+        # TODO: fixme
+        wp.atomic_add(xfrc_muscle_out[worldid], body1, math.force_at_point(muscle_frc, p1 - com1))
+        wp.atomic_sub(xfrc_muscle_out[worldid], body2, math.force_at_point(muscle_frc, p2 - com2))
 
 
 @event_scope

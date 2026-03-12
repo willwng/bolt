@@ -65,6 +65,7 @@ def main():
         return load_result.dof_id_lookup[name][1]
 
     qpos = wp.to_torch(d.qpos)
+    # qpos += torch.randn_like(qpos) * 0.1
     # qpos[:, qpos_id("pelvis_ty")] = 1.5
     # qpos[:, qpos_id("lumbar_bending")] = -np.pi / 6.0
     #

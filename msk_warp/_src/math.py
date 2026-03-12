@@ -1,19 +1,3 @@
-# Copyright 2025 The Newton Developers
-# Modified for MSKWarp by Will Wang
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-
 from typing import Any, Tuple
 
 import warp as wp
@@ -52,6 +36,35 @@ def quat_normalize_in_place(q: wp.array(dtype=float), adr: int):
     q[adr + 1] = quat[1]
     q[adr + 2] = quat[2]
     q[adr + 3] = quat[3]
+
+
+@wp.func
+def apply_force_to_body_point(X_GB: wp.transform, point_in_b: wp.vec3, force_in_G: wp.vec3) -> wp.spatial_vector:
+    R_GB = wp.transform_get_rotation(X_GB)
+    trq = wp.cross(wp.quat_rotate(R_GB, point_in_b), force_in_G)
+    return wp.spatial_vector(trq, force_in_G)
+
+
+@wp.func
+def find_station_at_ground_point(X_GB: wp.transform, location_in_G: wp.vec3) -> wp.vec3:
+    return wp.transform_point(wp.transform_inverse(X_GB), location_in_G)
+
+
+@wp.func
+def express_vector_in_ground_frame(X_GB: wp.transform, vec_in_B: wp.vec3) -> wp.vec3:
+    """
+    Re-express a vector expressed in this body B's frame into the same vector in
+    G, by applying only a rotation.
+    """
+    R_GB = wp.transform_get_rotation(X_GB)
+    return wp.quat_rotate(R_GB, vec_in_B)
+
+
+@wp.func
+def find_station_velocity_in_ground(X_GB: wp.transform, V_GB: wp.spatial_vector, station_on_B: wp.vec3) -> wp.vec3:
+    w, v = wp.spatial_top(V_GB), wp.spatial_bottom(V_GB)  # in G
+    r = express_vector_in_ground_frame(X_GB, station_on_B)
+    return v + wp.cross(w, r)
 
 
 @wp.func
