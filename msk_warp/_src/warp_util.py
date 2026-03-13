@@ -18,8 +18,8 @@ import inspect
 from typing import Callable, Optional
 
 import warp as wp
-from warp.context import Module
-from warp.context import get_module
+from warp import Module
+from warp import get_module
 
 _STACK = None
 
