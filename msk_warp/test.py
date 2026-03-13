@@ -67,13 +67,13 @@ def main():
 
     qpos = wp.to_torch(d.qpos)
     qvel = wp.to_torch(d.qvel)
-    qpos[:, qpos_id("shoulder_flexion_r")] = 55.0 * np.pi / 180.0
-    qpos[:, qpos_id("shoulder_abduction_r")] = -5.0 * np.pi / 180.0
-    qpos[:, qpos_id("shoulder_rotation_r")] = -15.0 * np.pi / 180.0
-    qvel[:, dof_id("shoulder_flexion_r")] = 55.0 * np.pi / 180.0
-    qvel[:, dof_id("shoulder_abduction_r")] = -5.0 * np.pi / 180.0
-    qvel[:, dof_id("shoulder_rotation_r")] = -15.0 * np.pi / 180.0
-    forward.fwd(m, d)
+    # qpos[:, qpos_id("shoulder_flexion_r")] = 55.0 * np.pi / 180.0
+    # qpos[:, qpos_id("shoulder_abduction_r")] = -5.0 * np.pi / 180.0
+    # qpos[:, qpos_id("shoulder_rotation_r")] = -15.0 * np.pi / 180.0
+    # qvel[:, dof_id("shoulder_flexion_r")] = 55.0 * np.pi / 180.0
+    # qvel[:, dof_id("shoulder_abduction_r")] = -5.0 * np.pi / 180.0
+    # qvel[:, dof_id("shoulder_rotation_r")] = -15.0 * np.pi / 180.0
+    # forward.fwd(m, d)
     # qpos[:, qpos_id("shoulder_flexion_l")] = -55.0 * np.pi / 180.0
     # qpos += torch.randn_like(qpos) * 0.1
     # qpos[:, qpos_id("pelvis_ty")] = 1.5

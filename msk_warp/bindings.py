@@ -114,7 +114,6 @@ def load_model(
     mob_to_cst_idx = get_mob_to_cst_idx(osim_model)
     cst_to_mob_idx = get_cst_to_mob_idx(osim_model)
     cst_txfm_axes = get_cst_txfm_axes(osim_model)
-    cst_txfm_axes = to_warp_array(cst_txfm_axes, dtype=wp.vec3)
     cst_txfm_dof = get_cst_txfm_dof(osim_model)
 
     ngeom = num_colliders(osim_model)
