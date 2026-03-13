@@ -177,7 +177,7 @@ class MetabolicOptions:
 
 @dataclass
 class Option:
-    """Physics options.
+    """
 
     Attributes:
       gravity: gravitational acceleration
@@ -185,6 +185,7 @@ class Option:
       enable_drag: flag to enable drag forces
       use_fn_path: flag to use function-based paths for muscles
       visuals: whether to handle visual geometry
+      max_poly_order: maximum polynomial order for custom functions
 
       contact_type: contact model type (ContactType)
       limit_type: dof limit model type (LimitType)
@@ -209,6 +210,7 @@ class Option:
     enable_drag: bool
     use_fn_path: bool
     visuals: bool
+    max_poly_order: int
 
     contact_type: ContactType
     limit_type: LimitType
@@ -384,6 +386,7 @@ class Model:
      * custom functions *
       linear_fn_mb: slope, intercept                           (nlinearfn, vec2)
       const_fn_c: constant value                               (nconstfn,)
+      poly_fn_coeff: polynomial coefficients                   (npolyfn, (max_poly_order+1),)
       linear_fn_adr: "global" fn address for each linear fn    (nlinearfn,)
       const_fn_adr: "global" fn address for each const fn      (nconstfn,)
       poly_fn_adr: "global" fn address for each polynomial fn  (npolyfn,)
@@ -489,6 +492,7 @@ class Model:
 
     linear_fn_mb: array("nlinearfn", wp.vec2)
     const_fn_c: array("nconstfn", float)
+    poly_fn_coeff: array("npolyfn" ,"(max_poly_order+1)", float)
     linear_fn_adr: array("nlinearfn", int)
     const_fn_adr: array("nconstfn", int)
     poly_fn_adr: array("npolyfn", int)

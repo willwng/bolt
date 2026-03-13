@@ -566,9 +566,13 @@ def get_fn_data(model: CheckedModel) -> tuple[LinearFunctionData, ConstantFuncti
             c = fn.value
             constant_fn_data.c.append(c)
             constant_fn_data.fn_idx.append(fn_idx)
+        elif fn.type() == FunctionType.POLYNOMIAL:
+            coefficients = fn.coefficients
+            poly_fn_data.coefficients.append([coefficients[i] for i in range(len(coefficients))])
+            poly_fn_data.fn_idx.append(fn_idx)
+            poly_fn_data.qpos_adr.append(model.lookup_dof_idx(coordinates, True))
         else:
-            print(f"Warning: Unsupported function type {fn.type()}")
-            assert False
+            assert False, f"Unsupported function type {fn.type()}"
     return linear_fn_data, constant_fn_data, poly_fn_data
 
 

@@ -106,6 +106,7 @@ def load_model(
     nfunctions = num_functions(osim_model)
     linear_fn_data, const_fn_data, poly_fn_data = get_fn_data(osim_model)
     nlinearfn, nconstfn, npolyfn = linear_fn_data.count(), const_fn_data.count(), poly_fn_data.count()
+    max_poly_order = poly_fn_data.fit_to_max_degree()
     nz = nmuscle + nmuscle + nactuators  # muscle state, muscle activation, actuator activation
 
     joint_types = get_joint_types(osim_model)
@@ -228,6 +229,7 @@ def load_model(
         limit_type=types.LimitType.EXPONENTIAL,
         activation_type=types.ActivationType.MILLARD,
         integrator=integrator,
+        max_poly_order=max_poly_order,
 
         enable_drag=True,
 
@@ -323,6 +325,7 @@ def load_model(
 
         linear_fn_mb=to_warp_array(linear_fn_data.mb, dtype=wp.vec2),
         const_fn_c=to_warp_array(const_fn_data.c, dtype=float),
+        poly_fn_coeff=to_warp_array(poly_fn_data.coefficients, dtype=float),
         linear_fn_adr=to_warp_array(linear_fn_data.fn_idx, dtype=int),
         const_fn_adr=to_warp_array(const_fn_data.fn_idx, dtype=int),
         poly_fn_adr=to_warp_array(poly_fn_data.fn_idx, dtype=int),

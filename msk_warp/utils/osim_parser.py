@@ -33,6 +33,10 @@ def parse_function_from_parent(parent) -> Function:
         elif child.tag == "Constant":
             value = float(child.find("value").text)
             return ConstantFunction(value=value)
+        elif child.tag == "PolynomialFunction":
+            coefficients_text = child.find("coefficients").text
+            coefficients = list(map(float, coefficients_text.split()))
+            return PolynomialFunction(coefficients=coefficients)
         elif child.tag == "SimmSpline":
             x_text = child.find("x").text
             y_text = child.find("y").text

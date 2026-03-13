@@ -36,14 +36,27 @@ class PolynomialFunctionData:
     coefficients: list[list[int]]
     fn_idx: list[int]
     qpos_adr: list[int]
+    max_degree: int
 
     def __init__(self):
         self.coefficients = []
         self.fn_idx = []
         self.qpos_adr = []
+        self.max_degree = -1
 
     def count(self) -> int:
         return len(self.coefficients)
+
+    def fit_to_max_degree(self) -> int:
+        if not self.coefficients:
+            return -1
+
+        # Compute max degree
+        max_degree = max(len(coeffs) for coeffs in self.coefficients) - 1
+        # Pad coefficients with zeros to fit max degree
+        for coeffs in self.coefficients:
+            coeffs.extend([0] * (max_degree + 1 - len(coeffs)))
+        return max_degree
 
 
 @dataclass

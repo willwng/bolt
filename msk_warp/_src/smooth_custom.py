@@ -10,6 +10,25 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
+def _eval_const_fn(
+        # Model in:
+        const_fn_adr: wp.array(dtype=int),
+        const_fn_c: wp.array(dtype=float),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        # Data out:
+        cst_fn_output: wp.array2d(dtype=wp.vec3),
+):
+    worldid, constid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+    functionid = const_fn_adr[constid]
+    c = const_fn_c[constid]
+    cst_fn_output[worldid, functionid] = wp.vec3(c, 0.0, 0.0)
+    return
+
+
+@wp.kernel
 def _eval_lin_fn(
         # Model in:
         linear_fn_adr: wp.array(dtype=int),
@@ -36,38 +55,37 @@ def _eval_lin_fn(
 
 
 @wp.kernel
-def _eval_const_fn(
-        # Model in:
-        const_fn_adr: wp.array(dtype=int),
-        const_fn_c: wp.array(dtype=float),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        # Data out:
-        cst_fn_output: wp.array2d(dtype=wp.vec3),
-):
-    worldid, constid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-    functionid = const_fn_adr[constid]
-    c = const_fn_c[constid]
-    cst_fn_output[worldid, functionid] = wp.vec3(c, 0.0, 0.0)
-    return
-
-
-@wp.kernel
 def _eval_poly_fn(
         # Model in:
         poly_fn_adr: wp.array(dtype=int),
+        poly_fn_qpos_adr: wp.array(dtype=int),
+        poly_fn_coeff: wp.array2d(dtype=float),
+        # In:
+        max_poly_order: int,
         # Data in:
         integration_done_in: wp.array(dtype=bool),
+        qpos_in: wp.array2d(dtype=float),
         # Data out:
         cst_fn_output: wp.array2d(dtype=wp.vec3),
 ):
     worldid, polyid = wp.tid()
     if integration_done_in[worldid]:
         return
+    qposadr = poly_fn_qpos_adr[polyid]
     functionid = poly_fn_adr[polyid]
+    q = qpos_in[worldid, qposadr]
+    coeffs = poly_fn_coeff[polyid]
 
+    # Horner's method
+    f, df, d2f = float(0.0), float(0.0), float(0.0)
+    for i in range(max_poly_order + 1):
+        c = coeffs[i]
+        d2f = d2f * q + df
+        df = df * q + f
+        f = f * q + c
+    d2f *= 2.0
+
+    cst_fn_output[worldid, functionid] = wp.vec3(f, df, d2f)
     return
 
 
@@ -143,8 +161,9 @@ def evaluate_cst_functions(m: Model, d: Data):
             _eval_poly_fn,
             dim=(d.nworld, m.npolyfn),
             inputs=[
-                m.poly_fn_adr,
-                d.integration_done,
+                m.poly_fn_adr, m.poly_fn_qpos_adr, m.poly_fn_coeff,
+                m.opt.max_poly_order,
+                d.integration_done, d.qpos,
             ],
             outputs=[d.cst_fn_output],
         )
