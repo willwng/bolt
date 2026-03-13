@@ -343,6 +343,7 @@ def calc_across_joint_velocity_jacobian_dot(
         W = wp.matrix_from_cols(w1, w2, w3)
 
         # Compute WDot: requires angular velocity contributions
+        # note: this assumes that the rotations use the first three dofs only
         v1 = H_FM[dofadr + 0] * qv[0]
         v2 = v1
         if dofnum > 1:
