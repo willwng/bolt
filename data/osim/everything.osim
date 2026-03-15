@@ -1678,7 +1678,7 @@
 							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
 							<socket_parent>/bodyset/pelvis</socket_parent>
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
-							<translation>0 -2 0</translation>
+							<translation>0 0 0</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
 							<orientation>0 0 0</orientation>
 						</PhysicalOffsetFrame>
@@ -1904,7 +1904,7 @@
 					</frames>
 				</GimbalJoint>
 
-				<PinJoint name="knee_r">
+				<CustomJoint name="knee_r">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>knee_r_parent_frame</socket_parent_frame>
 					<!--Path to a Component that satisfies the Socket 'child_frame' of type PhysicalFrame (description: The child frame for the joint.).-->
@@ -1941,7 +1941,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>-0.0044999999999999997 -0.40960000000000002 -0.00175</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>0 0 0</orientation>
+							<orientation>-1.64157 1.44618 1.5708</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="knee_r_child_frame">
 							<!--The geometry used to display the axes of this Frame.-->
@@ -1956,11 +1956,85 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>-0.0080895399999999992 -0.0035347999999999998 -0.00148474</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>0 0 0</orientation>
+							<orientation>-1.64157 1.44618 1.5708</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
-				</PinJoint>
-				<PinJoint name="knee_l">
+					<!--The spatial transform defining how the child body moves with respectto the parent as a function of the generalized coordinates.-->
+					<SpatialTransform>
+						<!--The first TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation1">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>1 0 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<LinearFunction name="function">
+								<coefficients> 1 0</coefficients>
+							</LinearFunction>
+						</TransformAxis>
+						<!--The second TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation2">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 0 1</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>0.010832094539863 -0.025218325501241 -0.032847810398851998 0.079100011967026998 -1.4732523509004629e-08</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The third TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation3">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 1 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>0.025165762727423002 -0.16948005139054001 0.36949934868824902 -4.4303583088363053e-08</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The first TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation1">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>1 0 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>0.00015904478788503811 -0.001015149915669 0.001817510974968 2.6414266451992301e-05 -7.7465635324718924e-07</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The second TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation2">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 1 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>-0.00057968780523386836 0.0050797657456260002 -0.011442375726364 0.0039369086688440004 -2.5163503832135249e-05</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The third TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation3">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 0 1</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>0.001208086889206 -0.004453611224706 0.00061164940729817395 0.006265429606387 -1.461912533723326e-05</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+					</SpatialTransform>
+				</CustomJoint>
+				<CustomJoint name="knee_l">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>knee_l_parent_frame</socket_parent_frame>
 					<!--Path to a Component that satisfies the Socket 'child_frame' of type PhysicalFrame (description: The child frame for the joint.).-->
@@ -1997,7 +2071,7 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>-0.0044999999999999997 -0.40960000000000002 0.00175</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>0 0 0</orientation>
+							<orientation>1.64157 -1.44618 1.5708</orientation>
 						</PhysicalOffsetFrame>
 						<PhysicalOffsetFrame name="knee_l_child_frame">
 							<!--The geometry used to display the axes of this Frame.-->
@@ -2012,10 +2086,84 @@
 							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
 							<translation>-0.0080895399999999992 -0.0035347999999999998 0.00148474</translation>
 							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
-							<orientation>0 0 0</orientation>
+							<orientation>1.64157 -1.44618 1.5708</orientation>
 						</PhysicalOffsetFrame>
 					</frames>
-				</PinJoint>
+					<!--The spatial transform defining how the child body moves with respectto the parent as a function of the generalized coordinates.-->
+					<SpatialTransform>
+						<!--The first TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation1">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>-1 0 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<LinearFunction name="function">
+								<coefficients> 1 0</coefficients>
+							</LinearFunction>
+						</TransformAxis>
+						<!--The second TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation2">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 0 1</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>0.010832094539863 -0.025218325501241 -0.032847810398851998 0.079100011967026998 -1.4732523509004629e-08</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The third TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation3">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 1 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>-0.025165762727423002 0.16948005139054001 -0.36949934868824902 4.4303583088363053e-08</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The first TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation1">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>1 0 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>0.00015904478788503811 -0.001015149915669 0.001817510974968 2.6414266451992301e-05 -7.7465635324718924e-07</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The second TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation2">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 1 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>-0.00057968780523386836 0.0050797657456260002 -0.011442375726364 0.0039369086688440004 -2.5163503832135249e-05</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The third TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation3">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 0 1</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>-0.001208086889206 0.004453611224706 -0.00061164940729817395 -0.006265429606387 1.461912533723326e-05</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+					</SpatialTransform>
+				</CustomJoint>
 				<PinJoint name="ankle_r">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>ankle_r_parent_frame</socket_parent_frame>

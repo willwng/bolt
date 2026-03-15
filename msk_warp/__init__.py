@@ -8,6 +8,7 @@ from ._src.forward import fk as fk
 from ._src.forward import post as post
 from ._src.types import Model as Model
 from ._src.types import Data as Data
+from ._src.types import MobilizerType
 from ._src.types import Option as Option
 from ._src.types import GeomType as GeomType
 from ._src.types import ContactType as ContactType

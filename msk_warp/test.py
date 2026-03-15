@@ -42,15 +42,17 @@ def main():
         wp.config.mode = "debug"
 
     # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
-    model_path = "data/osim/all_upper.osim"
+    # model_path = "data/osim/all_upper.osim"
+    # model_path = "data/osim/everything.osim"
     # model_path = "data/osim/gimbal_custom.osim"
     # model_path = "data/osim/example_gait3d_pin.osim"
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
+    model_path = "data/osim/athlete.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
-                                      integrator=msk_warp.types.IntegratorType.EULER_FIXED,
+                                      integrator=msk_warp.types.IntegratorType.EULER_ADAPTIVE,
                                       polynomial_data_path="data/muscle_poly_info.json",
-                                      root_free=False)
+                                      root_free=True)
     m, d = load_result.model, load_result.data
     m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
     m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
@@ -67,6 +69,8 @@ def main():
 
     qpos = wp.to_torch(d.qpos)
     qvel = wp.to_torch(d.qvel)
+    # qpos[:, qpos_id("knee_angle_r")] = 205.0 * np.pi / 180.0
+    # qpos[:, qpos_id("knee_angle_l")] = -55.0 * np.pi / 180.0
     # qpos[:, qpos_id("shoulder_flexion_r")] = 55.0 * np.pi / 180.0
     # qpos[:, qpos_id("shoulder_abduction_r")] = -5.0 * np.pi / 180.0
     # qpos[:, qpos_id("shoulder_rotation_r")] = -15.0 * np.pi / 180.0
@@ -76,7 +80,7 @@ def main():
     # forward.fwd(m, d)
     # qpos[:, qpos_id("shoulder_flexion_l")] = -55.0 * np.pi / 180.0
     # qpos += torch.randn_like(qpos) * 0.1
-    # qpos[:, qpos_id("pelvis_ty")] = 1.5
+    qpos[:, qpos_id("pelvis_ty")] = 1.05
     # qpos[:, qpos_id("lumbar_bending")] = -np.pi / 6.0
     #
     # qpos[:, qpos_id("hip_flexion_l")] = 15.0 * np.pi / 180.0
@@ -97,7 +101,7 @@ def main():
     # qvel[:, dof_id("knee_angle_r")] = -0.1
     # qvel[:, dof_id("ankle_angle_r")] = 0.3
 
-    dt = 1.0 / 3000.0
+    dt = 1.0 / 100.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:
@@ -105,7 +109,7 @@ def main():
             load_result=load_result,
             renderer_type=RendererType.OPENGL,
             draw_visuals=True,
-            draw_colliders=True,
+            draw_colliders=False,
             draw_muscles=True,
             draw_body_mass=False,
             draw_beams=True

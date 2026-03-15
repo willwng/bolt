@@ -1,16 +1,20 @@
-import json
+import opensim as osim
 import torch
-import warp as wp
-import numpy as np
 
-import msk_warp._src.consts as consts
 import msk_warp._src.forward as forward
 import msk_warp._src.math as math
+import msk_warp.utils.body_helper as body_helper
+import msk_warp.utils.geom_helper as geom_helper
+import msk_warp.utils.joint_helper as joint_helper
+import msk_warp.utils.visual_helper as visual_helper
+import msk_warp.utils.spatial_transform_helper as function_helper
 from msk_warp.render.renderer import Renderer, RendererType
+from msk_warp.utils.converted_objects import *
+from msk_warp.utils.converted_objects import dataclass_list_transpose
+from msk_warp.utils.kinematic_tree import KinematicTree
 from msk_warp.utils.load_utils import (
-    exclusive_scan, to_warp_array, make_zero, make_full)
+    to_warp_array, make_zero, make_full)
 from msk_warp.utils.osim_converter import *
-from msk_warp.utils.osim_parser import parse_osim_file
 
 
 @dataclass
@@ -90,136 +94,58 @@ def load_model(
         root_free: bool,
         integrator: types.IntegratorType,
         polynomial_data_path: str = None,
+        render_kinematic_tree: bool = False,
 ) -> ModelLoadResult:
-    raw_osim_model = parse_osim_file(model_path)
-    osim_model = to_checked_model(raw_osim_model, root_free=root_free)
+    # All the mesh files for visuals should be located here
+    osim.ModelVisualizer.addDirToGeometrySearchPaths("data/geometry")
+    model = osim.Model(model_path)
+    model.initSystem()
 
-    dof_id_lookup = get_dof_id_lookup(osim_model)
+    # Parse bodies, joints, collision geometry, visuals
+    converted_bodies = [GROUND_BODY] + [body_helper.convert_body(body) for body in model.getBodyList()]
+    converted_joints = [GROUND_JOINT] + [joint_helper.convert_joint(joint, root_free) for joint in model.getJointList()]
+    converted_geoms = geom_helper.convert_geoms(model)
+    converted_visuals = visual_helper.convert_visuals(model)
+    converted_spatial_transforms = function_helper.convert_spatial_transforms(model)
 
-    nb = num_bodies(osim_model)
-    mob_qpos_num = get_joint_num_dofs(osim_model, vel_dofs=False)
-    jnt_dof_num = get_joint_num_dofs(osim_model, vel_dofs=True)
-    nv = sum(jnt_dof_num)
-    nq = sum(mob_qpos_num)
-    nmuscle = num_muscles(osim_model)
-    nactuators = num_actuators(osim_model)
-    nfunctions = num_functions(osim_model)
-    linear_fn_data, const_fn_data, poly_fn_data = get_fn_data(osim_model)
-    nlinearfn, nconstfn, npolyfn = linear_fn_data.count(), const_fn_data.count(), poly_fn_data.count()
-    max_poly_order = poly_fn_data.fit_to_max_degree()
-    nz = nmuscle + nmuscle + nactuators  # muscle state, muscle activation, actuator activation
+    # Create a lookup from body name -> body data. Needed for fast joint->body lookup
+    body_name_to_body = {body.name: body for body in converted_bodies}
 
-    joint_types = get_joint_types(osim_model)
-    n_custom_jnts = len(list(filter(lambda jt: jt == types.MobilizerType.CUSTOM, joint_types)))
+    # Build the kinematic tree, storing the joint that connects each node to its parent
+    tree = KinematicTree(root_body=body_name_to_body[GROUND], root_joint=converted_joints[0])
+    for joint in converted_joints:
+        if joint.parent_body_name != GROUND_PARENT:
+            parent_body = body_name_to_body[joint.parent_body_name]
+            child_body = body_name_to_body[joint.child_body_name]
+            tree.add_edge(parent_body, child_body, joint)
 
-    mob_to_cst_idx = get_mob_to_cst_idx(osim_model)
-    cst_to_mob_idx = get_cst_to_mob_idx(osim_model)
-    cst_txfm_axes = get_cst_txfm_axes(osim_model)
-    cst_txfm_dof = get_cst_txfm_dof(osim_model)
+    tree.verify()
+    if render_kinematic_tree:
+        tree.render()  # graphviz is such a great tool
 
-    ngeom = num_colliders(osim_model)
-    nvis = num_visuals(osim_model)
-    site_data = get_site_data(osim_model)
-    qpos0 = [0.0] * nq
-    qpos_spring = [0.0] * len(qpos0)  # Placeholder for spring positions
+    # Using the kinematic tree, compute a forward ordering, create an ordered list of bodies and joints
+    tree_ordering = tree.forward_ordering()
+    ordered_bodies = [node.body for node in tree_ordering]
+    ordered_joints = [node.joint for node in tree_ordering]
+    if len(ordered_bodies) != len(ordered_joints):
+        raise ValueError(f"Num bodies ({len(ordered_bodies)}) does not match num Joints ({len(ordered_joints)})")
 
-    if root_free:
-        qpos0[0:4] = [0.0, 0.0, 0.0, 1.0]  # Root orientation (quaternion)
-        qpos0[4:7] = [0.0, 1.5, 0.0]  # Root pos
+    # Body id -> parent id
+    ordered_bodies_names = [body.name for body in ordered_bodies]
+    body_parent_id = [joint_helper.get_joint_parent_id(joint, ordered_bodies_names) for joint in ordered_joints]
 
-    qvel0 = [0.0] * nv  # Placeholder for initial velocities
+    # Addresses of joint's coordinates/speeds
+    mob_qpos_adr, mob_dof_adr = joint_helper.compute_qpos_dof_adr(ordered_joints)
 
-    b_masses = body_masses(osim_model)
-    inertias_OB_B = get_body_unit_inertias_OB_B(osim_model)
-    body_mass_centers = get_body_mass_center(osim_model)
-    body_parent_ids = get_body_parent_ids(osim_model)
+    nq = sum([joint.num_coordinates for joint in ordered_joints])
+    nv = sum([joint.num_speeds for joint in ordered_joints])
+    nb = len(ordered_bodies)
+    ngeom = len(converted_geoms)
+    nvis = len(converted_visuals)
 
-    # Custom joints: compute address of joint -> custom joint
-    is_custom_joint_mask = [1 if joint_types[i] == types.MobilizerType.CUSTOM else 0
-                            for i in range(len(joint_types))]
-    custom_joint_indices = exclusive_scan(is_custom_joint_mask, True)
-    assert (max(custom_joint_indices) == n_custom_jnts - 1)
-
-    mob_qpos_adr = exclusive_scan(mob_qpos_num, False)
-    jnt_dof_adr = exclusive_scan(jnt_dof_num, False)
-
-    mob_X_PF = get_joint_rel_transform(osim_model, parent=True)
-    mob_X_MB = get_joint_rel_transform(osim_model, parent=False)
-    mob_extra_info = get_joint_extra_info(osim_model)
-
-    geom_data = get_collider_data(osim_model)
-    vis_data = get_visual_data(osim_model)
-
-    muscle_pts_num = get_muscle_num_pts(osim_model)
-    muscle_pts_adr = exclusive_scan(muscle_pts_num, False)
-
-    # Muscle polynomial path
     use_fn_path = False
-    poly_coeffs, poly_adr, poly_order = [], [], []
-    poly_dep_dof_num, poly_dep_dof_adr = [], []
-    poly_qpos_adr, poly_dof_adr = [], []
-    max_dep_dof = 0
-    if polynomial_data_path is not None:
-        use_fn_path = True
-        with open(polynomial_data_path, "r") as f:
-            poly_data = json.load(f)
-
-        # check that every muscle has polynomial data
-        muscle_names = get_muscle_names(osim_model)
-        total_poly_dofs = 0
-        for muscle in muscle_names:
-            assert muscle in poly_data, \
-                f"Missing polynomial data for muscle: {muscle}"
-            coeff = poly_data[muscle]["coeff"]
-            order = poly_data[muscle]["order"]
-            poly_dofs = poly_data[muscle]["dof"]
-
-            poly_adr.append(len(poly_coeffs))
-            poly_coeffs.extend(coeff)
-            poly_order.append(order)
-
-            poly_qpos_adr.extend([dof_id_lookup[d][0] for d in poly_dofs])
-            poly_dof_adr.extend([dof_id_lookup[d][1] for d in poly_dofs])
-            poly_dep_dof_num.append(len(poly_dofs))
-            poly_dep_dof_adr.append(total_poly_dofs)
-            total_poly_dofs += len(poly_dofs)
-            max_dep_dof = max(max_dep_dof, len(poly_dofs))
-
-    dof_damping = [0.1] * nv  # Placeholder for DOF
-    jnt_stiffness = [0.0] * nb  # Placeholder for joint stiffness
-
-    if root_free:
-        dof_damping[0:6] = [0.0] * 6  # No damping for free joint
-        jnt_stiffness[0] = 0.0  # No stiffness for free joint
-
-    dof_limit_ranges, dof_limit_adr, dof_limit_qadr = get_dof_limits(osim_model)
-    n_limits = len(dof_limit_ranges)
-    dof_limit_forces = [(500.0, 500.0)] * n_limits  # Placeholder for limit forces
-    dof_limit_shapes = [(0.1, 0.1)] * n_limits  # Placeholder for limit shapes
-
-    body_tree = create_body_tree(osim_model)
-    body_tree_warp = tuple([wp.array(bt, dtype=int) for bt in body_tree])
-
-    # Create array for indices of children
-    body_children = []
-    for i in range(0, nb):
-        if i == 0:  # ignore ground
-            children = []
-        else:
-            children = [j for j, parent in enumerate(body_parent_ids) if parent == i]
-        body_children.append(children)
-    body_children_num = [len(children) for children in body_children]
-    body_children_adr = exclusive_scan(body_children_num, False)
-    # flatten
-    body_children = [child for children in body_children for child in children]
-
-    # Prepare contacts
-    geom_types, geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = prepare_contacts(
-        geom_data, body_parent_ids, ngeom)
-
-    # todo: don't hard code
-    naconmax = max(512, n_worlds * 32)
-
+    max_poly_order = 5  # fixme
+    nz = 0  # fixme
     # needs shapes
     opt = types.Option(
         gravity=-9.80665,
@@ -260,27 +186,45 @@ def load_model(
         visuals=True
     )
 
-    muscle_data = get_muscle_metadata(
-        osim_model,
-        max_pennation_angle=consts.M_MAX_PENNATION_ANGLE,
-        min_norm_fiber_length=consts.MIN_NORM_FIBER_LENGTH,
-        max_norm_fiber_length=consts.MAX_NORM_FIBER_LENGTH,
-    )
+    muscle_data = []  # fixme
     mm = wp.array(muscle_data, dtype=types.MuscleMetadata)
 
-    actuator_data = get_actuator_metadata(osim_model)
+    actuator_data = []  # fixme
     am = wp.array(actuator_data, dtype=types.ActuatorMetadata)
 
-    nsite = site_data.nsite
-    nsite_cond = site_data.nsite_cond
+    nsite = 0  # fixme
+    nsite_cond = 0  # fixme
+    nmuscle = 0  # fixme
+    nactuators = 0  # fixme
+    n_limits = 0  # fixme
+    n_custom_jnts = 0  # fixme
+    nfunctions = 0  # fixme
+    nlinearfn = 0  # fixme
+    nconstfn = 0  # fixme
+    npolyfn = 0  # fixme
+    naconmax = max(512, n_worlds * 32)
+
+    # fixme
+    qpos0 = [0.0] * nq
+    if root_free:
+        qpos0[0:3] = [0.0, 1.5, 0.0]
+        qpos0[3] = 1
+    qvel0 = [0.0] * nv
+
     dt = 1.0 / 500.0
+
+
+    # Flatten out data into lists
+    body_data = dataclass_list_transpose(ordered_bodies, cls=BodyData)
+    joint_data = dataclass_list_transpose(ordered_joints, cls=JointData)
+
     m = types.Model(
         nbody=nb,
-        nv=nv,
         nq=nq,
+        nv=nv,
         nmuscle=nmuscle,
-        nz=nz,
         nactuator=nactuators,
+        nz=nz,
         ndoflimit=n_limits,
         njnts_cst=n_custom_jnts,
         ngeom=ngeom,
@@ -300,22 +244,18 @@ def load_model(
         actuator_metadata=am,
 
         # warp arrays
-        qpos0=to_warp_array(qpos0, dtype=float),
-        qpos_spring=to_warp_array(qpos_spring, dtype=float),
+        body_mass=to_warp_array(body_data["mass"], dtype=float),
+        body_mass_center=to_warp_array(body_data["mass_center"], dtype=wp.vec3),
+        body_unit_inertia_OB_B=to_warp_array(body_data["unit_inertia_OB_B"], dtype=wp.mat33),
 
-        body_mass=to_warp_array(b_masses, dtype=float),
-        body_unit_inertia_OB_B=to_warp_array(inertias_OB_B, dtype=wp.mat33),
-        body_mass_center=to_warp_array(body_mass_centers, dtype=wp.vec3),
-
-        body_parentid=to_warp_array(body_parent_ids, dtype=int),
-        mob_type=to_warp_array(joint_types, dtype=int),
-        jnt_stiffness=to_warp_array(jnt_stiffness, dtype=float),
+        body_parentid=to_warp_array(body_parent_id, dtype=int),
+        mob_type=to_warp_array(joint_data["mob_type"], dtype=int),
         mob_qposadr=to_warp_array(mob_qpos_adr, dtype=int),
-        mob_dofnum=to_warp_array(jnt_dof_num, dtype=int),
-        mob_dofadr=to_warp_array(jnt_dof_adr, dtype=int),
-        mob_X_PF=to_warp_array(mob_X_PF, dtype=wp.transform),
-        mob_X_MB=to_warp_array(mob_X_MB, dtype=wp.transform),
-        mob_extra_info=to_warp_array(mob_extra_info, dtype=wp.vec3),
+        mob_dofadr=to_warp_array(mob_dof_adr, dtype=int),
+        mob_dofnum=to_warp_array(joint_data["num_speeds"], dtype=int),
+        mob_X_PF=to_warp_array(joint_data["transform_PF"], dtype=wp.transform),
+        mob_X_MB=to_warp_array(joint_data["transform_MB"], dtype=wp.transform),
+        mob_extra_info=to_warp_array(joint_data["extra_info"], dtype=wp.vec3),
 
         mob_to_cst_id=to_warp_array(mob_to_cst_idx, dtype=int),
         cst_to_mob_id=to_warp_array(cst_to_mob_idx, dtype=int),
@@ -374,6 +314,7 @@ def load_model(
         muscle_dep_dof_adr=to_warp_array(poly_dep_dof_adr, dtype=int),
 
         dof_damping=to_warp_array(dof_damping, dtype=float),
+        jnt_stiffness=to_warp_array(jnt_stiffness, dtype=float),
 
         body_tree=body_tree_warp,
         body_children=to_warp_array(body_children, dtype=int),
@@ -562,24 +503,28 @@ def load_model(
     # forward.reset(m, d)
 
     mesh_load_results = []
-    for vis_idx in range(len(vis_data.file)):
-        mesh_file = vis_data.file[vis_idx]
-        mesh_scale = vis_data.scale[vis_idx]
+    for visual in converted_visuals:
         mesh_load_results.append(
             types.MeshLoadResult(
-                file=mesh_file,
-                scale=mesh_scale
+                file=visual.mesh_file,
+                scale=visual.scale_factors
             )
         )
     return ModelLoadResult(
         model=m,
         data=d,
-        body_id_lookup=get_body_id_lookup(osim_model),
-        dof_id_lookup=dof_id_lookup,
-        limit_id_lookup=get_limit_id_lookup(osim_model),
-        muscle_id_lookup=get_muscle_id_lookup(osim_model),
-        actuator_id_lookup=get_actuator_id_lookup(osim_model),
-        collider_id_lookup=get_collider_id_lookup(osim_model),
+        # body_id_lookup=get_body_id_lookup(osim_model),
+        # dof_id_lookup=dof_id_lookup,
+        # limit_id_lookup=get_limit_id_lookup(osim_model),
+        # muscle_id_lookup=get_muscle_id_lookup(osim_model),
+        # actuator_id_lookup=get_actuator_id_lookup(osim_model),
+        # collider_id_lookup=get_collider_id_lookup(osim_model),
+        body_id_lookup={},
+        dof_id_lookup={},
+        limit_id_lookup={},
+        muscle_id_lookup={},
+        actuator_id_lookup={},
+        collider_id_lookup={},
         visuals=mesh_load_results
     )
 

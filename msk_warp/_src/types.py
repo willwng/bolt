@@ -18,6 +18,8 @@ class MobilizerType(enum.IntEnum):
     """Type of mobilizer
 
     Attributes:
+      WORLD: dummy joint for ground                                   (0,)
+      WELD: no dofs                                                   (0,)
       FREE:  global position and orientation (quat)                   (7,)
       PIN: rotation angle (rad) around joint z-axis                   (1,)
       SLIDER: sliding distance along body-fixed axis                  (1,)
@@ -27,21 +29,19 @@ class MobilizerType(enum.IntEnum):
       ELLIPSOID: Ellipsoid joint                                      (3,)
       BALL:  orientation (quat) relative to parent                    (4,)
       CUSTOM: custom joint with up to 6 dofs                          (<=6,)
-      WELD: no dofs                                                   (0,)
-      DUMMY: for ground (represents world body)                       (0,)
     """
 
-    FREE = 0
-    PIN = 1
-    SLIDER = 2
-    UNIVERSAL = 3
-    GIMBAL = 4
-    BEAM = 5
-    ELLIPSOID = 6
-    BALL = 7
-    CUSTOM = 8
-    WELD = 9
-    DUMMY = 10
+    WORLD = 0
+    WELD = 1
+    FREE = 2
+    PIN = 3
+    SLIDER = 4
+    UNIVERSAL = 5
+    GIMBAL = 6
+    BEAM = 7
+    ELLIPSOID = 8
+    BALL = 9
+    CUSTOM = 10
 
 
 class GeomType(enum.IntEnum):
@@ -362,9 +362,6 @@ class Model:
 
       actuator_metadata: actuator metadata                     (nactuator,)
 
-      qpos0: qpos values at default pose                       (nq,)
-      qpos_spring: reference pose for springs                  (nq,)
-
       body_mass: mass                                          (nbody,)
       body_unit_inertia_OB_B: inertia about B body frame       (nbody, mat33)
       body_mass_center: local transform of center of mass      (nbody, transform)
@@ -375,7 +372,7 @@ class Model:
       body_children_adr: start adr in 'body_children'          (nbody,)
       body_children_num: number of children for each body      (nbody,)
 
-      mob_type: type of joint (JointType)                      (nbody,)
+      mob_type: type of joint's mobilizer (MobilizerType)      (nbody,)
       mob_qposadr: start adr in qpos for joint's data          (nbody,)
       mob_dofnum: number of dofs for each joint                (nbody,)
       mob_dofadr: start adr in qvel for joint's data           (nbody,)
@@ -464,9 +461,6 @@ class Model:
 
     actuator_metadata: array("nactuator", ActuatorMetadata)
 
-    qpos0: array("nq", float)
-    qpos_spring: array("nq", float)
-
     body_mass: array("nbody", float)
     body_unit_inertia_OB_B: array("nbody", wp.mat33)
     body_mass_center: array("nbody", wp.vec3)
@@ -479,8 +473,8 @@ class Model:
 
     mob_type: array("nbody", int)
     mob_qposadr: array("nbody", int)
-    mob_dofnum: array("nbody", int)
     mob_dofadr: array("nbody", int)
+    mob_dofnum: array("nbody", int)
     mob_X_PF: array("nbody", wp.transform)
     mob_X_MB: array("nbody", wp.transform)
     mob_extra_info: array("nbody", wp.vec3)
