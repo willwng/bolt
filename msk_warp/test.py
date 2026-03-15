@@ -50,22 +50,22 @@ def main():
     # model_path = "data/osim/sphere.osim"
     model_path = "data/osim/athlete.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
-                                      integrator=msk_warp.types.IntegratorType.EULER_ADAPTIVE,
+                                      integrator=msk_warp.IntegratorType.EULER_ADAPTIVE,
                                       polynomial_data_path="data/muscle_poly_info.json",
                                       root_free=True)
     m, d = load_result.model, load_result.data
-    m.opt.contact_type = msk_warp.types.ContactType.HUNT_CROSSLEY
-    m.opt.limit_type = msk_warp.types.LimitType.HUNT_CROSSLEY
+    m.opt.contact_type = msk_warp.ContactType.HUNT_CROSSLEY
+    m.opt.limit_type = msk_warp.LimitType.HUNT_CROSSLEY
     m.opt.use_inf_norm = False
     m.opt.accuracy = 1.0
 
     # quit()
 
     def qpos_id(name):
-        return load_result.dof_id_lookup[name][0]
+        return load_result.qpos_id_lookup[name]
 
     def dof_id(name):
-        return load_result.dof_id_lookup[name][1]
+        return load_result.dof_id_lookup[name]
 
     qpos = wp.to_torch(d.qpos)
     qvel = wp.to_torch(d.qvel)

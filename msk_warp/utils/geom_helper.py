@@ -4,7 +4,13 @@ from msk_warp.utils.converted_objects import *
 from msk_warp.utils.physical_frame_helper import get_body_name_of_frame, transform_from_osim_transform
 
 
-def convert_contact_geometry(geom: osim.ContactGeometry) -> ColliderData:
+def collect_geom_type_sizes(geom: osim.ContactGeometry) -> tuple[GeomType, wp.vec3, wp.vec3, float]:
+    """ Returns the converted geometry type, size, aabb, radius bound """
+    geom_cls = geom.getConcreteClassName()
+    raise NotImplementedError
+
+
+def convert_contact_geometry(geom: osim.ContactGeometry) -> GeomData:
     geom_name = geom.getName()
 
     frame = geom.getFrame()
@@ -15,14 +21,28 @@ def convert_contact_geometry(geom: osim.ContactGeometry) -> ColliderData:
     X_FP = geom.getTransform()
     X_BP = X_BF.compose(X_FP)
     transform = transform_from_osim_transform(X_BP)
-    return ColliderData(
+
+    geom_type, size, aabb, rbound = collect_geom_type_sizes(geom)
+
+    return GeomData(
         name=geom_name,
         body_name=body_name,
-        transform=transform
+        geom_type=geom_type,
+        transform=transform,
+        size=size,
+        aabb=aabb,
+        rbound=rbound,
+
+        # Defaults
+        friction=wp.vec3(0.95, 0.6, 0.0),
+        stiffness=(1e6 ** (2 / 3)),
+        dissipation=1.0,
+        transition_velocity=0.1,
+        priority=0
     )
 
 
-def convert_geoms(model: osim.Model) -> list[ColliderData]:
+def convert_geoms(model: osim.Model) -> list[GeomData]:
     """ Returns the all the converted contact geometries in the model """
     collider_data = []
 

@@ -3,6 +3,7 @@ import opensim as osim
 from msk_warp.utils.converted_objects import *
 from msk_warp.utils.physical_frame_helper import get_body_name_of_frame, extract_transform_from_frame
 from msk_warp.utils.property_helper import extract_vec3
+from msk_warp.utils.osim_types import OSimType
 
 
 def convert_visuals(model: osim.Model) -> list[VisualData]:
@@ -11,9 +12,11 @@ def convert_visuals(model: osim.Model) -> list[VisualData]:
 
     # Check for contact geometry within <components> element
     for body in model.getBodyList():
-        n_attached_geom = body.getPropertyByName("attached_geometry").size()
+        n_attached_geom = body.getPropertyByName("attached_geometry").size()  # todo: is there a beter way to get this?
         for i in range(n_attached_geom):
             geom = body.get_attached_geometry(i)
+            mesh = OSimType.Mesh.safeDownCast(geom)  # must be mesh
+
             geom_name = geom.getName()
 
             # Get the body and transform of the attached geometry
@@ -22,8 +25,8 @@ def convert_visuals(model: osim.Model) -> list[VisualData]:
             transform = extract_transform_from_frame(frame)
 
             # Mesh file, scale factors
-            mesh_file = geom.getPropertyByName("mesh_file").toString()
-            scale_factors = wp.vec3(extract_vec3(geom.get_scale_factors()))
+            mesh_file = mesh.get_mesh_file()
+            scale_factors = extract_vec3(geom.get_scale_factors())
 
             visual_data.append(
                 VisualData(

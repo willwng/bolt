@@ -1,4 +1,4 @@
-import enum
+﻿import enum
 from dataclasses import dataclass
 
 import warp as wp
@@ -185,7 +185,6 @@ class Option:
       enable_drag: flag to enable drag forces
       use_fn_path: flag to use function-based paths for muscles
       visuals: whether to handle visual geometry
-      max_poly_order: maximum polynomial order for custom functions
 
       contact_type: contact model type (ContactType)
       limit_type: dof limit model type (LimitType)
@@ -210,7 +209,6 @@ class Option:
     enable_drag: bool
     use_fn_path: bool
     visuals: bool
-    max_poly_order: int
 
     contact_type: ContactType
     limit_type: LimitType
@@ -349,12 +347,10 @@ class Model:
       nmuscle: number of muscles
       nactuator: number of "ideal" actuators
       nz: number of additional state variables
-      ndoflimit: number of dofs with limits
       njnts_cst: number of custom joints
       ngeom: number of collision geometry
       nvis: number of visual geometry
       nsite: number of sites
-      nsite_cond: number of conditional sites
 
       opt: physics options
       muscle_metadata: muscle metadata                         (nmuscle,)
@@ -396,17 +392,6 @@ class Model:
       cst_txfm_axes: custom transform axes (3 rot, 3 trans)    (njnts_cst, 6, vec3)
       cst_txfm_dof: dof idx offset (FROM JOINT) for each txfm  (njnts_cst, 6)
 
-     * stiffness/damping *
-      jnt_stiffness: joint stiffness                           (nbody,)
-      dof_damping: damping coefficient                         (nv)
-      
-     * dof limits * 
-      limit_dof_range: joint limits (min, max)                 (ndoflimit, 2)
-      limit_dof_adr: dof address of dof-limit                  (ndoflimit,)
-      limit_dof_qadr: qpos address of dof-limit                (ndoflimit,)
-      limit_dof_forces: limit forces                           (ndoflimit, 2)
-      limit_dof_shapes: limit function shape parameters        (ndoflimit, 2)
-
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
       geom_X_loc: local transform of geom rel. to body         (ngeom, transform)
@@ -428,9 +413,6 @@ class Model:
 
       site_bodyid: id of site's body                           (nsite,)
       site_pos: local position offset rel. to body             (nsite, 3)
-      site_cond_id: conditional site id                        (nsite_cond,)
-      site_cond_qadr: conditional site qpos address            (nsite_cond,)
-      site_cond_range: conditional site range (min, max)       (nsite_cond, 2)
 
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
@@ -443,12 +425,10 @@ class Model:
     nmuscle: int
     nactuator: int
     nz: int
-    ndoflimit: int
     njnts_cst: int
     ngeom: int
     nvis: int
     nsite: int
-    nsite_cond: int
 
     nfunctions: int
     nlinearfn: int
@@ -493,14 +473,14 @@ class Model:
     linear_fn_qpos_adr: array("nlinearfn", int)
     poly_fn_qpos_adr: array("npolyfn", int)
 
-    jnt_stiffness: array("nbody", float)
-    dof_damping: array("nv", float)
+    # jnt_stiffness: array("nbody", float)
+    # dof_damping: array("nv", float)
 
-    limit_dof_range: array("ndoflimit", wp.vec2)
-    limit_dof_adr: array("ndoflimit", int)
-    limit_dof_qadr: array("ndoflimit", int)
-    limit_dof_forces: array("ndoflimit", wp.vec2)
-    limit_dof_shapes: array("ndoflimit", wp.vec2)
+    # limit_dof_range: array("ndoflimit", wp.vec2)
+    # limit_dof_adr: array("ndoflimit", int)
+    # limit_dof_qadr: array("ndoflimit", int)
+    # limit_dof_forces: array("ndoflimit", wp.vec2)
+    # limit_dof_shapes: array("ndoflimit", wp.vec2)
 
     # Collision geometry
     geom_type: array("ngeom", int)
@@ -526,9 +506,6 @@ class Model:
     # Attachment sites (muscle path)
     site_bodyid: array("nsite", int)
     site_pos: array("nsite", wp.vec3)
-    site_cond_id: array("nsite_cond", int)
-    site_cond_qadr: array("nsite_cond", int)
-    site_cond_range: array("nsite_cond", wp.vec2)
 
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)

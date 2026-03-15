@@ -162,7 +162,8 @@ def evaluate_cst_functions(m: Model, d: Data):
             dim=(d.nworld, m.npolyfn),
             inputs=[
                 m.poly_fn_adr, m.poly_fn_qpos_adr, m.poly_fn_coeff,
-                m.opt.max_poly_order,
+                # m.opt.max_poly_order,
+                0, # TODO
                 d.integration_done, d.qpos,
             ],
             outputs=[d.cst_fn_output],

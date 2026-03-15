@@ -75,6 +75,21 @@ class KinematicTree:
         self._dfs(self.root, callback=lambda node: ordering.append(node))
         return ordering
 
+    def create_body_tree(self, names_only: bool = True) -> list[list]:
+        """ Returns a list such that for each index i of the list, contains the nodes at that tree level/depth"""
+        levels = []
+
+        def add_to_levels(node, depth=0):
+            if depth == len(levels):
+                levels.append([])
+            levels[depth].append(node.name if names_only else node)
+
+            for child in node.children:
+                add_to_levels(child, depth + 1)
+
+        add_to_levels(self.root)
+        return levels
+
     def render(self):
         """ Optionally render a graphviz of the tree """
         import graphviz

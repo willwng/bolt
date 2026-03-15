@@ -1,37 +1,46 @@
+import numpy as np
 import opensim as osim
 import torch
 
 import msk_warp._src.forward as forward
 import msk_warp._src.math as math
 import msk_warp.utils.body_helper as body_helper
+import msk_warp.utils.function_helper as function_helper
 import msk_warp.utils.geom_helper as geom_helper
 import msk_warp.utils.joint_helper as joint_helper
+import msk_warp.utils.spatial_transform_helper as spatial_transform_helper
 import msk_warp.utils.visual_helper as visual_helper
-import msk_warp.utils.spatial_transform_helper as function_helper
+
+from msk_warp import Model, Data, MeshLoadResult, GeomType, IntegratorType, Option, ContactType, LimitType, \
+    ActivationType, MetabolicOptions, MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, \
+    MuscleLengthInfo, FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, \
+    vec5
 from msk_warp.render.renderer import Renderer, RendererType
 from msk_warp.utils.converted_objects import *
 from msk_warp.utils.converted_objects import dataclass_list_transpose
+from msk_warp.utils.geom_helper import convert_geoms
 from msk_warp.utils.kinematic_tree import KinematicTree
-from msk_warp.utils.load_utils import (
-    to_warp_array, make_zero, make_full)
-from msk_warp.utils.osim_converter import *
+from msk_warp.utils.python_util import string_list_to_ordering, reorder_list_for_ordering, apply_map_to_list, gather, \
+    exclusive_sum
+from msk_warp.utils.warp_util import to_warp_array, make_full, make_zero
 
 
 @dataclass
 class ModelLoadResult:
-    model: types.Model
-    data: types.Data
+    model: Model
+    data: Data
     body_id_lookup: dict[str, int]
-    dof_id_lookup: dict[str, tuple[int, int]]
+    dof_id_lookup: dict[str, int]
+    qpos_id_lookup: dict[str, int]
     limit_id_lookup: dict[str, int]
     muscle_id_lookup: dict[str, int]
     actuator_id_lookup: dict[str, int]
     collider_id_lookup: dict[str, int]
-    visuals: list[types.MeshLoadResult]
+    visuals: list[MeshLoadResult]
 
 
 def prepare_contacts(
-        geom_data: ColliderData,
+        geom_data: GeomData,
         body_parent_ids: list[int],
         ngeom: int,
 ):
@@ -67,22 +76,22 @@ def prepare_contacts(
     nxn_geom_pair_filtered = nxn_geom_pair[include]
 
     # count contact pair types
-    geom_types = geom_data.type
+    geom_types = geom_data.geom_type
     geom_type_pair_count = np.bincount([
-        math.upper_trid_index(len(types.GeomType),
+        math.upper_trid_index(len(GeomType),
                               int(geom_types[geom1[i]]),
                               int(geom_types[geom2[i]]))
         for i in np.arange(len(geom1))
         if nxn_pairid_contact[i] > -2 or nxn_pairid_collision[i] > -1
-    ], minlength=len(types.GeomType) * (len(types.GeomType) + 1) // 2, )
+    ], minlength=len(GeomType) * (len(GeomType) + 1) // 2, )
     return geom_types, geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered
 
 
-def get_num_scratch_states(integrator: types.IntegratorType) -> tuple[int, int]:
+def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:
     """ Returns number of additional copies of state and state_dot for integration """
-    if integrator == types.IntegratorType.RK4_ADAPTIVE:
+    if integrator == IntegratorType.RK4_ADAPTIVE:
         return 2, 5
-    elif integrator == types.IntegratorType.EULER_ADAPTIVE:
+    elif integrator == IntegratorType.EULER_ADAPTIVE:
         return 2, 1
     else:
         return 0, 0
@@ -92,7 +101,7 @@ def load_model(
         model_path: str,
         n_worlds: int,
         root_free: bool,
-        integrator: types.IntegratorType,
+        integrator: IntegratorType,
         polynomial_data_path: str = None,
         render_kinematic_tree: bool = False,
 ) -> ModelLoadResult:
@@ -101,12 +110,17 @@ def load_model(
     model = osim.Model(model_path)
     model.initSystem()
 
+    # Check every body has a mobilizer
+    if model.getNumBodies() != model.getNumJoints():
+        raise ValueError(f"Num bodies ({model.getNumBodies()}) does not match num Joints ({model.getNumJoints()})")
+
     # Parse bodies, joints, collision geometry, visuals
     converted_bodies = [GROUND_BODY] + [body_helper.convert_body(body) for body in model.getBodyList()]
     converted_joints = [GROUND_JOINT] + [joint_helper.convert_joint(joint, root_free) for joint in model.getJointList()]
-    converted_geoms = geom_helper.convert_geoms(model)
+    # converted_geoms = geom_helper.convert_geoms(model)
+    converted_geoms = []  # TODO
     converted_visuals = visual_helper.convert_visuals(model)
-    converted_spatial_transforms = function_helper.convert_spatial_transforms(model)
+    converted_spatial_transforms = spatial_transform_helper.convert_spatial_transforms(model)
 
     # Create a lookup from body name -> body data. Needed for fast joint->body lookup
     body_name_to_body = {body.name: body for body in converted_bodies}
@@ -127,15 +141,50 @@ def load_model(
     tree_ordering = tree.forward_ordering()
     ordered_bodies = [node.body for node in tree_ordering]
     ordered_joints = [node.joint for node in tree_ordering]
-    if len(ordered_bodies) != len(ordered_joints):
-        raise ValueError(f"Num bodies ({len(ordered_bodies)}) does not match num Joints ({len(ordered_joints)})")
+    # Also re-order the spatial transforms
+    joint_ordering = joint_helper.compute_joint_name_ordering(ordered_joints)
+    ordered_spatial_transforms = spatial_transform_helper.order_spatial_transforms(
+        converted_spatial_transforms, joint_ordering)
 
     # Body id -> parent id
     ordered_bodies_names = [body.name for body in ordered_bodies]
     body_parent_id = [joint_helper.get_joint_parent_id(joint, ordered_bodies_names) for joint in ordered_joints]
 
-    # Addresses of joint's coordinates/speeds
+    # Body name -> body id
+    body_ordering = string_list_to_ordering(ordered_bodies_names)
+
+    # Create the "body-level" array (contains list of all bodies at level i)
+    body_tree = tree.create_body_tree()
+    body_tree_indices = [apply_map_to_list(level, body_ordering) for level in body_tree]
+    body_tree_warp = tuple([to_warp_array(level, dtype=int) for level in body_tree_indices])
+
+    # Get all the children of each body
+    body_children = [node.children for node in tree_ordering]
+    body_children_names = [[node.body.name for node in children] for children in body_children]
+    body_children_indices = [apply_map_to_list(children, body_ordering) for children in body_children_names]
+    # Flatten list, compute number of children, get address
+    body_children_flattened = [child_idx for children_indices in body_children_indices for child_idx in children_indices]
+    body_children_num = [len(children) for children in body_children_indices]
+    body_children_adr = exclusive_sum(body_children_num)
+
+    # Starting address of joint's coordinates/speeds
     mob_qpos_adr, mob_dof_adr = joint_helper.compute_qpos_dof_adr(ordered_joints)
+
+    # Ordered list of coordinate names (in qpos), and coordinate names (in qvel). Differs if quaternion is used
+    ordered_qpos_coordinates = joint_helper.get_qpos_coordinates(ordered_joints)
+    ordered_dof_coordinates = joint_helper.get_dof_coordinates(ordered_joints)
+    # Create the ordering lookup for qpos, dof.
+    qpos_ordering = string_list_to_ordering(ordered_qpos_coordinates)
+    dof_ordering = string_list_to_ordering(ordered_dof_coordinates)
+    # Ordering lookup for qpos, dof relative to each joint
+    relative_qpos_ordering = joint_helper.get_relative_qpos_ordering_lookup(ordered_joints)
+    relative_dof_ordering = joint_helper.get_relative_dof_ordering_lookup(ordered_joints)
+
+    # Index of mobilizer -> index of custom joint (-1 if not custom)
+    mob_to_cst_idx, cst_to_mob_idx = joint_helper.compute_mobilizer_custom_joint_index(ordered_joints)
+
+    # Spatial transforms: flatten all the axes
+    ordered_transform_axes = spatial_transform_helper.get_flattened_transform_axes(ordered_spatial_transforms)
 
     nq = sum([joint.num_coordinates for joint in ordered_joints])
     nv = sum([joint.num_speeds for joint in ordered_joints])
@@ -144,22 +193,20 @@ def load_model(
     nvis = len(converted_visuals)
 
     use_fn_path = False
-    max_poly_order = 5  # fixme
     nz = 0  # fixme
     # needs shapes
-    opt = types.Option(
+    opt = Option(
         gravity=-9.80665,
         explicit_gravity=True,
-        contact_type=types.ContactType.HUNT_CROSSLEY,
-        limit_type=types.LimitType.EXPONENTIAL,
-        activation_type=types.ActivationType.MILLARD,
+        contact_type=ContactType.HUNT_CROSSLEY,
+        limit_type=LimitType.EXPONENTIAL,
+        activation_type=ActivationType.MILLARD,
         integrator=integrator,
-        max_poly_order=max_poly_order,
 
         enable_drag=True,
 
         use_fn_path=use_fn_path,
-        metabolic_options=types.MetabolicOptions(
+        metabolic_options=MetabolicOptions(
             activation_maintenance_rate_on=True,
             shortening_rate_on=True,
             mechanical_work_rate_on=True,
@@ -187,21 +234,18 @@ def load_model(
     )
 
     muscle_data = []  # fixme
-    mm = wp.array(muscle_data, dtype=types.MuscleMetadata)
+    mm = wp.array(muscle_data, dtype=MuscleMetadata)
 
     actuator_data = []  # fixme
-    am = wp.array(actuator_data, dtype=types.ActuatorMetadata)
+    am = wp.array(actuator_data, dtype=ActuatorMetadata)
 
     nsite = 0  # fixme
-    nsite_cond = 0  # fixme
     nmuscle = 0  # fixme
     nactuators = 0  # fixme
-    n_limits = 0  # fixme
     n_custom_jnts = 0  # fixme
-    nfunctions = 0  # fixme
-    nlinearfn = 0  # fixme
-    nconstfn = 0  # fixme
-    npolyfn = 0  # fixme
+    geom_type_pair_count = []  # fixme
+    nxn_geom_pair_filtered = []
+    nxn_pairid_filtered = []
     naconmax = max(512, n_worlds * 32)
 
     # fixme
@@ -213,25 +257,45 @@ def load_model(
 
     dt = 1.0 / 500.0
 
+    # Gather functions
+    linear_fns, linear_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=LinearFunctionData)
+    const_fns, const_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=ConstantFunctionData)
+    poly_fns, poly_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=PolynomialFunctionData)
+    nlinearfn, nconstfn, npolyfn = len(linear_fns), len(const_fns), len(poly_fns)
+    nfunctions = nlinearfn + nconstfn + npolyfn
 
-    # Flatten out data into lists
+    # Get all "relative" coordinate indices for each transform axis
+    txfm_dofs = spatial_transform_helper.get_txfm_coordinate_names(ordered_transform_axes)
+    txfm_dofs_relative_idx = apply_map_to_list(txfm_dofs, relative_dof_ordering)
+    # Now, use gather to find the relative coordinate indices used for each function
+    linear_fns_dof_relative_idx = gather(txfm_dofs_relative_idx, linear_fns_idx)
+    poly_fns_dof_relative_idx = gather(txfm_dofs_relative_idx, poly_fns_idx)
+
+    # Flatten out entries of dataclasses into lists
     body_data = dataclass_list_transpose(ordered_bodies, cls=BodyData)
     joint_data = dataclass_list_transpose(ordered_joints, cls=JointData)
+    txfm_data = dataclass_list_transpose(ordered_transform_axes, cls=TransformAxisData)
+    geom_data = dataclass_list_transpose(converted_geoms, cls=GeomData)
+    vis_data = dataclass_list_transpose(converted_visuals, cls=VisualData)
 
-    m = types.Model(
+    linear_fn_mb = function_helper.get_linear_fn_mb(linear_fns)
+    const_fn_vals = function_helper.get_const_fn_vals(const_fns)
+    poly_coeffs = function_helper.get_flattened_poly_coeffs(poly_fns)
+
+    geom_body_id = apply_map_to_list(geom_data["body_name"], body_ordering)
+    vis_body_id = apply_map_to_list(vis_data["body_name"], body_ordering)
+
+    m = Model(
         nbody=nb,
         nq=nq,
         nv=nv,
         nmuscle=nmuscle,
         nactuator=nactuators,
         nz=nz,
-        ndoflimit=n_limits,
         njnts_cst=n_custom_jnts,
         ngeom=ngeom,
         nvis=nvis,
         nsite=nsite,
-        nsite_cond=nsite_cond,
-
         nfunctions=nfunctions,
         nlinearfn=nlinearfn,
         nconstfn=nconstfn,
@@ -259,73 +323,67 @@ def load_model(
 
         mob_to_cst_id=to_warp_array(mob_to_cst_idx, dtype=int),
         cst_to_mob_id=to_warp_array(cst_to_mob_idx, dtype=int),
-        cst_txfm_axes=to_warp_array(cst_txfm_axes, dtype=wp.vec3),
-        cst_txfm_dof=to_warp_array(cst_txfm_dof, dtype=int),
+        cst_txfm_axes=to_warp_array(txfm_data["axis"], dtype=wp.vec3),
+        cst_txfm_dof=to_warp_array(txfm_dofs_relative_idx, dtype=int),
 
-        linear_fn_mb=to_warp_array(linear_fn_data.mb, dtype=wp.vec2),
-        const_fn_c=to_warp_array(const_fn_data.c, dtype=float),
-        poly_fn_coeff=to_warp_array(poly_fn_data.coefficients, dtype=float),
-        linear_fn_adr=to_warp_array(linear_fn_data.fn_idx, dtype=int),
-        const_fn_adr=to_warp_array(const_fn_data.fn_idx, dtype=int),
-        poly_fn_adr=to_warp_array(poly_fn_data.fn_idx, dtype=int),
-        linear_fn_qpos_adr=to_warp_array(linear_fn_data.qpos_adr, dtype=int),
-        poly_fn_qpos_adr=to_warp_array(poly_fn_data.qpos_adr, dtype=int),
+        linear_fn_mb=to_warp_array(linear_fn_mb, dtype=wp.vec2),
+        const_fn_c=to_warp_array(const_fn_vals, dtype=float),
+        poly_fn_coeff=to_warp_array(poly_coeffs, dtype=float),
+        linear_fn_adr=to_warp_array(linear_fns_idx, dtype=int),
+        const_fn_adr=to_warp_array(const_fns_idx, dtype=int),
+        poly_fn_adr=to_warp_array(poly_fns_idx, dtype=int),
+        linear_fn_qpos_adr=to_warp_array(linear_fns_dof_relative_idx, dtype=int),
+        poly_fn_qpos_adr=to_warp_array(poly_fns_dof_relative_idx, dtype=int),
 
-        limit_dof_range=to_warp_array(dof_limit_ranges, dtype=wp.vec2),
-        limit_dof_adr=to_warp_array(dof_limit_adr, dtype=int),
-        limit_dof_qadr=to_warp_array(dof_limit_qadr, dtype=int),
-        limit_dof_forces=to_warp_array(dof_limit_forces, dtype=wp.vec2),
-        limit_dof_shapes=to_warp_array(dof_limit_shapes, dtype=wp.vec2),
+        # limit_dof_range=to_warp_array(dof_limit_ranges, dtype=wp.vec2),
+        # limit_dof_adr=to_warp_array(dof_limit_adr, dtype=int),
+        # limit_dof_qadr=to_warp_array(dof_limit_qadr, dtype=int),
+        # limit_dof_forces=to_warp_array(dof_limit_forces, dtype=wp.vec2),
+        # limit_dof_shapes=to_warp_array(dof_limit_shapes, dtype=wp.vec2),
 
-        geom_type=to_warp_array(geom_types, dtype=int),
-        geom_bodyid=to_warp_array(geom_data.body_id, dtype=int),
-        geom_X_loc=to_warp_array(geom_data.transform, dtype=wp.transform),
-        geom_size=to_warp_array(geom_data.size, dtype=wp.vec3),
-        geom_friction=to_warp_array(geom_data.friction, dtype=wp.vec3),
-        geom_stiffness=to_warp_array(geom_data.stiffness, dtype=float),
-        geom_dissipation=to_warp_array(geom_data.dissipation, dtype=float),
-        geom_transition_velocity=to_warp_array(geom_data.transition_velocity, dtype=float),
-        geom_priority=to_warp_array(geom_data.priority, dtype=int),
-        geom_aabb=to_warp_array(geom_data.aabb, dtype=wp.vec3),
-        geom_rbound=to_warp_array(geom_data.rbound, dtype=float),
+        geom_type=to_warp_array(geom_data["geom_type"], dtype=int),
+        geom_bodyid=to_warp_array(geom_body_id, dtype=int),
+        geom_X_loc=to_warp_array(geom_data["transform"], dtype=wp.transform),
+        geom_size=to_warp_array(geom_data["size"], dtype=wp.vec3),
+        geom_friction=to_warp_array(geom_data["friction"], dtype=wp.vec3),
+        geom_stiffness=to_warp_array(geom_data["stiffness"], dtype=float),
+        geom_dissipation=to_warp_array(geom_data["dissipation"], dtype=float),
+        geom_transition_velocity=to_warp_array(geom_data["transition_velocity"], dtype=float),
+        geom_priority=to_warp_array(geom_data["priority"], dtype=int),
+        geom_aabb=to_warp_array(geom_data["aabb"], dtype=wp.vec3),
+        geom_rbound=to_warp_array(geom_data["rbound"], dtype=float),
 
         geom_pair_type_count=tuple(geom_type_pair_count),
         nxn_geom_pair_filtered=wp.array(nxn_geom_pair_filtered, dtype=wp.vec2i),
         nxn_pairid_filtered=wp.array(nxn_pairid_filtered, dtype=wp.vec2i),
 
-        vis_bodyid=to_warp_array(vis_data.body_id, dtype=int),
-        vis_X_loc=to_warp_array(vis_data.transform, dtype=wp.transform),
+        vis_bodyid=to_warp_array(vis_body_id, dtype=int),
+        vis_X_loc=to_warp_array(vis_data["transform"], dtype=wp.transform),
 
-        site_bodyid=to_warp_array(site_data.body_id, dtype=int),
-        site_pos=to_warp_array(site_data.pos, dtype=wp.vec3),
-        site_cond_id=to_warp_array(site_data.conditional_ids, dtype=int),
-        site_cond_qadr=to_warp_array(site_data.conditional_qadr, dtype=int),
-        site_cond_range=to_warp_array(site_data.conditional_range,
-                                      dtype=wp.vec2),
+        site_bodyid=to_warp_array([], dtype=int),  # TODO
+        site_pos=to_warp_array([], dtype=wp.vec3),  # TODO
 
-        muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
-        muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
-        muscle_poly_coeffs=to_warp_array(poly_coeffs, dtype=float),
-        muscle_poly_adr=to_warp_array(poly_adr, dtype=int),
-        muscle_poly_order=to_warp_array(poly_order, dtype=int),
-        muscle_poly_qpos_adr=to_warp_array(poly_qpos_adr, dtype=int),
-        muscle_poly_dof_adr=to_warp_array(poly_dof_adr, dtype=int),
-        muscle_dep_dof_num=to_warp_array(poly_dep_dof_num, dtype=int),
-        muscle_dep_dof_adr=to_warp_array(poly_dep_dof_adr, dtype=int),
-
-        dof_damping=to_warp_array(dof_damping, dtype=float),
-        jnt_stiffness=to_warp_array(jnt_stiffness, dtype=float),
+        # TODO!
+        muscle_pts_num=to_warp_array([], dtype=int),
+        muscle_pts_adr=to_warp_array([], dtype=int),
+        muscle_poly_coeffs=to_warp_array([], dtype=float),
+        muscle_poly_adr=to_warp_array([], dtype=int),
+        muscle_poly_order=to_warp_array([], dtype=int),
+        muscle_poly_qpos_adr=to_warp_array([], dtype=int),
+        muscle_poly_dof_adr=to_warp_array([], dtype=int),
+        muscle_dep_dof_num=to_warp_array([], dtype=int),
+        muscle_dep_dof_adr=to_warp_array([], dtype=int),
 
         body_tree=body_tree_warp,
-        body_children=to_warp_array(body_children, dtype=int),
+        body_children=to_warp_array(body_children_flattened, dtype=int),
         body_children_num=to_warp_array(body_children_num, dtype=int),
         body_children_adr=to_warp_array(body_children_adr, dtype=int),
-        block_dim=types.TileBlockDim(),
+        block_dim=TileBlockDim(),
     )
 
     n_int_states, n_int_dot_states = get_num_scratch_states(integrator)
     integrator_scratch = [
-        types.IntegratorStateScratch(
+        IntegratorStateScratch(
             time=make_zero(n_worlds, dtype=float),
             qpos=make_zero((n_worlds, nq), dtype=float),
             qvel=make_zero((n_worlds, nv), dtype=float),
@@ -336,7 +394,7 @@ def load_model(
     ]
 
     integrator_dot_scratch = [
-        types.IntegratorDotScratch(
+        IntegratorDotScratch(
             qvel=make_zero((n_worlds, nv), dtype=float),
             qacc=make_zero((n_worlds, nv), dtype=float),
             m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
@@ -348,7 +406,7 @@ def load_model(
     # Custom joints may need up to 6 additional vectors: [f(q), f'(q), f''(q)] for each 6 functions
     num_scratch = 3 if n_custom_jnts == 0 else 6
 
-    d = types.Data(
+    d = Data(
         world_reset=make_full(True, n_worlds, dtype=bool),
         time=make_zero(n_worlds, dtype=float),
 
@@ -405,9 +463,9 @@ def load_model(
         mob_coriolis_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
         body_COM_G=make_zero((n_worlds, nb), dtype=wp.vec3),
-        body_Mk_G=make_zero((n_worlds, nb), dtype=types.SpatialInertia),
-        body_P=make_zero((n_worlds, nb), dtype=types.ArticulatedInertia),
-        body_PPlus=make_zero((n_worlds, nb), dtype=types.ArticulatedInertia),
+        body_Mk_G=make_zero((n_worlds, nb), dtype=SpatialInertia),
+        body_P=make_zero((n_worlds, nb), dtype=ArticulatedInertia),
+        body_PPlus=make_zero((n_worlds, nb), dtype=ArticulatedInertia),
         body_V_FM=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_V_PB_G=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_V_GB=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
@@ -452,12 +510,9 @@ def load_model(
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_metabolic=make_zero((n_worlds, nmuscle), dtype=float),
 
-        muscle_length_info=make_zero((n_worlds, nmuscle),
-                                     dtype=types.MuscleLengthInfo),
-        muscle_velocity_info=make_zero((n_worlds, nmuscle),
-                                       dtype=types.FiberVelocityInfo),
-        muscle_dynamics_info=make_zero((n_worlds, nmuscle),
-                                       dtype=types.MuscleDynamicsInfo),
+        muscle_length_info=make_zero((n_worlds, nmuscle), dtype=MuscleLengthInfo),
+        muscle_velocity_info=make_zero((n_worlds, nmuscle), dtype=FiberVelocityInfo),
+        muscle_dynamics_info=make_zero((n_worlds, nmuscle), dtype=MuscleDynamicsInfo),
 
         body_F=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_gravity=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
@@ -475,11 +530,11 @@ def load_model(
 
         qfrc_total=make_zero((n_worlds, nv), dtype=float),
 
-        contact=types.Contact(
+        contact=Contact(
             dist=make_zero(naconmax, dtype=float),
             pos=make_zero(naconmax, dtype=wp.vec3),
             frame=make_zero(naconmax, dtype=wp.mat33),
-            friction=make_zero(naconmax, dtype=types.vec5),
+            friction=make_zero(naconmax, dtype=vec5),
             dim=make_zero(naconmax, dtype=int),
             curvature=make_zero(naconmax, dtype=float),
             stiffness=make_zero(naconmax, dtype=float),
@@ -505,7 +560,7 @@ def load_model(
     mesh_load_results = []
     for visual in converted_visuals:
         mesh_load_results.append(
-            types.MeshLoadResult(
+            MeshLoadResult(
                 file=visual.mesh_file,
                 scale=visual.scale_factors
             )
@@ -513,14 +568,9 @@ def load_model(
     return ModelLoadResult(
         model=m,
         data=d,
-        # body_id_lookup=get_body_id_lookup(osim_model),
-        # dof_id_lookup=dof_id_lookup,
-        # limit_id_lookup=get_limit_id_lookup(osim_model),
-        # muscle_id_lookup=get_muscle_id_lookup(osim_model),
-        # actuator_id_lookup=get_actuator_id_lookup(osim_model),
-        # collider_id_lookup=get_collider_id_lookup(osim_model),
-        body_id_lookup={},
-        dof_id_lookup={},
+        body_id_lookup=body_ordering,
+        qpos_id_lookup=qpos_ordering,
+        dof_id_lookup=dof_ordering,
         limit_id_lookup={},
         muscle_id_lookup={},
         actuator_id_lookup={},
@@ -530,12 +580,12 @@ def load_model(
 
 
 def reinitialize_model(
-        m: types.Model,
-        d: types.Data,
+        m: Model,
+        d: Data,
 ):
     """ Re-initialize the model (ie any parameters have changed). """
     # Ensure the muscle metadata is up to date
-    mm = wp.array(m.muscle_data, dtype=types.MuscleMetadata)
+    mm = wp.array(m.muscle_data, dtype=MuscleMetadata)
     m.muscle_metadata = mm
 
     d.world_reset.fill_(True)
@@ -564,331 +614,331 @@ def create_renderer(
     return viewer
 
 
-def set_reset(d: types.Data, reset_worlds: torch.Tensor):
+def set_reset(d: Data, reset_worlds: torch.Tensor):
     d_reset_torch = wp.to_torch(d.world_reset)
     d_reset_torch[:] = reset_worlds.ravel()
 
 
 # --- Model Fields ---
-def damping(m: types.Model) -> torch.Tensor:
+def damping(m: Model) -> torch.Tensor:
     return wp.to_torch(m.dof_damping)
 
 
-def stiffness(m: types.Model) -> torch.Tensor:
+def stiffness(m: Model) -> torch.Tensor:
     return wp.to_torch(m.jnt_stiffness)
 
 
-def body_mass(m: types.Model) -> torch.Tensor:
+def body_mass(m: Model) -> torch.Tensor:
     return wp.to_torch(m.body_mass)
 
 
-def get_num_qpos(m: types.Model) -> int:
+def get_num_qpos(m: Model) -> int:
     return m.nq
 
 
-def get_num_dofs(m: types.Model) -> int:
+def get_num_dofs(m: Model) -> int:
     return m.nv
 
 
-def get_num_bodies(m: types.Model) -> int:
+def get_num_bodies(m: Model) -> int:
     return m.nbody
 
 
-def get_num_visuals(m: types.Model) -> int:
+def get_num_visuals(m: Model) -> int:
     return m.nvis
 
 
-def get_num_colliders(m: types.Model) -> int:
+def get_num_colliders(m: Model) -> int:
     return m.ngeom
 
 
-def get_num_muscles(m: types.Model) -> int:
+def get_num_muscles(m: Model) -> int:
     return m.nmuscle
 
 
-def get_num_actuators(m: types.Model) -> int:
+def get_num_actuators(m: Model) -> int:
     return m.nactuator
 
 
-def get_num_limits(m: types.Model) -> int:
+def get_num_limits(m: Model) -> int:
     return m.ndoflimit
 
 
-def get_qpos_adr(m: types.Model, body_id: int) -> torch.Tensor:
+def get_qpos_adr(m: Model, body_id: int) -> torch.Tensor:
     mob_qpos_adr = wp.to_torch(m.mob_qposadr)
     return mob_qpos_adr[body_id]
 
 
-def get_dof_adr(m: types.Model, body_id: int) -> torch.Tensor:
+def get_dof_adr(m: Model, body_id: int) -> torch.Tensor:
     jnt_dof_adr = wp.to_torch(m.mob_dofadr)
     return jnt_dof_adr[body_id]
 
 
-def get_qpos_num(m: types.Model, body_id: int) -> torch.Tensor:
+def get_qpos_num(m: Model, body_id: int) -> torch.Tensor:
     mob_qpos_num = wp.to_torch(m.mob_dofnum)
     return mob_qpos_num[body_id]
 
 
-def get_dof_num(m: types.Model, body_id: int) -> torch.Tensor:
+def get_dof_num(m: Model, body_id: int) -> torch.Tensor:
     jnt_dof_num = wp.to_torch(m.mob_dofnum)
     return jnt_dof_num[body_id]
 
 
-def muscle_metadata(m: types.Model) -> list[types.MuscleMetadata]:
+def muscle_metadata(m: Model) -> list[MuscleMetadata]:
     return m.muscle_data
 
 
-def gravity(m: types.Model) -> float:
+def gravity(m: Model) -> float:
     return m.opt.gravity
 
 
-def set_drag_enabled(m: types.Model, enabled: bool):
+def set_drag_enabled(m: Model, enabled: bool):
     m.opt.enable_drag = enabled
 
 
-def set_contact_type(m: types.Model, contact_type: types.ContactType):
+def set_contact_type(m: Model, contact_type: ContactType):
     m.opt.contact_type = contact_type
 
 
-def set_limit_type(m: types.Model, limit_type: types.LimitType):
+def set_limit_type(m: Model, limit_type: LimitType):
     m.opt.limit_type = limit_type
 
 
-def set_activation_type(m: types.Model, activation_type: types.ActivationType):
+def set_activation_type(m: Model, activation_type: ActivationType):
     m.opt.activation_type = activation_type
 
 
-def steps_attempted(d: types.Data) -> torch.Tensor:
+def steps_attempted(d: Data) -> torch.Tensor:
     return wp.to_torch(d.steps_attempted)
 
 
-def set_integrator_accuracy(m: types.Model, accuracy: float):
+def set_integrator_accuracy(m: Model, accuracy: float):
     m.opt.accuracy = accuracy
 
 
-def set_integrator_use_inf_norm(m: types.Model, use_inf_norm: bool):
+def set_integrator_use_inf_norm(m: Model, use_inf_norm: bool):
     m.opt.use_inf_norm = use_inf_norm
 
 
-def is_adaptive(integrator_type: types.IntegratorType) -> bool:
+def is_adaptive(integrator_type: IntegratorType) -> bool:
     return integrator_type in [
-        types.IntegratorType.EULER_ADAPTIVE,
-        types.IntegratorType.RK4_ADAPTIVE,
+        IntegratorType.EULER_ADAPTIVE,
+        IntegratorType.RK4_ADAPTIVE,
     ]
 
 
-def joint_limit_ranges(m: types.Model) -> torch.Tensor:
+def joint_limit_ranges(m: Model) -> torch.Tensor:
     return wp.to_torch(m.limit_dof_range)
 
 
-def joint_limit_qadr(m: types.Model) -> torch.Tensor:
+def joint_limit_qadr(m: Model) -> torch.Tensor:
     return wp.to_torch(m.limit_dof_qadr)
 
 
-def exp_limit_forces(m: types.Model) -> torch.Tensor:
+def exp_limit_forces(m: Model) -> torch.Tensor:
     return wp.to_torch(m.limit_dof_forces)
 
 
-def exp_limit_shapes(m: types.Model) -> torch.Tensor:
+def exp_limit_shapes(m: Model) -> torch.Tensor:
     return wp.to_torch(m.limit_dof_shapes)
 
 
 # --- Data Fields ---
-def time(d: types.Data) -> torch.tensor:
+def time(d: Data) -> torch.tensor:
     return wp.to_torch(d.time)
 
 
-def body_positions(d: types.Data) -> torch.Tensor:
+def body_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.mob_X_GB)
 
 
-def body_com_positions(d: types.Data) -> torch.Tensor:
+def body_com_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.body_COM_G)
 
 
-def body_rotations(d: types.Data) -> torch.Tensor:
+def body_rotations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.xquat)
 
 
-def body_velocities(d: types.Data) -> torch.Tensor:
+def body_velocities(d: Data) -> torch.Tensor:
     return wp.to_torch(d.body_acc)
 
 
-def body_com_velocities(d: types.Data) -> torch.Tensor:
+def body_com_velocities(d: Data) -> torch.Tensor:
     return wp.to_torch(d.xivel)
 
 
-def body_user_forces(d: types.Data) -> torch.Tensor:
+def body_user_forces(d: Data) -> torch.Tensor:
     return wp.to_torch(d.xfrc_applied)
 
 
-def joint_positions(d: types.Data) -> torch.Tensor:
+def joint_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qpos)
 
 
-def joint_velocities(d: types.Data) -> torch.Tensor:
+def joint_velocities(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qvel)
 
 
-def joint_accelerations(d: types.Data) -> torch.Tensor:
+def joint_accelerations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qacc)
 
 
-def qfrc_spring(d: types.Data) -> torch.Tensor:
+def qfrc_spring(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_spring)
 
 
-def qfrc_damper(d: types.Data) -> torch.Tensor:
+def qfrc_damper(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_damper)
 
 
-def qfrc_muscle(d: types.Data) -> torch.Tensor:
+def qfrc_muscle(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_muscle)
 
 
-def qfrc_actuator(d: types.Data) -> torch.Tensor:
+def qfrc_actuator(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_actuator)
 
 
-def qfrc_limit(d: types.Data) -> torch.Tensor:
+def qfrc_limit(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_limit)
 
 
-def subtree_com_positions(d: types.Data) -> torch.Tensor:
+def subtree_com_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.subtree_com)
 
 
 # -- Muscles ---
-def muscle_activations(d: types.Data) -> torch.Tensor:
+def muscle_activations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.m_act)
 
 
-def muscle_activations_dot(d: types.Data) -> torch.Tensor:
+def muscle_activations_dot(d: Data) -> torch.Tensor:
     return wp.to_torch(d.m_act_dot)
 
 
-def muscle_excitations(d: types.Data) -> torch.Tensor:
+def muscle_excitations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.m_excitations)
 
 
-def muscle_actuations(d: types.Data) -> torch.Tensor:
+def muscle_actuations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_actuation)
 
 
-def muscle_path_lengths(d: types.Data) -> torch.Tensor:
+def muscle_path_lengths(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_length)
 
 
-def muscle_path_velocities(d: types.Data) -> torch.Tensor:
+def muscle_path_velocities(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_velocity)
 
 
-def muscle_fiber_lengths(d: types.Data) -> torch.Tensor:
+def muscle_fiber_lengths(d: Data) -> torch.Tensor:
     return wp.to_torch(d.m_state)
 
 
-def muscle_fiber_velocities(d: types.Data) -> torch.Tensor:
+def muscle_fiber_velocities(d: Data) -> torch.Tensor:
     return wp.to_torch(d.m_state_dot)
 
 
-def muscle_powers(d: types.Data) -> torch.Tensor:
+def muscle_powers(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_metabolic)
 
 
-def muscle_moment_arms(d: types.Data) -> torch.Tensor:
+def muscle_moment_arms(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_moment_arm)
 
 
-def muscle_metadata_np(m: types.Model) -> np.ndarray:
+def muscle_metadata_np(m: Model) -> np.ndarray:
     return m.muscle_metadata.numpy()
 
 
-def muscle_length_info_np(d: types.Data) -> np.ndarray:
+def muscle_length_info_np(d: Data) -> np.ndarray:
     return d.muscle_length_info.numpy()
 
 
-def muscle_velocity_info_np(d: types.Data) -> np.ndarray:
+def muscle_velocity_info_np(d: Data) -> np.ndarray:
     return d.muscle_velocity_info.numpy()
 
 
-def site_positions(d: types.Data) -> torch.Tensor:
+def site_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.site_xpos)
 
 
-def muscle_site_adr(m: types.Model) -> torch.Tensor:
+def muscle_site_adr(m: Model) -> torch.Tensor:
     return wp.to_torch(m.muscle_pts_adr)
 
 
-def muscle_site_num(m: types.Model) -> torch.Tensor:
+def muscle_site_num(m: Model) -> torch.Tensor:
     return wp.to_torch(m.muscle_pts_num)
 
 
 # --- Actuators ---
-def actuator_activations(d: types.Data) -> torch.Tensor:
+def actuator_activations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.a_act)
 
 
-def actuator_excitations(d: types.Data) -> torch.Tensor:
+def actuator_excitations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.a_excitations)
 
 
-def actuator_metadata_np(m: types.Model) -> np.ndarray:
+def actuator_metadata_np(m: Model) -> np.ndarray:
     return m.actuator_metadata.numpy()
 
 
 # --- Visuals ---
-def get_visual_positions(d: types.Data) -> torch.Tensor:
+def get_visual_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.vis_X)
 
 
-def get_visual_rotations(d: types.Data) -> torch.Tensor:
+def get_visual_rotations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.vis_xquat)
 
 
 # --- Colliders ---
-def get_collider_types(m: types.Model) -> torch.Tensor:
+def get_collider_types(m: Model) -> torch.Tensor:
     return wp.to_torch(m.geom_type)
 
 
-def get_collider_sizes(m: types.Model) -> torch.Tensor:
+def get_collider_sizes(m: Model) -> torch.Tensor:
     return wp.to_torch(m.geom_size)
 
 
-def collider_stiffness(m: types.Model) -> torch.Tensor:
+def collider_stiffness(m: Model) -> torch.Tensor:
     return wp.to_torch(m.geom_stiffness)
 
 
-def collider_dissipation(m: types.Model) -> torch.Tensor:
+def collider_dissipation(m: Model) -> torch.Tensor:
     return wp.to_torch(m.geom_dissipation)
 
 
-def collider_priority(m: types.Model) -> torch.Tensor:
+def collider_priority(m: Model) -> torch.Tensor:
     return wp.to_torch(m.geom_priority)
 
 
-def collider_friction(m: types.Model) -> torch.Tensor:
+def collider_friction(m: Model) -> torch.Tensor:
     return wp.to_torch(m.geom_friction)
 
 
-def collider_transition_velocity(m: types.Model) -> torch.Tensor:
+def collider_transition_velocity(m: Model) -> torch.Tensor:
     return wp.to_torch(m.geom_transition_velocity)
 
 
-def get_collider_positions(d: types.Data) -> torch.Tensor:
+def get_collider_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.geom_X)
 
 
-def collider_forces(d: types.Data) -> torch.Tensor:
+def collider_forces(d: Data) -> torch.Tensor:
     return wp.to_torch(d.geom_cforce)
 
 
-def get_collider_rotations(d: types.Data) -> torch.Tensor:
+def get_collider_rotations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.geom_xquat)
 
 
-def grf(d: types.Data) -> torch.Tensor:
+def grf(d: Data) -> torch.Tensor:
     return wp.to_torch(d.grf)
 
 
-def joint_moments(d: types.Data) -> torch.Tensor:
+def joint_moments(d: Data) -> torch.Tensor:
     return wp.to_torch(d.joint_moments)

@@ -2,10 +2,11 @@ from dataclasses import dataclass
 from dataclasses import fields
 
 import warp as wp
-from msk_warp import MobilizerType
+from msk_warp import MobilizerType, GeomType
 
 GROUND_PARENT = "N/A"
 GROUND = "ground"
+NO_DOF = "no_dof"  # for transform axes that don't depend on a DOF, use this as a placeholder
 
 
 @dataclass
@@ -23,7 +24,8 @@ class JointData:
     child_body_name: str
 
     mob_type: MobilizerType
-    num_coordinates: int
+    coordinates: list[str]
+    num_coordinates: int  # != len(coordinates) if quaternion is used in mobilizer
     num_speeds: int
 
     # Transform from parent body to joint frame, mobilizer frame to child frame
@@ -40,43 +42,53 @@ class VisualData:
     mesh_file: str
 
     transform: wp.transform
-    scale_factors: wp.vec3
+    scale_factors: tuple[float, float, float]
 
 
 @dataclass
-class ColliderData:
+class GeomData:
     name: str
     body_name: str
+
+    geom_type: GeomType
     transform: wp.transform
+    size: wp.vec3
+    aabb: wp.vec3
+    rbound: float
+
+    friction: wp.vec3
+    stiffness: float
+    dissipation: float
+    transition_velocity: float
+    priority: int
 
 
 @dataclass
-class Function:
+class FunctionData:
     pass
 
 
 @dataclass
-class LinearFunctionData(Function):
-    mb: tuple[int, int]
-    qpos_adr: int
+class LinearFunctionData(FunctionData):
+    slope: float
+    intercept: float
 
 
 @dataclass
-class ConstantFunctionData(Function):
-    c: float
+class ConstantFunctionData(FunctionData):
+    value: float
 
 
 @dataclass
-class PolynomialFunctionData(Function):
+class PolynomialFunctionData(FunctionData):
     coefficients: list[int]
-    qpos_adr: list[int]
 
 
 @dataclass
 class TransformAxisData:
-    coordinates: list[str]
+    coordinate: str
     axis: wp.vec3
-    function: Function
+    function: FunctionData
 
 
 @dataclass
@@ -103,6 +115,7 @@ GROUND_JOINT = JointData(
     child_body_name=GROUND,
 
     mob_type=MobilizerType.WORLD,
+    coordinates=[],
     num_coordinates=0,
     num_speeds=0,
 
@@ -116,9 +129,6 @@ def dataclass_list_transpose(data_list: list[dataclass], cls: type) -> dict[str,
     """
     Convert a list of dataclass instances into a dict where each attribute becomes a list of that attribute.
     """
-    if not data_list:
-        raise ValueError("Input list is empty")
-
     result = {f.name: [] for f in fields(cls)}
 
     for obj in data_list:
