@@ -1,7 +1,7 @@
 import opensim as osim
 
 from msk_warp.utils.converted_objects import *
-from msk_warp.utils.physical_frame_helper import get_body_name_of_frame, extract_transform_from_frame
+from msk_warp.utils.physical_frame_helper import get_body_name_of_frame, extract_frame_transform_from_base_frame
 from msk_warp.utils.property_helper import extract_vec3
 from msk_warp.utils.osim_types import OSimType
 
@@ -22,7 +22,7 @@ def convert_visuals(model: osim.Model) -> list[VisualData]:
             # Get the body and transform of the attached geometry
             frame = geom.getFrame()
             body_name = get_body_name_of_frame(frame)
-            transform = extract_transform_from_frame(frame)
+            transform = extract_frame_transform_from_base_frame(frame)
 
             # Mesh file, scale factors
             mesh_file = mesh.get_mesh_file()

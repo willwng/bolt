@@ -1,4 +1,5 @@
 from .converted_objects import JointData, BodyData
+from msk_warp.utils.converted_objects import GROUND_BODY
 
 
 class KinematicTreeNode:
@@ -16,11 +17,17 @@ class KinematicTreeNode:
 
     def verify(self) -> bool:
         """ returns true if a joint exists for all non-root nodes """
-        if self.joint is None and self.name != "ground":
+        if self.joint is None and self.body != GROUND_BODY:
             raise ValueError(f"Node '{self.name}' does not have an associated joint.")
         for child in self.children:
             child.verify()
         return True
+
+    def get_children_no_roots(self) -> list["KinematicTreeNode"]:
+        """ Returns a list of direct children, unless this node is ground in which case it returns an empty list """
+        if self.body == GROUND_BODY:
+            return []
+        return self.children
 
 
 class KinematicTree:
@@ -69,12 +76,6 @@ class KinematicTree:
         self.root.verify()
         return
 
-    def forward_ordering(self) -> list[KinematicTreeNode]:
-        """ Return a list of nodes in forward kinematic order, ignoring ground """
-        ordering = []
-        self._dfs(self.root, callback=lambda node: ordering.append(node))
-        return ordering
-
     def create_body_tree(self, names_only: bool = True) -> list[list]:
         """ Returns a list such that for each index i of the list, contains the nodes at that tree level/depth"""
         levels = []
@@ -89,6 +90,18 @@ class KinematicTree:
 
         add_to_levels(self.root)
         return levels
+
+    def forward_ordering(self) -> list[KinematicTreeNode]:
+        """ Return a list of nodes in forward kinematic order, ignoring ground """
+        # For a simple DFS ordering:
+        # ordering = []
+        # self._dfs(self.root, callback=lambda node: ordering.append(node))
+
+        # However, it's probably more memory efficient to pack bodies in the same level together
+        body_tree_levels = self.create_body_tree(names_only=False)
+        ordering = [node for level in body_tree_levels for node in level]
+        return ordering
+
 
     def render(self):
         """ Optionally render a graphviz of the tree """

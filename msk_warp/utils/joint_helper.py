@@ -3,7 +3,7 @@ import msk_warp.utils.physical_frame_helper as physical_frame_helper
 from msk_warp import MobilizerType
 from .converted_objects import JointData, GROUND, GROUND_PARENT, NO_DOF
 from .osim_types import OSimType
-from .physical_frame_helper import extract_transform_from_frame
+from .physical_frame_helper import extract_frame_transform_from_base_frame
 from .property_helper import extract_value_from_prop, extract_vec3
 from .python_util import string_list_to_ordering
 
@@ -42,13 +42,19 @@ def get_joint_child_body_name(joint: OSimType.Joint) -> str:
     return child_body_name
 
 
-def get_mobilizer_type(joint: OSimType.Joint, root_free: bool) -> tuple[MobilizerType, int, int]:
+def is_free_joint(joint: OSimType.Joint) -> bool:
+    """ Returns true if the joint is a free joint (i.e. a custom joint from ground to root), false otherwise """
+    joint_class = joint.getConcreteClassName()
+    return joint_class == "CustomJoint" and get_joint_parent_body_name(joint) == GROUND
+
+
+def get_mobilizer_type(joint: OSimType.Joint) -> tuple[MobilizerType, int, int]:
     joint_class = joint.getConcreteClassName()
     # Custom joint from ground to root may be a free or weld joint
     if joint_class == "CustomJoint" and get_joint_parent_body_name(joint) == GROUND:
-        return joint_conversion["FreeJoint"] if root_free else joint_conversion["WeldJoint"]
+        return joint_conversion["FreeJoint"]
 
-    # Get proper number of coordinates and speeds for custom joints
+    # Get proper number of coordinates for custom joints. num coordinates should be equal to num speeds
     if joint_class == "CustomJoint":
         return MobilizerType.CUSTOM, joint.numCoordinates(), joint.numCoordinates()
 
@@ -80,9 +86,9 @@ def get_coordinates(joint: OSimType.Joint) -> list[str]:
     return coordinates
 
 
-def convert_joint(joint: OSimType.Joint, root_free: bool) -> JointData:
+def convert_joint(joint: OSimType.Joint) -> JointData:
     """ Converts an OpenSim joint to the relevant JointData """
-    mob_type, num_coordinates, num_speeds = get_mobilizer_type(joint, root_free)
+    mob_type, num_coordinates, num_speeds = get_mobilizer_type(joint)
 
     return JointData(
         name=joint.getName(),
@@ -94,16 +100,16 @@ def convert_joint(joint: OSimType.Joint, root_free: bool) -> JointData:
         num_coordinates=num_coordinates,
         num_speeds=num_speeds,
 
-        transform_PF=extract_transform_from_frame(joint.getParentFrame()),
-        transform_MB=wp.transform_inverse(extract_transform_from_frame(joint.getChildFrame())),
+        transform_PF=extract_frame_transform_from_base_frame(joint.getParentFrame()),
+        transform_MB=wp.transform_inverse(extract_frame_transform_from_base_frame(joint.getChildFrame())),
         extra_info=get_extra_info(joint)
     )
 
 
 def get_joint_parent_id(joint: JointData, ordered_bodies_names: list[str]):
-    """ Returns the id of the parent body of a joint, or -1 if the body is ground """
+    """ Returns the id of the parent body of a joint, or 0 if the body is ground """
     if joint.parent_body_name == GROUND_PARENT:
-        return -1
+        return 0
     return ordered_bodies_names.index(joint.parent_body_name)
 
 
@@ -138,6 +144,11 @@ def compute_qpos_dof_lookups(joints: list[JointData]) -> tuple[dict[str, int], d
     return qpos_adr, dof_adr
 
 
+def compute_num_custom_joints(joints: list[JointData]) -> int:
+    """ Computes the number of custom joints in the model """
+    return len(list(filter(lambda joint: joint.mob_type == MobilizerType.CUSTOM, joints)))
+
+
 def compute_mobilizer_custom_joint_index(joints: list[JointData]) -> tuple[list[int], list[int]]:
     """
     Returns:
@@ -147,10 +158,10 @@ def compute_mobilizer_custom_joint_index(joints: list[JointData]) -> tuple[list[
     mob_to_cst_index = [-1 for _ in joints]
     cst_to_mob_index = []
     curr_cst_idx = 0
-    for i, joint in enumerate(joints):
+    for mob_idx, joint in enumerate(joints):
         if joint.mob_type == MobilizerType.CUSTOM:
-            mob_to_cst_index[curr_cst_idx] = curr_cst_idx
-            cst_to_mob_index.append(i)
+            mob_to_cst_index[mob_idx] = curr_cst_idx
+            cst_to_mob_index.append(mob_idx)
             curr_cst_idx += 1
     return mob_to_cst_index, cst_to_mob_index
 
@@ -169,20 +180,16 @@ def _retrieve_all_qpos(joint: JointData) -> list[str]:
     return joint_coordinates
 
 
-def get_dof_coordinates(joints: list[JointData]) -> list[str]:
-    """ Get the coordinate names of all the dofs in the model, in order """
-    dof_coordinates = []
+def get_global_qpos_ordering_lookup(joints: list[JointData]) -> dict[str, int]:
+    """ Map from coordinate name -> global qpos coordinate ordering """
+    global_qpos_ordering = {}
+    curr_idx = 0
     for joint in joints:
-        dof_coordinates.extend(joint.coordinates)
-    return dof_coordinates
-
-
-def get_qpos_coordinates(joints: list[JointData]) -> list[str]:
-    """ Get the coordinate names of all the qpos in the model, in order """
-    qpos_coordinates = []
-    for joint in joints:
-        qpos_coordinates.extend(_retrieve_all_qpos(joint))
-    return qpos_coordinates
+        for coord in _retrieve_all_qpos(joint):
+            global_qpos_ordering[coord] = curr_idx
+            curr_idx += 1
+    global_qpos_ordering[NO_DOF] = -1
+    return global_qpos_ordering
 
 
 def get_relative_qpos_ordering_lookup(joints: list[JointData]) -> dict[str, int]:
@@ -193,6 +200,18 @@ def get_relative_qpos_ordering_lookup(joints: list[JointData]) -> dict[str, int]
             relative_qpos_ordering[coord] = i
     relative_qpos_ordering[NO_DOF] = -1
     return relative_qpos_ordering
+
+
+def get_global_dof_ordering_lookup(joints: list[JointData]) -> dict[str, int]:
+    """ Map from coordinate name -> global dof coordinate ordering """
+    global_qpos_ordering = {}
+    curr_idx = 0
+    for joint in joints:
+        for coord in joint.coordinates:
+            global_qpos_ordering[coord] = curr_idx
+            curr_idx += 1
+    global_qpos_ordering[NO_DOF] = -1
+    return global_qpos_ordering
 
 
 def get_relative_dof_ordering_lookup(joints: list[JointData]) -> dict[str, int]:

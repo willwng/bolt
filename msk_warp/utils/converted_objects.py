@@ -6,7 +6,7 @@ from msk_warp import MobilizerType, GeomType
 
 GROUND_PARENT = "N/A"
 GROUND = "ground"
-NO_DOF = "no_dof"  # for transform axes that don't depend on a DOF, use this as a placeholder
+NO_DOF = "__NO_DOF"  # for transform axes that don't depend on a DOF, use this as a placeholder
 
 
 @dataclass

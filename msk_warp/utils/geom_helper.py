@@ -1,7 +1,7 @@
 import opensim as osim
 
 from msk_warp.utils.converted_objects import *
-from msk_warp.utils.physical_frame_helper import get_body_name_of_frame, transform_from_osim_transform
+from msk_warp.utils.physical_frame_helper import get_body_name_of_frame, wp_transform_from_osim_transform
 
 
 def collect_geom_type_sizes(geom: osim.ContactGeometry) -> tuple[GeomType, wp.vec3, wp.vec3, float]:
@@ -20,7 +20,7 @@ def convert_contact_geometry(geom: osim.ContactGeometry) -> GeomData:
     X_BF = frame.findTransformInBaseFrame()
     X_FP = geom.getTransform()
     X_BP = X_BF.compose(X_FP)
-    transform = transform_from_osim_transform(X_BP)
+    transform = wp_transform_from_osim_transform(X_BP)
 
     geom_type, size, aabb, rbound = collect_geom_type_sizes(geom)
 

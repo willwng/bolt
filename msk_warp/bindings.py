@@ -6,22 +6,20 @@ import msk_warp._src.forward as forward
 import msk_warp._src.math as math
 import msk_warp.utils.body_helper as body_helper
 import msk_warp.utils.function_helper as function_helper
-import msk_warp.utils.geom_helper as geom_helper
 import msk_warp.utils.joint_helper as joint_helper
 import msk_warp.utils.spatial_transform_helper as spatial_transform_helper
 import msk_warp.utils.visual_helper as visual_helper
-
 from msk_warp import Model, Data, MeshLoadResult, GeomType, IntegratorType, Option, ContactType, LimitType, \
-    ActivationType, MetabolicOptions, MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, \
+    ActivationType, MobilizerType, MetabolicOptions, MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, \
+    IntegratorDotScratch, \
     MuscleLengthInfo, FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, \
     vec5
 from msk_warp.render.renderer import Renderer, RendererType
 from msk_warp.utils.converted_objects import *
 from msk_warp.utils.converted_objects import dataclass_list_transpose
-from msk_warp.utils.geom_helper import convert_geoms
 from msk_warp.utils.kinematic_tree import KinematicTree
-from msk_warp.utils.python_util import string_list_to_ordering, reorder_list_for_ordering, apply_map_to_list, gather, \
-    exclusive_sum
+from msk_warp.utils.python_util import string_list_to_ordering, apply_map_to_list, gather, \
+    exclusive_sum, create_nested_list
 from msk_warp.utils.warp_util import to_warp_array, make_full, make_zero
 
 
@@ -100,7 +98,6 @@ def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:
 def load_model(
         model_path: str,
         n_worlds: int,
-        root_free: bool,
         integrator: IntegratorType,
         polynomial_data_path: str = None,
         render_kinematic_tree: bool = False,
@@ -116,7 +113,7 @@ def load_model(
 
     # Parse bodies, joints, collision geometry, visuals
     converted_bodies = [GROUND_BODY] + [body_helper.convert_body(body) for body in model.getBodyList()]
-    converted_joints = [GROUND_JOINT] + [joint_helper.convert_joint(joint, root_free) for joint in model.getJointList()]
+    converted_joints = [GROUND_JOINT] + [joint_helper.convert_joint(joint) for joint in model.getJointList()]
     # converted_geoms = geom_helper.convert_geoms(model)
     converted_geoms = []  # TODO
     converted_visuals = visual_helper.convert_visuals(model)
@@ -159,29 +156,28 @@ def load_model(
     body_tree_warp = tuple([to_warp_array(level, dtype=int) for level in body_tree_indices])
 
     # Get all the children of each body
-    body_children = [node.children for node in tree_ordering]
+    body_children = [node.get_children_no_roots() for node in tree_ordering]
     body_children_names = [[node.body.name for node in children] for children in body_children]
     body_children_indices = [apply_map_to_list(children, body_ordering) for children in body_children_names]
     # Flatten list, compute number of children, get address
-    body_children_flattened = [child_idx for children_indices in body_children_indices for child_idx in children_indices]
+    body_children_flattened = [child_idx for children_indices in body_children_indices for child_idx in
+                               children_indices]
     body_children_num = [len(children) for children in body_children_indices]
     body_children_adr = exclusive_sum(body_children_num)
 
     # Starting address of joint's coordinates/speeds
     mob_qpos_adr, mob_dof_adr = joint_helper.compute_qpos_dof_adr(ordered_joints)
 
-    # Ordered list of coordinate names (in qpos), and coordinate names (in qvel). Differs if quaternion is used
-    ordered_qpos_coordinates = joint_helper.get_qpos_coordinates(ordered_joints)
-    ordered_dof_coordinates = joint_helper.get_dof_coordinates(ordered_joints)
-    # Create the ordering lookup for qpos, dof.
-    qpos_ordering = string_list_to_ordering(ordered_qpos_coordinates)
-    dof_ordering = string_list_to_ordering(ordered_dof_coordinates)
-    # Ordering lookup for qpos, dof relative to each joint
+    # Create the *global* ordering lookup for each coordinate in qpos, dof.
+    qpos_ordering = joint_helper.get_global_qpos_ordering_lookup(ordered_joints)
+    dof_ordering = joint_helper.get_global_dof_ordering_lookup(ordered_joints)
+    # Ordering lookup for qpos, dof relative to each joint. only really need one of these
     relative_qpos_ordering = joint_helper.get_relative_qpos_ordering_lookup(ordered_joints)
     relative_dof_ordering = joint_helper.get_relative_dof_ordering_lookup(ordered_joints)
 
     # Index of mobilizer -> index of custom joint (-1 if not custom)
     mob_to_cst_idx, cst_to_mob_idx = joint_helper.compute_mobilizer_custom_joint_index(ordered_joints)
+    n_custom_jnts = joint_helper.compute_num_custom_joints(ordered_joints)
 
     # Spatial transforms: flatten all the axes
     ordered_transform_axes = spatial_transform_helper.get_flattened_transform_axes(ordered_spatial_transforms)
@@ -242,7 +238,6 @@ def load_model(
     nsite = 0  # fixme
     nmuscle = 0  # fixme
     nactuators = 0  # fixme
-    n_custom_jnts = 0  # fixme
     geom_type_pair_count = []  # fixme
     nxn_geom_pair_filtered = []
     nxn_pairid_filtered = []
@@ -250,12 +245,19 @@ def load_model(
 
     # fixme
     qpos0 = [0.0] * nq
+    root_free = MobilizerType.FREE in [joint.mob_type for joint in ordered_joints]
     if root_free:
-        qpos0[0:3] = [0.0, 1.5, 0.0]
-        qpos0[3] = 1
+        qpos0[0:4] = [0.0, 0.0, 0.0, 1.0]  # Root orientation (quaternion)
     qvel0 = [0.0] * nv
 
     dt = 1.0 / 500.0
+
+    # Flatten out entries of dataclasses into lists
+    body_data = dataclass_list_transpose(ordered_bodies, cls=BodyData)
+    joint_data = dataclass_list_transpose(ordered_joints, cls=JointData)
+    txfm_data = dataclass_list_transpose(ordered_transform_axes, cls=TransformAxisData)
+    geom_data = dataclass_list_transpose(converted_geoms, cls=GeomData)
+    vis_data = dataclass_list_transpose(converted_visuals, cls=VisualData)
 
     # Gather functions
     linear_fns, linear_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=LinearFunctionData)
@@ -266,21 +268,20 @@ def load_model(
 
     # Get all "relative" coordinate indices for each transform axis
     txfm_dofs = spatial_transform_helper.get_txfm_coordinate_names(ordered_transform_axes)
-    txfm_dofs_relative_idx = apply_map_to_list(txfm_dofs, relative_dof_ordering)
+    txfm_qpos_relative_idx = apply_map_to_list(txfm_dofs, relative_dof_ordering)
+    txfm_qpos_global_idx = apply_map_to_list(txfm_dofs, qpos_ordering)
     # Now, use gather to find the relative coordinate indices used for each function
-    linear_fns_dof_relative_idx = gather(txfm_dofs_relative_idx, linear_fns_idx)
-    poly_fns_dof_relative_idx = gather(txfm_dofs_relative_idx, poly_fns_idx)
+    linear_fns_qpos_global_idx = gather(txfm_qpos_global_idx, linear_fns_idx)
+    poly_fns_qpos_global_idx = gather(txfm_qpos_global_idx, poly_fns_idx)
 
-    # Flatten out entries of dataclasses into lists
-    body_data = dataclass_list_transpose(ordered_bodies, cls=BodyData)
-    joint_data = dataclass_list_transpose(ordered_joints, cls=JointData)
-    txfm_data = dataclass_list_transpose(ordered_transform_axes, cls=TransformAxisData)
-    geom_data = dataclass_list_transpose(converted_geoms, cls=GeomData)
-    vis_data = dataclass_list_transpose(converted_visuals, cls=VisualData)
+    # We need to reshape the transform data to be (num_custom_joints, 6)
+    cst_txfm_axes = create_nested_list(txfm_data["axis"], num_per_sublist=6)
+    cst_txfm_dof = create_nested_list(txfm_qpos_relative_idx, num_per_sublist=6)
 
     linear_fn_mb = function_helper.get_linear_fn_mb(linear_fns)
     const_fn_vals = function_helper.get_const_fn_vals(const_fns)
     poly_coeffs = function_helper.get_flattened_poly_coeffs(poly_fns)
+    poly_coeffs_num, poly_coeffs_adr = function_helper.get_poly_coeffs_num_adr(poly_fns)
 
     geom_body_id = apply_map_to_list(geom_data["body_name"], body_ordering)
     vis_body_id = apply_map_to_list(vis_data["body_name"], body_ordering)
@@ -323,17 +324,19 @@ def load_model(
 
         mob_to_cst_id=to_warp_array(mob_to_cst_idx, dtype=int),
         cst_to_mob_id=to_warp_array(cst_to_mob_idx, dtype=int),
-        cst_txfm_axes=to_warp_array(txfm_data["axis"], dtype=wp.vec3),
-        cst_txfm_dof=to_warp_array(txfm_dofs_relative_idx, dtype=int),
+        cst_txfm_axes=to_warp_array(cst_txfm_axes, dtype=wp.vec3),
+        cst_txfm_dof=to_warp_array(cst_txfm_dof, dtype=int),
 
         linear_fn_mb=to_warp_array(linear_fn_mb, dtype=wp.vec2),
         const_fn_c=to_warp_array(const_fn_vals, dtype=float),
         poly_fn_coeff=to_warp_array(poly_coeffs, dtype=float),
+        poly_fn_coeff_adr=to_warp_array(poly_coeffs_adr, dtype=int),
+        poly_fn_coeff_num=to_warp_array(poly_coeffs_num, dtype=int),
         linear_fn_adr=to_warp_array(linear_fns_idx, dtype=int),
         const_fn_adr=to_warp_array(const_fns_idx, dtype=int),
         poly_fn_adr=to_warp_array(poly_fns_idx, dtype=int),
-        linear_fn_qpos_adr=to_warp_array(linear_fns_dof_relative_idx, dtype=int),
-        poly_fn_qpos_adr=to_warp_array(poly_fns_dof_relative_idx, dtype=int),
+        linear_fn_qpos_adr=to_warp_array(linear_fns_qpos_global_idx, dtype=int),
+        poly_fn_qpos_adr=to_warp_array(poly_fns_qpos_global_idx, dtype=int),
 
         # limit_dof_range=to_warp_array(dof_limit_ranges, dtype=wp.vec2),
         # limit_dof_adr=to_warp_array(dof_limit_adr, dtype=int),
@@ -565,6 +568,7 @@ def load_model(
                 scale=visual.scale_factors
             )
         )
+
     return ModelLoadResult(
         model=m,
         data=d,

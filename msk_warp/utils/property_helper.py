@@ -6,7 +6,9 @@ def extract_vector(v: OSimType.Vector) -> list[int]:
 
 
 def extract_quat(q: OSimType.Quat) -> tuple[float, float, float, float]:
-    return q.get(0), q.get(1), q.get(2), q.get(3)
+    """ Extracts components of an OpenSim Quat, returning as (x, y, z, w) format """
+    qw, qx, qy, qz = q.get(0), q.get(1), q.get(2), q.get(3)
+    return qx, qy, qz, qw
 
 
 def extract_vec3(v: OSimType.Vec3) -> tuple[float, float, float]:

@@ -1,4 +1,4 @@
-from typing import Type, TypeVar
+from typing import TypeVar
 
 T = TypeVar("T")
 V = TypeVar("V")
@@ -32,3 +32,14 @@ def exclusive_sum(l: list[int]) -> list[int]:
         exclusive_sum_list.append(running_sum)
         running_sum += v
     return exclusive_sum_list
+
+
+def create_nested_list(l: list[T], num_per_sublist: int) -> list[list[T]]:
+    """ Creates a nested list from a flat list, where each sublist has num_per_sublist elements """
+    if len(l) % num_per_sublist != 0:
+        raise ValueError(f"List length {len(l)} is not divisible by num_per_sublist {num_per_sublist}")
+
+    nested_list = []
+    for i in range(0, len(l), num_per_sublist):
+        nested_list.append(l[i:i + num_per_sublist])
+    return nested_list

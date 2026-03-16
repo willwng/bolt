@@ -333,7 +333,7 @@ class MuscleDynamicsInfo:
 class MeshLoadResult:
     """ Result of loading a mesh from file """
     file: str
-    scale: list[float]
+    scale: tuple[float, float, float]
 
 
 @dataclass
@@ -379,7 +379,9 @@ class Model:
      * custom functions *
       linear_fn_mb: slope, intercept                           (nlinearfn, vec2)
       const_fn_c: constant value                               (nconstfn,)
-      poly_fn_coeff: polynomial coefficients                   (npolyfn, (max_poly_order+1),)
+      poly_fn_coeff: polynomial coefficients                   (total number of coefficients)
+      poly_fn_coeff_adr: starting adr in coeffs                (npolyfn,)
+      poly_fn_coeff_num: num coefficients for each poly fn     (npolyfn,)
       linear_fn_adr: "global" fn address for each linear fn    (nlinearfn,)
       const_fn_adr: "global" fn address for each const fn      (nconstfn,)
       poly_fn_adr: "global" fn address for each polynomial fn  (npolyfn,)
@@ -466,7 +468,9 @@ class Model:
 
     linear_fn_mb: array("nlinearfn", wp.vec2)
     const_fn_c: array("nconstfn", float)
-    poly_fn_coeff: array("npolyfn" ,"(max_poly_order+1)", float)
+    poly_fn_coeff: array("total_coeff", float)
+    poly_fn_coeff_adr: array("npolyfn", int)
+    poly_fn_coeff_num: array("npolyfn", int)
     linear_fn_adr: array("nlinearfn", int)
     const_fn_adr: array("nconstfn", int)
     poly_fn_adr: array("npolyfn", int)

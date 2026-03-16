@@ -2,6 +2,7 @@ import opensim as osim
 import warp as wp
 
 from msk_warp.utils.converted_objects import SpatialTransformData, TransformAxisData, NO_DOF
+from msk_warp.utils.joint_helper import is_free_joint
 from msk_warp.utils.function_helper import convert_function
 from msk_warp.utils.property_helper import extract_vec3, extract_property_string_list
 from msk_warp.utils.osim_types import OSimType
@@ -33,6 +34,9 @@ def convert_spatial_transforms(model: osim.Model) -> list[SpatialTransformData]:
     custom_joints = filter(lambda j: j.getConcreteClassName() == "CustomJoint", model.getJointList())
     custom_joints = [OSimType.CustomJoint.safeDownCast(j) for j in custom_joints]
     for joint in custom_joints:
+        # Skip the "CustomJoint" representing the free joint between ground and root
+        if is_free_joint(joint):
+            continue
         spatial_transform = joint.getSpatialTransform()
         spatial_transform_data.append(
             SpatialTransformData(

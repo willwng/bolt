@@ -101,7 +101,7 @@ def calcX_FM(
     elif mobtype == MobilizerType.WELD:
         return wp.transform(wp.vec3(), wp.quat_identity())
 
-    elif mobtype == MobilizerType.DUMMY:
+    elif mobtype == MobilizerType.WORLD:
         return wp.transform(wp.vec3(), wp.quat_identity())
     else:
         assert False, f"Unknown joint type {mobtype}"
@@ -195,8 +195,12 @@ def calc_across_joint_velocity_jacobian(
             rot_dof_idx_i = cst_txfm_dof[cst_id, i]
             trans_dof_idx_i = cst_txfm_dof[cst_id, i + 3]
 
-            F_rot[i, rot_dof_idx_i] = df_rot_i
-            F_trans[i, trans_dof_idx_i] = df_trans_i
+            # -1 means there are no dependent dofs (i.e., constant function)
+            if rot_dof_idx_i != -1:
+                F_rot[i, rot_dof_idx_i] = df_rot_i
+
+            if trans_dof_idx_i != -1:
+                F_trans[i, trans_dof_idx_i] = df_trans_i
 
         # A = [ a_trans1, a_trans2, a_trans3 ]
         A = wp.matrix_from_cols(trans_ax1, trans_ax2, trans_ax3)
@@ -216,7 +220,7 @@ def calc_across_joint_velocity_jacobian(
 
     elif mobtype == MobilizerType.WELD:
         pass
-    elif mobtype == MobilizerType.DUMMY:
+    elif mobtype == MobilizerType.WORLD:
         pass
     else:
         assert False, f"Unknown joint type {mobtype}"
@@ -330,9 +334,11 @@ def calc_across_joint_velocity_jacobian_dot(
             rot_dof_idx_i = cst_txfm_dof[cst_id, i]
             trans_dof_idx_i = cst_txfm_dof[cst_id, i + 3]
 
-            F_rot[i, rot_dof_idx_i] = df_rot_i
-            Fqdot_rot[i, rot_dof_idx_i] = d2f_rot_i * qv[rot_dof_idx_i]
-            Fqdot_trans[i, trans_dof_idx_i] = d2f_trans_i * qv[trans_dof_idx_i]
+            if rot_dof_idx_i != -1:
+                F_rot[i, rot_dof_idx_i] = df_rot_i
+                Fqdot_rot[i, rot_dof_idx_i] = d2f_rot_i * qv[rot_dof_idx_i]
+            if trans_dof_idx_i != -1:
+                Fqdot_trans[i, trans_dof_idx_i] = d2f_trans_i * qv[trans_dof_idx_i]
 
         # A = [ a_trans1, a_trans2, a_trans3 ]
         A = wp.matrix_from_cols(trans_ax1, trans_ax2, trans_ax3)
@@ -363,7 +369,7 @@ def calc_across_joint_velocity_jacobian_dot(
 
     elif mobtype == MobilizerType.WELD:
         pass
-    elif mobtype == MobilizerType.DUMMY:
+    elif mobtype == MobilizerType.WORLD:
         pass
     else:
         assert False, f"Unknown joint type {mobtype}"

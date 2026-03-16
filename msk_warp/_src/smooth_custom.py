@@ -59,9 +59,9 @@ def _eval_poly_fn(
         # Model in:
         poly_fn_adr: wp.array(dtype=int),
         poly_fn_qpos_adr: wp.array(dtype=int),
-        poly_fn_coeff: wp.array2d(dtype=float),
-        # In:
-        max_poly_order: int,
+        poly_fn_coeff: wp.array(dtype=float),
+        poly_fn_coeff_adr: wp.array(dtype=int),
+        poly_fn_coeff_num: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
@@ -74,12 +74,16 @@ def _eval_poly_fn(
     qposadr = poly_fn_qpos_adr[polyid]
     functionid = poly_fn_adr[polyid]
     q = qpos_in[worldid, qposadr]
-    coeffs = poly_fn_coeff[polyid]
+
+    # Number of coefficients, address in flatteneed array, order
+    coeffs_num = poly_fn_coeff_num[polyid]
+    coeffs_adr = poly_fn_coeff_adr[polyid]
+    order = coeffs_num - 1
 
     # Horner's method
     f, df, d2f = float(0.0), float(0.0), float(0.0)
-    for i in range(max_poly_order + 1):
-        c = coeffs[i]
+    for i in range(order + 1):
+        c = poly_fn_coeff[coeffs_adr + i]
         d2f = d2f * q + df
         df = df * q + f
         f = f * q + c
@@ -161,9 +165,7 @@ def evaluate_cst_functions(m: Model, d: Data):
             _eval_poly_fn,
             dim=(d.nworld, m.npolyfn),
             inputs=[
-                m.poly_fn_adr, m.poly_fn_qpos_adr, m.poly_fn_coeff,
-                # m.opt.max_poly_order,
-                0, # TODO
+                m.poly_fn_adr, m.poly_fn_qpos_adr, m.poly_fn_coeff, m.poly_fn_coeff_adr, m.poly_fn_coeff_num,
                 d.integration_done, d.qpos,
             ],
             outputs=[d.cst_fn_output],
