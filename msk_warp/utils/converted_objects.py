@@ -127,6 +127,22 @@ class CoordinateLinearDamperData:
 
 
 @dataclass
+class MuscleData:
+    name: str
+
+    min_control: float
+    max_control: float
+
+    max_isometric_force: float
+    optimal_fiber_length: float
+    tendon_slack_length: float
+    pennation_angle_at_optimal: float
+    fiber_damping: float
+
+    path_points: list[SiteData]
+
+
+@dataclass
 class CoordinateLinearStopData:
     name: str
     coordinate: str

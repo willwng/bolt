@@ -41,16 +41,18 @@ def main():
         wp.clear_kernel_cache()
     if args.debug:
         wp.config.mode = "debug"
+        # wp.config.verbose = True
+        # wp.config.verbose_warnings = True
 
     # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
-    model_path = "data/osim/all_upper.osim"
+    # model_path = "data/osim/all_upper.osim"
     # model_path = "data/osim/upper_no_arms.osim"
     # model_path = "data/osim/everything.osim"
     # model_path = "data/osim/gimbal_custom.osim"
     # model_path = "data/osim/example_gait3d_pin.osim"
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
-    # model_path = "data/osim/athlete.osim"
+    model_path = "data/osim/athlete.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       integrator=msk_warp.IntegratorType.EULER_ADAPTIVE,
                                       polynomial_data_path="data/muscle_poly_info.json",
@@ -83,7 +85,7 @@ def main():
             draw_visuals=True,
             draw_colliders=False,
             draw_muscles=True,
-            draw_body_mass=True,
+            draw_body_mass=False,
             draw_beams=True
         )
         if viewer.viewer_type == RendererType.TILED:

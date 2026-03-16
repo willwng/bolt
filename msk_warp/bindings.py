@@ -9,6 +9,7 @@ import msk_warp.utils.function_helper as function_helper
 import msk_warp.utils.joint_helper as joint_helper
 import msk_warp.utils.spatial_transform_helper as spatial_transform_helper
 import msk_warp.utils.visual_helper as visual_helper
+import msk_warp.utils.muscle_helper as muscle_helper
 import msk_warp.utils.coordinate_force_helper as coordinate_force_helper
 import msk_warp.utils.site_helper as site_helper
 from msk_warp import Model, Data, MeshLoadResult, GeomType, IntegratorType, Option, ContactType, LimitType, \
@@ -20,7 +21,7 @@ from msk_warp.render.renderer import Renderer, RendererType
 from msk_warp.utils.converted_objects import *
 from msk_warp.utils.kinematic_tree import KinematicTree
 from msk_warp.utils.python_util import string_list_to_ordering, apply_map_to_list, gather, \
-    exclusive_sum, create_nested_list
+    exclusive_scan, create_nested_list
 from msk_warp.utils.warp_util import to_warp_array, make_full, make_zero
 
 
@@ -119,10 +120,12 @@ def load_model(
     converted_geoms = []  # TODO
     converted_visuals = visual_helper.convert_visuals(model)
     converted_spatial_transforms = spatial_transform_helper.convert_spatial_transforms(model)
-    converted_sites = site_helper.convert_sites(model)
     converted_dampers = coordinate_force_helper.convert_coordinate_linear_damper(model)
     converted_springs = coordinate_force_helper.convert_coordinate_linear_spring(model)
     converted_stops = coordinate_force_helper.convert_coordinate_linear_stop(model)
+    converted_muscles = muscle_helper.convert_muscles(model)
+    # any sites that aren't part of muscle paths + muscle path points. Note: muscle path points must come first
+    converted_sites = muscle_helper.flatten_sites(converted_muscles) + site_helper.convert_sites(model)
 
     # Create a lookup from body name -> body data. Needed for fast joint->body lookup
     body_name_to_body = {body.name: body for body in converted_bodies}
@@ -168,7 +171,7 @@ def load_model(
     body_children_flattened = [child_idx for children_indices in body_children_indices for child_idx in
                                children_indices]
     body_children_num = [len(children) for children in body_children_indices]
-    body_children_adr = exclusive_sum(body_children_num)
+    body_children_adr = exclusive_scan(body_children_num)
 
     # Starting address of joint's coordinates/speeds
     mob_qpos_adr, mob_dof_adr = joint_helper.compute_qpos_dof_adr(ordered_joints)
@@ -190,13 +193,15 @@ def load_model(
     nq = sum([joint.num_coordinates for joint in ordered_joints])
     nv = sum([joint.num_speeds for joint in ordered_joints])
     nb = len(ordered_bodies)
+    nmuscle = len(converted_muscles)
     ngeom = len(converted_geoms)
     nvis = len(converted_visuals)
     nsite = len(converted_sites)
     nlinearstop = len(converted_stops)
 
+    nz = nmuscle
+
     use_fn_path = False
-    nz = 0  # fixme
     # needs shapes
     opt = Option(
         gravity=-9.80665,
@@ -236,13 +241,9 @@ def load_model(
         visuals=True
     )
 
-    muscle_data = []  # fixme
-    mm = wp.array(muscle_data, dtype=MuscleMetadata)
-
     actuator_data = []  # fixme
     am = wp.array(actuator_data, dtype=ActuatorMetadata)
 
-    nmuscle = 0  # fixme
     nactuators = 0  # fixme
     geom_type_pair_count = []  # fixme
     nxn_geom_pair_filtered = []
@@ -295,12 +296,18 @@ def load_model(
     vis_body_id = apply_map_to_list(vis_data["body_name"], body_ordering)
     site_body_id = apply_map_to_list(site_data["body_name"], body_ordering)
 
+    # Joint limits
     dof_damping = coordinate_force_helper.get_dof_damping(converted_dampers, dof_ordering)
     dof_stiffness = coordinate_force_helper.get_dof_stiffness(converted_springs, dof_ordering)
     qpos_spring_rest = coordinate_force_helper.get_qpos_spring_rest(converted_springs, qpos_ordering)
-
     stop_qpos_adr = apply_map_to_list(stop_data["coordinate"], qpos_ordering)
     stop_dof_adr = apply_map_to_list(stop_data["coordinate"], dof_ordering)
+
+    # Muscles/sites
+    muscle_pts_num = muscle_helper.get_muscle_pts_num(converted_muscles)
+    muscle_pts_adr = exclusive_scan(muscle_pts_num)
+    muscle_data = muscle_helper.create_muscle_metadata(converted_muscles)
+    mm = wp.array(muscle_data, dtype=MuscleMetadata)
 
     m = Model(
         nbody=nb,
@@ -386,10 +393,9 @@ def load_model(
         site_bodyid=to_warp_array(site_body_id, dtype=int),
         site_pos=to_warp_array(site_data["offset"], dtype=wp.vec3),
 
-        # TODO!
-        muscle_pts_num=to_warp_array([], dtype=int),
-        muscle_pts_adr=to_warp_array([], dtype=int),
-        muscle_poly_coeffs=to_warp_array([], dtype=float),
+        muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
+        muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
+        muscle_poly_coeffs=to_warp_array([], dtype=float),  # TODO
         muscle_poly_adr=to_warp_array([], dtype=int),
         muscle_poly_order=to_warp_array([], dtype=int),
         muscle_poly_qpos_adr=to_warp_array([], dtype=int),

@@ -17,6 +17,11 @@ class OSimType:
 
     Body = osim.simulation.Body
 
+    Muscle = osim.simulation.Muscle
+    MillardMuscle = osim.Millard2012EquilibriumMuscle
+    ScholzPath = osim.Scholz2015GeometryPath
+    PathPoint = osim.PathPoint
+
     Vector = osim.Vector
     Vec3 = osim.simbody.Vec3
     Quat = osim.simbody.Quaternion

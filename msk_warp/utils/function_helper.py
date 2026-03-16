@@ -3,7 +3,7 @@ from msk_warp.utils.converted_objects import FunctionData, LinearFunctionData, P
     ConstantFunctionData, TransformAxisData
 from msk_warp.utils.property_helper import extract_vector
 from msk_warp.utils.osim_types import OSimType
-from msk_warp.utils.python_util import exclusive_sum
+from msk_warp.utils.python_util import exclusive_scan
 from typing import Type, TypeVar
 
 T = TypeVar("T")
@@ -59,5 +59,5 @@ def get_flattened_poly_coeffs(poly_fns: list[PolynomialFunctionData]) -> list[fl
 def get_poly_coeffs_num_adr(poly_fns: list[PolynomialFunctionData]) -> tuple[list[int], list[int]]:
     """ Returns the number of the coefficients and the starting address for each polynomial function """
     poly_coeffs_num = [len(fn.coefficients) for fn in poly_fns]
-    poly_coeffs_adr = exclusive_sum(poly_coeffs_num)
+    poly_coeffs_adr = exclusive_scan(poly_coeffs_num)
     return poly_coeffs_num, poly_coeffs_adr

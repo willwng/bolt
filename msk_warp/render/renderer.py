@@ -75,6 +75,9 @@ class Renderer:
         self.geom_types = m.geom_type.numpy()
         self.geom_sizes = m.geom_size.numpy()
         self.joint_types = m.mob_type.numpy()
+        self.muscle_data = m.muscle_data
+        self.muscle_pts_adr = m.muscle_pts_adr.numpy()
+        self.muscle_num_pts = m.muscle_pts_num.numpy()
         self.ind_beams = np.where(self.joint_types == types.MobilizerType.BEAM)[0]
         self.mob_qposadr = m.mob_qposadr.numpy()
         self.joint_extra = m.mob_extra_info.numpy()
@@ -144,17 +147,17 @@ class Renderer:
             self.renderer.render_ground()
 
             # debugging: render all sites
-            nsites = m.nsite
-            site_xpos = d.site_xpos.numpy()[wid]
-            for i in range(nsites):
-                self.renderer.render_sphere(
-                    f"site_{obj_id}",
-                    site_xpos[i],
-                    (0.0, 0.0, 0.0, 1.0),
-                    color=self.colors["site_inactive"],
-                    radius=0.01,
-                )
-                obj_id += 1
+            # nsites = m.nsite
+            # site_xpos = d.site_xpos.numpy()[wid]
+            # for i in range(nsites):
+            #     self.renderer.render_sphere(
+            #         f"site_{obj_id}",
+            #         site_xpos[i],
+            #         (0.0, 0.0, 0.0, 1.0),
+            #         color=self.colors["site_inactive"],
+            #         radius=0.01,
+            #     )
+            #     obj_id += 1
 
             # Colliders
             if self.draw_colliders:
@@ -211,30 +214,18 @@ class Renderer:
             # Muscles
             if self.draw_muscles:
                 num_muscles = m.nmuscle
-                muscle_data = m.muscle_data
-                muscle_pts_adr = m.muscle_pts_adr.numpy()
-
-                muscle_sites_active = d.muscle_active_sites.numpy()[wid]
-                muscle_pts_active_num = d.muscle_num_active.numpy()[wid]
-                # Function based path: all are drawn
-                if m.opt.use_fn_path and m.nmuscle > 0:
-                    muscle_pts_num = m.muscle_pts_num.numpy()
-                    num_pts = muscle_pts_num.sum()
-                    muscle_sites_active[:] = np.arange(num_pts)
-                    muscle_pts_active_num[:] = muscle_pts_num
-
                 site_xpos = d.site_xpos.numpy()[wid]
                 muscle_activations = d.m_act.numpy()[wid]
 
                 for i in range(num_muscles):
                     # Muscle radius
-                    mm = muscle_data[i]
+                    mm = self.muscle_data[i]
                     radius = np.sqrt(mm.max_isometric_force) / 8000.0
 
                     # Gather all active site indices for this muscle
-                    start_idx = muscle_pts_adr[i]
-                    end_idx = start_idx + muscle_pts_active_num[i]
-                    pt_inds = muscle_sites_active[start_idx:end_idx]
+                    start_idx = self.muscle_pts_adr[i]
+                    end_idx = start_idx + self.muscle_num_pts[i]
+                    pt_inds = range(start_idx, end_idx)
                     # Line segment connecting active points
                     pts_xloc = site_xpos[pt_inds]
                     color = self.activation_to_color(muscle_activations[i])

@@ -24,8 +24,8 @@ def gather(l: list[T], indices: list[int]) -> list[T]:
     return [l[i] for i in indices]
 
 
-def exclusive_sum(l: list[int]) -> list[int]:
-    """ Returns the exclusive sum of a list, where the i-th element is the sum of all elements before i in the list """
+def exclusive_scan(l: list[int]) -> list[int]:
+    """ Returns the exclusive scan of a list, where the i-th element is the sum of all elements before i in the list """
     exclusive_sum_list = []
     running_sum = 0
     for v in l:
