@@ -339,44 +339,6 @@ def articulated_inertia_sub(P1: types.ArticulatedInertia, P2: types.ArticulatedI
 
 
 @wp.func
-def atomic_add_articulated_inertia(P_dest: wp.array(dtype=types.ArticulatedInertia), idx: int,
-                                   P: types.ArticulatedInertia):
-    """ Atomically adds articulated inertia P to P_dest """
-    wp.atomic_add(P_dest, idx, "M", P.M)
-    wp.atomic_add(P_dest, idx, "J", P.J)
-    wp.atomic_add(P_dest, idx, "F", P.F)
-
-
-@wp.func
-def transform_twist(t: wp.transform, x: wp.spatial_vector) -> wp.spatial_vector:
-    """Transform a spatial twist between coordinate frames.
-
-    For transform ``t = (R, p)`` and twist ``x = (w, v)``, the mapped twist is:
-
-    .. math::
-       w' = R w,\\quad v' = R v + p \\times w'
-
-    Args:
-        t: Rigid transform from source frame to destination frame.
-        x: Spatial twist ``(angular, linear)`` expressed in the source frame.
-
-    Returns:
-        wp.spatial_vector: Twist expressed in the destination frame.
-    """
-
-    q = wp.transform_get_rotation(t)
-    p = wp.transform_get_translation(t)
-
-    w = wp.spatial_top(x)
-    v = wp.spatial_bottom(x)
-
-    w = wp.quat_rotate(q, w)
-    v = wp.quat_rotate(q, v) + wp.cross(p, w)
-
-    return wp.spatial_vector(w, v)
-
-
-@wp.func
 def orthogonals(a: wp.vec3):
     y = wp.vec3(0.0, 1.0, 0.0)
     z = wp.vec3(0.0, 0.0, 1.0)
@@ -402,31 +364,6 @@ def make_frame(a: wp.vec3):
         c.x, c.y, c.z
     )
     # fmt: on
-
-
-@wp.func
-def normalize_with_norm(x: Any):
-    norm = wp.length(x)
-    if norm == 0.0:
-        return x, 0.0
-    return x / norm, norm
-
-
-@wp.func
-def closest_segment_point(a: wp.vec3, b: wp.vec3, pt: wp.vec3) -> wp.vec3:
-    """Returns the closest point on the a-b line segment to a point pt."""
-    ab = b - a
-    t = wp.dot(pt - a, ab) / (wp.dot(ab, ab) + 1e-6)
-    return a + wp.clamp(t, 0.0, 1.0) * ab
-
-
-@wp.func
-def closest_segment_point_and_dist(a: wp.vec3, b: wp.vec3, pt: wp.vec3) -> \
-        Tuple[wp.vec3, float]:
-    """Returns closest point on the line segment and the distance squared."""
-    closest = closest_segment_point(a, b, pt)
-    dist = wp.dot((pt - closest), (pt - closest))
-    return closest, dist
 
 
 @wp.func

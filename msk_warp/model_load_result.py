@@ -1,0 +1,16 @@
+from msk_warp import Model, Data, MeshLoadResult
+from dataclasses import dataclass
+
+
+@dataclass
+class ModelLoadResult:
+    model: Model
+    data: Data
+    body_id_lookup: dict[str, int]
+    dof_id_lookup: dict[str, int]
+    qpos_id_lookup: dict[str, int]
+    limit_id_lookup: dict[str, int]
+    muscle_id_lookup: dict[str, int]
+    actuator_id_lookup: dict[str, int]
+    collider_id_lookup: dict[str, int]
+    mesh_load_results: list[MeshLoadResult]

@@ -146,79 +146,6 @@ def _equilibrate(
     return
 
 
-@wp.func
-def compute_state_derivative(
-        mm: MuscleMetadata,
-        norm_fiber_length: float,
-        path_length: float,
-        activation: float,
-) -> float:
-    # Fiber
-    fiber_length = norm_fiber_length * mm.optimal_fiber_length
-    min_norm_fiber_length = mm.min_norm_fiber_length
-    # Pennation angle
-    pennation_angle = dgf.calc_pennation_angle(mm.optimal_pennation_angle,
-                                               mm.optimal_fiber_length,
-                                               norm_fiber_length,
-                                               min_norm_fiber_length)
-    cos_pennation_angle = wp.cos(pennation_angle)
-    fiber_length_along_tendon = fiber_length * cos_pennation_angle
-    # Tendon
-    tendon_length = path_length - fiber_length_along_tendon
-    norm_tendon_length = tendon_length / mm.tendon_slack_length
-    # Force multipliers
-    fiber_passive_force_length_multiplier = (
-        dgf.calc_passive_force_multiplier(norm_fiber_length,
-                                          min_norm_fiber_length))
-    fiber_active_force_length_multiplier = (
-        dgf.calc_active_force_length_multiplier(norm_fiber_length))
-    tendon_force_multiplier = (
-        dgf.calc_tendon_force_multiplier(norm_tendon_length, True))
-
-    # Compute fiber velocity multiplier
-    if mm.fiber_damping > 0.0:
-        dlceN_dt, fv = dgf.calc_damped_norm_fiber_velocity(
-            mm.max_isometric_force,
-            activation,
-            fiber_active_force_length_multiplier,
-            fiber_passive_force_length_multiplier,
-            tendon_force_multiplier,
-            mm.fiber_damping,
-            cos_pennation_angle)
-        norm_fiber_velocity = dlceN_dt
-    else:
-        fv = dgf.calc_undamped_fiber_force_velocity_multiplier(
-            activation,
-            fiber_active_force_length_multiplier,
-            fiber_passive_force_length_multiplier,
-            tendon_force_multiplier,
-            cos_pennation_angle
-        )
-        norm_fiber_velocity = dgf.calc_force_velocity_inverse_curve(fv)
-
-    fiber_velocity = (norm_fiber_velocity *
-                      dgf.get_max_contraction_velocity_in_meters_per_second(
-                          mm.v_max, mm.optimal_fiber_length))
-
-    # Check to see whether the fiber length was clamped
-    min_norm_fiber_length = mm.min_norm_fiber_length
-    fiber_state_clamped = dgf.is_fiber_state_clamped(
-        norm_fiber_length, norm_fiber_velocity, min_norm_fiber_length)
-    fiber_velocity = wp.where(fiber_state_clamped, 0.0, fiber_velocity)
-
-    mstate_dot = fiber_velocity / mm.optimal_fiber_length
-    return mstate_dot
-
-
-@wp.func
-def lerp(
-        a: float,
-        b: float,
-        f: float,
-) -> float:
-    return a + f * (b - a)
-
-
 @wp.kernel
 def _update_info_fused(
         # Model:
@@ -229,6 +156,8 @@ def _update_info_fused(
         mstate_in: wp.array2d(dtype=float),
         muscle_length_in: wp.array2d(dtype=float),
         muscle_velocity_in: wp.array2d(dtype=float),
+        # In:
+        rng_state: wp.array(dtype=wp.uint32),
         # Data out:
         muscle_length_info_out: wp.array2d(dtype=MuscleLengthInfo),
         muscle_velocity_info_out: wp.array2d(dtype=FiberVelocityInfo),
@@ -275,7 +204,9 @@ def _update_info_fused(
             fiber_passive_force_length_multiplier,
             tendon_force_multiplier,
             mm.fiber_damping,
-            cos_pennation_angle)
+            cos_pennation_angle,
+            rng_state
+        )
         norm_fiber_velocity = dlceN_dt
         fiber_force_velocity_multiplier = fv
     else:
@@ -398,7 +329,11 @@ def update_info_fused(m: Model, d: Data):
     wp.launch(
         _update_info_fused,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.integration_done, d.m_act, d.m_state, d.muscle_length, d.muscle_velocity, ],
+        inputs=[
+            m.muscle_metadata,
+            d.integration_done, d.m_act, d.m_state, d.muscle_length, d.muscle_velocity,
+            d.rng_state
+        ],
         outputs=[d.muscle_length_info, d.muscle_velocity_info, d.muscle_dynamics_info],
     )
 

@@ -225,8 +225,8 @@ class Option:
     hysteresis_high: float
     accuracy: float
     use_inf_norm: bool
-    qvel_weights: wp.array(dtype=float)
-    z_weights: wp.array(dtype=float)
+    qvel_weights: array("nv", float)
+    z_weights: array("nz", float)
 
 
 @wp.struct
@@ -358,6 +358,7 @@ class Model:
       muscle_data: same as above, but intended for future modification
 
       actuator_metadata: actuator metadata                     (nactuator,)
+      actuator_data: same as above, but intended for future modification
 
       body_mass: mass                                          (nbody,)
       body_unit_inertia_OB_B: inertia about B body frame       (nbody, mat33)
@@ -459,6 +460,7 @@ class Model:
     muscle_data: list[MuscleMetadata]
 
     actuator_metadata: array("nactuator", ActuatorMetadata)
+    actuator_data: list[ActuatorMetadata]
 
     body_mass: array("nbody", float)
     body_unit_inertia_OB_B: array("nbody", wp.mat33)
@@ -513,7 +515,7 @@ class Model:
     geom_dissipation: array("ngeom", float)
     geom_transition_velocity: array("ngeom", float)
     geom_priority: array("ngeom", int)
-    geom_aabb: array("ngeom", wp.vec3)
+    geom_aabb: array("ngeom", 2, wp.vec3)
     geom_rbound: array("ngeom", float)
 
     geom_pair_type_count: tuple[int, ...]
@@ -600,6 +602,8 @@ class Data:
     Attributes:
       nworld: number of parallel worlds being simulated
       naconmax: maximum number of contacts total
+      rng_state: random number generator state (if needed)
+
       world_reset: whether the world needs to be reset            (nworld,)
       next_time: final target time for integrator (tMax)          (nworld,)
 
@@ -726,6 +730,7 @@ class Data:
     """
     nworld: int
     naconmax: int
+    rng_state: array("1", int)
 
     world_reset: array("nworld", bool)
     next_time: array("nworld", float)

@@ -43,3 +43,11 @@ def create_nested_list(l: list[T], num_per_sublist: int) -> list[list[T]]:
     for i in range(0, len(l), num_per_sublist):
         nested_list.append(l[i:i + num_per_sublist])
     return nested_list
+
+
+def flatten_nested_list(nested_list: list[list[T]]) -> list[T]:
+    """ Flattens a nested list into a flat list """
+    flat_list = []
+    for sublist in nested_list:
+        flat_list.extend(sublist)
+    return flat_list

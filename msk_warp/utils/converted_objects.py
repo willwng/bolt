@@ -8,6 +8,8 @@ GROUND_PARENT = "N/A"
 GROUND = "ground"
 NO_DOF = "__NO_DOF"  # for transform axes that don't depend on a DOF, use this as a placeholder
 
+AABB = tuple[wp.vec3, wp.vec3]
+
 
 @dataclass
 class BodyData:
@@ -61,7 +63,7 @@ class GeomData:
     geom_type: GeomType
     transform: wp.transform
     size: wp.vec3
-    aabb: wp.vec3
+    aabb: AABB
     rbound: float
 
     friction: wp.vec3
@@ -169,6 +171,22 @@ GROUND_JOINT = JointData(
     transform_PF=wp.transform_identity(),
     transform_MB=wp.transform_identity(),
     extra_info=wp.vec3(),
+)
+GROUND_COLLIDER = GeomData(
+    name="ground_collider",
+    body_name=GROUND,
+
+    geom_type=GeomType.PLANE,
+    transform=wp.transform_identity(),
+    size=wp.vec3(0.0, 0.05, 0.0),
+    aabb=(wp.vec3(0.0, -5e9, 0.0), wp.vec3(1e10, 5e9, 1e10)),
+    rbound=0.0,
+
+    friction=wp.vec3(0.95, 0.6, 0.0),
+    stiffness=(1e6 ** (2 / 3)),
+    dissipation=1.0,
+    transition_velocity=0.1,
+    priority=0
 )
 
 

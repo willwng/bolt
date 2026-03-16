@@ -288,6 +288,7 @@ def calc_damped_norm_fiber_velocity(
         fse: float,
         beta: float,
         cos_phi: float,
+        state: wp.array(dtype=wp.uint32)
 ) -> tuple[float, float]:
     max_iter = wp.static(20)
     tol = wp.max(1e-10 * f_iso, consts.MSK_SIG_REAL * 100.0)
@@ -319,9 +320,9 @@ def calc_damped_norm_fiber_velocity(
             delta = -err / derr_d_dlceNdt
             dlceN_dt = dlceN_dt + delta
         elif wp.abs(derr_d_dlceNdt) < consts.MSK_SIG_REAL:
-            # Perturb the solution if we lost rank
-            state = wp.rand_init(0)
-            perturbation = 2.0 * wp.randf(state) - 1.0
+            # Perturb the solution if we lost rank: shouldn't happen
+            perturbation = 2.0 * wp.randf(state[0]) - 1.0
+            wp.atomic_add(state, 0, 1)
             dlceN_dt = dlceN_dt + perturbation * 0.05
         i += 1
 

@@ -89,6 +89,7 @@ class Renderer:
             "mesh": (0.82, 0.78, 0.74),
             "sphere": (0.7, 0.5, 0.5),
             "capsule": (0.5, 0.5, 0.5),
+            "ellipsoid": (0.5, 0.5, 0.5),
             "site_inactive": (0.3, 0.3, 0.3),
         }
 
@@ -190,8 +191,16 @@ class Renderer:
                             color=self.colors["capsule"],
                         )
 
+                    # todo: properly render ellipsoids
+                    # elif self.geom_types[i] == types.GeomType.ELLIPSOID:
+                    #     rx, ry, rz = self.geom_sizes[i]
+                    #     self.renderer.render_box(
+                    #         name=f"ellipsoid_{obj_id}",
+                    #         pos=pos,
+                    #         rot=rot,
+                    #         extents=(rx, ry, rz),
+                    #     )
                     obj_id += 1
-                # quit()
 
             # Visuals
             if self.draw_visuals:

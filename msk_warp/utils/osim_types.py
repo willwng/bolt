@@ -28,8 +28,12 @@ class OSimType:
     Transform = osim.simbody.Transform
 
     Mesh = osim.Mesh
-    ContactGeometry = osim.ContactGeometry
     Station = osim.Station
+
+    ContactGeometry = osim.ContactGeometry
+    ContactSphere = osim.ContactSphere
+    ContactEllipsoid = osim.ContactEllipsoid
+    ContactHalfSpace = osim.ContactHalfSpace
 
     CoordinateLinearDamper = osim.CoordinateLinearDamper
     CoordinateLinearStop = osim.CoordinateLinearStop

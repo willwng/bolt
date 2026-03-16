@@ -73,9 +73,9 @@ def main():
 
     qpos = wp.to_torch(d.qpos)
     qvel = wp.to_torch(d.qvel)
-    # qpos[:, qpos_id("pelvis_ty")] = 1.05
+    qpos[:, qpos_id("pelvis_ty")] = 1.05
 
-    dt = 1.0 / 300.0
+    dt = 1.0 / 1000.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:
@@ -83,7 +83,7 @@ def main():
             load_result=load_result,
             renderer_type=RendererType.OPENGL,
             draw_visuals=True,
-            draw_colliders=False,
+            draw_colliders=True,
             draw_muscles=True,
             draw_body_mass=False,
             draw_beams=True

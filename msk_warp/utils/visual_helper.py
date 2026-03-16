@@ -1,4 +1,5 @@
 import opensim as osim
+from msk_warp import MeshLoadResult
 
 from msk_warp.utils.converted_objects import VisualData
 from msk_warp.utils.physical_frame_helper import get_body_name_of_frame, extract_frame_transform_from_base_frame
@@ -40,3 +41,16 @@ def convert_visuals(model: osim.Model) -> list[VisualData]:
             )
 
     return visual_data
+
+
+def create_mesh_load_results(visual_data_list: list[VisualData]) -> list[MeshLoadResult]:
+    """ Converts the visual data into MeshLoadResults, which can be used to load meshes into the renderer. """
+    mesh_load_results = []
+    for visual in visual_data_list:
+        mesh_load_results.append(
+            MeshLoadResult(
+                file=visual.mesh_file,
+                scale=visual.scale_factors
+            )
+        )
+    return mesh_load_results
