@@ -9,6 +9,8 @@ import msk_warp.utils.function_helper as function_helper
 import msk_warp.utils.joint_helper as joint_helper
 import msk_warp.utils.spatial_transform_helper as spatial_transform_helper
 import msk_warp.utils.visual_helper as visual_helper
+import msk_warp.utils.coordinate_force_helper as coordinate_force_helper
+import msk_warp.utils.site_helper as site_helper
 from msk_warp import Model, Data, MeshLoadResult, GeomType, IntegratorType, Option, ContactType, LimitType, \
     ActivationType, MobilizerType, MetabolicOptions, MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, \
     IntegratorDotScratch, \
@@ -16,7 +18,6 @@ from msk_warp import Model, Data, MeshLoadResult, GeomType, IntegratorType, Opti
     vec5
 from msk_warp.render.renderer import Renderer, RendererType
 from msk_warp.utils.converted_objects import *
-from msk_warp.utils.converted_objects import dataclass_list_transpose
 from msk_warp.utils.kinematic_tree import KinematicTree
 from msk_warp.utils.python_util import string_list_to_ordering, apply_map_to_list, gather, \
     exclusive_sum, create_nested_list
@@ -100,7 +101,7 @@ def load_model(
         n_worlds: int,
         integrator: IntegratorType,
         polynomial_data_path: str = None,
-        render_kinematic_tree: bool = False,
+        render_kinematic_tree: bool = True,
 ) -> ModelLoadResult:
     # All the mesh files for visuals should be located here
     osim.ModelVisualizer.addDirToGeometrySearchPaths("data/geometry")
@@ -118,6 +119,10 @@ def load_model(
     converted_geoms = []  # TODO
     converted_visuals = visual_helper.convert_visuals(model)
     converted_spatial_transforms = spatial_transform_helper.convert_spatial_transforms(model)
+    converted_sites = site_helper.convert_sites(model)
+    converted_dampers = coordinate_force_helper.convert_coordinate_linear_damper(model)
+    converted_springs = coordinate_force_helper.convert_coordinate_linear_spring(model)
+    converted_stops = coordinate_force_helper.convert_coordinate_linear_stop(model)
 
     # Create a lookup from body name -> body data. Needed for fast joint->body lookup
     body_name_to_body = {body.name: body for body in converted_bodies}
@@ -187,6 +192,8 @@ def load_model(
     nb = len(ordered_bodies)
     ngeom = len(converted_geoms)
     nvis = len(converted_visuals)
+    nsite = len(converted_sites)
+    nlinearstop = len(converted_stops)
 
     use_fn_path = False
     nz = 0  # fixme
@@ -235,7 +242,6 @@ def load_model(
     actuator_data = []  # fixme
     am = wp.array(actuator_data, dtype=ActuatorMetadata)
 
-    nsite = 0  # fixme
     nmuscle = 0  # fixme
     nactuators = 0  # fixme
     geom_type_pair_count = []  # fixme
@@ -258,6 +264,8 @@ def load_model(
     txfm_data = dataclass_list_transpose(ordered_transform_axes, cls=TransformAxisData)
     geom_data = dataclass_list_transpose(converted_geoms, cls=GeomData)
     vis_data = dataclass_list_transpose(converted_visuals, cls=VisualData)
+    site_data = dataclass_list_transpose(converted_sites, cls=SiteData)
+    stop_data = dataclass_list_transpose(converted_stops, cls=CoordinateLinearStopData)
 
     # Gather functions
     linear_fns, linear_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=LinearFunctionData)
@@ -285,6 +293,14 @@ def load_model(
 
     geom_body_id = apply_map_to_list(geom_data["body_name"], body_ordering)
     vis_body_id = apply_map_to_list(vis_data["body_name"], body_ordering)
+    site_body_id = apply_map_to_list(site_data["body_name"], body_ordering)
+
+    dof_damping = coordinate_force_helper.get_dof_damping(converted_dampers, dof_ordering)
+    dof_stiffness = coordinate_force_helper.get_dof_stiffness(converted_springs, dof_ordering)
+    qpos_spring_rest = coordinate_force_helper.get_qpos_spring_rest(converted_springs, qpos_ordering)
+
+    stop_qpos_adr = apply_map_to_list(stop_data["coordinate"], qpos_ordering)
+    stop_dof_adr = apply_map_to_list(stop_data["coordinate"], dof_ordering)
 
     m = Model(
         nbody=nb,
@@ -297,6 +313,7 @@ def load_model(
         ngeom=ngeom,
         nvis=nvis,
         nsite=nsite,
+        nlinearstop=nlinearstop,
         nfunctions=nfunctions,
         nlinearfn=nlinearfn,
         nconstfn=nconstfn,
@@ -338,11 +355,14 @@ def load_model(
         linear_fn_qpos_adr=to_warp_array(linear_fns_qpos_global_idx, dtype=int),
         poly_fn_qpos_adr=to_warp_array(poly_fns_qpos_global_idx, dtype=int),
 
-        # limit_dof_range=to_warp_array(dof_limit_ranges, dtype=wp.vec2),
-        # limit_dof_adr=to_warp_array(dof_limit_adr, dtype=int),
-        # limit_dof_qadr=to_warp_array(dof_limit_qadr, dtype=int),
-        # limit_dof_forces=to_warp_array(dof_limit_forces, dtype=wp.vec2),
-        # limit_dof_shapes=to_warp_array(dof_limit_shapes, dtype=wp.vec2),
+        dof_damping=to_warp_array(dof_damping, dtype=float),
+        dof_stiffness=to_warp_array(dof_stiffness, dtype=float),
+        qpos_spring_rest=to_warp_array(qpos_spring_rest, dtype=float),
+
+        stop_qpos_range=to_warp_array(stop_data["range"], dtype=wp.vec2),
+        stop_qpos_adr=to_warp_array(stop_qpos_adr, dtype=int),
+        stop_dof_adr=to_warp_array(stop_dof_adr, dtype=int),
+        stop_dof_stiffness_damping=to_warp_array(stop_data["stiffness_damping"], dtype=wp.vec2),
 
         geom_type=to_warp_array(geom_data["geom_type"], dtype=int),
         geom_bodyid=to_warp_array(geom_body_id, dtype=int),
@@ -363,8 +383,8 @@ def load_model(
         vis_bodyid=to_warp_array(vis_body_id, dtype=int),
         vis_X_loc=to_warp_array(vis_data["transform"], dtype=wp.transform),
 
-        site_bodyid=to_warp_array([], dtype=int),  # TODO
-        site_pos=to_warp_array([], dtype=wp.vec3),  # TODO
+        site_bodyid=to_warp_array(site_body_id, dtype=int),
+        site_pos=to_warp_array(site_data["offset"], dtype=wp.vec3),
 
         # TODO!
         muscle_pts_num=to_warp_array([], dtype=int),

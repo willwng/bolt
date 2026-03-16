@@ -434,16 +434,8 @@ def contact_params(
         dissipation = geom_dissipation[g2]
         transition_vel = geom_transition_velocity[g2]
 
-    # todo: fix this for mujoco contacts
-    # friction = vec5(
-    #     wp.max(MJ_MINMU, g_friction[0]),
-    #     wp.max(MJ_MINMU, g_friction[0]),
-    #     wp.max(MJ_MINMU, g_friction[1]),
-    #     wp.max(MJ_MINMU, g_friction[2]),
-    #     wp.max(MJ_MINMU, g_friction[2]),
-    # )
     friction = vec5(g_friction[0], g_friction[1], g_friction[2], 0.0, 0.0)
-    condim = 3  # hard coded
+    condim = 3  # hard coded for static, dynamic, viscous friction
     return geoms, condim, friction, stiffness, dissipation, transition_vel
 
 

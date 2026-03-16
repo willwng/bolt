@@ -14,6 +14,7 @@ arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--recompile", action="store_true")
 arg_parser.add_argument("--debug", action="store_true")
 arg_parser.add_argument("--benchmark", action="store_true")
+arg_parser.add_argument("--tree", action="store_true")
 arg_parser.add_argument("--nworld", type=int, default=1)
 arg_parser.add_argument("--nstep", type=int, default=1000)
 args = arg_parser.parse_args()
@@ -42,17 +43,18 @@ def main():
         wp.config.mode = "debug"
 
     # model_path = "data/osim/model_motor_arms_no_hand_full_contact.osim"
-    # model_path = "data/osim/all_upper.osim"
+    model_path = "data/osim/all_upper.osim"
     # model_path = "data/osim/upper_no_arms.osim"
     # model_path = "data/osim/everything.osim"
     # model_path = "data/osim/gimbal_custom.osim"
     # model_path = "data/osim/example_gait3d_pin.osim"
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
-    model_path = "data/osim/athlete.osim"
+    # model_path = "data/osim/athlete.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
-                                      integrator=msk_warp.IntegratorType.EULER_FIXED,
-                                      polynomial_data_path="data/muscle_poly_info.json")
+                                      integrator=msk_warp.IntegratorType.EULER_ADAPTIVE,
+                                      polynomial_data_path="data/muscle_poly_info.json",
+                                      render_kinematic_tree=args.tree, )
     m, d = load_result.model, load_result.data
     m.opt.contact_type = msk_warp.ContactType.HUNT_CROSSLEY
     m.opt.limit_type = msk_warp.LimitType.HUNT_CROSSLEY
@@ -67,71 +69,11 @@ def main():
     def dof_id(name):
         return load_result.dof_id_lookup[name]
 
-    # qpos = wp.to_torch(d.qpos)
-    # qvel = wp.to_torch(d.qvel)
-    # torch.manual_seed(2)
-    # qpos += torch.randn_like(qpos) * 0.1
-    # qvel += torch.randn_like(qvel) * 0.1
-    #
-    # forward.fwd(m, d)
-    # body_X = wp.to_torch(d.mob_X_GB)[0]
-    # body_mass = wp.to_torch(m.body_mass)
-    # qpos_start = wp.to_torch(m.mob_qposadr)
-    # qpos_num = wp.to_torch(m.mob_dofnum)
-    # X_FM = wp.to_torch(d.mob_X_FM)[0]
-    # mob_type = wp.to_torch(m.mob_type)
-    # body_P = d.body_PPlus.numpy()[0]
-    # for i, v in enumerate(body_X):
-    #     p, r = v[:3], v[3:]
-    #     print(i, body_mass[i], p, r)
-    #     print("\tmob type:", mob_type[i])
-    #     print("\tqpos adr:", qpos_start[i])
-    #     print("\tqpos: ", qpos[0, qpos_start[i]:qpos_start[i] + qpos_num[i]])
-    #     print("\tX_FM: ", X_FM[i])
-    #     # print(body_P[i]["M"])
-    #     # print(body_P[i]["J"])
-    #     # print(body_P[i]["F"])
-    #     print()
-    # print(d.qacc)
-    # quit()
-
     qpos = wp.to_torch(d.qpos)
     qvel = wp.to_torch(d.qvel)
-    # qpos[:, qpos_id("knee_angle_r")] = 205.0 * np.pi / 180.0
-    # qpos[:, qpos_id("knee_angle_l")] = -55.0 * np.pi / 180.0
-    # qpos[:, qpos_id("shoulder_flexion_r")] = 55.0 * np.pi / 180.0
-    # qpos[:, qpos_id("shoulder_abduction_r")] = -5.0 * np.pi / 180.0
-    # qpos[:, qpos_id("shoulder_rotation_r")] = -15.0 * np.pi / 180.0
-    # qvel[:, dof_id("shoulder_flexion_r")] = 55.0 * np.pi / 180.0
-    # qvel[:, dof_id("shoulder_abduction_r")] = -5.0 * np.pi / 180.0
-    # qvel[:, dof_id("shoulder_rotation_r")] = -15.0 * np.pi / 180.0
-    # forward.fwd(m, d)
-    # qpos[:, qpos_id("shoulder_flexion_l")] = -55.0 * np.pi / 180.0
-    # qpos += torch.randn_like(qpos) * 0.1
-    qpos[:, qpos_id("pelvis_ty")] = 1.05
-    # print(d.qpos)
-    # quit()
-    # qpos[:, qpos_id("lumbar_bending")] = -np.pi / 6.0
-    #
-    # qpos[:, qpos_id("hip_flexion_l")] = 15.0 * np.pi / 180.0
-    # qpos[:, qpos_id("knee_angle_l")] = -60.0 * np.pi / 180.0
-    # qpos[:, qpos_id("ankle_angle_l")] = 20.0 * np.pi / 180.0
-    #
-    # qpos[:, qpos_id("hip_flexion_r")] = 15.0 * np.pi / 180.0
-    # qpos[:, qpos_id("knee_angle_r")] = -60.0 * np.pi / 180.0
-    # qpos[:, qpos_id("ankle_angle_r")] = 20.0 * np.pi / 180.0
-    #
-    # qvel[:, dof_id("lumbar_bending")] = 0.2
-    #
-    # qvel[:, dof_id("hip_flexion_l")] = 0.1
-    # qvel[:, dof_id("knee_angle_l")] = -0.1
-    # qvel[:, dof_id("ankle_angle_l")] = 0.3
-    #
-    # qvel[:, dof_id("hip_flexion_r")] = 0.1
-    # qvel[:, dof_id("knee_angle_r")] = -0.1
-    # qvel[:, dof_id("ankle_angle_r")] = 0.3
+    # qpos[:, qpos_id("pelvis_ty")] = 1.05
 
-    dt = 1.0 / 5000.0
+    dt = 1.0 / 300.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:

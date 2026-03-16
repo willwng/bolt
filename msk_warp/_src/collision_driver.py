@@ -65,7 +65,6 @@ def _sphere_filter(size1: float, size2: float,
     return dist_sq <= bound * bound
 
 
-# TODO(team): improve performance by precomputing bounding box
 @wp.func
 def _aabb_filter(
         # In:
@@ -169,7 +168,6 @@ mat23 = wp.types.matrix(shape=(2, 3), dtype=float)
 mat63 = wp.types.matrix(shape=(6, 3), dtype=float)
 
 
-# TODO(team): improve performance by precomputing bounding box
 @wp.func
 def _obb_filter(
         # In:

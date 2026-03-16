@@ -17,7 +17,7 @@ def _spring_jnt_passive(
         mob_qposadr: wp.array(dtype=int),
         mob_dofadr: wp.array(dtype=int),
         mob_dofnum: wp.array(dtype=int),
-        jnt_stiffness: wp.array(dtype=float),
+        dof_stiffness: wp.array(dtype=float),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
@@ -31,7 +31,6 @@ def _spring_jnt_passive(
     mobtype = mob_type[jntid]
     qposadr = mob_qposadr[jntid]
     dofadr = mob_dofadr[jntid]
-    stiffness = jnt_stiffness[jntid]
     dofnum = mob_dofnum[jntid]
 
     if mobtype == MobilizerType.FREE:  # no spring forces on free joints
@@ -40,8 +39,10 @@ def _spring_jnt_passive(
         return  # todo!
 
     for i in range(dofnum):
+        stiffness = dof_stiffness[dofadr + i]
         dif = qpos_in[worldid, qposadr + i] - qpos_spring[qposadr + i]
         qfrc_spring_out[worldid, dofadr + i] = -stiffness * dif
+    return
 
 
 @wp.kernel
@@ -67,12 +68,12 @@ def spring(m: Model, d: Data):
         _spring_jnt_passive,
         dim=(d.nworld, m.nbody),
         inputs=[
-            m.qpos_spring,
+            m.qpos_spring_rest,
             m.mob_type,
             m.mob_qposadr,
             m.mob_dofadr,
             m.mob_dofnum,
-            m.jnt_stiffness,
+            m.dof_stiffness,
             d.integration_done,
             d.qpos,
         ],

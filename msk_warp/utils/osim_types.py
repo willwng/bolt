@@ -23,6 +23,12 @@ class OSimType:
     Transform = osim.simbody.Transform
 
     Mesh = osim.Mesh
+    ContactGeometry = osim.ContactGeometry
+    Station = osim.Station
+
+    CoordinateLinearDamper = osim.CoordinateLinearDamper
+    CoordinateLinearStop = osim.CoordinateLinearStop
+    CoordinateLinearSpring = osim.CoordinateLinearSpring
 
     Property = osim.common.AbstractProperty
     PropertyStringList = osim.common.PropertyStringList

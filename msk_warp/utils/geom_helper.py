@@ -1,6 +1,7 @@
 import opensim as osim
 
 from msk_warp.utils.converted_objects import *
+from msk_warp.utils.osim_types import OSimType
 from msk_warp.utils.physical_frame_helper import get_body_name_of_frame, wp_transform_from_osim_transform
 
 
@@ -56,7 +57,7 @@ def convert_geoms(model: osim.Model) -> list[GeomData]:
     body_list = model.getBodyList()
     for body in body_list:
         components = body.getComponentsList()
-        contact_geom_components = filter(lambda c: isinstance(c, osim.ContactGeometry), components)
+        contact_geom_components = filter(lambda c: isinstance(c, OSimType.ContactGeometry), components)
         for contact_geom in contact_geom_components:
             contact_geom_data = convert_contact_geometry(contact_geom)
             collider_data.append(contact_geom_data)

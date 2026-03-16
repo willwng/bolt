@@ -1,6 +1,6 @@
 import opensim as osim
 
-from msk_warp.utils.converted_objects import *
+from msk_warp.utils.converted_objects import VisualData
 from msk_warp.utils.physical_frame_helper import get_body_name_of_frame, extract_frame_transform_from_base_frame
 from msk_warp.utils.property_helper import extract_vec3
 from msk_warp.utils.osim_types import OSimType
@@ -10,7 +10,7 @@ def convert_visuals(model: osim.Model) -> list[VisualData]:
     """ Returns the all the converted visual geometry in the model """
     visual_data = []
 
-    # Check for contact geometry within <components> element
+    # Check for visual within <attached_geometry> element of bodies
     for body in model.getBodyList():
         n_attached_geom = body.getPropertyByName("attached_geometry").size()  # todo: is there a beter way to get this?
         for i in range(n_attached_geom):

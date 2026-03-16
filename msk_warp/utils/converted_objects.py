@@ -46,6 +46,14 @@ class VisualData:
 
 
 @dataclass
+class SiteData:
+    name: str
+    body_name: str
+
+    offset: wp.vec3
+
+
+@dataclass
 class GeomData:
     name: str
     body_name: str
@@ -101,6 +109,29 @@ class SpatialTransformData:
     translation_1: TransformAxisData
     translation_2: TransformAxisData
     translation_3: TransformAxisData
+
+
+@dataclass
+class CoordinateLinearSpringData:
+    name: str
+    coordinate: str
+    default_stiffness: float
+    rest_length: float  # coordinate value at which the spring produces no force
+
+
+@dataclass
+class CoordinateLinearDamperData:
+    name: str
+    coordinate: str
+    damping: float
+
+
+@dataclass
+class CoordinateLinearStopData:
+    name: str
+    coordinate: str
+    stiffness_damping: wp.vec2
+    range: wp.vec2
 
 
 GROUND_BODY = BodyData(

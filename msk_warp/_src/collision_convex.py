@@ -19,7 +19,6 @@ import warp as wp
 from .math import upper_trid_index
 from .types import GeomType
 
-# TODO(team): improve compile time to enable backward pass
 wp.set_module_options({"enable_backward": False})
 
 MULTI_CONTACT_COUNT = 8

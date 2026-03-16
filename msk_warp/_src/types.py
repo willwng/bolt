@@ -351,6 +351,7 @@ class Model:
       ngeom: number of collision geometry
       nvis: number of visual geometry
       nsite: number of sites
+      nlinearstop: number of (linear stop) limits
 
       opt: physics options
       muscle_metadata: muscle metadata                         (nmuscle,)
@@ -394,6 +395,17 @@ class Model:
       cst_txfm_axes: custom transform axes (3 rot, 3 trans)    (njnts_cst, 6, vec3)
       cst_txfm_dof: dof idx offset (FROM JOINT) for each txfm  (njnts_cst, 6)
 
+     * stiffness/damping *
+      dof_damping: damping coefficient                         (nv)
+      dof_stiffness: stiffness coefficient                     (nv)
+      qpos_spring_rest: rest position for dof spring           (nq,)
+
+     * limits *
+      stop_qpos_range: qpos range for dof limits               (nlinearstop, 2)
+      stop_qpos_adr: qpos adr (to check range)                 (nlinearstop,)
+      stop_dof_adr: dof adr (to apply force)                   (nlinearstop,)
+      stop_dof_stiffness_damping: stiffness, damping           (nlinearstop, 2)
+
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
       geom_X_loc: local transform of geom rel. to body         (ngeom, transform)
@@ -406,16 +418,20 @@ class Model:
       geom_aabb: axis-aligned bounding box (center, size)      (ngeom, 2, 3)
       geom_rbound: bounding sphere radius                      (ngeom,)
 
+     * colliders *
       geom_pair_type_count: count of max number of each potential collision
       nxn_geom_pair_filtered: valid collision pair geom ids    (<=ngeom*(ngeom-1)/2,)
       nxn_pairid_filtered: active subset of nxn_pairid         (<=ngeom*(ngeom-1)/2, 2)
 
+     * visuals *
       vis_bodyid: id of visual geometry's body                 (nvis,)
       vis_X_loc: local transform of visual rel. to body        (nvis, transform)
 
+     * sites *
       site_bodyid: id of site's body                           (nsite,)
       site_pos: local position offset rel. to body             (nsite, 3)
 
+     * muscles *
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
 
@@ -431,6 +447,7 @@ class Model:
     ngeom: int
     nvis: int
     nsite: int
+    nlinearstop: int
 
     nfunctions: int
     nlinearfn: int
@@ -477,14 +494,14 @@ class Model:
     linear_fn_qpos_adr: array("nlinearfn", int)
     poly_fn_qpos_adr: array("npolyfn", int)
 
-    # jnt_stiffness: array("nbody", float)
-    # dof_damping: array("nv", float)
+    dof_damping: array("nv", float)
+    dof_stiffness: array("nv", float)
+    qpos_spring_rest: array("nq", float)
 
-    # limit_dof_range: array("ndoflimit", wp.vec2)
-    # limit_dof_adr: array("ndoflimit", int)
-    # limit_dof_qadr: array("ndoflimit", int)
-    # limit_dof_forces: array("ndoflimit", wp.vec2)
-    # limit_dof_shapes: array("ndoflimit", wp.vec2)
+    stop_qpos_range: array("nlinearstop", wp.vec2)
+    stop_qpos_adr: array("nlinearstop", int)
+    stop_dof_adr: array("nlinearstop", int)
+    stop_dof_stiffness_damping: array("nlinearstop", wp.vec2)
 
     # Collision geometry
     geom_type: array("ngeom", int)

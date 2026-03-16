@@ -106,7 +106,7 @@ class KinematicTree:
     def render(self):
         """ Optionally render a graphviz of the tree """
         import graphviz
-        graph = graphviz.Digraph(format='png')
+        graph = graphviz.Digraph(format="png")
 
         forward_ordering = self.forward_ordering()
 
@@ -122,5 +122,5 @@ class KinematicTree:
                 add_edges(child)
 
         add_edges(self.root)
-        graph.render('kinematic_tree', view=True)
+        graph.render("kinematic_tree", view=True, cleanup=True)
         return

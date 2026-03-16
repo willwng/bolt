@@ -32,8 +32,8 @@ class Renderer:
                 title="msk-warp",
                 vsync=False,
                 up_axis='Y',
-                screen_width=2000,
-                screen_height=1200,
+                screen_width=1000,
+                screen_height=800,
                 camera_pos=(5.0, 1.5, 5.0),
                 camera_front=(-1.0, 0.0, -1.0),
             )
@@ -142,6 +142,19 @@ class Renderer:
 
             # Ground
             self.renderer.render_ground()
+
+            # debugging: render all sites
+            nsites = m.nsite
+            site_xpos = d.site_xpos.numpy()[wid]
+            for i in range(nsites):
+                self.renderer.render_sphere(
+                    f"site_{obj_id}",
+                    site_xpos[i],
+                    (0.0, 0.0, 0.0, 1.0),
+                    color=self.colors["site_inactive"],
+                    radius=0.01,
+                )
+                obj_id += 1
 
             # Colliders
             if self.draw_colliders:
