@@ -442,6 +442,6 @@ def attachment_kinematics(m: Model, d: Data):
     wp.launch(
         _site_local_to_global,
         dim=(d.nworld, m.nsite),
-        inputs=[m.site_bodyid, m.site_pos, d.integration_done, d.mob_X_GB],
+        inputs=[m.site_bodyid, m.site_offset, d.integration_done, d.mob_X_GB],
         outputs=[d.site_rpos, d.site_xpos],
     )

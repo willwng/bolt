@@ -83,6 +83,7 @@ class Renderer:
         self.joint_extra = m.mob_extra_info.numpy()
         self.joint_parent_id = m.body_parentid.numpy()
         self.num_beam_segments = 5
+        self.beam_radius = 0.01
 
         # Default colors
         self.colors = {
@@ -91,6 +92,7 @@ class Renderer:
             "capsule": (0.5, 0.5, 0.5),
             "ellipsoid": (0.5, 0.5, 0.5),
             "site_inactive": (0.3, 0.3, 0.3),
+            "beam": (0.82, 0.78, 0.74),
         }
 
         number_instances_per_world = 0
@@ -146,19 +148,6 @@ class Renderer:
 
             # Ground
             self.renderer.render_ground()
-
-            # debugging: render all sites
-            # nsites = m.nsite
-            # site_xpos = d.site_xpos.numpy()[wid]
-            # for i in range(nsites):
-            #     self.renderer.render_sphere(
-            #         f"site_{obj_id}",
-            #         site_xpos[i],
-            #         (0.0, 0.0, 0.0, 1.0),
-            #         color=self.colors["site_inactive"],
-            #         radius=0.01,
-            #     )
-            #     obj_id += 1
 
             # Colliders
             if self.draw_colliders:
@@ -293,8 +282,8 @@ class Renderer:
                     self.renderer.render_line_strip(
                         f"beam_{obj_id}",
                         pts_xpos,
-                        color=(0.8, 0.0, 0.0),
-                        radius=0.01,
+                        color=self.colors["beam"],
+                        radius=self.beam_radius,
                     )
                     obj_id += 1
 

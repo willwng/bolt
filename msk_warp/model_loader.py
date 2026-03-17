@@ -44,10 +44,10 @@ def load_model(
     converted_springs = coordinate_force_helper.convert_coordinate_linear_spring(model)
     converted_stops = coordinate_force_helper.convert_coordinate_linear_stop(model)
     converted_muscles = muscle_helper.convert_muscles(model)
-    # any sites that aren't part of muscle paths + muscle path points. Note: muscle path points must come first
+    # Note: muscle path points must come first
     converted_sites = muscle_helper.flatten_sites(converted_muscles) + site_helper.convert_sites(model)
 
-    # Create a lookup from body name -> body data. Needed for fast joint->body lookup
+    # Create a lookup from body name -> body data. Needed for joint->body lookup
     body_name_to_body = {body.name: body for body in converted_bodies}
 
     # Build the kinematic tree, storing the joint that connects each node to its parent
@@ -135,43 +135,57 @@ def load_model(
     am = wp.array(actuator_data, dtype=ActuatorMetadata)
     nactuators = len(actuator_data)
 
-    # fixme: ball joint quaternions
-    qpos0 = [0.0] * nq
-    root_free = MobilizerType.FREE in [joint.mob_type for joint in ordered_joints]
-    if root_free:
-        qpos0[0:4] = [0.0, 0.0, 0.0, 1.0]  # Root orientation (quaternion)
-    qvel0 = [0.0] * nv
-
-    dt = 1.0 / 500.0
-
     # Flatten out entries of dataclasses into lists
-    body_data = dataclass_list_transpose(ordered_bodies, cls=BodyData)
-    joint_data = dataclass_list_transpose(ordered_joints, cls=JointData)
-    txfm_data = dataclass_list_transpose(ordered_transform_axes, cls=TransformAxisData)
-    geom_data = dataclass_list_transpose(converted_geoms, cls=GeomData)
-    vis_data = dataclass_list_transpose(converted_visuals, cls=VisualData)
-    site_data = dataclass_list_transpose(converted_sites, cls=SiteData)
-    stop_data = dataclass_list_transpose(converted_stops, cls=CoordinateLinearStopData)
+    body_mass = body_helper.get_body_masses(ordered_bodies)
+    body_mass_center = body_helper.get_body_center(ordered_bodies)
+    body_unit_inertia_OB_B = body_helper.get_body_unit_inertia_OB_B(ordered_bodies)
+
+    mob_type = joint_helper.get_mob_type(ordered_joints)
+    mob_dofnum = joint_helper.get_mob_dofnum(ordered_joints)
+    mob_X_PF = joint_helper.get_mob_X_PF(ordered_joints)
+    mob_X_MB = joint_helper.get_mob_X_MB(ordered_joints)
+    mob_extra_info = joint_helper.get_mob_extra_info(ordered_joints)
+
+    stop_qpos_range = coordinate_force_helper.get_stop_qpos_range(converted_stops)
+    stop_dof_stiffness_damping = coordinate_force_helper.get_stop_dof_stiffness_damping(converted_stops)
+    stop_qpos_adr = coordinate_force_helper.get_stop_coordinates_adr(converted_stops, qpos_ordering)
+    stop_dof_adr = coordinate_force_helper.get_stop_coordinates_adr(converted_stops, dof_ordering)
+
+    site_body_id = apply_map_to_list(site_helper.get_site_body_name(converted_sites), body_ordering)
+    site_offset = site_helper.get_site_offset(converted_sites)
+
+    vis_body_names = visual_helper.get_vis_body_name(converted_visuals)
+    vis_transforms = visual_helper.get_vis_transform(converted_visuals)
+    vis_body_id = apply_map_to_list(vis_body_names, body_ordering)
+
+    geom_type = geom_helper.get_geom_type(converted_geoms)
+    geom_body_names = geom_helper.get_geom_body_name(converted_geoms)
+    geom_body_id = apply_map_to_list(geom_body_names, body_ordering)
+    geom_size = geom_helper.get_geom_size(converted_geoms)
+    geom_transform = geom_helper.get_geom_transform(converted_geoms)
+    geom_aabb = geom_helper.get_geom_aabb(converted_geoms)
+    geom_rbound = geom_helper.get_geom_rbound(converted_geoms)
+    geom_friction = geom_helper.get_geom_friction(converted_geoms)
+    geom_stiffness = geom_helper.get_geom_stiffness(converted_geoms)
+    geom_dissipation = geom_helper.get_geom_dissipation(converted_geoms)
+    geom_transition_velocity = geom_helper.get_geom_transition_velocity(converted_geoms)
+    geom_priority = geom_helper.get_geom_priority(converted_geoms)
 
     # We need to reshape the transform data to be (num_custom_joints, 6)
-    cst_txfm_axes = create_nested_list(txfm_data["axis"], num_per_sublist=6)
+    txfm_axes = spatial_transform_helper.get_txfm_axes(ordered_transform_axes)
+    cst_txfm_axes = create_nested_list(txfm_axes, num_per_sublist=6)
     cst_txfm_dof = create_nested_list(txfm_qpos_relative_idx, num_per_sublist=6)
 
+    # Gather additional function metadata
     linear_fn_mb = function_helper.get_linear_fn_mb(linear_fns)
     const_fn_vals = function_helper.get_const_fn_vals(const_fns)
     poly_coeffs = function_helper.get_flattened_poly_coeffs(poly_fns)
     poly_coeffs_num, poly_coeffs_adr = function_helper.get_poly_coeffs_num_adr(poly_fns)
 
-    geom_body_id = apply_map_to_list(geom_data["body_name"], body_ordering)
-    vis_body_id = apply_map_to_list(vis_data["body_name"], body_ordering)
-    site_body_id = apply_map_to_list(site_data["body_name"], body_ordering)
-
-    # Joint limits
+    # Joint damping, spring, and linear stops (limits)
     dof_damping = coordinate_force_helper.get_dof_damping(converted_dampers, dof_ordering)
     dof_stiffness = coordinate_force_helper.get_dof_stiffness(converted_springs, dof_ordering)
     qpos_spring_rest = coordinate_force_helper.get_qpos_spring_rest(converted_springs, qpos_ordering)
-    stop_qpos_adr = apply_map_to_list(stop_data["coordinate"], qpos_ordering)
-    stop_dof_adr = apply_map_to_list(stop_data["coordinate"], dof_ordering)
 
     # Muscles/sites
     muscle_pts_num = muscle_helper.get_muscle_pts_num(converted_muscles)
@@ -181,7 +195,7 @@ def load_model(
 
     # Prepare contacts
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
-        geom_helper.prepare_contacts(geom_data["geom_type"], geom_body_id, body_parent_id, ngeom))
+        geom_helper.prepare_contacts(geom_type, geom_body_id, body_parent_id, ngeom))
     naconmax = max(512, n_worlds * 32)  # we're capping it at 32 contacts per world. TODO(check if this is reasonable)
 
     # --- Create Options ---
@@ -245,19 +259,18 @@ def load_model(
         actuator_metadata=am,
         actuator_data=actuator_data,
 
-        # warp arrays
-        body_mass=to_warp_array(body_data["mass"], dtype=float),
-        body_mass_center=to_warp_array(body_data["mass_center"], dtype=wp.vec3),
-        body_unit_inertia_OB_B=to_warp_array(body_data["unit_inertia_OB_B"], dtype=wp.mat33),
+        body_mass=to_warp_array(body_mass, dtype=float),
+        body_mass_center=to_warp_array(body_mass_center, dtype=wp.vec3),
+        body_unit_inertia_OB_B=to_warp_array(body_unit_inertia_OB_B, dtype=wp.mat33),
 
         body_parentid=to_warp_array(body_parent_id, dtype=int),
-        mob_type=to_warp_array(joint_data["mob_type"], dtype=int),
+        mob_type=to_warp_array(mob_type, dtype=int),
         mob_qposadr=to_warp_array(mob_qpos_adr, dtype=int),
         mob_dofadr=to_warp_array(mob_dof_adr, dtype=int),
-        mob_dofnum=to_warp_array(joint_data["num_speeds"], dtype=int),
-        mob_X_PF=to_warp_array(joint_data["transform_PF"], dtype=wp.transform),
-        mob_X_MB=to_warp_array(joint_data["transform_MB"], dtype=wp.transform),
-        mob_extra_info=to_warp_array(joint_data["extra_info"], dtype=wp.vec3),
+        mob_dofnum=to_warp_array(mob_dofnum, dtype=int),
+        mob_X_PF=to_warp_array(mob_X_PF, dtype=wp.transform),
+        mob_X_MB=to_warp_array(mob_X_MB, dtype=wp.transform),
+        mob_extra_info=to_warp_array(mob_extra_info, dtype=wp.vec3),
 
         mob_to_cst_id=to_warp_array(mob_to_cst_idx, dtype=int),
         cst_to_mob_id=to_warp_array(cst_to_mob_idx, dtype=int),
@@ -279,32 +292,32 @@ def load_model(
         dof_stiffness=to_warp_array(dof_stiffness, dtype=float),
         qpos_spring_rest=to_warp_array(qpos_spring_rest, dtype=float),
 
-        stop_qpos_range=to_warp_array(stop_data["range"], dtype=wp.vec2),
+        stop_qpos_range=to_warp_array(stop_qpos_range, dtype=wp.vec2),
         stop_qpos_adr=to_warp_array(stop_qpos_adr, dtype=int),
         stop_dof_adr=to_warp_array(stop_dof_adr, dtype=int),
-        stop_dof_stiffness_damping=to_warp_array(stop_data["stiffness_damping"], dtype=wp.vec2),
+        stop_dof_stiffness_damping=to_warp_array(stop_dof_stiffness_damping, dtype=wp.vec2),
 
-        geom_type=to_warp_array(geom_data["geom_type"], dtype=int),
+        geom_type=to_warp_array(geom_type, dtype=int),
         geom_bodyid=to_warp_array(geom_body_id, dtype=int),
-        geom_X_loc=to_warp_array(geom_data["transform"], dtype=wp.transform),
-        geom_size=to_warp_array(geom_data["size"], dtype=wp.vec3),
-        geom_friction=to_warp_array(geom_data["friction"], dtype=wp.vec3),
-        geom_stiffness=to_warp_array(geom_data["stiffness"], dtype=float),
-        geom_dissipation=to_warp_array(geom_data["dissipation"], dtype=float),
-        geom_transition_velocity=to_warp_array(geom_data["transition_velocity"], dtype=float),
-        geom_priority=to_warp_array(geom_data["priority"], dtype=int),
-        geom_aabb=to_warp_array(geom_data["aabb"], dtype=wp.vec3),
-        geom_rbound=to_warp_array(geom_data["rbound"], dtype=float),
+        geom_X_loc=to_warp_array(geom_transform, dtype=wp.transform),
+        geom_size=to_warp_array(geom_size, dtype=wp.vec3),
+        geom_friction=to_warp_array(geom_friction, dtype=wp.vec3),
+        geom_stiffness=to_warp_array(geom_stiffness, dtype=float),
+        geom_dissipation=to_warp_array(geom_dissipation, dtype=float),
+        geom_transition_velocity=to_warp_array(geom_transition_velocity, dtype=float),
+        geom_priority=to_warp_array(geom_priority, dtype=int),
+        geom_aabb=to_warp_array(geom_aabb, dtype=wp.vec3),
+        geom_rbound=to_warp_array(geom_rbound, dtype=float),
 
         geom_pair_type_count=tuple(geom_type_pair_count),
         nxn_geom_pair_filtered=wp.array(nxn_geom_pair_filtered, dtype=wp.vec2i),
         nxn_pairid_filtered=wp.array(nxn_pairid_filtered, dtype=wp.vec2i),
 
         vis_bodyid=to_warp_array(vis_body_id, dtype=int),
-        vis_X_loc=to_warp_array(vis_data["transform"], dtype=wp.transform),
+        vis_X_loc=to_warp_array(vis_transforms, dtype=wp.transform),
 
         site_bodyid=to_warp_array(site_body_id, dtype=int),
-        site_pos=to_warp_array(site_data["offset"], dtype=wp.vec3),
+        site_offset=to_warp_array(site_offset, dtype=wp.vec3),
 
         muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
@@ -348,6 +361,15 @@ def load_model(
 
     # Custom joints may need up to 6 additional vectors: [f(q), f'(q), f''(q)] for each 6 functions
     num_mob_scratch = 3 if n_custom_jnts == 0 else 6
+
+    # fixme: ball joint quaternions
+    qpos0 = [0.0] * nq
+    root_free = MobilizerType.FREE in [joint.mob_type for joint in ordered_joints]
+    if root_free:
+        qpos0[0:4] = [0.0, 0.0, 0.0, 1.0]  # Root orientation (quaternion)
+    qvel0 = [0.0] * nv
+
+    dt = 1.0 / 100.0  # This will be modified later by the user
 
     # --- Create Data ---
     d = Data(

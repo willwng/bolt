@@ -1,6 +1,7 @@
 import opensim as osim
 import warp as wp
 
+from msk_warp.utils.python_util import apply_map_to_list
 from msk_warp.utils.converted_objects import CoordinateLinearDamperData, CoordinateLinearSpringData, \
     CoordinateLinearStopData
 from msk_warp.utils.osim_types import OSimType
@@ -101,3 +102,20 @@ def get_qpos_spring_rest(
         qpos_idx = qpos_ordering[damper.coordinate]
         qpos_rest_length[qpos_idx] = damper.rest_length
     return qpos_rest_length
+
+
+def get_stop_coordinates_adr(
+        coordinate_linear_stop_data: list[CoordinateLinearStopData],
+        ordering: dict[str, int]
+) -> list[int]:
+    """ Returns the address of the stop coordinate for each dof """
+    stop_coordinates = [stop.coordinate for stop in coordinate_linear_stop_data]
+    return apply_map_to_list(stop_coordinates, ordering)
+
+
+def get_stop_qpos_range(coordinate_linear_stop_data: list[CoordinateLinearStopData], ) -> list[wp.vec2]:
+    return [stop.range for stop in coordinate_linear_stop_data]
+
+
+def get_stop_dof_stiffness_damping(coordinate_linear_stop_data: list[CoordinateLinearStopData]) -> list[wp.vec2]:
+    return [stop.stiffness_damping for stop in coordinate_linear_stop_data]

@@ -1,4 +1,5 @@
 import opensim as osim
+import warp as wp
 from msk_warp import MeshLoadResult
 
 from msk_warp.utils.converted_objects import VisualData
@@ -54,3 +55,11 @@ def create_mesh_load_results(visual_data_list: list[VisualData]) -> list[MeshLoa
             )
         )
     return mesh_load_results
+
+
+def get_vis_body_name(visual_data_list: list[VisualData]) -> list[str]:
+    return [visual.body_name for visual in visual_data_list]
+
+
+def get_vis_transform(visual_data_list: list[VisualData]) -> list[wp.transform]:
+    return [visual.transform for visual in visual_data_list]

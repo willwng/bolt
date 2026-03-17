@@ -193,6 +193,7 @@ GROUND_COLLIDER = GeomData(
 def dataclass_list_transpose(data_list: list[dataclass], cls: type) -> dict[str, list]:
     """
     Convert a list of dataclass instances into a dict where each attribute becomes a list of that attribute.
+    Though handy, I prefer not to use this since it doesn't update with refactoring property names
     """
     result = {f.name: [] for f in fields(cls)}
 

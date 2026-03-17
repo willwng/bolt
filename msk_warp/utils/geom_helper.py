@@ -141,3 +141,47 @@ def prepare_contacts(
         if nxn_pairid_contact[i] > -2 or nxn_pairid_collision[i] > -1
     ], minlength=len(GeomType) * (len(GeomType) + 1) // 2, )
     return geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered
+
+
+def get_geom_body_name(geom_data_list: list[GeomData]) -> list[str]:
+    return [geom_data.body_name for geom_data in geom_data_list]
+
+
+def get_geom_type(geom_data_list: list[GeomData]) -> list[GeomType]:
+    return [geom_data.geom_type for geom_data in geom_data_list]
+
+
+def get_geom_size(geom_data_list: list[GeomData]) -> list[wp.vec3]:
+    return [geom_data.size for geom_data in geom_data_list]
+
+
+def get_geom_transform(geom_data_list: list[GeomData]) -> list[wp.transform]:
+    return [geom_data.transform for geom_data in geom_data_list]
+
+
+def get_geom_aabb(geom_data_list: list[GeomData]) -> list[AABB]:
+    return [geom_data.aabb for geom_data in geom_data_list]
+
+
+def get_geom_rbound(geom_data_list: list[GeomData]) -> list[float]:
+    return [geom_data.rbound for geom_data in geom_data_list]
+
+
+def get_geom_friction(geom_data_list: list[GeomData]) -> list[wp.vec3]:
+    return [geom_data.friction for geom_data in geom_data_list]
+
+
+def get_geom_stiffness(geom_data_list: list[GeomData]) -> list[float]:
+    return [geom_data.stiffness for geom_data in geom_data_list]
+
+
+def get_geom_dissipation(geom_data_list: list[GeomData]) -> list[float]:
+    return [geom_data.dissipation for geom_data in geom_data_list]
+
+
+def get_geom_transition_velocity(geom_data_list: list[GeomData]) -> list[float]:
+    return [geom_data.transition_velocity for geom_data in geom_data_list]
+
+
+def get_geom_priority(geom_data_list: list[GeomData]) -> list[int]:
+    return [geom_data.priority for geom_data in geom_data_list]

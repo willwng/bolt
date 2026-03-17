@@ -21037,6 +21037,38 @@
                     <orientation>0 0 0</orientation>
                     <radius>0.02</radius>
                 </ContactSphere>
+                <ContactSphere name="head">
+                    <socket_frame>/bodyset/head</socket_frame>
+                    <location>0.0 0.0375 0.0</location>
+                    <orientation>0 0 0</orientation>
+                    <radius>0.10</radius>
+                </ContactSphere>
+
+                <ContactSphere name="knee_r">
+                    <socket_frame>/bodyset/tibia_r</socket_frame>
+                    <location>0.0 0.0 0.0</location>
+                    <orientation>0 0 0</orientation>
+                    <radius>0.05</radius>
+                </ContactSphere>
+                <ContactSphere name="knee_l">
+                    <socket_frame>/bodyset/tibia_l</socket_frame>
+                    <location>0.0 0.0 0.0</location>
+                    <orientation>0 0 0</orientation>
+                    <radius>0.05</radius>
+                </ContactSphere>
+
+                <ContactSphere name="hand_l">
+                    <socket_frame>/bodyset/hand_l</socket_frame>
+                    <location>0.0 -0.068095 0.0</location>
+                    <orientation>0 0 0</orientation>
+                    <radius>0.03</radius>
+                </ContactSphere>
+                <ContactSphere name="hand_r">
+                    <socket_frame>/bodyset/hand_r</socket_frame>
+                    <location>0.0 -0.068095 0.0</location>
+                    <orientation>0 0 0</orientation>
+                    <radius>0.03</radius>
+                </ContactSphere>
             </objects>
 
 			<groups />

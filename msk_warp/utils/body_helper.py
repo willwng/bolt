@@ -46,3 +46,15 @@ def convert_body(body: OSimType.Body) -> BodyData:
     )
 
     return BodyData(name=name, mass=mass, mass_center=wp.vec3(*mass_center), unit_inertia_OB_B=unit_inertia_in_B_warp)
+
+
+def get_body_masses(body_data_list: list[BodyData]) -> list[float]:
+    return [body_data.mass for body_data in body_data_list]
+
+
+def get_body_center(body_data_list: list[BodyData]) -> list[wp.vec3]:
+    return [body_data.mass_center for body_data in body_data_list]
+
+
+def get_body_unit_inertia_OB_B(body_data_list: list[BodyData]) -> list[wp.mat33]:
+    return [body_data.unit_inertia_OB_B for body_data in body_data_list]

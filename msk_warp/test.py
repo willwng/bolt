@@ -83,7 +83,7 @@ def main():
             load_result=load_result,
             renderer_type=RendererType.OPENGL,
             draw_visuals=True,
-            draw_colliders=True,
+            draw_colliders=False,
             draw_muscles=True,
             draw_body_mass=False,
             draw_beams=True
@@ -102,7 +102,6 @@ def main():
                 wp.capture_launch(graph)
             else:
                 step.step(m, d)
-                # forward.fwd(m, d)
             # if i % steps_per_render == 0:
             #     viewer.render(m, d)
             viewer.render(m, d)

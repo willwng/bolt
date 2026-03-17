@@ -430,7 +430,7 @@ class Model:
 
      * sites *
       site_bodyid: id of site's body                           (nsite,)
-      site_pos: local position offset rel. to body             (nsite, 3)
+      site_offset: local position offset rel. to body             (nsite, 3)
 
      * muscles *
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
@@ -528,7 +528,7 @@ class Model:
 
     # Attachment sites (muscle path)
     site_bodyid: array("nsite", int)
-    site_pos: array("nsite", wp.vec3)
+    site_offset: array("nsite", wp.vec3)
 
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)

@@ -222,3 +222,23 @@ def get_relative_dof_ordering_lookup(joints: list[JointData]) -> dict[str, int]:
             relative_dof_ordering[coord] = i
     relative_dof_ordering[NO_DOF] = -1
     return relative_dof_ordering
+
+
+def get_mob_type(joints: list[JointData]) -> list[MobilizerType]:
+    return [joint.mob_type for joint in joints]
+
+
+def get_mob_dofnum(joints: list[JointData]) -> list[int]:
+    return [joint.num_speeds for joint in joints]
+
+
+def get_mob_X_PF(joints: list[JointData]) -> list[wp.transform]:
+    return [joint.transform_PF for joint in joints]
+
+
+def get_mob_X_MB(joints: list[JointData]) -> list[wp.transform]:
+    return [joint.transform_MB for joint in joints]
+
+
+def get_mob_extra_info(joints: list[JointData]) -> list[wp.vec3]:
+    return [joint.extra_info for joint in joints]
