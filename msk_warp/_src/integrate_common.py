@@ -174,7 +174,15 @@ def _update_fixed_step_size(
 
 
 @event_scope
-def advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float, symplectic: bool = True):
+def advance(
+        m: Model,
+        d: Data,
+        qacc: wp.array,
+        qvel: wp.array,
+        scale: float,
+        time_scale: float,
+        symplectic: bool = True
+):
     """Advance state and time given state derivatives"""
     if m.nmuscle:
         wp.launch(
@@ -229,7 +237,7 @@ def advance(m: Model, d: Data, qacc: wp.array, qvel: wp.array, scale: float, sym
     wp.launch(
         _next_time,
         dim=d.nworld,
-        inputs=[d.integration_done, d.time, d.actual_step_size, scale],
+        inputs=[d.integration_done, d.time, d.actual_step_size, time_scale],
         outputs=[d.time],
     )
 

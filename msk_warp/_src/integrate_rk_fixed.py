@@ -186,7 +186,7 @@ def rungekutta4(m: Model, d: Data):
     if m.nactuator:
         wp.copy(d.a_act, a_act_t0)
         wp.copy(d.a_act_dot, a_act_dot_rk)
-    integrate_common.advance(m, d, qacc_rk, qvel_rk, 1.0)
+    integrate_common.advance(m, d, qacc_rk, qvel_rk, scale=1.0, time_scale=1.0, symplectic=False)
     wp.copy(d.qacc, qacc_rk)  # copy acceleration for post-step analysis
     return
 

@@ -22,14 +22,14 @@ def attempt_adaptive_step(m: Model, d: Data):
     integrate_adaptive_common.save_state_idx(m, d, 0)
 
     # Big step using full current step size, store y_1
-    integrate_common.advance(m, d, d.qacc, d.qvel, 1.0)
+    integrate_common.advance(m, d, d.qacc, d.qvel, scale=1.0, time_scale=1.0)
     integrate_adaptive_common.save_state_idx(m, d, 1)
 
     # Restore y_0 (note that y_0' is unmodified after restore). Take two half steps
     integrate_adaptive_common.restore_state_idx(m, d, 0, only_on_reject=False)
-    integrate_common.advance(m, d, d.qacc, d.qvel, 0.5)
+    integrate_common.advance(m, d, d.qacc, d.qvel, 0.5, time_scale=0.5)
     forward.fwd(m, d)  # realize for mid-point
-    integrate_common.advance(m, d, d.qacc, d.qvel, 0.5)
+    integrate_common.advance(m, d, d.qacc, d.qvel, 0.5, time_scale=0.5)
 
     # Compute error between y_1* and y_1
     integrate_adaptive_common.compute_error(m, d, d.integrator_scratch[1], scale=1.0)
