@@ -166,7 +166,7 @@ def set_integrator_use_inf_norm(m: Model, use_inf_norm: bool):
 def is_adaptive(integrator_type: IntegratorType) -> bool:
     return integrator_type in [
         IntegratorType.EULER_ADAPTIVE,
-        IntegratorType.RK4_ADAPTIVE,
+        IntegratorType.RK_MERSON_ADAPTIVE,
     ]
 
 

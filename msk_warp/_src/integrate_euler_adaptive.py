@@ -3,7 +3,6 @@ import warp as wp
 from . import forward
 from . import integrate_adaptive_common
 from . import integrate_common
-# from . import integrate_euler_fixed
 from .types import Data
 from .types import Model
 from .warp_util import event_scope

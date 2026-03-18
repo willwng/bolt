@@ -36,7 +36,7 @@ def step(m: Model, d: Data):
         integrate_rk_fixed.integrate(m, d)
     elif wp.static(m.opt.integrator) == IntegratorType.EULER_ADAPTIVE:
         integrate_euler_adaptive.integrate(m, d)
-    elif wp.static(m.opt.integrator) == IntegratorType.RK4_ADAPTIVE:
+    elif wp.static(m.opt.integrator) == IntegratorType.RK_MERSON_ADAPTIVE:
         integrate_rk_adaptive.integrate(m, d)
     else:
         raise RuntimeError("Unknown integrator type")

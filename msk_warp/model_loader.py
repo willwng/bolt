@@ -10,7 +10,7 @@ from msk_warp.utils import *
 
 def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:
     """ Returns number of additional copies of state and state_dot required for integration """
-    if integrator == IntegratorType.RK4_ADAPTIVE:
+    if integrator == IntegratorType.RK_MERSON_ADAPTIVE:
         return 2, 5
     elif integrator == IntegratorType.EULER_ADAPTIVE:
         return 2, 1
@@ -175,6 +175,11 @@ def load_model(
     txfm_axes = spatial_transform_helper.get_txfm_axes(ordered_transform_axes)
     cst_txfm_axes = create_nested_list(txfm_axes, num_per_sublist=6)
     cst_txfm_dof = create_nested_list(txfm_qpos_relative_idx, num_per_sublist=6)
+    # If these lists are empty, we should fill them with dummy data so that the shape is correct
+    if not cst_txfm_axes:
+        cst_txfm_axes = [[wp.vec3()] * 6]
+    if not cst_txfm_dof:
+        cst_txfm_dof = [[0] * 6]
 
     # Gather additional function metadata
     linear_fn_mb = function_helper.get_linear_fn_mb(linear_fns)

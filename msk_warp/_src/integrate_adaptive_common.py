@@ -441,12 +441,12 @@ def adjust_step_size(m: Model, d: Data, err_order: float):
 @event_scope
 def save_state(
         m: Model, d: Data,
-        time_dest: wp.array,
-        qpos_dest: wp.array2d,
-        qvel_dest: wp.array2d,
-        m_state_dest: wp.array2d,
-        m_act_dest: wp.array2d,
-        a_act_dest: wp.array2d
+        time_dest: wp.array(dtype=float),
+        qpos_dest: wp.array2d(dtype=float),
+        qvel_dest: wp.array2d(dtype=float),
+        m_state_dest: wp.array2d(dtype=float),
+        m_act_dest: wp.array2d(dtype=float),
+        a_act_dest: wp.array2d(dtype=float)
 ):
     wp.copy(time_dest, d.time)
     wp.copy(qpos_dest, d.qpos)
@@ -461,11 +461,11 @@ def save_state(
 @event_scope
 def save_state_dot(
         m: Model, d: Data,
-        qvel_dest: wp.array2d,
-        qacc_dest: wp.array2d,
-        m_state_dot_dest: wp.array2d,
-        m_act_dot_dest: wp.array2d,
-        a_act_dot_dest: wp.array2d,
+        qvel_dest: wp.array2d(dtype=float),
+        qacc_dest: wp.array2d(dtype=float),
+        m_state_dot_dest: wp.array2d(dtype=float),
+        m_act_dot_dest: wp.array2d(dtype=float),
+        a_act_dot_dest: wp.array2d(dtype=float)
 ):
     wp.copy(qvel_dest, d.qvel)
     wp.copy(qacc_dest, d.qacc)
@@ -479,11 +479,11 @@ def save_state_dot(
 @event_scope
 def restore_state_dot(
         m: Model, d: Data,
-        qvel_src: wp.array2d,
-        qacc_src: wp.array2d,
-        m_state_dot_src: wp.array2d,
-        m_act_dot_src: wp.array2d,
-        a_act_dot_src: wp.array2d,
+        qvel_src: wp.array2d(dtype=float),
+        qacc_src: wp.array2d(dtype=float),
+        m_state_dot_src: wp.array2d(dtype=float),
+        m_act_dot_src: wp.array2d(dtype=float),
+        a_act_dot_src: wp.array2d(dtype=float),
         only_on_reject: bool
 ):
     @wp.kernel
@@ -508,6 +508,7 @@ def restore_state_dot(
             return
         nv, nm, na = wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
         wp.tile_store(qvel_out[worldid], wp.tile_load(qvel_in[worldid], shape=(nv,)))
+        wp.tile_store(qacc_out[worldid], wp.tile_load(qacc_in[worldid], shape=(nv,)))
         if nm:
             wp.tile_store(m_state_dot_out[worldid], wp.tile_load(m_state_dot_in[worldid], shape=(nm,)))
             wp.tile_store(m_act_dot_out[worldid], wp.tile_load(m_act_dot_in[worldid], shape=(nm,)))
