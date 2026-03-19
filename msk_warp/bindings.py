@@ -14,7 +14,7 @@ def load_model(
         n_worlds: int,
         integrator: IntegratorType,
         polynomial_data_path: str = None,
-        render_kinematic_tree: bool = True,
+        render_kinematic_tree: bool = False,
 ) -> ModelLoadResult:
     return model_loader.load_model(
         model_path=model_path,

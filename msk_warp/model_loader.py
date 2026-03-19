@@ -22,8 +22,8 @@ def load_model(
         model_path: str,
         n_worlds: int,
         integrator: IntegratorType,
-        polynomial_data_path: str = None,
-        render_kinematic_tree: bool = True,
+        polynomial_data_path: str,
+        render_kinematic_tree: bool,
 ) -> ModelLoadResult:
     # All the mesh files for visuals should be located here
     osim.ModelVisualizer.addDirToGeometrySearchPaths("data/geometry")
