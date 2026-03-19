@@ -4,8 +4,7 @@ import torch
 import msk_warp
 
 import msk_warp.model_loader as model_loader
-from msk_warp import Model, Data, IntegratorType, ContactType, LimitType, \
-    ActivationType, MuscleMetadata
+from msk_warp import Model, Data, IntegratorType, ActivationType, MuscleMetadata
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.render.renderer import Renderer, RendererType
 
@@ -137,14 +136,6 @@ def gravity(m: Model) -> float:
 
 def set_drag_enabled(m: Model, enabled: bool):
     m.opt.enable_drag = enabled
-
-
-def set_contact_type(m: Model, contact_type: ContactType):
-    m.opt.contact_type = contact_type
-
-
-def set_limit_type(m: Model, limit_type: LimitType):
-    m.opt.limit_type = limit_type
 
 
 def set_activation_type(m: Model, activation_type: ActivationType):
@@ -290,7 +281,7 @@ def muscle_velocity_info_np(d: Data) -> np.ndarray:
 
 
 def site_positions(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.site_xpos)
+    return wp.to_torch(d.site_pos_G)
 
 
 def muscle_site_adr(m: Model) -> torch.Tensor:

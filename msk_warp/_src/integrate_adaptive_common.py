@@ -369,6 +369,8 @@ def _adjust_step_size(
         safety: float,
         min_shrink: float,
         max_grow: float,
+        min_step_size: float,
+        max_step_size: float,
         hysteresis_low: float,
         hysteresis_high: float,
         accuracy: float,
@@ -410,6 +412,7 @@ def _adjust_step_size(
     # Keep the size change within the allowable bounds
     new_step_size = min(new_step_size, max_grow * curr_step_size)
     new_step_size = max(new_step_size, min_shrink * curr_step_size)
+    new_step_size = wp.clamp(new_step_size, min_step_size, max_step_size)
     step_size_out[worldid] = new_step_size
     # This is an odd definition of success
     step_accepted_out[worldid] = (new_step_size >= curr_step_size)
@@ -429,6 +432,8 @@ def adjust_step_size(m: Model, d: Data, err_order: float):
             m.opt.safety,
             m.opt.min_shrink,
             m.opt.max_grow,
+            m.opt.min_step_size,
+            m.opt.max_step_size,
             m.opt.hysteresis_low,
             m.opt.hysteresis_high,
             m.opt.accuracy,

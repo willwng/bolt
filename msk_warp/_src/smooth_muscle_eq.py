@@ -339,7 +339,7 @@ def update_info_fused(m: Model, d: Data):
 
 
 @event_scope
-def muscle_reset(m: Model, d: Data):
+def equilibrate(m: Model, d: Data):
     """ Equilibrate muscles """
     if not m.nmuscle:
         return
@@ -355,7 +355,7 @@ def muscle_reset(m: Model, d: Data):
 
 
 @event_scope
-def realize_muscle_state(m: Model, d: Data):
+def contraction_dynamics(m: Model, d: Data):
     """ Muscle dynamics """
     if not m.nmuscle:
         return

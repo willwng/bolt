@@ -92,7 +92,7 @@ def _compute_activation_dot_millard(
 
 
 @event_scope
-def compute_act_dot(m: Model, d: Data):
+def activation_dynamics(m: Model, d: Data):
     if m.opt.activation_type == ActivationType.DGF:
         wp.launch(
             _compute_activation_dot_dgf,

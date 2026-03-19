@@ -1,8 +1,9 @@
-from typing import Any, Tuple
+from typing import Tuple
 
 import warp as wp
 
-from msk_warp._src import types
+from . import types
+from .consts import MAX_POLY_NUM_DOFS
 
 
 @wp.func
@@ -419,3 +420,62 @@ def mul_body_xyz_N_inv(cosxy: wp.vec2, sinxy: wp.vec2, qdot: wp.vec3) -> wp.vec3
     q0, q1, q2 = qdot[0], qdot[1], qdot[2]
     c1q2 = c1 * q2
     return wp.vec3(q0 + s1 * q2, c0 * q1 - s0 * c1q2, s0 * q1 + c0 * c1q2)
+
+
+@wp.func
+def fast_pow_pos(base: float, exp: int) -> float:
+    """Fast integer exponentiation for positive, integer exponents."""
+    result = float(1.0)
+    b = base
+    e = exp
+    while e > 0:
+        if (e & 1) != 0:
+            result = result * b
+        b = b * b
+        e = e >> 1
+
+    return result
+
+
+@wp.func
+def mul_but_i(v: types.PolyVec, i: int) -> float:
+    """Multiplies all elements of v except for index i."""
+    result = float(1.0)
+    for idx in range(wp.static(MAX_POLY_NUM_DOFS)):
+        if idx != i:
+            result *= v[idx]
+    return result
+
+
+@wp.func
+def poly_vec_from_eval(poly_eval: types.PolyEval) -> types.PolyVec:
+    """Converts a types.PolyEval to a types.PolyVec by taking the derivative components."""
+    ret = types.PolyVec(0.0)
+    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
+        ret[i] = poly_eval[i + 1]
+    return ret
+
+
+@wp.func
+def evaluate_term_and_deriv(
+        coeff: float,
+        exp: types.PolyInts,
+        q: types.PolyVec,
+) -> types.PolyEval:
+    ret = types.PolyEval(0.0)
+
+    # Compute term, cache powers
+    term = float(coeff)
+    cache = types.PolyVec(0.0)
+    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
+        p = fast_pow_pos(q[i], exp[i])
+        cache[i] = p
+        term *= p
+    ret[0] = term
+
+    # Compute derivatives
+    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
+        if exp[i] > 0:
+            ret[i + 1] = coeff * float(exp[i]) * fast_pow_pos(q[i], exp[i] - 1) * mul_but_i(cache, i)
+
+    return ret

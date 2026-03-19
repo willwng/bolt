@@ -16,6 +16,7 @@
 
 import time
 from typing import Callable, Optional, Tuple
+from tqdm import tqdm
 
 import numpy as np
 import warp as wp
@@ -78,7 +79,7 @@ def benchmark(
         graph = capture.graph
 
         time_vec = np.zeros(nstep)
-        for i in range(nstep):
+        for i in tqdm(range(nstep)):
             with wp.ScopedStream(wp.get_stream()):
                 wp.synchronize()
 

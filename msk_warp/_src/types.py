@@ -1,6 +1,6 @@
 ﻿import enum
 from dataclasses import dataclass
-
+from . import consts
 import warp as wp
 
 
@@ -88,6 +88,19 @@ class mat411(wp.types.matrix(shape=(4, 11), dtype=float)):
     pass
 
 
+# Used for function-based fitting for muscle paths
+class PolyVec(wp.types.vector(length=consts.MAX_POLY_NUM_DOFS, dtype=float)):
+    pass
+
+
+class PolyInts(wp.types.vector(length=consts.MAX_POLY_NUM_DOFS, dtype=int)):
+    pass
+
+
+class PolyEval(wp.types.vector(length=consts.MAX_POLY_NUM_DOFS + 1, dtype=float)):
+    pass
+
+
 @wp.struct
 class SpatialInertia:
     m: float  # mass
@@ -114,24 +127,6 @@ def array(*args) -> wp.array:
     arr.shape = shape
 
     return arr
-
-
-class ContactType(enum.IntEnum):
-    """ Contact model type.
-    Attributes:
-        HUNT_CROSSLEY: Hunt-Crossley contact model (force-based)
-    """
-    HUNT_CROSSLEY = 1
-
-
-class LimitType(enum.IntEnum):
-    """ Contact model type.
-    Attributes:
-        EXPONENTIAL: Exponential Spring Function
-        HUNT_CROSSLEY: Hunt-Crossley-like limit model
-    """
-    EXPONENTIAL = 1
-    HUNT_CROSSLEY = 2
 
 
 class ActivationType(enum.IntEnum):
@@ -187,7 +182,6 @@ class Option:
       visuals: whether to handle visual geometry
 
       contact_type: contact model type (ContactType)
-      limit_type: dof limit model type (LimitType)
       activation_type: muscle activation dynamics type (ActivationType)
       integrator: integrator type (IntegratorType)
 
@@ -196,6 +190,8 @@ class Option:
       safety: (variable-step integration) safety factor
       min_shrink: (variable-step integration) minimum step shrink factor
       max_grow: (variable-step integration) maximum step grow factor
+      min_step_size: (variable-step integration) minimum step size
+      max_step_size: (variable-step integration) maximum step size
       hysteresis_low: (variable-step integration) error hysteresis lower bound
       hysteresis_high: (variable-step integration) error hysteresis upper bound
       accuracy: (variable-step integration) target accuracy
@@ -210,8 +206,6 @@ class Option:
     use_fn_path: bool
     visuals: bool
 
-    contact_type: ContactType
-    limit_type: LimitType
     activation_type: ActivationType
     integrator: IntegratorType
 
@@ -221,6 +215,8 @@ class Option:
     safety: float
     min_shrink: float
     max_grow: float
+    min_step_size: float
+    max_step_size: float
     hysteresis_low: float
     hysteresis_high: float
     accuracy: float
@@ -351,7 +347,8 @@ class Model:
       ngeom: number of collision geometry
       nvis: number of visual geometry
       nsite: number of sites
-      nlinearstop: number of (linear stop) limits
+      nlinearstop: number of (CoordinateLinearStop) limits
+      nlimitforce: number of (CoordinateLimitForce) limits
 
       opt: physics options
       muscle_metadata: muscle metadata                         (nmuscle,)
@@ -407,6 +404,13 @@ class Model:
       stop_dof_adr: dof adr (to apply force)                   (nlinearstop,)
       stop_dof_stiffness_damping: stiffness, damping           (nlinearstop, 2)
 
+      lf_qpos_range: qpos range for dof limit forces           (nlimitforce, 2)
+      lf_qpos_adr: qpos adr for dof limit forces               (nlimitforce,)
+      lf_dof_adr: dof adr for dof limit forces                 (nlimitforce,)
+      lf_stiffness: lower, upper stiffness                     (nlimitforce, 2)
+      lf_damping: damping                                      (nlimitforce,)
+      lf_transition: beyond transition, stiffness is const     (nlimitforce,)
+
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
       geom_X_loc: local transform of geom rel. to body         (ngeom, transform)
@@ -449,6 +453,7 @@ class Model:
     nvis: int
     nsite: int
     nlinearstop: int
+    nlimitforce: int
 
     nfunctions: int
     nlinearfn: int
@@ -504,6 +509,13 @@ class Model:
     stop_qpos_adr: array("nlinearstop", int)
     stop_dof_adr: array("nlinearstop", int)
     stop_dof_stiffness_damping: array("nlinearstop", wp.vec2)
+
+    lf_qpos_range: array("nlimitforce", wp.vec2)
+    lf_qpos_adr: array("nlimitforce", int)
+    lf_dof_adr: array("nlimitforce", int)
+    lf_stiffness: array("nlimitforce", wp.vec2)
+    lf_damping: array("nlimitforce", float)
+    lf_transition: array("nlimitforce", float)
 
     # Collision geometry
     geom_type: array("ngeom", int)
@@ -698,16 +710,9 @@ class Data:
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
 
      * point-path based muscle paths
-      site_rpos: local position of site rel. to body              (nworld, nsite, 3)
-      site_xpos: Cartesian site position                          (nworld, nsite, 3)
-      site_xvel: Cartesian site velocity                          (nworld, nsite, 3)
-      site_active: whether site is active                         (nworld, nsite)
-      site_diff_vec: unit vector b/w consecutive active sites     (nworld, nsite-1, 3)
-      site_diff_len: length b/w consecutive active sites          (nworld, nsite-1)
-      site_diff_vel: projected velocity b/w active sites          (nworld, nsite-1)
-      muscle_active_sites: "compacted" active sites               (nworld, nsite)
-       [ for muscle i, active sites indices are consecutive ]
-      muscle_num_active: number of active sites per muscle        (nworld, nmuscle)
+      site_rel_pos_B: site position relative to body              (nworld, nsite, 3)
+      site_pos_G: site position measured in ground                (nworld, nsite, 3)
+      site_vel_G: site velocity measured in ground                (nworld, nsite, 3)
 
      * function-based muscle paths
       muscle_moment_arm: moment arm of muscle along each dof       (nworld, nmuscle, nv)
@@ -813,15 +818,9 @@ class Data:
     muscle_length: wp.array2d(dtype=float)
     muscle_velocity: wp.array2d(dtype=float)
 
-    site_rpos: wp.array2d(dtype=wp.vec3)
-    site_xpos: wp.array2d(dtype=wp.vec3)
-    site_xvel: wp.array2d(dtype=wp.vec3)
-    site_active: wp.array2d(dtype=bool)
-    site_diff_vec: wp.array2d(dtype=wp.vec3)
-    site_diff_len: wp.array2d(dtype=float)
-    site_diff_vel: wp.array2d(dtype=float)
-    muscle_active_sites: wp.array2d(dtype=int)
-    muscle_num_active: wp.array2d(dtype=int)
+    site_rel_pos_B: wp.array2d(dtype=wp.vec3)
+    site_pos_G: wp.array2d(dtype=wp.vec3)
+    site_vel_G: wp.array2d(dtype=wp.vec3)
 
     muscle_moment_arm: wp.array3d(dtype=float)
 

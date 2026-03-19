@@ -24,13 +24,26 @@ def collect_geom_type_sizes(geom: osim.ContactGeometry) -> tuple[GeomType, wp.ve
         return geom_type, size, aabb, rbound
 
     elif geom_cls == "ContactEllipsoid":
+        # This is quite the hack, but OpenSim doesn't support capsules, so we just put it in the name
         geom = osim.ContactEllipsoid.safeDownCast(geom)
-        geom_type = GeomType.ELLIPSOID
+        geom_name = geom.getName()
         radii = extract_vec3(geom.getRadii())
-        size = wp.vec3(radii)
-        aabb = (wp.vec3(0.0), wp.vec3(radii[0] * 2, radii[1] * 2, radii[2] * 2))
-        rbound = max(radii)
-        return geom_type, size, aabb, rbound
+        if "capsule" not in geom_name.lower():  # parse as ellipsoid
+            geom_type = GeomType.ELLIPSOID
+            size = wp.vec3(radii)
+            aabb = (wp.vec3(0.0), wp.vec3(radii[0] * 2, radii[1] * 2, radii[2] * 2))
+            rbound = max(radii)
+            return geom_type, size, aabb, rbound
+        else:  # parse as capsule
+            if radii[0] != radii[2]:
+                raise ValueError("Converting the ellipsoid to a capsule, x and z radii should be the same")
+            geom_type = GeomType.CAPSULE
+            radius, half_height = radii[0], radii[1]
+            height = 2.0 * half_height
+            size = wp.vec3(radius, half_height, radius)
+            aabb = (wp.vec3(0.0), wp.vec3(radii[0] * 2, height + 2 * radius, radii[2] * 2))
+            rbound = wp.sqrt(half_height ** 2 + radius ** 2)
+            return geom_type, size, aabb, rbound
 
     else:
         raise NotImplementedError(f"Unsupported contact geometry: {geom_cls}")

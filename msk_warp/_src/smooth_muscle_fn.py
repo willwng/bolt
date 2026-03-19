@@ -1,98 +1,109 @@
 import warp as wp
 
 from . import math
-from .types import mat411
+from .consts import MAX_POLY_NUM_DOFS
 from .types import Data
 from .types import Model
+from .types import PolyInts
+from .types import PolyVec
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
-def _compute_path_kernel(
+def _compute_path_kernel_tiled(
         # Model:
-        muscle_poly_coeffs: wp.array(dtype=float),
-        muscle_poly_adr: wp.array(dtype=int),
-        muscle_poly_order: wp.array(dtype=int),
-        muscle_poly_qpos_adr: wp.array(dtype=int),
-        muscle_poly_dof_adr: wp.array(dtype=int),
-        muscle_poly_dep_dof_num: wp.array(dtype=int),
-        muscle_poly_dep_dof_adr: wp.array(dtype=int),
+        term_coeff: wp.array(dtype=float),
+        term_exponents: wp.array(dtype=PolyInts),
+        term_start: wp.array(dtype=int),
+        term_count: wp.array(dtype=int),
+        fn_qpos_adr: wp.array(dtype=PolyInts),
+        fn_dof_adr: wp.array(dtype=PolyInts),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
-        qvel_in: wp.array2d(dtype=float),
         # Data out:
         muscle_length_out: wp.array2d(dtype=float),
-        muscle_velocity_out: wp.array2d(dtype=float),
         muscle_moment_arm_out: wp.array3d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
         return
-    # Fetch polynomial data: address into coeffs, order
-    poly_adr = muscle_poly_adr[muscle_id]
-    order = muscle_poly_order[muscle_id]
-    # Number of dependent DOFs, and address into dep DOF array
-    n_dof = muscle_poly_dep_dof_num[muscle_id]
-    dep_adr = muscle_poly_dep_dof_adr[muscle_id]
-    # Pre-fetch the dependent qpos and qvel values
-    poly_tmp_q = wp.vec4f(0.0)
-    poly_tmp_qv = wp.vec4f(0.0)
-    for i in range(n_dof):
-        qpos_adr_i = muscle_poly_qpos_adr[dep_adr + i]
-        dof_adr_i = muscle_poly_dof_adr[dep_adr + i]
-        poly_tmp_q[i] = qpos_in[worldid, qpos_adr_i]
-        poly_tmp_qv[i] = qvel_in[worldid, dof_adr_i]
 
-    # Pre-calculate powers up to order 10
-    # mat411 provides 4 rows (DOFs) and 11 columns (powers 0 to 10)
-    q_pows = mat411(1.0)
-    for d in range(4):
-        val = poly_tmp_q[d]
-        # q^0 is already 1.0 from initialization
-        for p in range(1, order + 1):
-            q_pows[d, p] = q_pows[d, p - 1] * val
+    # Fetch polynomial data: address into coeffs, order, and dependent dof addresses
+    start_idx = term_start[muscle_id]
+    num_terms = term_count[muscle_id]
+    TILE_SIZE = wp.static(MAX_POLY_NUM_DOFS)
 
-    # Evaluate polynomial
-    length = float(0.0)
-    df_dq = wp.vec4f(0.0)
-    coeff_idx = int(0)
-    for in1 in range(order + 1):
-        # If n_dof < 2, in2 can only be 0 (the power of a non-existent DOF)
-        max_in2 = (order - in1) if n_dof >= 2 else 0
-        for in2 in range(max_in2 + 1):
-            max_in3 = (order - in1 - in2) if n_dof >= 3 else 0
-            for in3 in range(max_in3 + 1):
-                max_in4 = (order - in1 - in2 - in3) if n_dof >= 4 else 0
-                for in4 in range(max_in4 + 1):
-                    c = muscle_poly_coeffs[poly_adr + coeff_idx]
-                    t1, t2, t3, t4 = q_pows[0, in1], q_pows[1, in2], q_pows[2, in3], q_pows[3, in4]
+    qpos_adr = fn_qpos_adr[muscle_id]
+    qvel_adr = fn_dof_adr[muscle_id]
 
-                    # Function eval (L)
-                    term_all = t1 * t2 * t3 * t4
-                    length += c * term_all
+    q = PolyVec(0.0)
+    for i in range(MAX_POLY_NUM_DOFS):
+        q[i] = qpos_in[worldid, qpos_adr[i]]
 
-                    # Partial Derivatives (dL/dq)
-                    if in1 > 0:
-                        df_dq[0] += c * float(in1) * q_pows[0, in1 - 1] * t2 * t3 * t4
-                    if in2 > 0:
-                        df_dq[1] += c * t1 * float(in2) * q_pows[1, in2 - 1] * t3 * t4
-                    if in3 > 0:
-                        df_dq[2] += c * t1 * t2 * float(in3) * q_pows[2, in3 - 1] * t4
-                    if in4 > 0:
-                        df_dq[3] += c * t1 * t2 * t3 * float(in4) * q_pows[3, in4 - 1]
+    f_accum = float(0.0)
+    ma_accum = PolyVec(0.0)
+    for i in range(0, num_terms, TILE_SIZE):
+        coeffs_tile = wp.tile_load(term_coeff, shape=(TILE_SIZE,), offset=(start_idx + i,))
+        exps_tile = wp.tile_load(term_exponents, shape=(TILE_SIZE,), offset=(start_idx + i,))
 
-                    coeff_idx += 1
+        term_deriv = wp.tile_map(math.evaluate_term_and_deriv, coeffs_tile, exps_tile, q)
+        term_deriv_sum = wp.tile_sum(term_deriv)[0]
+        f_accum += term_deriv_sum[0]
+        ma_accum += math.poly_vec_from_eval(term_deriv_sum)
 
-    # l = f(q), v = dL/dq * dq/dt, moment_arm = -dL/dq
-    muscle_length_out[worldid, muscle_id] = length
-    muscle_velocity_out[worldid, muscle_id] = wp.dot(df_dq, poly_tmp_qv)
-    for i in range(n_dof):
-        dof_adr_i = muscle_poly_dof_adr[dep_adr + i]
-        muscle_moment_arm_out[worldid, muscle_id, dof_adr_i] = -df_dq[i]
+    muscle_length_out[worldid, muscle_id] = f_accum
+    for i in range(MAX_POLY_NUM_DOFS):
+        muscle_moment_arm_out[worldid, muscle_id, qvel_adr[i]] = -ma_accum[i]
     return
+
+
+@event_scope
+def compute_path_and_moment_arm(m: Model, d: Data):
+    wp.launch_tiled(
+        _compute_path_kernel_tiled,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[
+            m.term_coeff, m.term_exponents, m.term_start, m.term_count, m.fn_qpos_idx, m.fn_dof_idx,
+            d.integration_done, d.qpos,
+        ],
+        outputs=[d.muscle_length, d.muscle_moment_arm],
+        block_dim=MAX_POLY_NUM_DOFS
+    )
+
+
+@event_scope
+def compute_muscle_velocity(m: Model, d: Data):
+    @wp.kernel
+    def _compute_muscle_velocity_tiled(
+            # Data in:
+            integration_done_in: wp.array(dtype=bool),
+            qvel_in: wp.array2d(dtype=float),
+            muscle_moment_arm_in: wp.array3d(dtype=float),
+            # Data out:
+            muscle_velocity_out: wp.array2d(dtype=float),
+    ):
+        worldid = wp.tid()
+        if integration_done_in[worldid]:
+            return
+        nv, nmuscle = wp.static(m.nv), wp.static(m.nmuscle)
+
+        qvel = wp.tile_reshape(wp.tile_load(qvel_in[worldid], nv), (nv, 1))
+        moment_arms = wp.tile_load(muscle_moment_arm_in[worldid], (nmuscle, nv))
+        muscle_velocities = wp.tile_squeeze(wp.tile_matmul(moment_arms, qvel), axis=(1,))
+        wp.tile_store(muscle_velocity_out[worldid], -muscle_velocities)  # need to negate for since moment arm is -dL/dq
+        return
+
+    if m.nmuscle:
+        wp.launch_tiled(
+            _compute_muscle_velocity_tiled,
+            dim=(d.nworld),
+            inputs=[d.integration_done, d.qvel, d.muscle_moment_arm],
+            outputs=[d.muscle_velocity],
+            block_dim=32
+        )
 
 
 @wp.kernel
@@ -110,7 +121,7 @@ def _apply_muscle_frc(
     actuation = muscle_actuation_in[worldid, muscle_id]
     moment_arm = muscle_moment_arm_in[worldid, muscle_id]
 
-    # most moment arms are zero, hopefully not much contention on the atomic adds
+    # most moment arms are zero, but hopefully not much contention on the adds
     q_applied = actuation * moment_arm[dofid]
     if q_applied != 0.0:
         wp.atomic_add(qfrc_applied_out[worldid], dofid, q_applied)
@@ -118,32 +129,24 @@ def _apply_muscle_frc(
 
 
 @event_scope
-def muscle_path(m: Model, d: Data):
-    """
-    Computes the muscle path length and velocity.
-    Length calculations can be done after fwd_position,
-        but it's easier to fuse with path velocity calculation
-     """
+def muscle_fn_path_moment_arms(m: Model, d: Data):
+    """ Computes the muscle path length and moment arms using a polynomial function approximation """
     if not m.nmuscle:
         return
 
-    # Now we can compute the path
-    d.muscle_moment_arm.zero_()
-    wp.launch(
-        _compute_path_kernel,
-        dim=(d.nworld, m.nmuscle),
-        inputs=[
-            m.muscle_poly_coeffs, m.muscle_poly_adr, m.muscle_poly_order,
-            m.muscle_poly_qpos_adr, m.muscle_poly_dof_adr,
-            m.muscle_dep_dof_num, m.muscle_dep_dof_adr,
-            d.integration_done, d.qpos, d.qvel,
-        ],
-        outputs=[d.muscle_length, d.muscle_velocity, d.muscle_moment_arm],
-    )
+    compute_path_and_moment_arm(m, d)
+    return
 
 
 @event_scope
-def muscle_force(m: Model, d: Data):
+def muscle_velocity(m: Model, d: Data):
+    """ Computes the muscle path velocity from the moment arms and joint velocities. """
+    compute_muscle_velocity(m, d)
+    return
+
+
+@event_scope
+def apply_muscle_force(m: Model, d: Data):
     if m.nmuscle:
         wp.launch(
             _apply_muscle_frc,

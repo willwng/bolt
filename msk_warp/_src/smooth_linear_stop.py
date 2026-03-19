@@ -20,32 +20,32 @@ def _process_joint_limits(
         # Data out:
         qfrc_limit_out: wp.array2d(dtype=float),
 ):
-    worldid, limitdofid = wp.tid()
+    worldid, limitid = wp.tid()
     if integration_done_in[worldid]:
         return
 
-    dof_range = stop_qpos_range[limitdofid]
-    dof_qadr = stop_dof_qadr[limitdofid]
-    dof_adr = stop_dof_adr[limitdofid]
-    sd = stop_dof_stiffness_damping[limitdofid]
+    dof_range = stop_qpos_range[limitid]
+    dof_qadr = stop_dof_qadr[limitid]
+    dof_adr = stop_dof_adr[limitid]
+    sd = stop_dof_stiffness_damping[limitid]
     stiffness, damping = sd[0], sd[1]
 
-    qpos = qpos_in[worldid, dof_qadr]
-    qvel = qvel_in[worldid, dof_adr]
+    q = qpos_in[worldid, dof_qadr]
+    qdot = qvel_in[worldid, dof_adr]
 
-    if qpos >= dof_range[0] and qpos <= dof_range[1]:
+    if q >= dof_range[0] and q <= dof_range[1]:
         return
-    elif qpos > dof_range[1]:
-        force = wp.min(-stiffness * (qpos - dof_range[1]) * (1.0 + damping * qvel), 0.0)
+    elif q > dof_range[1]:
+        force = wp.min(-stiffness * (q - dof_range[1]) * (1.0 + damping * qdot), 0.0)
     else:
-        force = wp.max(-stiffness * (qpos - dof_range[0]) * (1.0 - damping * qvel), 0.0)
+        force = wp.max(-stiffness * (q - dof_range[0]) * (1.0 - damping * qdot), 0.0)
 
     # wp.printf("dof %d is %f, range is [%f, %f], force is %f\n", dof_qadr, qpos, dof_range[0], dof_range[1], force)
     wp.atomic_add(qfrc_limit_out, worldid, dof_adr, force)
     return
 
 
-def limit_forces(m: Model, d: Data):
+def linear_stop_force(m: Model, d: Data):
     wp.launch(
         _process_joint_limits,
         dim=(d.nworld, m.nlinearstop),

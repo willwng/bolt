@@ -320,6 +320,30 @@ def _centrifugal_forces(
     return
 
 
+@wp.kernel
+def _site_global_velocity(
+        # Model:
+        site_bodyid: wp.array(dtype=int),
+        site_pos: wp.array(dtype=wp.vec3),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        body_X_in: wp.array2d(dtype=wp.transform),
+        body_V_in: wp.array2d(dtype=wp.spatial_vector),
+        # Data out:
+        site_vel_G_out: wp.array2d(dtype=wp.vec3),
+):
+    worldid, siteid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    bodyid = site_bodyid[siteid]
+    X_GB = body_X_in[worldid, bodyid]
+    V_GB = body_V_in[worldid, bodyid]
+    station = site_pos[siteid]
+    site_vel_G_out[worldid, siteid] = math.find_station_velocity_in_ground(X_GB, V_GB, station)
+    return
+
+
 @event_scope
 def joint_velocity_jacobian_dot(m: Model, d: Data):
     """ Computes the derivative of the Jacobian """
@@ -426,4 +450,15 @@ def joint_independent_kinematics_vel(m: Model, d: Data):
             d.integration_done, d.body_Mk_G, d.body_total_coriolis_acc, d.body_gyro_force
         ],
         outputs=[d.body_total_centrifugal_force],
+    )
+
+
+@event_scope
+def attachment_kinematics_vel(m: Model, d: Data):
+    # Sites
+    wp.launch(
+        _site_global_velocity,
+        dim=(d.nworld, m.nsite),
+        inputs=[m.site_bodyid, m.site_offset, d.integration_done, d.mob_X_GB, d.body_V_GB],
+        outputs=[d.site_vel_G],
     )

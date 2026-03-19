@@ -188,7 +188,7 @@ def capsule_capsule(
   cap2_axis: wp.vec3,
   cap2_radius: float,
   cap2_half_length: float,
-) -> Tuple[float, wp.vec3, wp.vec3]:
+) -> Tuple[wp.vec2, mat23f, mat23f]:
   """Core contact geometry calculation for capsule-capsule collision.
 
   Args:

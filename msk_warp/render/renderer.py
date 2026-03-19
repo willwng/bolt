@@ -7,6 +7,7 @@ from scipy.spatial.transform import Rotation as R
 
 from msk_warp._src import types
 from .mesh import load_mesh
+from .ellipsoid import create_ellipsoid_mesh
 
 
 class RendererType(Enum):
@@ -89,8 +90,8 @@ class Renderer:
         self.colors = {
             "mesh": (0.82, 0.78, 0.74),
             "sphere": (0.7, 0.5, 0.5),
-            "capsule": (0.5, 0.5, 0.5),
-            "ellipsoid": (0.5, 0.5, 0.5),
+            "capsule": (0.7, 0.5, 0.5),
+            "ellipsoid": (0.7, 0.5, 0.5),
             "site_inactive": (0.3, 0.3, 0.3),
             "beam": (0.82, 0.78, 0.74),
         }
@@ -106,6 +107,9 @@ class Renderer:
             number_instances_per_world += m.nbody
         if self.draw_beams:
             number_instances_per_world += len(self.ind_beams)
+
+        # Required for rendering ellipsoids since they aren't built in to the renderer
+        self.ellipsoid_mesh = create_ellipsoid_mesh(1.0, 1.0, 1.0)
 
         self.num_instances_per_world = number_instances_per_world
 
@@ -152,6 +156,7 @@ class Renderer:
             # Colliders
             if self.draw_colliders:
                 geom_X = d.geom_X.numpy()[wid]
+                ellipsoid_idx = 0
 
                 for i in range(m.ngeom):
                     pos, rot = geom_X[i, :3], geom_X[i, 3:]
@@ -169,7 +174,6 @@ class Renderer:
                         # this line might fix it.
                         rot = self.fix_capsule_rot(rot)
                         up_axis = 1
-
                         self.renderer.render_capsule(
                             f"capsule_{obj_id}",
                             pos,
@@ -180,15 +184,17 @@ class Renderer:
                             color=self.colors["capsule"],
                         )
 
-                    # todo: properly render ellipsoids
-                    # elif self.geom_types[i] == types.GeomType.ELLIPSOID:
-                    #     rx, ry, rz = self.geom_sizes[i]
-                    #     self.renderer.render_box(
-                    #         name=f"ellipsoid_{obj_id}",
-                    #         pos=pos,
-                    #         rot=rot,
-                    #         extents=(rx, ry, rz),
-                    #     )
+                    elif self.geom_types[i] == types.GeomType.ELLIPSOID:
+                        rx, ry, rz = self.geom_sizes[i]
+                        self.renderer.render_mesh(
+                            name=f"ellipsoid_{obj_id}",
+                            points=self.ellipsoid_mesh.points.numpy(),
+                            indices=self.ellipsoid_mesh.indices.numpy(),
+                            pos=pos,
+                            rot=rot,
+                            scale=(rx, ry, rz),
+                            colors=self.colors["ellipsoid"],
+                        )
                     obj_id += 1
 
             # Visuals
@@ -212,7 +218,7 @@ class Renderer:
             # Muscles
             if self.draw_muscles:
                 num_muscles = m.nmuscle
-                site_xpos = d.site_xpos.numpy()[wid]
+                site_xpos = d.site_pos_G.numpy()[wid]
                 muscle_activations = d.m_act.numpy()[wid]
 
                 for i in range(num_muscles):

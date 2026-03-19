@@ -18,8 +18,6 @@ from ._src.types import MuscleDynamicsInfo as MuscleDynamicsInfo
 from ._src.types import ActuatorMetadata as ActuatorMetadata
 from ._src.types import GeomType as GeomType
 from ._src.types import Contact as Contact
-from ._src.types import ContactType as ContactType
-from ._src.types import LimitType as LimitType
 from ._src.types import ActivationType as ActivationType
 from ._src.types import IntegratorType as IntegratorType
 from ._src.types import IntegratorStateScratch as IntegratorStateScratch

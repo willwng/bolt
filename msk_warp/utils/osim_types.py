@@ -38,6 +38,8 @@ class OSimType:
     CoordinateLinearDamper = osim.CoordinateLinearDamper
     CoordinateLinearStop = osim.CoordinateLinearStop
     CoordinateLinearSpring = osim.CoordinateLinearSpring
+    SpringGeneralizedForce = osim.SpringGeneralizedForce
+    CoordinateLimitForce = osim.CoordinateLimitForce
 
     Property = osim.common.AbstractProperty
     PropertyStringList = osim.common.PropertyStringList

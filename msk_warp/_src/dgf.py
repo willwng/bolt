@@ -322,7 +322,7 @@ def calc_damped_norm_fiber_velocity(
         elif wp.abs(derr_d_dlceNdt) < consts.MSK_SIG_REAL:
             # Perturb the solution if we lost rank: shouldn't happen
             perturbation = 2.0 * wp.randf(state[0]) - 1.0
-            wp.atomic_add(state, 0, 1)
+            wp.atomic_add(state, 0, wp.uint32(1))
             dlceN_dt = dlceN_dt + perturbation * 0.05
         i += 1
 

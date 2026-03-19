@@ -38,12 +38,22 @@ def fix_qpos_limits(m: Model, d: Data):
     """Clamps qpos values to joint limits."""
     wp.launch(
         _fix_limits,
-        dim=(d.nworld, m.ndoflimit),
+        dim=(d.nworld, m.nlinearstop),
         inputs=[
-            m.limit_dof_range,
-            m.limit_dof_qadr,
-            d.world_reset,
+            m.stop_qpos_range, m.stop_qpos_adr,
+            d.world_reset, d.qpos,
+        ],
+        outputs=[
             d.qpos,
+        ],
+    )
+
+    wp.launch(
+        _fix_limits,
+        dim=(d.nworld, m.nlimitforce),
+        inputs=[
+            m.lf_qpos_range, m.lf_qpos_adr,
+            d.world_reset, d.qpos,
         ],
         outputs=[
             d.qpos,
@@ -188,8 +198,8 @@ def _site_local_to_global(
         integration_done_in: wp.array(dtype=bool),
         body_X_in: wp.array2d(dtype=wp.transform),
         # Data out:
-        site_rpos_out: wp.array2d(dtype=wp.vec3),
-        site_xpos_out: wp.array2d(dtype=wp.vec3),
+        site_rel_pos_B_out: wp.array2d(dtype=wp.vec3),
+        site_pos_G_out: wp.array2d(dtype=wp.vec3),
 ):
     worldid, siteid = wp.tid()
     if integration_done_in[worldid]:
@@ -199,10 +209,12 @@ def _site_local_to_global(
     body_X = body_X_in[worldid, bodyid]
     body_quat = wp.transform_get_rotation(body_X)
     body_pos = wp.transform_get_translation(body_X)
-    # Relative to body and world positions
+    # Relative to body
     rpos = wp.quat_rotate(body_quat, site_pos[siteid])
-    site_rpos_out[worldid, siteid] = rpos
-    site_xpos_out[worldid, siteid] = body_pos + rpos
+    site_rel_pos_B_out[worldid, siteid] = rpos
+    # Position measured in ground
+    site_pos_G_out[worldid, siteid] = body_pos + rpos
+    return
 
 
 @wp.kernel
@@ -443,5 +455,5 @@ def attachment_kinematics(m: Model, d: Data):
         _site_local_to_global,
         dim=(d.nworld, m.nsite),
         inputs=[m.site_bodyid, m.site_offset, d.integration_done, d.mob_X_GB],
-        outputs=[d.site_rpos, d.site_xpos],
+        outputs=[d.site_rel_pos_B, d.site_pos_G],
     )

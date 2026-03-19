@@ -1,9 +1,9 @@
+# Function-based fitting for muscle paths
+MAX_POLY_NUM_DOFS = 6
+
 MSK_MINVAL = 1e-15
 MSK_MAXVAL = 10000000000.0
 MSK_SIG_REAL = 1e-6
-MJ_MINIMP = 0.0001
-MJ_MAXIMP = 0.9999
-MJ_MINMU = 1e-05
 
 # Index helpers for custom joints
 IDX_SCRATCH_ROT_F = 0

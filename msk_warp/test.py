@@ -53,15 +53,18 @@ def main():
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
     model_path = "data/osim/athlete.osim"
+    # model_path = "data/osim/athlete2.osim"
+    # model_path = "data/osim/simple.osim"
     load_result = msk_warp.load_model(model_path, args.nworld,
                                       integrator=msk_warp.IntegratorType.EULER_ADAPTIVE,
                                       polynomial_data_path="data/muscle_poly_info.json",
                                       render_kinematic_tree=args.tree, )
     m, d = load_result.model, load_result.data
-    m.opt.contact_type = msk_warp.ContactType.HUNT_CROSSLEY
-    m.opt.limit_type = msk_warp.LimitType.HUNT_CROSSLEY
+    forward.reset(m, d)
+    qvel = wp.to_torch(d.qvel)
+    qvel += torch.randn_like(qvel) * 0.3
     m.opt.use_inf_norm = False
-    m.opt.accuracy = 1.0
+    m.opt.accuracy = 0.01
 
     # quit()
 
@@ -74,8 +77,9 @@ def main():
     qpos = wp.to_torch(d.qpos)
     qvel = wp.to_torch(d.qvel)
     qpos[:, qpos_id("pelvis_ty")] = 1.05
+    # qvel[:, dof_id("pelvis_ty")] = -5
 
-    dt = 1.0 / 1000.0
+    dt = 1.0 / 100.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:

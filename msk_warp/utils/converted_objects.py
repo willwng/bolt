@@ -129,6 +129,32 @@ class CoordinateLinearDamperData:
 
 
 @dataclass
+class CoordinateLinearStopData:
+    name: str
+    coordinate: str
+    stiffness_damping: wp.vec2
+    range: wp.vec2
+
+
+@dataclass
+class CoordinateLimitForceData:
+    name: str
+    coordinate: str
+    stiffness: wp.vec2
+    range: wp.vec2
+    damping: float
+    transition: float
+
+
+@dataclass
+class SpringGeneralizedForceData:
+    name: str
+    coordinate: str
+    stiffness: float
+    viscosity: float
+
+
+@dataclass
 class MuscleData:
     name: str
 
@@ -142,14 +168,6 @@ class MuscleData:
     fiber_damping: float
 
     path_points: list[SiteData]
-
-
-@dataclass
-class CoordinateLinearStopData:
-    name: str
-    coordinate: str
-    stiffness_damping: wp.vec2
-    range: wp.vec2
 
 
 GROUND_BODY = BodyData(

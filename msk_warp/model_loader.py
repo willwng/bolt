@@ -1,8 +1,8 @@
 import numpy as np
 import opensim as osim
 
-from msk_warp import Model, Data, IntegratorType, Option, ContactType, LimitType, ActivationType, MetabolicOptions, \
-    MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, MuscleLengthInfo, FiberVelocityInfo, \
+from msk_warp import Model, Data, IntegratorType, Option, ActivationType, MetabolicOptions, MuscleMetadata, \
+    ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, MuscleLengthInfo, FiberVelocityInfo, \
     MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, vec5
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.utils import *
@@ -42,7 +42,9 @@ def load_model(
     converted_spatial_transforms = spatial_transform_helper.convert_spatial_transforms(model)
     converted_dampers = coordinate_force_helper.convert_coordinate_linear_damper(model)
     converted_springs = coordinate_force_helper.convert_coordinate_linear_spring(model)
-    converted_stops = coordinate_force_helper.convert_coordinate_linear_stop(model)
+    converted_spring_gen_force = coordinate_force_helper.convert_spring_generalized_force(model)
+    converted_stops = coordinate_force_helper.convert_coordinate_linear_stop(model)  # this is a limit force
+    converted_limit_forces = coordinate_force_helper.convert_coordinate_limit_force(model)  # also a limit force
     converted_muscles = muscle_helper.convert_muscles(model)
     # Note: muscle path points must come first
     converted_sites = muscle_helper.flatten_sites(converted_muscles) + site_helper.convert_sites(model)
@@ -126,6 +128,7 @@ def load_model(
     nvis = len(converted_visuals)
     nsite = len(converted_sites)
     nlinearstop = len(converted_stops)
+    nlimitforce = len(converted_limit_forces)
     nz = nmuscle  # TODO?
 
     use_fn_path = False  # TODO
@@ -150,6 +153,13 @@ def load_model(
     stop_dof_stiffness_damping = coordinate_force_helper.get_stop_dof_stiffness_damping(converted_stops)
     stop_qpos_adr = coordinate_force_helper.get_stop_coordinates_adr(converted_stops, qpos_ordering)
     stop_dof_adr = coordinate_force_helper.get_stop_coordinates_adr(converted_stops, dof_ordering)
+
+    lf_qpos_range = coordinate_force_helper.get_lf_qpos_range(converted_limit_forces)
+    lf_qpos_adr = coordinate_force_helper.get_lf_adr(converted_limit_forces, qpos_ordering)
+    lf_dof_adr = coordinate_force_helper.get_lf_adr(converted_limit_forces, dof_ordering)
+    lf_stiffness = coordinate_force_helper.get_lf_stiffness(converted_limit_forces)
+    lf_damping = coordinate_force_helper.get_lf_damping(converted_limit_forces)
+    lf_transition = coordinate_force_helper.get_lf_transition(converted_limit_forces)
 
     site_body_id = apply_map_to_list(site_helper.get_site_body_name(converted_sites), body_ordering)
     site_offset = site_helper.get_site_offset(converted_sites)
@@ -188,8 +198,9 @@ def load_model(
     poly_coeffs_num, poly_coeffs_adr = function_helper.get_poly_coeffs_num_adr(poly_fns)
 
     # Joint damping, spring, and linear stops (limits)
-    dof_damping = coordinate_force_helper.get_dof_damping(converted_dampers, dof_ordering)
-    dof_stiffness = coordinate_force_helper.get_dof_stiffness(converted_springs, dof_ordering)
+    # TODO: better separation between LinearSpring and SpringGeneralizedForce (i.e., if LinearSpring rest length != 0)
+    dof_stiffness, dof_damping = coordinate_force_helper.get_dof_stiffness_damping(
+        converted_springs, converted_dampers, converted_spring_gen_force, dof_ordering)
     qpos_spring_rest = coordinate_force_helper.get_qpos_spring_rest(converted_springs, qpos_ordering)
 
     # Muscles/sites
@@ -211,8 +222,6 @@ def load_model(
         visuals=True,
         use_fn_path=use_fn_path,
 
-        contact_type=ContactType.HUNT_CROSSLEY,
-        limit_type=LimitType.EXPONENTIAL,
         activation_type=ActivationType.MILLARD,
         integrator=integrator,
 
@@ -233,6 +242,8 @@ def load_model(
         max_grow=5.0,
         hysteresis_low=0.9,
         hysteresis_high=1.2,
+        min_step_size=1e-6,
+        max_step_size=wp.inf,
         accuracy=0.01,
         use_inf_norm=False,
         qvel_weights=wp.full(nv, 1.0, dtype=float),
@@ -252,6 +263,8 @@ def load_model(
         nvis=nvis,
         nsite=nsite,
         nlinearstop=nlinearstop,
+        nlimitforce=nlimitforce,
+
         nfunctions=nfunctions,
         nlinearfn=nlinearfn,
         nconstfn=nconstfn,
@@ -301,6 +314,13 @@ def load_model(
         stop_qpos_adr=to_warp_array(stop_qpos_adr, dtype=int),
         stop_dof_adr=to_warp_array(stop_dof_adr, dtype=int),
         stop_dof_stiffness_damping=to_warp_array(stop_dof_stiffness_damping, dtype=wp.vec2),
+
+        lf_qpos_range=to_warp_array(lf_qpos_range, dtype=wp.vec2),
+        lf_qpos_adr=to_warp_array(lf_qpos_adr, dtype=int),
+        lf_dof_adr=to_warp_array(lf_dof_adr, dtype=int),
+        lf_stiffness=to_warp_array(lf_stiffness, dtype=wp.vec2),
+        lf_damping=to_warp_array(lf_damping, dtype=float),
+        lf_transition=to_warp_array(lf_transition, dtype=float),
 
         geom_type=to_warp_array(geom_type, dtype=int),
         geom_bodyid=to_warp_array(geom_body_id, dtype=int),
@@ -380,7 +400,7 @@ def load_model(
     d = Data(
         world_reset=make_full(True, n_worlds, dtype=bool),
         time=make_zero(n_worlds, dtype=float),
-        rng_state=wp.rand_init(0),
+        rng_state=to_warp_array(wp.rand_init(0), dtype=wp.uint32),
 
         nworld=n_worlds,
         naconmax=naconmax,
@@ -459,18 +479,9 @@ def load_model(
 
         vis_X=make_zero((n_worlds, nvis), dtype=wp.transform),
 
-        site_rpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
-        site_xpos=make_zero((n_worlds, nsite), dtype=wp.vec3),
-        site_xvel=make_zero((n_worlds, nsite), dtype=wp.vec3),
-        site_active=make_zero((n_worlds, nsite), dtype=bool),
-
-        muscle_active_sites=make_zero((n_worlds, nsite), dtype=int),
-        muscle_num_active=make_zero((n_worlds, nmuscle), dtype=int),
-        muscle_moment_arm=make_zero((n_worlds, nmuscle, nv), dtype=float),
-
-        site_diff_vec=make_zero((n_worlds, max(0, nsite - 1)), dtype=wp.vec3),
-        site_diff_len=make_zero((n_worlds, max(0, nsite - 1)), dtype=float),
-        site_diff_vel=make_zero((n_worlds, max(0, nsite - 1)), dtype=float),
+        site_rel_pos_B=make_zero((n_worlds, nsite), dtype=wp.vec3),
+        site_pos_G=make_zero((n_worlds, nsite), dtype=wp.vec3),
+        site_vel_G=make_zero((n_worlds, nsite), dtype=wp.vec3),
 
         mob_H_FM=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
         mob_H=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
@@ -482,6 +493,7 @@ def load_model(
 
         muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_moment_arm=make_zero((n_worlds, nmuscle, nv), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_metabolic=make_zero((n_worlds, nmuscle), dtype=float),
 
