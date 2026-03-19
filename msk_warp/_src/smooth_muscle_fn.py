@@ -71,6 +71,9 @@ def _compute_path_kernel_tiled(
 
 @wp.kernel
 def _apply_muscle_frc_kernel(
+        # Model:
+        fn_dimension: wp.array(dtype=int),
+        fn_dof_adr: wp.array(dtype=PolyInts),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         muscle_actuation_in: wp.array2d(dtype=float),
@@ -78,16 +81,20 @@ def _apply_muscle_frc_kernel(
         # Data out:
         qfrc_applied_out: wp.array2d(dtype=float),
 ):
-    worldid, muscle_id, dofid = wp.tid()
+    worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
         return
     actuation = muscle_actuation_in[worldid, muscle_id]
     moment_arm = muscle_moment_arm_in[worldid, muscle_id]
+    dimension = fn_dimension[muscle_id]
 
-    # most moment arms are zero, but hopefully not much contention on the adds
-    q_applied = actuation * moment_arm[dofid]
-    if q_applied != 0.0:
-        wp.atomic_add(qfrc_applied_out[worldid], dofid, q_applied)
+    for varid in range(wp.static(MAX_POLY_NUM_DOFS)):
+        if varid >= dimension:
+            break
+        dofid = fn_dof_adr[muscle_id][varid]
+        q_applied = actuation * moment_arm[dofid]
+        if q_applied != 0.0:
+            wp.atomic_add(qfrc_applied_out[worldid], dofid, q_applied)
     return
 
 
@@ -114,7 +121,7 @@ def apply_muscle_force(m: Model, d: Data):
     if m.nmuscle:
         wp.launch(
             _apply_muscle_frc_kernel,
-            dim=(d.nworld, m.nmuscle, m.nv),
-            inputs=[d.integration_done, d.muscle_actuation, d.muscle_moment_arm, ],
+            dim=(d.nworld, m.nmuscle),
+            inputs=[m.fn_dimension, m.fn_path_dof_adr, d.integration_done, d.muscle_actuation, d.muscle_moment_arm, ],
             outputs=[d.qfrc_muscle],
         )

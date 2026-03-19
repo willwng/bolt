@@ -81,9 +81,11 @@ def main():
     qpos = wp.to_torch(d.qpos)
     qvel = wp.to_torch(d.qvel)
     qpos[:, qpos_id("pelvis_ty")] = 1.05
+    qpos[:, qpos_id("hip_flexion_r")] = 1.5
+    qpos[:, qpos_id("knee_angle_r")] = 1.5
     # qvel[:, dof_id("pelvis_ty")] = -5
 
-    dt = 1.0 / 100.0
+    dt = 1.0 / 1000.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:

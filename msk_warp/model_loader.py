@@ -1,5 +1,6 @@
 import numpy as np
 import opensim as osim
+import os
 
 from msk_warp import Model, Data, IntegratorType, Option, ActivationType, MetabolicOptions, MuscleMetadata, \
     ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, MuscleLengthInfo, FiberVelocityInfo, \
@@ -26,7 +27,10 @@ def load_model(
         render_kinematic_tree: bool,
 ) -> ModelLoadResult:
     # All the mesh files for visuals should be located here
-    osim.ModelVisualizer.addDirToGeometrySearchPaths("data/geometry")
+    file_path = os.path.dirname(os.path.realpath(__file__))
+    geom_path = os.path.join(file_path, "../data/geometry")
+    osim.ModelVisualizer.addDirToGeometrySearchPaths(geom_path)
+    # Use OpenSim parser
     model = osim.Model(model_path)
     model.initSystem()
 
@@ -222,6 +226,7 @@ def load_model(
         converted_function_paths)
     fn_path_qpos_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, qpos_ordering)
     fn_path_dof_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, dof_ordering)
+    fn_path_dimension = function_based_path_helper.get_fn_dimension(converted_function_paths)
 
     # Prepare contacts
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
@@ -256,7 +261,7 @@ def load_model(
         max_grow=5.0,
         hysteresis_low=0.9,
         hysteresis_high=1.2,
-        min_step_size=1e-6,
+        min_step_size=1e-7,
         max_step_size=wp.inf,
         accuracy=0.01,
         use_inf_norm=False,
@@ -379,6 +384,7 @@ def load_model(
         fn_path_term_count=to_warp_array(fn_path_term_count, dtype=int),
         fn_path_qpos_adr=to_warp_array(fn_path_qpos_adr, dtype=PolyInts),
         fn_path_dof_adr=to_warp_array(fn_path_dof_adr, dtype=PolyInts),
+        fn_dimension=to_warp_array(fn_path_dimension, dtype=int),
 
         block_dim=TileBlockDim(),
     )
@@ -562,6 +568,9 @@ def load_model(
         ncollision=wp.zeros((1,), dtype=int),
     )
 
+    muscle_ordering = muscle_helper.get_muscle_ordering(converted_muscles)
+    collider_ordering = geom_helper.get_geom_ordering(converted_geoms)
+
     return ModelLoadResult(
         model=m,
         data=d,
@@ -569,8 +578,8 @@ def load_model(
         qpos_id_lookup=qpos_ordering,
         dof_id_lookup=dof_ordering,
         limit_id_lookup={},
-        muscle_id_lookup={},
+        muscle_id_lookup=muscle_ordering,
         actuator_id_lookup={},
-        collider_id_lookup={},
+        collider_id_lookup=collider_ordering,
         mesh_load_results=visual_helper.create_mesh_load_results(converted_visuals),
     )

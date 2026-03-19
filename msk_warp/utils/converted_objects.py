@@ -176,6 +176,8 @@ class MuscleFunctionPathData:
     coordinates: list[str]
     coefficients: list[float]
     exponents: list[PolyInts]
+    dimension: int
+    order: int
 
 
 GROUND_BODY = BodyData(

@@ -108,3 +108,8 @@ def create_muscle_metadata(muscles: list[MuscleData]) -> list[MuscleMetadata]:
         muscle_meta.slow_twitch_ratio = 0.5
         muscle_metadata.append(muscle_meta)
     return muscle_metadata
+
+
+def get_muscle_ordering(muscles: list[MuscleData]) -> dict[str, int]:
+    """ Returns a mapping from muscle name to its index in the list """
+    return {muscle.name: i for i, muscle in enumerate(muscles)}

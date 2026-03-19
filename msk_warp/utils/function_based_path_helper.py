@@ -83,7 +83,9 @@ def parse_function_based_paths(model_path: str, function_based_path_file: str) -
                 name=muscle_path_name,
                 coordinates=coordinates,
                 coefficients=coefficients,
-                exponents=exponents
+                exponents=exponents,
+                dimension=dimension,
+                order=order,
             )
         )
     return muscle_function_path_data
@@ -135,3 +137,8 @@ def get_fn_term_adr(
         term_fn_adr.append(PolyInts(*coord_adr))
 
     return term_fn_adr
+
+
+def get_fn_dimension(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
+    """ Gets the dimension of each muscle function path """
+    return [muscle_path.dimension for muscle_path in muscle_function_paths]

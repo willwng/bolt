@@ -448,6 +448,7 @@ class Model:
      * muscle function-based paths *
       fn_path_qpos_adr: qpos adr for each muscle fn path term      (nmuscle, PolyInt)
       fn_path_dof_adr: dof adr for each muscle fn path term        (nmuscle, PolyInt)
+      fn_dimension: number of dependent variables                  (nmuscle,)
       fn_path_term_start: starting adr of each muscle's terms      (nmuscle,)
       fn_path_term_count: number of terms for each muscle's path   (nmuscle,)
       fn_path_term_coeffs: coefficients for each fn path term      (nmuscle, num_fn_terms)
@@ -568,6 +569,7 @@ class Model:
 
     fn_path_qpos_adr: array("nmuscle", PolyInts)
     fn_path_dof_adr: array("nmuscle", PolyInts)
+    fn_dimension: array("nmuscle", int)
     fn_path_term_start: array("nmuscle", int)
     fn_path_term_count: array("nmuscle", int)
     fn_path_term_coeffs: array("nmuscle", "num_fn_terms", float)

@@ -82,8 +82,8 @@ def convert_contact_geometry(geom: osim.ContactGeometry) -> GeomData:
         rbound=rbound,
 
         # Defaults
-        friction=wp.vec3(0.95, 0.6, 0.0),
-        stiffness=(1e6 ** (2 / 3)),
+        friction=wp.vec3(0.8, 0.8, 0.0),
+        stiffness=(5e6 ** (2 / 3)),
         dissipation=1.0,
         transition_velocity=0.1,
         priority=0
@@ -154,6 +154,10 @@ def prepare_contacts(
         if nxn_pairid_contact[i] > -2 or nxn_pairid_collision[i] > -1
     ], minlength=len(GeomType) * (len(GeomType) + 1) // 2, )
     return geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered
+
+
+def get_geom_ordering(geom_data_list: list[GeomData]) -> dict[str, int]:
+    return {geom_data.name: i for i, geom_data in enumerate(geom_data_list)}
 
 
 def get_geom_body_name(geom_data_list: list[GeomData]) -> list[str]:

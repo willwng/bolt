@@ -183,12 +183,16 @@ def time(d: Data) -> torch.tensor:
     return wp.to_torch(d.time)
 
 
-def body_positions(d: Data) -> torch.Tensor:
+def body_transforms(d: Data) -> torch.Tensor:
     return wp.to_torch(d.mob_X_GB)
 
 
 def body_com_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.body_COM_G)
+
+
+def body_velocities(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_V_GB)
 
 
 def body_user_forces(d: Data) -> torch.Tensor:
@@ -305,7 +309,7 @@ def actuator_metadata_np(m: Model) -> np.ndarray:
     return m.actuator_metadata.numpy()
 
 
-# --- Visuals ---
+# ---get_ Visuals ---
 def get_visual_transforms(d: Data) -> torch.Tensor:
     return wp.to_torch(d.vis_X)
 
