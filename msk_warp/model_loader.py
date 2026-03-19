@@ -34,6 +34,8 @@ def load_model(
     if model.getNumBodies() != model.getNumJoints():
         raise ValueError(f"Num bodies ({model.getNumBodies()}) does not match num Joints ({model.getNumJoints()})")
 
+    use_function_based_paths = polynomial_data_path is not None
+
     # Parse bodies, joints, collision geometry, visuals, etc.
     converted_bodies = [GROUND_BODY] + [body_helper.convert_body(body) for body in model.getBodyList()]
     converted_joints = [GROUND_JOINT] + [joint_helper.convert_joint(joint) for joint in model.getJointList()]
@@ -48,6 +50,11 @@ def load_model(
     converted_muscles = muscle_helper.convert_muscles(model)
     # Note: muscle path points must come first
     converted_sites = muscle_helper.flatten_sites(converted_muscles) + site_helper.convert_sites(model)
+    # Function-based paths
+    converted_function_paths = []
+    if use_function_based_paths:
+        converted_function_paths = function_based_path_helper.parse_function_based_paths(model_path,
+                                                                                         polynomial_data_path)
 
     # Create a lookup from body name -> body data. Needed for joint->body lookup
     body_name_to_body = {body.name: body for body in converted_bodies}
@@ -131,7 +138,6 @@ def load_model(
     nlimitforce = len(converted_limit_forces)
     nz = nmuscle  # TODO?
 
-    use_fn_path = False  # TODO
     # needs shapes
 
     actuator_data = []  # fixme
@@ -209,6 +215,14 @@ def load_model(
     muscle_data = muscle_helper.create_muscle_metadata(converted_muscles)
     mm = wp.array(muscle_data, dtype=MuscleMetadata)
 
+    # Muscle function-based paths
+    fn_path_term_coeffs = function_based_path_helper.get_fn_path_term_coeffs(converted_function_paths)
+    fn_path_term_exps = function_based_path_helper.get_fn_path_term_exps(converted_function_paths)
+    fn_path_term_start, fn_path_term_count = function_based_path_helper.compute_fn_path_term_start_and_count(
+        converted_function_paths)
+    fn_path_qpos_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, qpos_ordering)
+    fn_path_dof_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, dof_ordering)
+
     # Prepare contacts
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
         geom_helper.prepare_contacts(geom_type, geom_body_id, body_parent_id, ngeom))
@@ -220,7 +234,7 @@ def load_model(
         explicit_gravity=True,
         enable_drag=True,
         visuals=True,
-        use_fn_path=use_fn_path,
+        use_fn_path=use_function_based_paths,
 
         activation_type=ActivationType.MILLARD,
         integrator=integrator,
@@ -282,6 +296,11 @@ def load_model(
         body_unit_inertia_OB_B=to_warp_array(body_unit_inertia_OB_B, dtype=wp.mat33),
 
         body_parentid=to_warp_array(body_parent_id, dtype=int),
+        body_tree=body_tree_warp,
+        body_children=to_warp_array(body_children_flattened, dtype=int),
+        body_children_num=to_warp_array(body_children_num, dtype=int),
+        body_children_adr=to_warp_array(body_children_adr, dtype=int),
+
         mob_type=to_warp_array(mob_type, dtype=int),
         mob_qposadr=to_warp_array(mob_qpos_adr, dtype=int),
         mob_dofadr=to_warp_array(mob_dof_adr, dtype=int),
@@ -354,10 +373,13 @@ def load_model(
         muscle_dep_dof_num=to_warp_array([], dtype=int),
         muscle_dep_dof_adr=to_warp_array([], dtype=int),
 
-        body_tree=body_tree_warp,
-        body_children=to_warp_array(body_children_flattened, dtype=int),
-        body_children_num=to_warp_array(body_children_num, dtype=int),
-        body_children_adr=to_warp_array(body_children_adr, dtype=int),
+        fn_path_term_coeffs=to_warp_array(fn_path_term_coeffs, dtype=float),
+        fn_path_term_exps=to_warp_array(fn_path_term_exps, dtype=PolyInts),
+        fn_path_term_start=to_warp_array(fn_path_term_start, dtype=int),
+        fn_path_term_count=to_warp_array(fn_path_term_count, dtype=int),
+        fn_path_qpos_adr=to_warp_array(fn_path_qpos_adr, dtype=PolyInts),
+        fn_path_dof_adr=to_warp_array(fn_path_dof_adr, dtype=PolyInts),
+
         block_dim=TileBlockDim(),
     )
 

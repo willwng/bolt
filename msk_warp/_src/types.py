@@ -13,6 +13,9 @@ class TileBlockDim:
     error_step: int = 16
     restore_state: int = 16
 
+    # function-based muscle paths
+    muscle_path: int = 32
+
 
 class MobilizerType(enum.IntEnum):
     """Type of mobilizer
@@ -398,12 +401,13 @@ class Model:
       dof_stiffness: stiffness coefficient                     (nv)
       qpos_spring_rest: rest position for dof spring           (nq,)
 
-     * limits *
+     * limits, CoordinateLinearStop *
       stop_qpos_range: qpos range for dof limits               (nlinearstop, 2)
       stop_qpos_adr: qpos adr (to check range)                 (nlinearstop,)
       stop_dof_adr: dof adr (to apply force)                   (nlinearstop,)
       stop_dof_stiffness_damping: stiffness, damping           (nlinearstop, 2)
 
+     * limits, CoordinateLimitForce *
       lf_qpos_range: qpos range for dof limit forces           (nlimitforce, 2)
       lf_qpos_adr: qpos adr for dof limit forces               (nlimitforce,)
       lf_dof_adr: dof adr for dof limit forces                 (nlimitforce,)
@@ -411,6 +415,7 @@ class Model:
       lf_damping: damping                                      (nlimitforce,)
       lf_transition: beyond transition, stiffness is const     (nlimitforce,)
 
+    * collision geometry *
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
       geom_X_loc: local transform of geom rel. to body         (ngeom, transform)
@@ -440,6 +445,13 @@ class Model:
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
 
+     * muscle function-based paths *
+      fn_path_qpos_adr: qpos adr for each muscle fn path term      (nmuscle, PolyInt)
+      fn_path_dof_adr: dof adr for each muscle fn path term        (nmuscle, PolyInt)
+      fn_path_term_start: starting adr of each muscle's terms      (nmuscle,)
+      fn_path_term_count: number of terms for each muscle's path   (nmuscle,)
+      fn_path_term_coeffs: coefficients for each fn path term      (nmuscle, num_fn_terms)
+      fn_path_term_exps: exponents for each fn path term           (nmuscle, num_fn_terms, PolyInt)
     """
 
     nbody: int
@@ -553,6 +565,13 @@ class Model:
     muscle_poly_dof_adr: array("total_order", int)
     muscle_dep_dof_num: array("nmuscle", int)
     muscle_dep_dof_adr: array("nmuscle", int)
+
+    fn_path_qpos_adr: array("nmuscle", PolyInts)
+    fn_path_dof_adr: array("nmuscle", PolyInts)
+    fn_path_term_start: array("nmuscle", int)
+    fn_path_term_count: array("nmuscle", int)
+    fn_path_term_coeffs: array("nmuscle", "num_fn_terms", float)
+    fn_path_term_exps: array("nmuscle", "num_fn_terms", PolyInts)
 
     block_dim: TileBlockDim
 

@@ -14,12 +14,14 @@ class OSimType:
     LinearFunction = osim.LinearFunction
     ConstantFunction = osim.Constant
     PolynomialFunction = osim.PolynomialFunction
+    MultivariatePolynomialFunction = osim.MultivariatePolynomialFunction
 
     Body = osim.simulation.Body
 
     Muscle = osim.simulation.Muscle
     MillardMuscle = osim.Millard2012EquilibriumMuscle
     ScholzPath = osim.Scholz2015GeometryPath
+    FunctionBasedPath = osim.FunctionBasedPath
     PathPoint = osim.PathPoint
 
     Vector = osim.Vector

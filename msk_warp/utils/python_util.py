@@ -51,3 +51,18 @@ def flatten_nested_list(nested_list: list[list[T]]) -> list[T]:
     for sublist in nested_list:
         flat_list.extend(sublist)
     return flat_list
+
+
+def remove_slash_prefix(string: str) -> str:
+    """ Only gets the text after the last slash"""
+    if "/" in string:
+        return string.split("/")[-1]
+    else:
+        return string
+
+
+def pad_list(lst: list[T], target_length: int, pad_value: T) -> list[T]:
+    """ Pads a list to a target length with a specified pad value. """
+    if len(lst) > target_length:
+        raise ValueError(f"List length {len(lst)} is greater than target length {target_length}")
+    return lst + [pad_value] * (target_length - len(lst))

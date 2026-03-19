@@ -1,7 +1,10 @@
 from .osim_types import OSimType
+from typing import TypeVar
+
+T = TypeVar("T")
 
 
-def extract_vector(v: OSimType.Vector) -> list[int]:
+def extract_vector(v: OSimType.Vector) -> list[T]:
     return v.to_numpy().tolist()
 
 

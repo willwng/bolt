@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from dataclasses import fields
 
 import warp as wp
-from msk_warp import MobilizerType, GeomType
+from msk_warp import MobilizerType, GeomType, PolyInts
 
 GROUND_PARENT = "N/A"
 GROUND = "ground"
@@ -168,6 +168,14 @@ class MuscleData:
     fiber_damping: float
 
     path_points: list[SiteData]
+
+
+@dataclass
+class MuscleFunctionPathData:
+    name: str
+    coordinates: list[str]
+    coefficients: list[float]
+    exponents: list[PolyInts]
 
 
 GROUND_BODY = BodyData(

@@ -27,8 +27,11 @@ from ._src.types import SpatialInertia as SpatialInertia
 from ._src.types import ArticulatedInertia as ArticulatedInertia
 from ._src.types import TileBlockDim as TileBlockDim
 from ._src.types import vec5 as vec5
+from ._src.types import PolyInts as PolyInts
 from ._src.consts import MIN_NORM_FIBER_LENGTH
 from ._src.consts import MAX_NORM_FIBER_LENGTH
+from ._src.consts import MAX_POLY_NUM_DOFS
+from ._src.consts import POLY_TILE_SIZE
 from .render.renderer import RendererType as RendererType
 
 from .bindings import *

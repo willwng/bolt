@@ -55,16 +55,20 @@ def main():
     model_path = "data/osim/athlete.osim"
     # model_path = "data/osim/athlete2.osim"
     # model_path = "data/osim/simple.osim"
-    load_result = msk_warp.load_model(model_path, args.nworld,
-                                      integrator=msk_warp.IntegratorType.EULER_ADAPTIVE,
-                                      polynomial_data_path="data/muscle_poly_info.json",
-                                      render_kinematic_tree=args.tree, )
+    load_result = msk_warp.load_model(
+        model_path,
+        n_worlds=args.nworld,
+        integrator=msk_warp.IntegratorType.EULER_ADAPTIVE,
+        polynomial_data_path="data/function_paths/athlete_model_FunctionBasedPathSet.xml",
+        render_kinematic_tree=args.tree,
+    )
+
     m, d = load_result.model, load_result.data
     forward.reset(m, d)
     qvel = wp.to_torch(d.qvel)
     qvel += torch.randn_like(qvel) * 0.3
     m.opt.use_inf_norm = False
-    m.opt.accuracy = 0.01
+    m.opt.accuracy = 0.1
 
     # quit()
 

@@ -1,13 +1,11 @@
 import opensim as osim
 import warp as wp
-from networkx.algorithms.bipartite.basic import density
-from opensim import Muscle
 
 from msk_warp import MuscleMetadata, MIN_NORM_FIBER_LENGTH, MAX_NORM_FIBER_LENGTH
 from msk_warp.utils.converted_objects import MuscleData, SiteData
 from msk_warp.utils.osim_types import OSimType
-from msk_warp.utils.property_helper import extract_vec3
 from msk_warp.utils.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
+from msk_warp.utils.property_helper import extract_vec3
 
 
 def convert_path_point(point: OSimType.PathPoint) -> SiteData:
@@ -37,13 +35,19 @@ def collect_path_points(muscle_path: OSimType.ScholzPath) -> list[SiteData]:
     return path_points
 
 
+def get_muscles(model: osim.Model) -> list[osim.Muscle]:
+    """ Returns the list of Muscles in the model """
+    force_set = model.getForceSet()
+    muscles = filter(lambda f: "Muscle" in f.getConcreteClassName(), force_set)
+    return list(muscles)
+
+
 def convert_muscles(model: osim.Model) -> list[MuscleData]:
     """ Returns the all the converted Muscles in the model """
     muscle_data = []
-    force_set = model.getForceSet()
-    # Only handle MillardMuscles for now with ScholzPath. todo(future)
-    muscles = filter(lambda f: "Millard2012EquilibriumMuscle" in f.getConcreteClassName(), force_set)
+    muscles = get_muscles(model)
     for muscle in muscles:
+        # Only handle MillardMuscles for now with ScholzPath. todo(future)
         muscle = OSimType.MillardMuscle.safeDownCast(muscle)
         muscle_name = muscle.getName()
         muscle_path = OSimType.ScholzPath.safeDownCast(muscle.getPath())
@@ -84,23 +88,23 @@ def create_muscle_metadata(muscles: list[MuscleData]) -> list[MuscleMetadata]:
     muscle_metadata = []
     for muscle in muscles:
         muscle_meta = MuscleMetadata()
-        muscle_meta.max_isometric_force=muscle.max_isometric_force
-        muscle_meta.optimal_fiber_length=muscle.optimal_fiber_length
-        muscle_meta.tendon_slack_length=muscle.tendon_slack_length
-        muscle_meta.optimal_pennation_angle=muscle.pennation_angle_at_optimal
-        muscle_meta.fiber_damping=muscle.fiber_damping
-        muscle_meta.min_activation=muscle.min_control
-        muscle_meta.max_activation=muscle.max_control
+        muscle_meta.max_isometric_force = muscle.max_isometric_force
+        muscle_meta.optimal_fiber_length = muscle.optimal_fiber_length
+        muscle_meta.tendon_slack_length = muscle.tendon_slack_length
+        muscle_meta.optimal_pennation_angle = muscle.pennation_angle_at_optimal
+        muscle_meta.fiber_damping = muscle.fiber_damping
+        muscle_meta.min_activation = muscle.min_control
+        muscle_meta.max_activation = muscle.max_control
 
         # Defaults
-        muscle_meta.v_max=10.0
-        muscle_meta.activation_time_const=0.010
-        muscle_meta.deactivation_time_const=0.040
-        muscle_meta.activation_dynamics_smoothing=10.0
-        muscle_meta.min_norm_fiber_length=MIN_NORM_FIBER_LENGTH
-        muscle_meta.max_norm_fiber_length=MAX_NORM_FIBER_LENGTH
-        muscle_meta.specific_tension=0.5e6
-        muscle_meta.density=1059.7
-        muscle_meta.slow_twitch_ratio=0.5
+        muscle_meta.v_max = 10.0
+        muscle_meta.activation_time_const = 0.010
+        muscle_meta.deactivation_time_const = 0.040
+        muscle_meta.activation_dynamics_smoothing = 10.0
+        muscle_meta.min_norm_fiber_length = MIN_NORM_FIBER_LENGTH
+        muscle_meta.max_norm_fiber_length = MAX_NORM_FIBER_LENGTH
+        muscle_meta.specific_tension = 0.5e6
+        muscle_meta.density = 1059.7
+        muscle_meta.slow_twitch_ratio = 0.5
         muscle_metadata.append(muscle_meta)
     return muscle_metadata
