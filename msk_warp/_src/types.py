@@ -104,6 +104,10 @@ class PolyEval(wp.types.vector(length=consts.MAX_POLY_NUM_DOFS + 1, dtype=float)
     pass
 
 
+class PolyPowCache(wp.types.matrix(shape=(consts.MAX_POLY_NUM_DOFS, consts.MAX_POLY_ORDER + 1), dtype=float)):
+    pass
+
+
 @wp.struct
 class SpatialInertia:
     m: float  # mass
@@ -415,7 +419,7 @@ class Model:
       lf_damping: damping                                      (nlimitforce,)
       lf_transition: beyond transition, stiffness is const     (nlimitforce,)
 
-    * collision geometry *
+     * collision geometry *
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
       geom_X_loc: local transform of geom rel. to body         (ngeom, transform)
@@ -448,7 +452,8 @@ class Model:
      * muscle function-based paths *
       fn_path_qpos_adr: qpos adr for each muscle fn path term      (nmuscle, PolyInt)
       fn_path_dof_adr: dof adr for each muscle fn path term        (nmuscle, PolyInt)
-      fn_dimension: number of dependent variables                  (nmuscle,)
+      fn_path_dimension: number of dependent variables                  (nmuscle,)
+      fn_path_order: order of polynomial function                       (nmuscle,)
       fn_path_term_start: starting adr of each muscle's terms      (nmuscle,)
       fn_path_term_count: number of terms for each muscle's path   (nmuscle,)
       fn_path_term_coeffs: coefficients for each fn path term      (nmuscle, num_fn_terms)
@@ -569,7 +574,8 @@ class Model:
 
     fn_path_qpos_adr: array("nmuscle", PolyInts)
     fn_path_dof_adr: array("nmuscle", PolyInts)
-    fn_dimension: array("nmuscle", int)
+    fn_path_dimension: array("nmuscle", int)
+    fn_path_order: array("nmuscle", int)
     fn_path_term_start: array("nmuscle", int)
     fn_path_term_count: array("nmuscle", int)
     fn_path_term_coeffs: array("nmuscle", "num_fn_terms", float)

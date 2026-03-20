@@ -2,14 +2,76 @@ import warp as wp
 
 from . import math
 from .consts import MAX_POLY_NUM_DOFS
+from .consts import MAX_POLY_ORDER
 from .consts import POLY_TILE_SIZE
 from .types import Data
 from .types import Model
 from .types import PolyInts
 from .types import PolyVec
+from .types import PolyPowCache
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
+
+
+@wp.kernel
+def _compute_path_kernel(
+        # Model:
+        fn_path_dimension: wp.array(dtype=int),
+        fn_path_order: wp.array(dtype=int),
+        fn_path_term_coeff: wp.array(dtype=float),
+        fn_path_term_start: wp.array(dtype=int),
+        fn_path_qpos_adr: wp.array(dtype=PolyInts),
+        fn_path_dof_adr: wp.array(dtype=PolyInts),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        qpos_in: wp.array2d(dtype=float),
+        qvel_in: wp.array2d(dtype=float),
+        # Data out:
+        muscle_length_out: wp.array2d(dtype=float),
+        muscle_moment_arm_out: wp.array3d(dtype=float),
+        muscle_velocity_out: wp.array2d(dtype=float),
+):
+    worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    # Fetch polynomial data: dimension, order, address into coeffs, and dependent dof addresses
+    n_dof = fn_path_dimension[muscle_id]
+    order = fn_path_order[muscle_id]
+    start_idx = fn_path_term_start[muscle_id]
+    qpos_adr = fn_path_qpos_adr[muscle_id]
+    dof_adr = fn_path_dof_adr[muscle_id]
+
+    # Fetch q values into registers
+    q = PolyVec(0.0)
+    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
+        q[i] = qpos_in[worldid, qpos_adr[i]]
+
+    # Pre-calculate powers
+    q_pows = PolyPowCache(1.0)
+    for d in range(MAX_POLY_NUM_DOFS):
+        for p in range(1, MAX_POLY_ORDER + 1):
+            q_pows[d, p] = q_pows[d, p - 1] * q[d]
+
+    # Evaluate polynomial and derivative
+    length, df_dq = math.evaluate_polynomial(fn_path_term_coeff, q_pows, start_idx, order, n_dof)
+
+    # Write out length and moment arms, note the negative sign since moment arm is -dL/dq
+    muscle_length_out[worldid, muscle_id] = length
+    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
+        if i >= n_dof:
+            break
+        muscle_moment_arm_out[worldid, muscle_id, dof_adr[i]] = -df_dq[i]
+
+    # Compute velocity
+    velocity = float(0.0)
+    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
+        if i >= n_dof:
+            break
+        velocity += df_dq[i] * qvel_in[worldid, dof_adr[i]]
+    muscle_velocity_out[worldid, muscle_id] = velocity
+    return
 
 
 @wp.kernel
@@ -102,16 +164,28 @@ def _apply_muscle_frc_kernel(
 def muscle_fn_path(m: Model, d: Data):
     """ Computes the muscle path length and moment arms using a polynomial function approximation """
     if m.nmuscle:
-        wp.launch_tiled(
-            _compute_path_kernel_tiled,
+        # wp.launch_tiled(
+        #     _compute_path_kernel_tiled,
+        #     dim=(d.nworld, m.nmuscle),
+        #     inputs=[
+        #         m.fn_path_term_coeffs, m.fn_path_term_exps, m.fn_path_term_start, m.fn_path_term_count,
+        #         m.fn_path_qpos_adr, m.fn_path_dof_adr,
+        #         d.integration_done, d.qpos, d.qvel
+        #     ],
+        #     outputs=[d.muscle_length, d.muscle_moment_arm, d.muscle_velocity],
+        #     block_dim=m.block_dim.muscle_path,
+        # )
+
+        # non-tiled seems faster, probably because of how many threads are launched in the tiled version
+        wp.launch(
+            _compute_path_kernel,
             dim=(d.nworld, m.nmuscle),
             inputs=[
-                m.fn_path_term_coeffs, m.fn_path_term_exps, m.fn_path_term_start, m.fn_path_term_count,
+                m.fn_path_dimension, m.fn_path_order, m.fn_path_term_coeffs, m.fn_path_term_start,
                 m.fn_path_qpos_adr, m.fn_path_dof_adr,
                 d.integration_done, d.qpos, d.qvel
             ],
             outputs=[d.muscle_length, d.muscle_moment_arm, d.muscle_velocity],
-            block_dim=m.block_dim.muscle_path,
         )
     return
 
@@ -122,6 +196,6 @@ def apply_muscle_force(m: Model, d: Data):
         wp.launch(
             _apply_muscle_frc_kernel,
             dim=(d.nworld, m.nmuscle),
-            inputs=[m.fn_dimension, m.fn_path_dof_adr, d.integration_done, d.muscle_actuation, d.muscle_moment_arm, ],
+            inputs=[m.fn_path_dimension, m.fn_path_dof_adr, d.integration_done, d.muscle_actuation, d.muscle_moment_arm, ],
             outputs=[d.qfrc_muscle],
         )

@@ -5,11 +5,29 @@ from .types import MobilizerType
 from .types import Model
 from .types import Data
 from .types import mat36
+from .consts import MSK_MINVAL
 from .consts import (IDX_SCRATCH_ROT_F, IDX_SCRATCH_ROT_DF, IDX_SCRATCH_ROT_D2F,
                      IDX_SCRATCH_TRANS_F, IDX_SCRATCH_TRANS_DF, IDX_SCRATCH_TRANS_D2F)
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
+
+
+@wp.func
+def ensure_valid_qpos(
+        mobtype: int,
+        qadr: int,
+        qpos: wp.array(dtype=float),
+):
+    """ Ensures that coordinates are valid (i.e., quaternions are normalized) """
+    if mobtype == MobilizerType.FREE or mobtype == MobilizerType.BALL:
+        q = wp.quat(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2], qpos[qadr + 3])
+        if wp.length(q) < MSK_MINVAL:
+            q = wp.quat_identity()
+        q = wp.normalize(q)
+        for i in range(4):
+            qpos[qadr + i] = q[i]
+    return
 
 
 @wp.func
@@ -24,6 +42,7 @@ def calcX_FM(
         # out:
         mob_scratch_out: wp.array(dtype=wp.vec3),
 ) -> wp.transform:
+    """ Computes the mobilizer transformation from the parent joint frame F to the mobilizer frame M """
     if mobtype == MobilizerType.FREE:
         r = wp.quat(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2], qpos[qadr + 3])
         p = wp.vec3(qpos[qadr + 4], qpos[qadr + 5], qpos[qadr + 6])
@@ -107,6 +126,29 @@ def calcX_FM(
         assert False, f"Unknown joint type {mobtype}"
 
     return wp.transform_identity()
+
+
+@wp.func
+def compute_beam_transform(
+        fraction: float,
+        qpos: wp.array(dtype=float),
+        qpos_adr: int,
+        extra_info: wp.vec3
+) -> wp.vec3:
+    """ For a given fraction along the beam, compute the mobilizer transform for that point """
+    q0, q1, q2 = qpos[qpos_adr], qpos[qpos_adr + 1], qpos[qpos_adr + 2]
+    L, deflection_coeff, displacement_coeff = extra_info[0], extra_info[1], extra_info[2]
+    z = fraction * L
+
+    theta_sq = q0 * q0 + q1 * q1
+
+    C_deflection = (z * z * (3.0 * L - z)) / (3.0 * L ** 2.0)
+    C_displacement = -(z ** 3.0 * (20.0 * L ** 2.0 - 15.0 * L * z + 3.0 * z ** 2.0)) / (30.0 * L ** 4.0)
+    d_x = q1 * C_deflection
+    d_y = -q0 * C_deflection
+    d_z = C_displacement * theta_sq
+    pt_local = wp.vec3(d_x, d_y, z + d_z)
+    return pt_local
 
 
 @wp.func

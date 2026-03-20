@@ -16,13 +16,16 @@ def load_model(
         polynomial_data_path: str = None,
         render_kinematic_tree: bool = False,
 ) -> ModelLoadResult:
-    return model_loader.load_model(
+    load_result = model_loader.load_model(
         model_path=model_path,
         n_worlds=n_worlds,
         integrator=integrator,
         polynomial_data_path=polynomial_data_path,
         render_kinematic_tree=render_kinematic_tree,
     )
+    m, d = load_result.model, load_result.data
+    reinitialize_model(m, d)
+    return load_result
 
 
 def reinitialize_model(m: Model, d: Data, ):

@@ -2,7 +2,7 @@ import opensim as osim
 import itertools
 
 from math import comb
-from msk_warp import MAX_POLY_NUM_DOFS, POLY_TILE_SIZE, PolyInts
+from msk_warp import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, POLY_TILE_SIZE, PolyInts
 from msk_warp.utils.osim_types import OSimType
 from msk_warp.utils.converted_objects import MuscleFunctionPathData
 from msk_warp.utils.muscle_helper import get_muscles
@@ -71,6 +71,8 @@ def parse_function_based_paths(model_path: str, function_based_path_file: str) -
             raise ValueError(f"Num exponents {len(exponents)} does not match expected {num_expected_terms}")
         if dimension > MAX_POLY_NUM_DOFS:
             raise ValueError(f"Polynomial dimension {dimension} is greater than max supported {MAX_POLY_NUM_DOFS}")
+        if order > MAX_POLY_ORDER:
+            raise ValueError(f"Polynomial order {order} is greater than max supported {MAX_POLY_ORDER}")
 
         # Now we need to pad everything so it can be processed using tiles, fill up to next multiple with dummy data
         n_terms = len(coefficients)
@@ -139,6 +141,10 @@ def get_fn_term_adr(
     return term_fn_adr
 
 
-def get_fn_dimension(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
+def get_fn_path_dimension(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
     """ Gets the dimension of each muscle function path """
     return [muscle_path.dimension for muscle_path in muscle_function_paths]
+
+
+def get_fn_path_order(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
+    return [muscle_path.order for muscle_path in muscle_function_paths]

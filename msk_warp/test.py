@@ -52,19 +52,19 @@ def main():
     # model_path = "data/osim/example_gait3d_pin.osim"
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
-    model_path = "data/osim/athlete.osim"
+    model_path = "data/osim/athlete_lower.osim"
+    polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
     # model_path = "data/osim/athlete2.osim"
     # model_path = "data/osim/simple.osim"
     load_result = msk_warp.load_model(
         model_path,
         n_worlds=args.nworld,
         integrator=msk_warp.IntegratorType.EULER_ADAPTIVE,
-        polynomial_data_path="data/function_paths/athlete_model_FunctionBasedPathSet.xml",
+        polynomial_data_path=polynomial_data_path,
         render_kinematic_tree=args.tree,
     )
 
     m, d = load_result.model, load_result.data
-    forward.reset(m, d)
     qvel = wp.to_torch(d.qvel)
     qvel += torch.randn_like(qvel) * 0.3
     m.opt.use_inf_norm = False
@@ -85,7 +85,7 @@ def main():
     qpos[:, qpos_id("knee_angle_r")] = 1.5
     # qvel[:, dof_id("pelvis_ty")] = -5
 
-    dt = 1.0 / 1000.0
+    dt = 1.0 / 100.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:

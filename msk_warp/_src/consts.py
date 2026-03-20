@@ -1,5 +1,6 @@
 # Function-based fitting for muscle paths
 MAX_POLY_NUM_DOFS = 6
+MAX_POLY_ORDER = 5
 POLY_TILE_SIZE = 32
 
 MSK_MINVAL = 1e-15

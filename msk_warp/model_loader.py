@@ -226,7 +226,8 @@ def load_model(
         converted_function_paths)
     fn_path_qpos_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, qpos_ordering)
     fn_path_dof_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, dof_ordering)
-    fn_path_dimension = function_based_path_helper.get_fn_dimension(converted_function_paths)
+    fn_path_dimension = function_based_path_helper.get_fn_path_dimension(converted_function_paths)
+    fn_path_order = function_based_path_helper.get_fn_path_order(converted_function_paths)
 
     # Prepare contacts
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
@@ -384,7 +385,8 @@ def load_model(
         fn_path_term_count=to_warp_array(fn_path_term_count, dtype=int),
         fn_path_qpos_adr=to_warp_array(fn_path_qpos_adr, dtype=PolyInts),
         fn_path_dof_adr=to_warp_array(fn_path_dof_adr, dtype=PolyInts),
-        fn_dimension=to_warp_array(fn_path_dimension, dtype=int),
+        fn_path_dimension=to_warp_array(fn_path_dimension, dtype=int),
+        fn_path_order=to_warp_array(fn_path_order, dtype=int),
 
         block_dim=TileBlockDim(),
     )
@@ -414,13 +416,6 @@ def load_model(
 
     # Custom joints may need up to 6 additional vectors: [f(q), f'(q), f''(q)] for each 6 functions
     num_mob_scratch = 3 if n_custom_jnts == 0 else 6
-
-    # fixme: ball joint quaternions
-    qpos0 = [0.0] * nq
-    root_free = MobilizerType.FREE in [joint.mob_type for joint in ordered_joints]
-    if root_free:
-        qpos0[0:4] = [0.0, 0.0, 0.0, 1.0]  # Root orientation (quaternion)
-    qvel0 = [0.0] * nv
 
     dt = 1.0 / 100.0  # This will be modified later by the user
 
@@ -460,8 +455,8 @@ def load_model(
         error=make_zero(n_worlds, dtype=float),
         steps_attempted=make_zero(n_worlds, dtype=int),
 
-        qpos=wp.array(np.tile(qpos0, (n_worlds, 1)), dtype=float),
-        qvel=wp.array(np.tile(qvel0, (n_worlds, 1)), dtype=float),
+        qpos=make_zero((n_worlds, nq), dtype=float),
+        qvel=make_zero((n_worlds, nv), dtype=float),
         m_act=make_zero((n_worlds, nmuscle), dtype=float),
         a_act=make_full(0.5, (n_worlds, nactuators), dtype=float),
         m_state=make_zero((n_worlds, nmuscle), dtype=float),

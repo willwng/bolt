@@ -31,6 +31,7 @@ from ._src.types import PolyInts as PolyInts
 from ._src.consts import MIN_NORM_FIBER_LENGTH
 from ._src.consts import MAX_NORM_FIBER_LENGTH
 from ._src.consts import MAX_POLY_NUM_DOFS
+from ._src.consts import MAX_POLY_ORDER
 from ._src.consts import POLY_TILE_SIZE
 from .render.renderer import RendererType as RendererType
 

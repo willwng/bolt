@@ -12,57 +12,6 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
-def _fix_limits(
-        # Model in:
-        limit_dof_range: wp.array(dtype=wp.vec2),
-        limit_dof_qadr: wp.array(dtype=int),
-        # Data in:
-        world_reset_in: wp.array(dtype=bool),
-        qpos_in: wp.array2d(dtype=float),
-        # Data out:
-        qpos_out: wp.array2d(dtype=float),
-):
-    worldid, limitdofid = wp.tid()
-    if world_reset_in[worldid]:
-        dof_range = limit_dof_range[limitdofid]
-        dof_qadr = limit_dof_qadr[limitdofid]
-        qpos = qpos_in[worldid, dof_qadr]
-
-        qpos_clamped = wp.clamp(qpos, dof_range[0], dof_range[1])
-        qpos_out[worldid, dof_qadr] = qpos_clamped
-    return
-
-
-@event_scope
-def fix_qpos_limits(m: Model, d: Data):
-    """Clamps qpos values to joint limits."""
-    wp.launch(
-        _fix_limits,
-        dim=(d.nworld, m.nlinearstop),
-        inputs=[
-            m.stop_qpos_range, m.stop_qpos_adr,
-            d.world_reset, d.qpos,
-        ],
-        outputs=[
-            d.qpos,
-        ],
-    )
-
-    wp.launch(
-        _fix_limits,
-        dim=(d.nworld, m.nlimitforce),
-        inputs=[
-            m.lf_qpos_range, m.lf_qpos_adr,
-            d.world_reset, d.qpos,
-        ],
-        outputs=[
-            d.qpos,
-        ],
-    )
-    return
-
-
-@wp.kernel
 def _calc_mobilizer_X_FM(
         # Model:
         mob_type: wp.array(dtype=int),
@@ -347,6 +296,44 @@ def _joint_independent_kinematics(
 
     # Mk: the spatial inertia matrix about the body origin
     body_Mk_G_out[worldid, bodyid] = SpatialInertia(body_mass[bodyid], p_BBc_G, G_Bo_G)
+    return
+
+
+@wp.kernel
+def _beam_visuals(
+        # Model:
+        body_parentid: wp.array(dtype=int),
+        beam_to_mob_id: wp.array(dtype=int),
+        mob_X_PF: wp.array(dtype=wp.transform),
+        mob_qposadr: wp.array(dtype=int),
+        mob_extra_info: wp.array(dtype=wp.vec3),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        qpos_in: wp.array2d(dtype=float),
+        mob_X_GB_in: wp.array2d(dtype=wp.transform),
+        # In:
+        nbeam_visuals: int,
+        # Data out:
+        vis_beam_pos_out: wp.array3d(dtype=wp.vec3),
+):
+    worldid, beamid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    bodyid = beam_to_mob_id[beamid]
+    pid = body_parentid[bodyid]
+    X_PF = mob_X_PF[bodyid]
+    X_GP = mob_X_GB_in[worldid, pid]
+    extra_info = mob_extra_info[bodyid]
+    qpos = qpos_in[worldid]
+    qpos_adr = mob_qposadr[bodyid]
+
+    step = 1.0 / (float(nbeam_visuals) - 1.0)
+    for i in range(nbeam_visuals):
+        fraction = step * float(i)
+        pt_local = mobilizers.compute_beam_transform(fraction, qpos, qpos_adr, extra_info)
+        pt_G = wp.transform_point(X_GP * X_PF, pt_local)
+        vis_beam_pos_out[worldid, beamid, i] = pt_G
     return
 
 
