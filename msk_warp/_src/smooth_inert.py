@@ -29,27 +29,20 @@ def _initialize_articulated_inertia(
 
 
 @wp.kernel
-def _accumulate_articulated_inertia(
+def _accumulate_child_articulated_inertia(
         # Model:
         body_children: wp.array(dtype=int),
         body_children_num: wp.array(dtype=int),
         body_children_adr: wp.array(dtype=int),
-        mob_dofnum: wp.array(dtype=int),
-        mob_dofadr: wp.array(dtype=int),
-
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        mob_H_in: wp.array2d(dtype=wp.spatial_vector),
         mob_phi_in: wp.array2d(dtype=wp.vec3),
         body_P_in: wp.array2d(dtype=ArticulatedInertia),
         body_PPlus_in: wp.array2d(dtype=ArticulatedInertia),
         # In:
         body_tree_: wp.array(dtype=int),
         # Data out:
-        mob_G_out: wp.array2d(dtype=wp.spatial_vector),
-        mob_DI_out: wp.array2d(dtype=wp.spatial_vector),
         body_P_out: wp.array2d(dtype=ArticulatedInertia),
-        body_PPlus_out: wp.array2d(dtype=ArticulatedInertia),
 ):
     worldid, nodeid = wp.tid()
     if integration_done_in[worldid]:
@@ -58,12 +51,9 @@ def _accumulate_articulated_inertia(
 
     body_children_adr_ = body_children_adr[bodyid]
     body_children_num_ = body_children_num[bodyid]
-    dofnum = mob_dofnum[bodyid]
-    dofadr = mob_dofadr[bodyid]
 
     # Start with the spatial inertia of the current body (in Ground frame)
     P = body_P_in[worldid, bodyid]
-
     # For each child, we already computed its body inertia P and removed the portion
     # that can't be felt from the parent
     for i in range(body_children_num_):
@@ -72,8 +62,36 @@ def _accumulate_articulated_inertia(
         PPlus_child = body_PPlus_in[worldid, childid]
         P = math.articulated_inertia_add(P, math.articulated_inertia_shift(PPlus_child, phi_child))
     body_P_out[worldid, bodyid] = P
+    return
+
+
+@wp.kernel
+def _compute_articulated_inertia(
+        # Model:
+        mob_dofnum: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        mob_H_in: wp.array2d(dtype=wp.spatial_vector),
+        body_P_in: wp.array2d(dtype=ArticulatedInertia),
+        # In:
+        body_tree_: wp.array(dtype=int),
+        # Data out:
+        mob_G_out: wp.array2d(dtype=wp.spatial_vector),
+        mob_DI_out: wp.array2d(dtype=wp.spatial_vector),
+        body_PPlus_out: wp.array2d(dtype=ArticulatedInertia),
+):
+    worldid, nodeid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+    bodyid = body_tree_[nodeid]
+
+    dofnum = mob_dofnum[bodyid]
+    dofadr = mob_dofadr[bodyid]
 
     # Now compute P+.
+    P = body_P_in[worldid, bodyid]
+
     # We're going to shove H, PH into matrices to make our life easier.
     # todo: optimize this
     H, PH = wp.spatial_matrix(0.0), wp.spatial_matrix(0.0)
@@ -126,7 +144,7 @@ def _articulated_body_velocity(
 
 
 @event_scope
-def articulated_body_inertia(m: Model, d: Data):
+def initialize_articulated_body_inertia(m: Model, d: Data):
     wp.launch(
         _initialize_articulated_inertia,
         dim=(d.nworld, m.nbody),
@@ -134,18 +152,31 @@ def articulated_body_inertia(m: Model, d: Data):
         outputs=[d.body_P],
     )
 
+
+@event_scope
+def accumulate_articulated_body_inertia(m: Model, d: Data):
     # Backward pass: compute P+. Also store G and DI here
     for i in reversed(range(len(m.body_tree))):
         body_tree = m.body_tree[i]
         wp.launch(
-            _accumulate_articulated_inertia,
+            _accumulate_child_articulated_inertia,
             dim=(d.nworld, body_tree.size),
             inputs=[
-                m.body_children, m.body_children_num, m.body_children_adr, m.mob_dofnum, m.mob_dofadr,
-                d.integration_done, d.mob_H, d.mob_phi, d.body_P, d.body_PPlus,
+                m.body_children, m.body_children_num, m.body_children_adr,
+                d.integration_done, d.mob_phi, d.body_P, d.body_PPlus,
                 body_tree,
             ],
-            outputs=[d.mob_G, d.mob_DI, d.body_P, d.body_PPlus],
+            outputs=[d.body_P],
+        )
+        wp.launch(
+            _compute_articulated_inertia,
+            dim=(d.nworld, body_tree.size),
+            inputs=[
+                m.mob_dofnum, m.mob_dofadr,
+                d.integration_done, d.mob_H, d.body_P,
+                body_tree,
+            ],
+            outputs=[d.mob_G, d.mob_DI, d.body_PPlus],
         )
 
 
