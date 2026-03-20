@@ -53,8 +53,8 @@ def main():
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
     model_path = "data/osim/athlete3.osim"
-    # polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
-    polynomial_data_path = None
+    polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
+    # polynomial_data_path = None
     # model_path = "data/osim/athlete2.osim"
     # model_path = "data/osim/simple.osim"
     load_result = msk_warp.load_model(
@@ -87,7 +87,7 @@ def main():
     qpos[:, qpos_id("knee_angle_r")] = 1.5
     # qvel[:, dof_id("pelvis_ty")] = -5
 
-    dt = 1.0 / 100.0
+    dt = 1.0 / 500.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:

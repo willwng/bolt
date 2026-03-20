@@ -7,7 +7,6 @@ from msk_warp import MobilizerType, GeomType, PolyInts
 GROUND_PARENT = "N/A"
 GROUND = "ground"
 NO_DOF = "__NO_DOF"  # for transform axes that don't depend on a DOF, use this as a placeholder
-
 AABB = tuple[wp.vec3, wp.vec3]
 
 
@@ -190,6 +189,16 @@ class MuscleFunctionPathData:
     order: int
 
 
+# Place-holder for muscles that don't use function-based paths
+USE_POINT_PATH = MuscleFunctionPathData(
+    name="use_point_path",
+    coordinates=[],
+    coefficients=[],
+    exponents=[],
+    dimension=0,
+    order=0
+)
+
 GROUND_BODY = BodyData(
     name=GROUND,
     mass=0.0,
@@ -231,7 +240,7 @@ GROUND_COLLIDER = GeomData(
 def dataclass_list_transpose(data_list: list[dataclass], cls: type) -> dict[str, list]:
     """
     Convert a list of dataclass instances into a dict where each attribute becomes a list of that attribute.
-    Though handy, I prefer not to use this since it doesn't update with refactoring property names
+    Though handy, I prefer not to use this since it results in code that doesn't update with refactoring property names
     """
     result = {f.name: [] for f in fields(cls)}
 

@@ -14,8 +14,7 @@ def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:
         return 2, 5
     elif integrator == IntegratorType.EULER_ADAPTIVE:
         return 2, 1
-    else:
-        return 0, 0
+    return 0, 0
 
 
 def load_model(
@@ -38,8 +37,6 @@ def load_model(
     if model.getNumBodies() != model.getNumJoints():
         raise ValueError(f"Num bodies ({model.getNumBodies()}) does not match num Joints ({model.getNumJoints()})")
 
-    use_function_based_paths = polynomial_data_path is not None
-
     # Parse bodies, joints, collision geometry, visuals, etc.
     converted_bodies = [GROUND_BODY] + [body_helper.convert_body(body) for body in model.getBodyList()]
     converted_joints = [GROUND_JOINT] + [joint_helper.convert_joint(joint) for joint in model.getJointList()]
@@ -56,10 +53,10 @@ def load_model(
     # Note: muscle path points must come first
     converted_sites = muscle_helper.flatten_sites(converted_muscles) + site_helper.convert_sites(model)
     # Function-based paths
-    converted_function_paths = []
-    if use_function_based_paths:
-        converted_function_paths = function_based_path_helper.parse_function_based_paths(model_path,
-                                                                                         polynomial_data_path)
+    converted_function_paths, muscle_with_fn_path = [], set()
+    if polynomial_data_path is not None:
+        converted_function_paths, muscle_with_fn_path = (
+            function_based_path_helper.parse_function_based_paths(model_path, polynomial_data_path))
 
     # Create a lookup from body name -> body data. Needed for joint->body lookup
     body_name_to_body = {body.name: body for body in converted_bodies}
@@ -220,7 +217,7 @@ def load_model(
     # Muscles/sites
     muscle_pts_num = muscle_helper.get_muscle_pts_num(converted_muscles)
     muscle_pts_adr = exclusive_scan(muscle_pts_num)
-    muscle_data = muscle_helper.create_muscle_metadata(converted_muscles)
+    muscle_data = muscle_helper.create_muscle_metadata(converted_muscles, muscle_with_fn_path)
     mm = wp.array(muscle_data, dtype=MuscleMetadata)
 
     # Muscle function-based paths
@@ -245,7 +242,6 @@ def load_model(
         enable_drag=True,
         visuals=requires_visuals,
         nbeam_visuals=n_beam_visuals,
-        use_fn_path=use_function_based_paths,
 
         activation_type=ActivationType.MILLARD,
         integrator=integrator,

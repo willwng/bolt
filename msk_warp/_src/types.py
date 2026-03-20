@@ -185,7 +185,6 @@ class Option:
       gravity: gravitational acceleration
       explicit_gravity: flag to compute gravity as an explicit force (or as fictitious acceleration)
       enable_drag: flag to enable drag forces
-      use_fn_path: flag to use function-based paths for muscles
       visuals: whether to handle visual geometry
       nbeam_visuals: number of beam visuals (for rendering beams joints)
 
@@ -210,7 +209,6 @@ class Option:
     gravity: float
     explicit_gravity: bool
     enable_drag: bool
-    use_fn_path: bool
     visuals: bool
     nbeam_visuals: int
 
@@ -255,6 +253,8 @@ class ResidualResult:
 @wp.struct
 class MuscleMetadata:
     """Muscle metadata. """
+    fn_based_path: bool
+
     max_isometric_force: float
     optimal_fiber_length: float
     tendon_slack_length: float

@@ -84,10 +84,16 @@ def get_muscle_pts_num(muscles: list[MuscleData]) -> list[int]:
     return [len(muscle.path_points) for muscle in muscles]
 
 
-def create_muscle_metadata(muscles: list[MuscleData]) -> list[MuscleMetadata]:
+def create_muscle_metadata(
+        muscles: list[MuscleData],
+        muscle_with_fn_path: set[str]
+) -> list[MuscleMetadata]:
     muscle_metadata = []
     for muscle in muscles:
         muscle_meta = MuscleMetadata()
+        # Whether muscle uses function-based path
+        muscle_meta.fn_based_path = muscle.name in muscle_with_fn_path
+        # Muscle properties
         muscle_meta.max_isometric_force = muscle.max_isometric_force
         muscle_meta.optimal_fiber_length = muscle.optimal_fiber_length
         muscle_meta.tendon_slack_length = muscle.tendon_slack_length
@@ -95,8 +101,7 @@ def create_muscle_metadata(muscles: list[MuscleData]) -> list[MuscleMetadata]:
         muscle_meta.fiber_damping = muscle.fiber_damping
         muscle_meta.min_activation = muscle.min_control
         muscle_meta.max_activation = muscle.max_control
-
-        # Defaults
+        # Defaults, can be user-modified later
         muscle_meta.v_max = 10.0
         muscle_meta.activation_time_const = 0.010
         muscle_meta.deactivation_time_const = 0.040

@@ -2,6 +2,7 @@ import warp as wp
 
 from .types import Data
 from .types import Model
+from .types import MuscleMetadata
 from .consts import MSK_MINVAL
 from .warp_util import event_scope
 
@@ -11,6 +12,7 @@ wp.set_module_options({"enable_backward": False})
 @wp.kernel
 def _compute_path_kernel(
         # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
         muscle_pts_adr: wp.array(dtype=int),
         muscle_pts_num: wp.array(dtype=int),
         # Data in:
@@ -23,6 +25,8 @@ def _compute_path_kernel(
 ):
     worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
+        return
+    if muscle_metadata[muscle_id].fn_based_path:
         return
 
     pts_adr = muscle_pts_adr[muscle_id]
@@ -54,6 +58,7 @@ def _compute_path_kernel(
 @wp.kernel
 def _apply_muscle_force_kernel(
         # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
         muscle_pts_adr: wp.array(dtype=int),
         muscle_pts_num: wp.array(dtype=int),
         site_bodyid: wp.array(dtype=int),
@@ -68,6 +73,9 @@ def _apply_muscle_force_kernel(
     worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
         return
+    if muscle_metadata[muscle_id].fn_based_path:
+        return
+
     actuation = muscle_actuation_in[worldid, muscle_id]
 
     pts_adr = muscle_pts_adr[muscle_id]
@@ -97,7 +105,10 @@ def muscle_point_path(m: Model, d: Data):
         wp.launch(
             _compute_path_kernel,
             dim=(d.nworld, m.nmuscle),
-            inputs=[m.muscle_pts_adr, m.muscle_pts_num, d.integration_done, d.site_pos_G, d.site_vel_G],
+            inputs=[
+                m.muscle_metadata, m.muscle_pts_adr, m.muscle_pts_num,
+                d.integration_done, d.site_pos_G, d.site_vel_G
+            ],
             outputs=[d.muscle_length, d.muscle_velocity],
         )
 
@@ -109,7 +120,7 @@ def apply_muscle_force(m: Model, d: Data):
             _apply_muscle_force_kernel,
             dim=(d.nworld, m.nmuscle),
             inputs=[
-                m.muscle_pts_adr, m.muscle_pts_num, m.site_bodyid,
+                m.muscle_metadata, m.muscle_pts_adr, m.muscle_pts_num, m.site_bodyid,
                 d.integration_done, d.muscle_actuation, d.site_pos_G, d.site_rel_pos_B
             ],
             outputs=[d.body_F_muscle],

@@ -4,7 +4,7 @@ import itertools
 from math import comb
 from msk_warp import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, POLY_TILE_SIZE, PolyInts
 from msk_warp.utils.osim_types import OSimType
-from msk_warp.utils.converted_objects import MuscleFunctionPathData
+from msk_warp.utils.converted_objects import MuscleFunctionPathData, USE_POINT_PATH
 from msk_warp.utils.muscle_helper import get_muscles
 from msk_warp.utils.python_util import remove_slash_prefix, pad_list, exclusive_scan
 from msk_warp.utils.property_helper import extract_vector
@@ -28,9 +28,13 @@ def pad_exponents_for_max_dimension(exponents: list[tuple], pad_value: int) -> l
     return padded_exps
 
 
-def parse_function_based_paths(model_path: str, function_based_path_file: str) -> list[MuscleFunctionPathData]:
+def parse_function_based_paths(
+        model_path: str,
+        function_based_path_file: str
+) -> tuple[list[MuscleFunctionPathData], set[str]]:
     """ Converts the muscle paths in the given model to function-based paths using the provided file """
     muscle_function_path_data = []
+    muscle_with_fn_path = set()
 
     # Load the model and process it with the FunctionBasedPath processor
     processor = osim.ModelProcessor(model_path)
@@ -42,10 +46,13 @@ def parse_function_based_paths(model_path: str, function_based_path_file: str) -
     for muscle in muscles:
         muscle = OSimType.Muscle.safeDownCast(muscle)
         muscle_path = OSimType.FunctionBasedPath.safeDownCast(muscle.getPath())
+        # We weren't given a function based path for this muscle, resort to point path
         if muscle_path is None:
-            raise ValueError(f"Muscle {muscle.getName()} does not have a FunctionBasedPath after processing")
+            muscle_function_path_data.append(USE_POINT_PATH)
+            continue
 
-        muscle_path_name = f"{muscle.getName()}_{muscle_path.getName()}"
+        muscle_name = muscle.getName()
+        muscle_path_name = f"{muscle_name}_{muscle_path.getName()}"
 
         # Dependent coordinates, pad to MAX_POLY_NUM_DOFS
         coordinates = muscle_path.getCoordinatePaths()
@@ -90,7 +97,8 @@ def parse_function_based_paths(model_path: str, function_based_path_file: str) -
                 order=order,
             )
         )
-    return muscle_function_path_data
+        muscle_with_fn_path.add(muscle_name)
+    return muscle_function_path_data, muscle_with_fn_path
 
 
 def get_fn_path_term_coeffs(muscle_function_paths: list[MuscleFunctionPathData]) -> list[float]:

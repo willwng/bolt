@@ -6,6 +6,7 @@ from .consts import MAX_POLY_ORDER
 from .consts import POLY_TILE_SIZE
 from .types import Data
 from .types import Model
+from .types import MuscleMetadata
 from .types import PolyInts
 from .types import PolyVec
 from .types import PolyPowCache
@@ -17,6 +18,7 @@ wp.set_module_options({"enable_backward": False})
 @wp.kernel
 def _compute_path_kernel(
         # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
         fn_path_dimension: wp.array(dtype=int),
         fn_path_order: wp.array(dtype=int),
         fn_path_term_coeff: wp.array(dtype=float),
@@ -34,6 +36,8 @@ def _compute_path_kernel(
 ):
     worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
+        return
+    if not muscle_metadata[muscle_id].fn_based_path:
         return
 
     # Fetch polynomial data: dimension, order, address into coeffs, and dependent dof addresses
@@ -77,6 +81,7 @@ def _compute_path_kernel(
 @wp.kernel
 def _compute_path_kernel_tiled(
         # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
         fn_path_term_coeff: wp.array(dtype=float),
         fn_path_term_exps: wp.array(dtype=PolyInts),
         fn_path_term_start: wp.array(dtype=int),
@@ -94,6 +99,8 @@ def _compute_path_kernel_tiled(
 ):
     worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
+        return
+    if not muscle_metadata[muscle_id].fn_based_path:
         return
 
     # Fetch polynomial data: address into coeffs, order, and dependent dof addresses
@@ -134,6 +141,7 @@ def _compute_path_kernel_tiled(
 @wp.kernel
 def _apply_muscle_frc_kernel(
         # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
         fn_dimension: wp.array(dtype=int),
         fn_dof_adr: wp.array(dtype=PolyInts),
         # Data in:
@@ -145,6 +153,8 @@ def _apply_muscle_frc_kernel(
 ):
     worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
+        return
+    if not muscle_metadata[muscle_id].fn_based_path:
         return
     actuation = muscle_actuation_in[worldid, muscle_id]
     moment_arm = muscle_moment_arm_in[worldid, muscle_id]
@@ -168,7 +178,7 @@ def muscle_fn_path(m: Model, d: Data):
         #     _compute_path_kernel_tiled,
         #     dim=(d.nworld, m.nmuscle),
         #     inputs=[
-        #         m.fn_path_term_coeffs, m.fn_path_term_exps, m.fn_path_term_start, m.fn_path_term_count,
+        #         m.muscle_metadata, m.fn_path_term_coeffs, m.fn_path_term_exps, m.fn_path_term_start, m.fn_path_term_count,
         #         m.fn_path_qpos_adr, m.fn_path_dof_adr,
         #         d.integration_done, d.qpos, d.qvel
         #     ],
@@ -181,7 +191,7 @@ def muscle_fn_path(m: Model, d: Data):
             _compute_path_kernel,
             dim=(d.nworld, m.nmuscle),
             inputs=[
-                m.fn_path_dimension, m.fn_path_order, m.fn_path_term_coeffs, m.fn_path_term_start,
+                m.muscle_metadata, m.fn_path_dimension, m.fn_path_order, m.fn_path_term_coeffs, m.fn_path_term_start,
                 m.fn_path_qpos_adr, m.fn_path_dof_adr,
                 d.integration_done, d.qpos, d.qvel
             ],
@@ -196,6 +206,7 @@ def apply_muscle_force(m: Model, d: Data):
         wp.launch(
             _apply_muscle_frc_kernel,
             dim=(d.nworld, m.nmuscle),
-            inputs=[m.fn_path_dimension, m.fn_path_dof_adr, d.integration_done, d.muscle_actuation, d.muscle_moment_arm, ],
+            inputs=[m.muscle_metadata, m.fn_path_dimension, m.fn_path_dof_adr, d.integration_done, d.muscle_actuation,
+                    d.muscle_moment_arm, ],
             outputs=[d.qfrc_muscle],
         )
