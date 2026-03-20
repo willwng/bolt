@@ -155,6 +155,16 @@ class SpringGeneralizedForceData:
 
 
 @dataclass
+class ActivationCoordinateActuatorData:
+    name: str
+
+    coordinate: str
+    optimal_force: float
+    activation_time_constant: float
+    default_activation: float
+
+
+@dataclass
 class MuscleData:
     name: str
 

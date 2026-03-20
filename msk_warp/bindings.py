@@ -314,9 +314,13 @@ def actuator_metadata_np(m: Model) -> np.ndarray:
     return m.actuator_metadata.numpy()
 
 
-# ---get_ Visuals ---
+# --- Visuals ---
 def get_visual_transforms(d: Data) -> torch.Tensor:
     return wp.to_torch(d.vis_X)
+
+
+def get_beam_visual_positions(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.vis_beam_pos)
 
 
 # --- Colliders ---

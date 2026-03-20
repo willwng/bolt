@@ -42,6 +42,7 @@ class OSimType:
     CoordinateLinearSpring = osim.CoordinateLinearSpring
     SpringGeneralizedForce = osim.SpringGeneralizedForce
     CoordinateLimitForce = osim.CoordinateLimitForce
+    ActivationCoordinateActuator = osim.ActivationCoordinateActuator
 
     Property = osim.common.AbstractProperty
     PropertyStringList = osim.common.PropertyStringList

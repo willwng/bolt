@@ -52,15 +52,16 @@ def main():
     # model_path = "data/osim/example_gait3d_pin.osim"
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
-    model_path = "data/osim/athlete_lower.osim"
-    polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
+    model_path = "data/osim/athlete3.osim"
+    # polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
+    polynomial_data_path = None
     # model_path = "data/osim/athlete2.osim"
     # model_path = "data/osim/simple.osim"
     load_result = msk_warp.load_model(
         model_path,
         n_worlds=args.nworld,
         integrator=msk_warp.IntegratorType.EULER_ADAPTIVE,
-        requires_visuals=False,
+        requires_visuals=True,
         polynomial_data_path=polynomial_data_path,
         render_kinematic_tree=args.tree,
     )
@@ -69,7 +70,7 @@ def main():
     qvel = wp.to_torch(d.qvel)
     qvel += torch.randn_like(qvel) * 0.3
     m.opt.use_inf_norm = False
-    m.opt.accuracy = 0.1
+    m.opt.accuracy = 0.01
 
     # quit()
 

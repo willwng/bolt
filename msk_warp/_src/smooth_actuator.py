@@ -9,6 +9,22 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
+def _reset_to_default_activation(
+        # Model:
+        actuator_metadata: wp.array(dtype=ActuatorMetadata),
+        # Data in:
+        world_reset_in: wp.array(dtype=bool),
+        # Data out:
+        act_out: wp.array2d(dtype=float)
+):
+    worldid, act_id = wp.tid()
+    if not world_reset_in[worldid]:
+        return
+    act_out[worldid, act_id] = actuator_metadata[act_id].default_activation
+    return
+
+
+@wp.kernel
 def _compute_activation_dot(
         # Model in:
         actuator_metadata: wp.array(dtype=ActuatorMetadata),
@@ -56,7 +72,17 @@ def _qfrc_actuators(
 
 
 @event_scope
-def compute_act_dot(m: Model, d: Data):
+def reset_to_default_activation(m: Model, d: Data):
+    wp.launch(
+        _reset_to_default_activation,
+        dim=(d.nworld, m.nactuator),
+        inputs=[m.actuator_metadata, d.world_reset],
+        outputs=[d.a_act],
+    )
+
+
+@event_scope
+def activation_dynamics(m: Model, d: Data):
     wp.launch(
         _compute_activation_dot,
         dim=(d.nworld, m.nactuator),

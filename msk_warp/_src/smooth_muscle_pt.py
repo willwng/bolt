@@ -92,13 +92,13 @@ def _apply_muscle_force_kernel(
 
 @event_scope
 def muscle_point_path(m: Model, d: Data):
-    """ Computes the muscle path length for point-based paths """
+    """ Computes the muscle path length and velocity for point-based paths """
     if m.nmuscle:
         wp.launch(
             _compute_path_kernel,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.muscle_pts_adr, m.muscle_pts_num, d.integration_done, d.site_pos_G, d.site_vel_G],
-            outputs=[d.muscle_velocity],
+            outputs=[d.muscle_length, d.muscle_velocity],
         )
 
 

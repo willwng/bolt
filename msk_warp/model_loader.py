@@ -51,6 +51,7 @@ def load_model(
     converted_spring_gen_force = coordinate_force_helper.convert_spring_generalized_force(model)
     converted_stops = coordinate_force_helper.convert_coordinate_linear_stop(model)  # this is a limit force
     converted_limit_forces = coordinate_force_helper.convert_coordinate_limit_force(model)  # also a limit force
+    converted_activation_actuators = actuator_helper.convert_activation_actuators(model)
     converted_muscles = muscle_helper.convert_muscles(model)
     # Note: muscle path points must come first
     converted_sites = muscle_helper.flatten_sites(converted_muscles) + site_helper.convert_sites(model)
@@ -138,19 +139,14 @@ def load_model(
     nq = sum([joint.num_coordinates for joint in ordered_joints])
     nv = sum([joint.num_speeds for joint in ordered_joints])
     nb = len(ordered_bodies)
-    nmuscle = len(converted_muscles)
     ngeom = len(converted_geoms)
     nvis = len(converted_visuals)
     nsite = len(converted_sites)
     nlinearstop = len(converted_stops)
     nlimitforce = len(converted_limit_forces)
-    nz = nmuscle  # TODO?
-
-    # needs shapes
-
-    actuator_data = []  # fixme
-    am = wp.array(actuator_data, dtype=ActuatorMetadata)
-    nactuators = len(actuator_data)
+    nmuscle = len(converted_muscles)
+    nactuator = len(converted_activation_actuators)
+    nz = 2 * nmuscle + nactuator  # need muscle activation & fiber state and actuator activation state
 
     # Flatten out entries of dataclasses into lists
     body_mass = body_helper.get_body_masses(ordered_bodies)
@@ -217,6 +213,10 @@ def load_model(
         converted_springs, converted_dampers, converted_spring_gen_force, dof_ordering)
     qpos_spring_rest = coordinate_force_helper.get_qpos_spring_rest(converted_springs, qpos_ordering)
 
+    # Actuators
+    actuator_data = actuator_helper.create_actuator_metadata(converted_activation_actuators, dof_ordering)
+    am = wp.array(actuator_data, dtype=ActuatorMetadata)
+
     # Muscles/sites
     muscle_pts_num = muscle_helper.get_muscle_pts_num(converted_muscles)
     muscle_pts_adr = exclusive_scan(muscle_pts_num)
@@ -281,7 +281,7 @@ def load_model(
         nq=nq,
         nv=nv,
         nmuscle=nmuscle,
-        nactuator=nactuators,
+        nactuator=nactuator,
         nz=nz,
         njnts_cst=n_custom_jnts,
         nbeams=n_beams,
@@ -408,7 +408,7 @@ def load_model(
             qvel=make_zero((n_worlds, nv), dtype=float),
             m_state=make_zero((n_worlds, nmuscle), dtype=float),
             m_act=make_zero((n_worlds, nmuscle), dtype=float),
-            a_act=make_zero((n_worlds, nactuators), dtype=float),
+            a_act=make_zero((n_worlds, nactuator), dtype=float),
         ) for _ in range(n_int_states)
     ]
 
@@ -418,7 +418,7 @@ def load_model(
             qacc=make_zero((n_worlds, nv), dtype=float),
             m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
             m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
-            a_act_dot=make_zero((n_worlds, nactuators), dtype=float),
+            a_act_dot=make_zero((n_worlds, nactuator), dtype=float),
         ) for _ in range(n_int_dot_states)
     ]
 
@@ -466,7 +466,7 @@ def load_model(
         qpos=make_zero((n_worlds, nq), dtype=float),
         qvel=make_zero((n_worlds, nv), dtype=float),
         m_act=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act=make_full(0.5, (n_worlds, nactuators), dtype=float),
+        a_act=make_full(0.5, (n_worlds, nactuator), dtype=float),
         m_state=make_zero((n_worlds, nmuscle), dtype=float),
 
         grf=make_zero((n_worlds,), dtype=wp.vec3),
@@ -474,9 +474,9 @@ def load_model(
 
         qacc=make_zero((n_worlds, nv), dtype=float),
         m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act_dot=make_zero((n_worlds, nactuators), dtype=float),
+        a_act_dot=make_zero((n_worlds, nactuator), dtype=float),
         m_excitations=make_full(0.5, (n_worlds, nmuscle), dtype=float),
-        a_excitations=make_zero((n_worlds, nactuators), dtype=float),
+        a_excitations=make_full(0.5, (n_worlds, nactuator), dtype=float),
         m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
 
         cst_fn_output=make_zero((n_worlds, nfunctions), dtype=wp.vec3),
@@ -573,6 +573,7 @@ def load_model(
     )
 
     muscle_ordering = muscle_helper.get_muscle_ordering(converted_muscles)
+    actuator_ordering = actuator_helper.get_actuator_ordering(converted_activation_actuators)
     collider_ordering = geom_helper.get_geom_ordering(converted_geoms)
 
     return ModelLoadResult(
@@ -583,7 +584,7 @@ def load_model(
         dof_id_lookup=dof_ordering,
         limit_id_lookup={},
         muscle_id_lookup=muscle_ordering,
-        actuator_id_lookup={},
+        actuator_id_lookup=actuator_ordering,
         collider_id_lookup=collider_ordering,
         mesh_load_results=visual_helper.create_mesh_load_results(converted_visuals),
     )
