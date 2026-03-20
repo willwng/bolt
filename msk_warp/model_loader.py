@@ -1,4 +1,3 @@
-import numpy as np
 import opensim as osim
 import os
 
@@ -23,6 +22,7 @@ def load_model(
         model_path: str,
         n_worlds: int,
         integrator: IntegratorType,
+        requires_visuals: bool,
         polynomial_data_path: str,
         render_kinematic_tree: bool,
 ) -> ModelLoadResult:
@@ -44,7 +44,7 @@ def load_model(
     converted_bodies = [GROUND_BODY] + [body_helper.convert_body(body) for body in model.getBodyList()]
     converted_joints = [GROUND_JOINT] + [joint_helper.convert_joint(joint) for joint in model.getJointList()]
     converted_geoms = [GROUND_COLLIDER] + geom_helper.convert_geoms(model, include_body_components=False)
-    converted_visuals = visual_helper.convert_visuals(model)
+    converted_visuals = visual_helper.convert_visuals(model) if requires_visuals else []
     converted_spatial_transforms = spatial_transform_helper.convert_spatial_transforms(model)
     converted_dampers = coordinate_force_helper.convert_coordinate_linear_damper(model)
     converted_springs = coordinate_force_helper.convert_coordinate_linear_spring(model)
@@ -112,8 +112,12 @@ def load_model(
     relative_qpos_ordering = joint_helper.get_relative_qpos_ordering_lookup(ordered_joints)
     relative_dof_ordering = joint_helper.get_relative_dof_ordering_lookup(ordered_joints)
     # Index of mobilizer -> index of custom joint (-1 if not custom)
-    mob_to_cst_idx, cst_to_mob_idx = joint_helper.compute_mobilizer_custom_joint_index(ordered_joints)
-    n_custom_jnts = joint_helper.compute_num_custom_joints(ordered_joints)
+    mob_to_cst_idx, cst_to_mob_idx = joint_helper.compute_mobilizer_index_of_type(ordered_joints, MobilizerType.CUSTOM)
+    n_custom_jnts = joint_helper.compute_num_joints_of_type(ordered_joints, MobilizerType.CUSTOM)
+    # Index of mobilizer -> index of beam joint
+    mob_to_beam_idx, beam_to_mob_idx = joint_helper.compute_mobilizer_index_of_type(ordered_joints, MobilizerType.BEAM)
+    n_beams = joint_helper.compute_num_joints_of_type(ordered_joints, MobilizerType.BEAM)
+    n_beam_visuals = 5 if requires_visuals else 0
 
     # Spatial transforms: flatten all the axes
     ordered_transform_axes = spatial_transform_helper.get_flattened_transform_axes(ordered_spatial_transforms)
@@ -239,7 +243,8 @@ def load_model(
         gravity=-9.80665,
         explicit_gravity=True,
         enable_drag=True,
-        visuals=True,
+        visuals=requires_visuals,
+        nbeam_visuals=n_beam_visuals,
         use_fn_path=use_function_based_paths,
 
         activation_type=ActivationType.MILLARD,
@@ -279,6 +284,7 @@ def load_model(
         nactuator=nactuators,
         nz=nz,
         njnts_cst=n_custom_jnts,
+        nbeams=n_beams,
         ngeom=ngeom,
         nvis=nvis,
         nsite=nsite,
@@ -319,6 +325,8 @@ def load_model(
         cst_to_mob_id=to_warp_array(cst_to_mob_idx, dtype=int),
         cst_txfm_axes=to_warp_array(cst_txfm_axes, dtype=wp.vec3),
         cst_txfm_dof=to_warp_array(cst_txfm_dof, dtype=int),
+
+        beam_to_mob_id=to_warp_array(beam_to_mob_idx, dtype=int),
 
         linear_fn_mb=to_warp_array(linear_fn_mb, dtype=wp.vec2),
         const_fn_c=to_warp_array(const_fn_vals, dtype=float),
@@ -501,6 +509,7 @@ def load_model(
         geom_cforce=make_zero((n_worlds, ngeom), dtype=float),
 
         vis_X=make_zero((n_worlds, nvis), dtype=wp.transform),
+        vis_beam_pos=make_zero((n_worlds, n_beams, n_beam_visuals), dtype=wp.vec3),
 
         site_rel_pos_B=make_zero((n_worlds, nsite), dtype=wp.vec3),
         site_pos_G=make_zero((n_worlds, nsite), dtype=wp.vec3),

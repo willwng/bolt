@@ -428,6 +428,14 @@ def attachment_kinematics(m: Model, d: Data):
         outputs=[d.geom_X],
     )
 
+    # Sites
+    wp.launch(
+        _site_local_to_global,
+        dim=(d.nworld, m.nsite),
+        inputs=[m.site_bodyid, m.site_offset, d.integration_done, d.mob_X_GB],
+        outputs=[d.site_rel_pos_B, d.site_pos_G],
+    )
+
     # Visuals: only position is needed
     if wp.static(m.opt.visuals):
         wp.launch(
@@ -437,10 +445,13 @@ def attachment_kinematics(m: Model, d: Data):
             outputs=[d.vis_X],
         )
 
-    # Sites
-    wp.launch(
-        _site_local_to_global,
-        dim=(d.nworld, m.nsite),
-        inputs=[m.site_bodyid, m.site_offset, d.integration_done, d.mob_X_GB],
-        outputs=[d.site_rel_pos_B, d.site_pos_G],
-    )
+        wp.launch(
+            _beam_visuals,
+            dim=(d.nworld, m.nbeams),
+            inputs=[
+                m.body_parentid, m.beam_to_mob_id, m.mob_X_PF, m.mob_qposadr, m.mob_extra_info,
+                d.integration_done, d.qpos, d.mob_X_GB,
+                m.opt.nbeam_visuals,
+            ],
+            outputs=[d.vis_beam_pos],
+        )

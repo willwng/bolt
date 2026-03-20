@@ -187,8 +187,8 @@ class Option:
       enable_drag: flag to enable drag forces
       use_fn_path: flag to use function-based paths for muscles
       visuals: whether to handle visual geometry
+      nbeam_visuals: number of beam visuals (for rendering beams joints)
 
-      contact_type: contact model type (ContactType)
       activation_type: muscle activation dynamics type (ActivationType)
       integrator: integrator type (IntegratorType)
 
@@ -212,6 +212,7 @@ class Option:
     enable_drag: bool
     use_fn_path: bool
     visuals: bool
+    nbeam_visuals: int
 
     activation_type: ActivationType
     integrator: IntegratorType
@@ -351,6 +352,7 @@ class Model:
       nactuator: number of "ideal" actuators
       nz: number of additional state variables
       njnts_cst: number of custom joints
+      nbeams: number of beam joints
       ngeom: number of collision geometry
       nvis: number of visual geometry
       nsite: number of sites
@@ -399,6 +401,9 @@ class Model:
       cst_to_mob_id: map custom joint idx -> mobilizer idx     (njnts_cst,)
       cst_txfm_axes: custom transform axes (3 rot, 3 trans)    (njnts_cst, 6, vec3)
       cst_txfm_dof: dof idx offset (FROM JOINT) for each txfm  (njnts_cst, 6)
+
+     * beam joints *
+      beam_to_mob_id: map beam idx -> mobilizer idx             (nbeam,)
 
      * stiffness/damping *
       dof_damping: damping coefficient                         (nv)
@@ -467,6 +472,7 @@ class Model:
     nactuator: int
     nz: int
     njnts_cst: int
+    nbeams: int
     ngeom: int
     nvis: int
     nsite: int
@@ -507,6 +513,8 @@ class Model:
     cst_to_mob_id: array("njnts_cst", int)
     cst_txfm_axes: array("njnts_cst", 6, wp.vec3)
     cst_txfm_dof: array("njnts_cst", 6, int)
+
+    beam_to_mob_id: array("nbeam", int)
 
     linear_fn_mb: array("nlinearfn", wp.vec2)
     const_fn_c: array("nconstfn", float)
@@ -723,6 +731,7 @@ class Data:
 
       geom_X: Cartesian geom transform                            (nworld, ngeom, transform)
       vis_X: Cartesian visual transform                           (nworld, nvis, transform)
+      vis_beam_pos: position of beam visuals                      (nworld, nbeams, nbeam_visuals, 3)
 
      * contacts *
       collision_pair: pair of geoms in contact                    (nacon, 2)
@@ -834,6 +843,7 @@ class Data:
 
     geom_X: wp.array2d(dtype=wp.transform)
     vis_X: wp.array2d(dtype=wp.transform)
+    vis_beam_pos: array("nworld", "nbeams", "nbeam_visuals", wp.vec3)
 
     collision_pair: wp.array(dtype=wp.vec2i)
     collision_pairid: wp.array(dtype=wp.vec2i)

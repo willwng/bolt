@@ -60,6 +60,7 @@ def main():
         model_path,
         n_worlds=args.nworld,
         integrator=msk_warp.IntegratorType.EULER_ADAPTIVE,
+        requires_visuals=False,
         polynomial_data_path=polynomial_data_path,
         render_kinematic_tree=args.tree,
     )

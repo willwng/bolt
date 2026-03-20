@@ -144,26 +144,28 @@ def compute_qpos_dof_lookups(joints: list[JointData]) -> tuple[dict[str, int], d
     return qpos_adr, dof_adr
 
 
-def compute_num_custom_joints(joints: list[JointData]) -> int:
-    """ Computes the number of custom joints in the model """
-    return len(list(filter(lambda joint: joint.mob_type == MobilizerType.CUSTOM, joints)))
+def compute_num_joints_of_type(joints: list[JointData], mob_type: MobilizerType) -> int:
+    """ Computes the number of joints with the specified mobilizer in the model """
+    return len(list(filter(lambda joint: joint.mob_type == mob_type, joints)))
 
 
-def compute_mobilizer_custom_joint_index(joints: list[JointData]) -> tuple[list[int], list[int]]:
+def compute_mobilizer_index_of_type(
+        joints: list[JointData], mob_type: MobilizerType
+) -> tuple[list[int], list[int]]:
     """
     Returns:
-        1. mapping from mobilizer index to custom joint index (-1 if not a custom joint). (size num mobilizers)
-        2. mapping from custom joint index to mobilizer index. (size num custom joints)
+        1. mapping from mobilizer index to (specified type) joint index (-1 if not specific type). (size num mobilizers)
+        2. mapping from (specified type) joint index to mobilizer index. (size num joints of specified type)
     """
-    mob_to_cst_index = [-1 for _ in joints]
-    cst_to_mob_index = []
-    curr_cst_idx = 0
+    mob_to_spc_index = [-1 for _ in joints]
+    spc_to_mob_index = []
+    curr_spc_idx = 0
     for mob_idx, joint in enumerate(joints):
-        if joint.mob_type == MobilizerType.CUSTOM:
-            mob_to_cst_index[mob_idx] = curr_cst_idx
-            cst_to_mob_index.append(mob_idx)
-            curr_cst_idx += 1
-    return mob_to_cst_index, cst_to_mob_index
+        if joint.mob_type == mob_type:
+            mob_to_spc_index[mob_idx] = curr_spc_idx
+            spc_to_mob_index.append(mob_idx)
+            curr_spc_idx += 1
+    return mob_to_spc_index, spc_to_mob_index
 
 
 def _quat_scalar_coordinate_name(joint: JointData) -> str:

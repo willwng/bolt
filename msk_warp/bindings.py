@@ -13,6 +13,7 @@ def load_model(
         model_path: str,
         n_worlds: int,
         integrator: IntegratorType,
+        requires_visuals: bool,
         polynomial_data_path: str = None,
         render_kinematic_tree: bool = False,
 ) -> ModelLoadResult:
@@ -20,6 +21,7 @@ def load_model(
         model_path=model_path,
         n_worlds=n_worlds,
         integrator=integrator,
+        requires_visuals=requires_visuals,
         polynomial_data_path=polynomial_data_path,
         render_kinematic_tree=render_kinematic_tree,
     )
