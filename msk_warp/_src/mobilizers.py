@@ -503,9 +503,8 @@ def multiply_by_N(
         dq[qpos_adr + 6] = qvel[dof_adr + 5]
     elif mobtype == MobilizerType.BALL:
         rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
-        rot_N = math.calc_unnormalized_quaternion_N(rot)
         ang_v = wp.vec3(qvel[dof_adr + 0], qvel[dof_adr + 1], qvel[dof_adr + 2])
-        dq_rot = rot_N @ ang_v
+        dq_rot = math.calc_unnormalized_quaternion_N(rot) @ ang_v
         dq[qpos_adr + 0] = dq_rot[0]
         dq[qpos_adr + 1] = dq_rot[1]
         dq[qpos_adr + 2] = dq_rot[2]
