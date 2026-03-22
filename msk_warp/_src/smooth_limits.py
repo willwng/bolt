@@ -130,20 +130,8 @@ def _process_swing_twist_limits(
     twist_axis = wp.vec3(0.0, 1.0, 0.0)
     q_swing, q_twist = math.quat_swing_twist(rot, twist_axis)
 
-    # Wrap twist angle to [-pi, pi] to handle quaternion double-cover
     twist_angle = 2.0 * wp.atan2(q_twist.y, q_twist.w)
-    if twist_angle > wp.pi:
-        twist_angle -= 2.0 * wp.pi
-    elif twist_angle < -wp.pi:
-        twist_angle += 2.0 * wp.pi
-
-    # Extract swing
     swing_angle = 2.0 * wp.acos(wp.clamp(q_swing.w, -1.0, 1.0))
-    swing_axis_len = wp.sqrt(q_swing.x * q_swing.x + q_swing.z * q_swing.z)
-    swing_axis = wp.vec3(1.0, 0.0, 0.0)
-    if swing_axis_len > MSK_SIG_REAL:
-        swing_axis.x = q_swing.x / swing_axis_len
-        swing_axis.z = q_swing.z / swing_axis_len
 
     # Compute twist violation
     violation_twist = 0.0
@@ -153,6 +141,11 @@ def _process_swing_twist_limits(
         violation_twist = twist_angle - twist_range[0]
 
     # Swing violation: based on elliptical limit in the plane
+    swing_axis_len = wp.sqrt(q_swing.x * q_swing.x + q_swing.z * q_swing.z)
+    swing_axis = wp.vec3(1.0, 0.0, 0.0)
+    if swing_axis_len > MSK_SIG_REAL:
+        swing_axis.x = q_swing.x / swing_axis_len
+        swing_axis.z = q_swing.z / swing_axis_len
     nx = swing_axis.x
     nz = swing_axis.z
     swing_max_x = wp.where(nx < 0.0, swing1_range[0], swing1_range[1])
