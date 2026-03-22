@@ -5,7 +5,7 @@ from msk_warp.utils.converted_objects import ActivationCoordinateActuatorData
 from msk_warp.utils.osim_types import OSimType
 
 
-def convert_activation_actuators(model: osim.Model) -> list[ActivationCoordinateActuatorData]:
+def convert_activation_actuators(model: OSimType.Model) -> list[ActivationCoordinateActuatorData]:
     actuator_data = []
     force_set = model.getForceSet()
     activation_actuators = filter(lambda f: f.getConcreteClassName() == "ActivationCoordinateActuator", force_set)

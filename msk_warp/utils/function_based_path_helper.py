@@ -4,12 +4,10 @@ import itertools
 from math import comb
 from msk_warp import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, POLY_TILE_SIZE, PolyInts
 from msk_warp.utils.osim_types import OSimType
-from msk_warp.utils.converted_objects import MuscleFunctionPathData, USE_POINT_PATH
+from msk_warp.utils.converted_objects import MuscleFunctionPathData, USE_POINT_PATH, PADDED_DOF
 from msk_warp.utils.muscle_helper import get_muscles
 from msk_warp.utils.python_util import remove_slash_prefix, pad_list, exclusive_scan
 from msk_warp.utils.property_helper import extract_vector
-
-PADDED_DOF = "__PADDED_DOF"
 
 
 def polynomial_exponents(dimension: int, order: int):

@@ -90,7 +90,7 @@ def convert_contact_geometry(geom: osim.ContactGeometry) -> GeomData:
     )
 
 
-def convert_geoms(model: osim.Model, include_body_components: bool) -> list[GeomData]:
+def convert_geoms(model: OSimType.Model, include_body_components: bool) -> list[GeomData]:
     """ Returns the all the converted contact geometries in the model """
     collider_data = []
 

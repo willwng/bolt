@@ -74,6 +74,33 @@ def clamp_fiber_length(
 
 
 @wp.func
+def pennation_model_calc_fiber_length(
+        muscle_length: float,
+        optimal_fiber_length: float,
+        optimal_pennation_angle: float,
+        tendon_slack_length: float,
+        minimum_fiber_length: float,
+) -> float:
+    fiber_length_AT = muscle_length - tendon_slack_length
+    minimum_fiber_length_along_tendon = minimum_fiber_length * wp.cos(consts.M_MAX_PENNATION_ANGLE)
+    if fiber_length_AT >= minimum_fiber_length_along_tendon:
+        parallelogram_height = get_fiber_width(optimal_fiber_length, optimal_pennation_angle)
+        fiber_length = wp.sqrt(parallelogram_height * parallelogram_height + fiber_length_AT * fiber_length_AT)
+    else:
+        fiber_length = minimum_fiber_length_along_tendon
+    return fiber_length
+
+
+@wp.func
+def pennation_model_calc_fiber_velocity(
+        cos_pennation_angle: float,
+        muscle_velocity: float,
+        tendon_velocity: float,
+) -> float:
+    return (muscle_velocity - tendon_velocity) * cos_pennation_angle
+
+
+@wp.func
 def calc_pennation_angle(
         optimal_pennation_angle: float,
         optimal_fiber_length: float,

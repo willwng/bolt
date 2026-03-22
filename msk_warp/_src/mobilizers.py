@@ -189,7 +189,7 @@ def calc_across_joint_velocity_jacobian(
     elif mobtype == MobilizerType.UNIVERSAL:
         R_FM_y = mob_scratch[0]
         H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3(0.0))
-        H_FM[dofadr + 0] = wp.spatial_vector(R_FM_y, wp.vec3(0.0))
+        H_FM[dofadr + 1] = wp.spatial_vector(R_FM_y, wp.vec3(0.0))
 
     elif mobtype == MobilizerType.GIMBAL:
         gimbal_q0, gimbal_q1, gimbal_q2 = mob_scratch[0][0], mob_scratch[0][1], mob_scratch[0][2]
@@ -215,8 +215,8 @@ def calc_across_joint_velocity_jacobian(
         semi = extra_info
         n = mob_scratch[0]
         H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3(0.0, -n[2] * semi[1], n[1] * semi[2]))
-        H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(0.0, 1.0, 0.0), wp.vec3(n[2] * semi[0], 0.0, -n[0] * semi[2]))
-        H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(0.0, 0.0, 1.0), wp.vec3(-n[1] * semi[0], n[0] * semi[1], 0.0))
+        H_FM[dofadr + 1] = wp.spatial_vector(wp.vec3(0.0, 1.0, 0.0), wp.vec3(n[2] * semi[0], 0.0, -n[0] * semi[2]))
+        H_FM[dofadr + 2] = wp.spatial_vector(wp.vec3(0.0, 0.0, 1.0), wp.vec3(-n[1] * semi[0], n[0] * semi[1], 0.0))
 
     elif mobtype == MobilizerType.BALL:
         H_FM[dofadr + 0] = wp.spatial_vector(wp.vec3(1.0, 0.0, 0.0), wp.vec3())
@@ -489,19 +489,19 @@ def multiply_by_N(
 ):
     """ Maps from u to q_dot (Nu = q_dot) """
     if mobtype == MobilizerType.FREE:
-        # translation, nothing to do
-        dq[qpos_adr + 0] = qvel[dof_adr + 0]
-        dq[qpos_adr + 1] = qvel[dof_adr + 1]
-        dq[qpos_adr + 2] = qvel[dof_adr + 2]
         # rotation
-        rot = wp.quat(qpos[qpos_adr + 3], qpos[qpos_adr + 4], qpos[qpos_adr + 5], qpos[qpos_adr + 6])
-        ang_v = wp.vec3(qvel[dof_adr + 3], qvel[dof_adr + 4], qvel[dof_adr + 5])
+        rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
+        ang_v = wp.vec3(qvel[dof_adr + 0], qvel[dof_adr + 1], qvel[dof_adr + 2])
         dq_rot = math.calc_unnormalized_quaternion_N(rot) @ ang_v
-        dq[qpos_adr + 3] = dq_rot[0]
-        dq[qpos_adr + 4] = dq_rot[1]
-        dq[qpos_adr + 5] = dq_rot[2]
-        dq[qpos_adr + 6] = dq_rot[3]
-    elif mobtype == MobilizerType.BALL:  # ball
+        dq[qpos_adr + 0] = dq_rot[0]
+        dq[qpos_adr + 1] = dq_rot[1]
+        dq[qpos_adr + 2] = dq_rot[2]
+        dq[qpos_adr + 3] = dq_rot[3]
+        # translation
+        dq[qpos_adr + 4] = qvel[dof_adr + 3]
+        dq[qpos_adr + 5] = qvel[dof_adr + 4]
+        dq[qpos_adr + 6] = qvel[dof_adr + 5]
+    elif mobtype == MobilizerType.BALL:
         rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
         rot_N = math.calc_unnormalized_quaternion_N(rot)
         ang_v = wp.vec3(qvel[dof_adr + 0], qvel[dof_adr + 1], qvel[dof_adr + 2])
@@ -537,17 +537,17 @@ def multiply_by_N_inv(
         qvel_out: wp.array(dtype=float),
 ):
     if mobtype == MobilizerType.FREE:
-        # translation
-        qvel_out[dof_adr + 0] = dq[qpos_adr + 0]
-        qvel_out[dof_adr + 1] = dq[qpos_adr + 1]
-        qvel_out[dof_adr + 2] = dq[qpos_adr + 2]
-        # rotation
-        rot = wp.quat(qpos[qpos_adr + 3], qpos[qpos_adr + 4], qpos[qpos_adr + 5], qpos[qpos_adr + 6])
-        dq_rot = wp.vec4(dq[qpos_adr + 3], dq[qpos_adr + 4], dq[qpos_adr + 5], dq[qpos_adr + 6])
+        # rotation first
+        rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
+        dq_rot = wp.vec4(dq[qpos_adr + 0], dq[qpos_adr + 1], dq[qpos_adr + 2], dq[qpos_adr + 3])
         qvel_rot = math.calc_unnormalized_quaternion_N_inv(rot) @ dq_rot
-        qvel_out[dof_adr + 3] = qvel_rot[0]
-        qvel_out[dof_adr + 4] = qvel_rot[1]
-        qvel_out[dof_adr + 5] = qvel_rot[2]
+        qvel_out[dof_adr + 0] = qvel_rot[0]
+        qvel_out[dof_adr + 1] = qvel_rot[1]
+        qvel_out[dof_adr + 2] = qvel_rot[2]
+        # translation second
+        qvel_out[dof_adr + 3] = dq[qpos_adr + 4]
+        qvel_out[dof_adr + 4] = dq[qpos_adr + 5]
+        qvel_out[dof_adr + 5] = dq[qpos_adr + 6]
     elif mobtype == MobilizerType.BALL:  # ball
         rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
         dq_rot = wp.vec4(dq[qpos_adr + 0], dq[qpos_adr + 1], dq[qpos_adr + 2], dq[qpos_adr + 3])

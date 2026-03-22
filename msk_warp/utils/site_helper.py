@@ -7,7 +7,7 @@ from msk_warp.utils.property_helper import extract_vec3
 from msk_warp.utils.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
 
 
-def convert_sites(model: osim.Model) -> list[SiteData]:
+def convert_sites(model: OSimType.Model) -> list[SiteData]:
     """ Returns the all the converted contact geometries in the model """
     site_data = []
 

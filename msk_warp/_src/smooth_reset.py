@@ -3,30 +3,54 @@ import warp as wp
 from . import mobilizers
 from .types import Data
 from .types import Model
+from .types import CoordinateLinearStop
+from .types import CoordinateLimitForce
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
-def _fix_limits_kernel(
+def _fix_limits_linear_stop_kernel(
         # Model in:
-        limit_dof_range: wp.array(dtype=wp.vec2),
-        limit_dof_qadr: wp.array(dtype=int),
+        coordinate_linear_stop: wp.array(dtype=CoordinateLinearStop),
         # Data in:
         world_reset_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         # Data out:
         qpos_out: wp.array2d(dtype=float),
 ):
-    worldid, limitdofid = wp.tid()
+    worldid, limitid = wp.tid()
+    stop = coordinate_linear_stop[limitid]
     if world_reset_in[worldid]:
-        dof_range = limit_dof_range[limitdofid]
-        dof_qadr = limit_dof_qadr[limitdofid]
-        qpos = qpos_in[worldid, dof_qadr]
+        qpos_range = stop.qpos_range
+        qpos_adr = stop.qpos_adr
+        qpos = qpos_in[worldid, qpos_adr]
 
-        qpos_clamped = wp.clamp(qpos, dof_range[0], dof_range[1])
-        qpos_out[worldid, dof_qadr] = qpos_clamped
+        qpos_clamped = wp.clamp(qpos, qpos_range[0], qpos_range[1])
+        qpos_out[worldid, qpos_adr] = qpos_clamped
+    return
+
+
+@wp.kernel
+def _fix_limits_lf_kernel(
+        # Model in:
+        coordinate_limit_force: wp.array(dtype=CoordinateLimitForce),
+        # Data in:
+        world_reset_in: wp.array(dtype=bool),
+        qpos_in: wp.array2d(dtype=float),
+        # Data out:
+        qpos_out: wp.array2d(dtype=float),
+):
+    worldid, limitid = wp.tid()
+    lf = coordinate_limit_force[limitid]
+    if world_reset_in[worldid]:
+        qpos_range = lf.qpos_range
+        qpos_adr = lf.qpos_adr
+        qpos = qpos_in[worldid, qpos_adr]
+
+        qpos_clamped = wp.clamp(qpos, qpos_range[0], qpos_range[1])
+        qpos_out[worldid, qpos_adr] = qpos_clamped
     return
 
 
@@ -53,15 +77,15 @@ def _fix_quaternions_kernel(
 def fix_qpos_limits(m: Model, d: Data):
     """Clamps qpos values to joint limits."""
     wp.launch(
-        _fix_limits_kernel,
+        _fix_limits_linear_stop_kernel,
         dim=(d.nworld, m.nlinearstop),
-        inputs=[m.stop_qpos_range, m.stop_qpos_adr, d.world_reset, d.qpos, ],
+        inputs=[m.coordinate_linear_stop, d.world_reset, d.qpos, ],
         outputs=[d.qpos, ],
     )
     wp.launch(
-        _fix_limits_kernel,
+        _fix_limits_lf_kernel,
         dim=(d.nworld, m.nlimitforce),
-        inputs=[m.lf_qpos_range, m.lf_qpos_adr, d.world_reset, d.qpos, ],
+        inputs=[m.coordinate_limit_force, d.world_reset, d.qpos, ],
         outputs=[d.qpos, ],
     )
     return

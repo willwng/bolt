@@ -26,7 +26,7 @@ def convert_transform_axis(txfm: OSimType.TransformAxis) -> TransformAxisData:
     )
 
 
-def convert_spatial_transforms(model: osim.Model) -> list[SpatialTransformData]:
+def convert_spatial_transforms(model: OSimType.Model) -> list[SpatialTransformData]:
     """ Returns the all the converted spatial transforms in the model """
     spatial_transform_data = []
 

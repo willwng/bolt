@@ -55,6 +55,35 @@ def _compute_path_kernel(
     return
 
 
+@wp.func
+def apply_muscle_force_to_bodies(
+        actuation: float,
+        pts_adr: int,
+        pts_num: int,
+        site_bodyid: wp.array(dtype=int),
+        site_pos_G_in: wp.array(dtype=wp.vec3),
+        site_rel_pos_B_in: wp.array(dtype=wp.vec3),
+        body_F_muscle_out: wp.array(dtype=wp.spatial_vector)
+):
+    for i in range(pts_num - 1):
+        site1, site2 = pts_adr + i, pts_adr + i + 1
+        p1_G, p2_G = site_pos_G_in[site1], site_pos_G_in[site2]
+        diff = p2_G - p1_G
+        dist = wp.length(diff)
+
+        if dist < MSK_MINVAL:
+            continue
+        direction = diff / dist
+        muscle_frc = actuation * direction
+
+        # Bodies, position of site relative to body
+        body1, body2 = site_bodyid[site1], site_bodyid[site2]
+        s1_G, s2_G = site_rel_pos_B_in[site1], site_rel_pos_B_in[site2]
+        wp.atomic_add(body_F_muscle_out, body1, wp.spatial_vector(wp.cross(s1_G, muscle_frc), muscle_frc))
+        wp.atomic_sub(body_F_muscle_out, body2, wp.spatial_vector(wp.cross(s2_G, muscle_frc), muscle_frc))
+    return
+
+
 @wp.kernel
 def _apply_muscle_force_kernel(
         # Model:
@@ -80,21 +109,39 @@ def _apply_muscle_force_kernel(
 
     pts_adr = muscle_pts_adr[muscle_id]
     pts_num = muscle_pts_num[muscle_id]
-    for i in range(pts_num - 1):
-        site1, site2 = pts_adr + i, pts_adr + i + 1
-        p1_G, p2_G = site_pos_G_in[worldid, site1], site_pos_G_in[worldid, site2]
-        diff = p2_G - p1_G
-        dist = wp.length(diff)
+    apply_muscle_force_to_bodies(
+        actuation, pts_adr, pts_num, site_bodyid,
+        site_pos_G_in[worldid], site_rel_pos_B_in[worldid], body_F_muscle_out[worldid]
+    )
+    return
 
-        if dist < MSK_MINVAL:
-            continue
-        direction = diff / dist
-        muscle_frc = actuation * direction
 
-        body1, body2 = site_bodyid[site1], site_bodyid[site2]
-        s1_G, s2_G = site_rel_pos_B_in[worldid, site1], site_rel_pos_B_in[worldid, site2]
-        wp.atomic_add(body_F_muscle_out[worldid], body1, wp.spatial_vector(wp.cross(s1_G, muscle_frc), muscle_frc))
-        wp.atomic_sub(body_F_muscle_out[worldid], body2, wp.spatial_vector(wp.cross(s2_G, muscle_frc), muscle_frc))
+@wp.kernel
+def _apply_unit_muscle_force_one_muscle_kernel(
+        # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
+        muscle_pts_adr: wp.array(dtype=int),
+        muscle_pts_num: wp.array(dtype=int),
+        site_bodyid: wp.array(dtype=int),
+        # Data in:
+        site_pos_G_in: wp.array2d(dtype=wp.vec3),
+        site_rel_pos_B_in: wp.array2d(dtype=wp.vec3),
+        # In:
+        muscle_id: int,
+        # Data out:
+        body_F_muscle_out: wp.array2d(dtype=wp.spatial_vector),
+):
+    worldid = wp.tid()
+    if muscle_metadata[muscle_id].fn_based_path:
+        return
+
+    actuation = 1.0
+    pts_adr = muscle_pts_adr[muscle_id]
+    pts_num = muscle_pts_num[muscle_id]
+    apply_muscle_force_to_bodies(
+        actuation, pts_adr, pts_num, site_bodyid,
+        site_pos_G_in[worldid], site_rel_pos_B_in[worldid], body_F_muscle_out[worldid]
+    )
     return
 
 
@@ -122,6 +169,21 @@ def apply_muscle_force(m: Model, d: Data):
             inputs=[
                 m.muscle_metadata, m.muscle_pts_adr, m.muscle_pts_num, m.site_bodyid,
                 d.integration_done, d.muscle_actuation, d.site_pos_G, d.site_rel_pos_B
+            ],
+            outputs=[d.body_F_muscle],
+        )
+
+
+@event_scope
+def apply_muscle_force_one_muscle(m: Model, d: Data, muscle_id: int):
+    if m.nmuscle:
+        wp.launch(
+            _apply_unit_muscle_force_one_muscle_kernel,
+            dim=(d.nworld,),
+            inputs=[
+                m.muscle_metadata, m.muscle_pts_adr, m.muscle_pts_num, m.site_bodyid,
+                d.site_pos_G, d.site_rel_pos_B,
+                muscle_id
             ],
             outputs=[d.body_F_muscle],
         )

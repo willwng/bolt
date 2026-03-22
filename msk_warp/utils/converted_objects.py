@@ -7,6 +7,7 @@ from msk_warp import MobilizerType, GeomType, PolyInts
 GROUND_PARENT = "N/A"
 GROUND = "ground"
 NO_DOF = "__NO_DOF"  # for transform axes that don't depend on a DOF, use this as a placeholder
+PADDED_DOF = "__PADDED_DOF"  # for coordinates that are not actually part of the function-based path
 AABB = tuple[wp.vec3, wp.vec3]
 
 
@@ -131,7 +132,8 @@ class CoordinateLinearDamperData:
 class CoordinateLinearStopData:
     name: str
     coordinate: str
-    stiffness_damping: wp.vec2
+    stiffness: float
+    damping: float
     range: wp.vec2
 
 
@@ -143,6 +145,18 @@ class CoordinateLimitForceData:
     range: wp.vec2
     damping: float
     transition: float
+
+
+@dataclass
+class SwingTwistLimitData:
+    name: str
+    joint: str
+    stiffness: float
+    damping: float
+
+    twist_limits: wp.vec2
+    swing1_limits: wp.vec2
+    swing2_limits: wp.vec2
 
 
 @dataclass
@@ -166,6 +180,8 @@ class ActivationCoordinateActuatorData:
 @dataclass
 class MuscleData:
     name: str
+
+    ignore_tendon_compliance: bool
 
     min_control: float
     max_control: float

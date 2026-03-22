@@ -35,14 +35,14 @@ def collect_path_points(muscle_path: OSimType.ScholzPath) -> list[SiteData]:
     return path_points
 
 
-def get_muscles(model: osim.Model) -> list[osim.Muscle]:
+def get_muscles(model: OSimType.Model) -> list[osim.Muscle]:
     """ Returns the list of Muscles in the model """
     force_set = model.getForceSet()
     muscles = filter(lambda f: "Muscle" in f.getConcreteClassName(), force_set)
     return list(muscles)
 
 
-def convert_muscles(model: osim.Model) -> list[MuscleData]:
+def convert_muscles(model: OSimType.Model) -> list[MuscleData]:
     """ Returns the all the converted Muscles in the model """
     muscle_data = []
     muscles = get_muscles(model)
@@ -55,6 +55,9 @@ def convert_muscles(model: osim.Model) -> list[MuscleData]:
         muscle_data.append(
             MuscleData(
                 name=muscle_name,
+
+                ignore_tendon_compliance=muscle.get_ignore_tendon_compliance(),
+
                 min_control=muscle.get_min_control(),
                 max_control=muscle.get_max_control(),
 
@@ -94,6 +97,7 @@ def create_muscle_metadata(
         # Whether muscle uses function-based path
         muscle_meta.fn_based_path = muscle.name in muscle_with_fn_path
         # Muscle properties
+        muscle_meta.ignore_tendon_compliance = muscle.ignore_tendon_compliance
         muscle_meta.max_isometric_force = muscle.max_isometric_force
         muscle_meta.optimal_fiber_length = muscle.optimal_fiber_length
         muscle_meta.tendon_slack_length = muscle.tendon_slack_length

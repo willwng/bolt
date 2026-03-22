@@ -3,7 +3,8 @@ import os
 
 from msk_warp import Model, Data, IntegratorType, Option, ActivationType, MetabolicOptions, MuscleMetadata, \
     ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, MuscleLengthInfo, FiberVelocityInfo, \
-    MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, vec5
+    MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
+    CoordinateLinearStop, CoordinateLimitForce, vec5
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.utils import *
 
@@ -48,6 +49,7 @@ def load_model(
     converted_spring_gen_force = coordinate_force_helper.convert_spring_generalized_force(model)
     converted_stops = coordinate_force_helper.convert_coordinate_linear_stop(model)  # this is a limit force
     converted_limit_forces = coordinate_force_helper.convert_coordinate_limit_force(model)  # also a limit force
+    converted_swing_twists = swing_twist_helper.convert_swing_twist_limits(model_path)
     converted_activation_actuators = actuator_helper.convert_activation_actuators(model)
     converted_muscles = muscle_helper.convert_muscles(model)
     # Note: muscle path points must come first
@@ -78,8 +80,9 @@ def load_model(
     # Re-order bodies, joints, spatial transforms
     ordered_bodies = [node.body for node in tree_ordering]
     ordered_joints = [node.joint for node in tree_ordering]
+    joint_ordering = joint_helper.compute_joint_name_ordering(ordered_joints)
     ordered_spatial_transforms = spatial_transform_helper.order_spatial_transforms(
-        converted_spatial_transforms, joint_helper.compute_joint_name_ordering(ordered_joints))
+        converted_spatial_transforms, joint_ordering)
     ordered_bodies_names = [body.name for body in ordered_bodies]
 
     # Body name -> body id
@@ -141,6 +144,7 @@ def load_model(
     nsite = len(converted_sites)
     nlinearstop = len(converted_stops)
     nlimitforce = len(converted_limit_forces)
+    nswingtwist = len(converted_swing_twists)
     nmuscle = len(converted_muscles)
     nactuator = len(converted_activation_actuators)
     nz = 2 * nmuscle + nactuator  # need muscle activation & fiber state and actuator activation state
@@ -155,18 +159,6 @@ def load_model(
     mob_X_PF = joint_helper.get_mob_X_PF(ordered_joints)
     mob_X_MB = joint_helper.get_mob_X_MB(ordered_joints)
     mob_extra_info = joint_helper.get_mob_extra_info(ordered_joints)
-
-    stop_qpos_range = coordinate_force_helper.get_stop_qpos_range(converted_stops)
-    stop_dof_stiffness_damping = coordinate_force_helper.get_stop_dof_stiffness_damping(converted_stops)
-    stop_qpos_adr = coordinate_force_helper.get_stop_coordinates_adr(converted_stops, qpos_ordering)
-    stop_dof_adr = coordinate_force_helper.get_stop_coordinates_adr(converted_stops, dof_ordering)
-
-    lf_qpos_range = coordinate_force_helper.get_lf_qpos_range(converted_limit_forces)
-    lf_qpos_adr = coordinate_force_helper.get_lf_adr(converted_limit_forces, qpos_ordering)
-    lf_dof_adr = coordinate_force_helper.get_lf_adr(converted_limit_forces, dof_ordering)
-    lf_stiffness = coordinate_force_helper.get_lf_stiffness(converted_limit_forces)
-    lf_damping = coordinate_force_helper.get_lf_damping(converted_limit_forces)
-    lf_transition = coordinate_force_helper.get_lf_transition(converted_limit_forces)
 
     site_body_id = apply_map_to_list(site_helper.get_site_body_name(converted_sites), body_ordering)
     site_offset = site_helper.get_site_offset(converted_sites)
@@ -209,6 +201,13 @@ def load_model(
     dof_stiffness, dof_damping = coordinate_force_helper.get_dof_stiffness_damping(
         converted_springs, converted_dampers, converted_spring_gen_force, dof_ordering)
     qpos_spring_rest = coordinate_force_helper.get_qpos_spring_rest(converted_springs, qpos_ordering)
+
+    coordinate_linear_stops = coordinate_force_helper.create_coordinate_linear_stop(
+        converted_stops, qpos_ordering, dof_ordering)
+    coordinate_limit_forces = coordinate_force_helper.create_coordinate_limit_force(
+        converted_limit_forces, qpos_ordering, dof_ordering)
+    swing_twist_limits = swing_twist_helper.create_swing_twist_data(
+        converted_swing_twists, joint_ordering, mob_qpos_adr, mob_dof_adr)
 
     # Actuators
     actuator_data = actuator_helper.create_actuator_metadata(converted_activation_actuators, dof_ordering)
@@ -286,6 +285,7 @@ def load_model(
         nsite=nsite,
         nlinearstop=nlinearstop,
         nlimitforce=nlimitforce,
+        nswingtwist=nswingtwist,
 
         nfunctions=nfunctions,
         nlinearfn=nlinearfn,
@@ -339,17 +339,9 @@ def load_model(
         dof_stiffness=to_warp_array(dof_stiffness, dtype=float),
         qpos_spring_rest=to_warp_array(qpos_spring_rest, dtype=float),
 
-        stop_qpos_range=to_warp_array(stop_qpos_range, dtype=wp.vec2),
-        stop_qpos_adr=to_warp_array(stop_qpos_adr, dtype=int),
-        stop_dof_adr=to_warp_array(stop_dof_adr, dtype=int),
-        stop_dof_stiffness_damping=to_warp_array(stop_dof_stiffness_damping, dtype=wp.vec2),
-
-        lf_qpos_range=to_warp_array(lf_qpos_range, dtype=wp.vec2),
-        lf_qpos_adr=to_warp_array(lf_qpos_adr, dtype=int),
-        lf_dof_adr=to_warp_array(lf_dof_adr, dtype=int),
-        lf_stiffness=to_warp_array(lf_stiffness, dtype=wp.vec2),
-        lf_damping=to_warp_array(lf_damping, dtype=float),
-        lf_transition=to_warp_array(lf_transition, dtype=float),
+        coordinate_linear_stop=wp.array(coordinate_linear_stops, dtype=CoordinateLinearStop),
+        coordinate_limit_force=wp.array(coordinate_limit_forces, dtype=CoordinateLimitForce),
+        swing_twist_limit=wp.array(swing_twist_limits, dtype=SwingTwistLimit),
 
         geom_type=to_warp_array(geom_type, dtype=int),
         geom_bodyid=to_warp_array(geom_body_id, dtype=int),
@@ -466,7 +458,6 @@ def load_model(
         m_state=make_zero((n_worlds, nmuscle), dtype=float),
 
         grf=make_zero((n_worlds,), dtype=wp.vec3),
-        joint_moments=make_zero((n_worlds, nv), dtype=float),
 
         qacc=make_zero((n_worlds, nv), dtype=float),
         m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
@@ -500,6 +491,7 @@ def load_model(
         body_total_centrifugal_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_articulated_centrifugal_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_zPlus=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_zTmp=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
         geom_X=make_zero((n_worlds, ngeom), dtype=wp.transform),
         geom_cforce=make_zero((n_worlds, ngeom), dtype=float),

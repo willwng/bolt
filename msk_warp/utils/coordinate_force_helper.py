@@ -1,14 +1,13 @@
-import opensim as osim
 import warp as wp
 import numpy as np
 
-from msk_warp.utils.python_util import apply_map_to_list
+from msk_warp import CoordinateLinearStop, CoordinateLimitForce
 from msk_warp.utils.converted_objects import CoordinateLinearDamperData, CoordinateLinearSpringData, \
     CoordinateLinearStopData, SpringGeneralizedForceData, CoordinateLimitForceData
 from msk_warp.utils.osim_types import OSimType
 
 
-def convert_coordinate_linear_damper(model: osim.Model) -> list[CoordinateLinearDamperData]:
+def convert_coordinate_linear_damper(model: OSimType.Model) -> list[CoordinateLinearDamperData]:
     """ Returns the all the converted CoordinateLinearDamper in the model """
     coordinate_linear_damper_data = []
     force_set = model.getForceSet()
@@ -27,7 +26,7 @@ def convert_coordinate_linear_damper(model: osim.Model) -> list[CoordinateLinear
     return coordinate_linear_damper_data
 
 
-def convert_coordinate_linear_spring(model: osim.Model) -> list[CoordinateLinearSpringData]:
+def convert_coordinate_linear_spring(model: OSimType.Model) -> list[CoordinateLinearSpringData]:
     """ Returns the all the converted CoordinateLinearSpring in the model """
     coordinate_linear_spring_data = []
     force_set = model.getForceSet()
@@ -45,7 +44,7 @@ def convert_coordinate_linear_spring(model: osim.Model) -> list[CoordinateLinear
     return coordinate_linear_spring_data
 
 
-def convert_spring_generalized_force(model: osim.Model) -> list[SpringGeneralizedForceData]:
+def convert_spring_generalized_force(model: OSimType.Model) -> list[SpringGeneralizedForceData]:
     """ Returns the all the converted SpringGeneralizedForce in the model """
     spring_generalized_force_data = []
     force_set = model.getForceSet()
@@ -63,7 +62,7 @@ def convert_spring_generalized_force(model: osim.Model) -> list[SpringGeneralize
     return spring_generalized_force_data
 
 
-def convert_coordinate_linear_stop(model: osim.Model) -> list[CoordinateLinearStopData]:
+def convert_coordinate_linear_stop(model: OSimType.Model) -> list[CoordinateLinearStopData]:
     """ Returns the all the converted CoordinateLinearStop in the model """
     coordinate_linear_stop_data = []
     force_set = model.getForceSet()
@@ -74,14 +73,15 @@ def convert_coordinate_linear_stop(model: osim.Model) -> list[CoordinateLinearSt
             CoordinateLinearStopData(
                 name=coordinate_linear_stop.getName(),
                 coordinate=coordinate_linear_stop.get_coordinate(),
-                stiffness_damping=wp.vec2(coordinate_linear_stop.get_stiffness(), coordinate_linear_stop.get_damping()),
+                stiffness=coordinate_linear_stop.get_stiffness(),
+                damping=coordinate_linear_stop.get_damping(),
                 range=wp.vec2(coordinate_linear_stop.get_q_low(), coordinate_linear_stop.get_q_high()),
             )
         )
     return coordinate_linear_stop_data
 
 
-def convert_coordinate_limit_force(model: osim.Model) -> list[CoordinateLimitForceData]:
+def convert_coordinate_limit_force(model: OSimType.Model) -> list[CoordinateLimitForceData]:
     """ Returns the all the converted CoordinateLinearStop in the model """
     coordinate_limit_force_data = []
     force_set = model.getForceSet()
@@ -155,40 +155,41 @@ def get_qpos_spring_rest(
 
 
 # --- Linear Stop ---
-def get_stop_coordinates_adr(
+def create_coordinate_linear_stop(
         coordinate_linear_stop_data: list[CoordinateLinearStopData],
-        ordering: dict[str, int]
-) -> list[int]:
-    """ Returns the address of the stop coordinate for each dof """
-    stop_coordinates = [stop.coordinate for stop in coordinate_linear_stop_data]
-    return apply_map_to_list(stop_coordinates, ordering)
+        qpos_ordering: dict[str, int],
+        dof_ordering: dict[str, int]
+) -> list[CoordinateLinearStop]:
+    coordinate_linear_stops = []
+    for stop_data in coordinate_linear_stop_data:
+        stop = CoordinateLinearStop()
 
+        stop.qpos_adr = qpos_ordering[stop_data.coordinate]
+        stop.dof_adr = dof_ordering[stop_data.coordinate]
+        stop.qpos_range = stop_data.range
+        stop.stiffness = stop_data.stiffness
+        stop.damping = stop_data.damping
 
-def get_stop_qpos_range(coordinate_linear_stop_data: list[CoordinateLinearStopData], ) -> list[wp.vec2]:
-    return [stop.range for stop in coordinate_linear_stop_data]
-
-
-def get_stop_dof_stiffness_damping(coordinate_linear_stop_data: list[CoordinateLinearStopData]) -> list[wp.vec2]:
-    return [stop.stiffness_damping for stop in coordinate_linear_stop_data]
+        coordinate_linear_stops.append(stop)
+    return coordinate_linear_stops
 
 
 # --- Limit Force ---
-def get_lf_qpos_range(coordinate_limit_force_data: list[CoordinateLimitForceData]) -> list[wp.vec2]:
-    return [limit.range for limit in coordinate_limit_force_data]
+def create_coordinate_limit_force(
+        coordinate_limit_force_data: list[CoordinateLimitForceData],
+        qpos_ordering: dict[str, int],
+        dof_ordering: dict[str, int]
+) -> list[CoordinateLimitForce]:
+    coordinate_limit_forces = []
+    for limit_force_data in coordinate_limit_force_data:
+        limit_force = CoordinateLimitForce()
 
+        limit_force.qpos_adr = qpos_ordering[limit_force_data.coordinate]
+        limit_force.dof_adr = dof_ordering[limit_force_data.coordinate]
+        limit_force.qpos_range = limit_force_data.range
+        limit_force.stiffness = limit_force_data.stiffness
+        limit_force.damping = limit_force_data.damping
+        limit_force.transition = limit_force_data.transition
 
-def get_lf_adr(coordinate_limit_force_data: list[CoordinateLimitForceData], ordering: dict[str, int]) -> list[int]:
-    limit_coordinates = [limit.coordinate for limit in coordinate_limit_force_data]
-    return apply_map_to_list(limit_coordinates, ordering)
-
-
-def get_lf_stiffness(coordinate_limit_force_data: list[CoordinateLimitForceData]) -> list[wp.vec2]:
-    return [limit.stiffness for limit in coordinate_limit_force_data]
-
-
-def get_lf_damping(coordinate_limit_force_data: list[CoordinateLimitForceData]) -> list[float]:
-    return [limit.damping for limit in coordinate_limit_force_data]
-
-
-def get_lf_transition(coordinate_limit_force_data: list[CoordinateLimitForceData]) -> list[float]:
-    return [limit.transition for limit in coordinate_limit_force_data]
+        coordinate_limit_forces.append(limit_force)
+    return coordinate_limit_forces

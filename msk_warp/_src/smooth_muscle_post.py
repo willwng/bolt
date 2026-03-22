@@ -1,0 +1,44 @@
+import warp as wp
+
+from .types import Data
+from .types import Model
+from .types import MuscleMetadata
+from .consts import MSK_MINVAL
+from .warp_util import event_scope
+
+wp.set_module_options({"enable_backward": False})
+
+
+@event_scope
+def copy_qfrc_into_moment_arm(m: Model, d: Data, muscle_id: int, qfrc: wp.array2d(dtype=float)):
+    @wp.kernel
+    def _copy_qfrc_into_moment_arm_kernel(
+            # Model:
+            muscle_metadata: wp.array(dtype=MuscleMetadata),
+            # Data in:
+            qfrc_in: wp.array2d(dtype=float),
+            # In:
+            muscleid: int,
+            # Data out:
+            muscle_moment_arm_out: wp.array3d(dtype=float),
+    ):
+        worldid = wp.tid()
+        if muscle_metadata[muscleid].fn_based_path:  # fn-based paths are already done
+            return
+        nv = wp.static(m.nv)
+        qfrc_tile = wp.tile_load(qfrc_in[worldid], shape=nv)
+        wp.tile_store(muscle_moment_arm_out[worldid, muscleid], qfrc_tile)
+        return
+
+    if m.nmuscle:
+        wp.launch_tiled(
+            _copy_qfrc_into_moment_arm_kernel,
+            dim=(d.nworld,),
+            inputs=[
+                m.muscle_metadata,
+                qfrc,
+                muscle_id,
+            ],
+            outputs=[d.muscle_moment_arm],
+            block_dim=m.block_dim.muscle_path,
+        )

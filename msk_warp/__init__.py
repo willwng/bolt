@@ -6,6 +6,7 @@ from ._src.step import step as step
 from ._src.forward import reset as reset
 from ._src.forward import fk as fk
 from ._src.forward import post as post
+from ._src.forward import compute_muscle_moments as compute_muscle_moments
 from ._src.types import Model as Model
 from ._src.types import Data as Data
 from ._src.types import MobilizerType
@@ -25,6 +26,9 @@ from ._src.types import IntegratorDotScratch as IntegratorDotScratch
 from ._src.types import MeshLoadResult as MeshLoadResult
 from ._src.types import SpatialInertia as SpatialInertia
 from ._src.types import ArticulatedInertia as ArticulatedInertia
+from ._src.types import CoordinateLinearStop as CoordinateLinearStop
+from ._src.types import CoordinateLimitForce as CoordinateLimitForce
+from ._src.types import SwingTwistLimit as SwingTwistLimit
 from ._src.types import TileBlockDim as TileBlockDim
 from ._src.types import vec5 as vec5
 from ._src.types import PolyInts as PolyInts

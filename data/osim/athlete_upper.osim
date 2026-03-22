@@ -433,25 +433,6 @@
                             <!--The fixed location of the station expressed in its parent frame.-->
                             <location>0 0 0</location>
                         </Station>
-                        <ContactEllipsoid name="deltoideus_r_obstacle">
-                            <!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
-                            <socket_frame>..</socket_frame>
-                            <!--The location of the contact geometry center in the PhysicalFrame.-->
-                            <location>-0.034299999999999997 -0.033399999999999999 -0.044299999999999999</location>
-                            <!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
-                            <orientation>1.4823 0.16059999999999999 -0.44719999999999999</orientation>
-                            <!--The default appearance for this Geometry-->
-                            <Appearance>
-                                <!--Flag indicating whether the associated Geometry is visible or hidden.-->
-                                <visible>false</visible>
-                                <!--The opacity used to display the geometry between 0:transparent, 1:opaque.-->
-                                <opacity>0.5</opacity>
-                                <!--The color, (red, green, blue), [0, 1], used to display the geometry. -->
-                                <color>0 1 1</color>
-                            </Appearance>
-                            <!--The radii of the ellipsoid (default: [0, 0, 0]).-->
-                            <radii>0.040000000000000001 0.090999999999999998 0.029999999999999999</radii>
-                        </ContactEllipsoid>
                         <ContactEllipsoid name="teres_major_r_obstacle">
                             <!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
                             <socket_frame>..</socket_frame>
@@ -548,25 +529,6 @@
                             <!--The fixed location of the station expressed in its parent frame.-->
                             <location>0 0 0</location>
                         </Station>
-                        <ContactEllipsoid name="deltoideus_l_obstacle">
-                            <!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
-                            <socket_frame>..</socket_frame>
-                            <!--The location of the contact geometry center in the PhysicalFrame.-->
-                            <location>-0.034299999999999997 -0.033399999999999999 0.044299999999999999</location>
-                            <!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
-                            <orientation>-1.4823 -0.16059999999999999 -0.44719999999999999</orientation>
-                            <!--The default appearance for this Geometry-->
-                            <Appearance>
-                                <!--Flag indicating whether the associated Geometry is visible or hidden.-->
-                                <visible>false</visible>
-                                <!--The opacity used to display the geometry between 0:transparent, 1:opaque.-->
-                                <opacity>0.5</opacity>
-                                <!--The color, (red, green, blue), [0, 1], used to display the geometry. -->
-                                <color>0 1 1</color>
-                            </Appearance>
-                            <!--The radii of the ellipsoid (default: [0, 0, 0]).-->
-                            <radii>0.040000000000000001 0.090999999999999998 0.029999999999999999</radii>
-                        </ContactEllipsoid>
                         <ContactEllipsoid name="teres_major_l_obstacle">
                             <!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
                             <socket_frame>..</socket_frame>
@@ -1621,9 +1583,6 @@
                     <socket_parent_frame>ground_offset</socket_parent_frame>
                     <!--Path to a Component that satisfies the Socket 'child_frame' of type PhysicalFrame (description: The child frame for the joint.).-->
                     <socket_child_frame>/bodyset/pelvis/pelvis_frame</socket_child_frame>
-                    <!--List containing the generalized coordinates (q's) that parameterize this joint.-->
-                    <coordinates>
-                    </coordinates>
                     <frames>
                         <PhysicalOffsetFrame name="ground_offset">
                             <!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
@@ -1634,6 +1593,9 @@
                             <orientation>0 0 0</orientation>
                         </PhysicalOffsetFrame>
                     </frames>
+                    <!--List containing the generalized coordinates (q's) that parameterize this joint.-->
+                    <coordinates>
+                    </coordinates>
                     <!--The spatial transform defining how the child body moves with respectto the parent as a function of the generalized coordinates.-->
                     <SpatialTransform>
                         <!--The first TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
@@ -2091,7 +2053,7 @@
                             <!--The speed value of this coordinate before any value has been set. Rotational coordinate value is in rad/s and Translational in m/s.-->
                             <default_speed_value>0</default_speed_value>
                             <!--The minimum and maximum values that the coordinate can range between. Rotational coordinate range in radians and Translational in meters.-->
-                            <range>-0.26179938779914941 0.26179938779914941</range>
+                            <range>-1 1</range>
                             <!--Flag indicating whether or not the values of the coordinates should be limited to the range, above.-->
                             <clamped>true</clamped>
                             <!--Flag indicating whether or not the values of the coordinates should be constrained to the current (e.g. default) value, above.-->
@@ -2184,7 +2146,7 @@
                             <!--The speed value of this coordinate before any value has been set. Rotational coordinate value is in rad/s and Translational in m/s.-->
                             <default_speed_value>0</default_speed_value>
                             <!--The minimum and maximum values that the coordinate can range between. Rotational coordinate range in radians and Translational in meters.-->
-                            <range>-0.26179938779914941 0.26179938779914941</range>
+                            <range>-1 1</range>
                             <!--Flag indicating whether or not the values of the coordinates should be limited to the range, above.-->
                             <clamped>true</clamped>
                             <!--Flag indicating whether or not the values of the coordinates should be constrained to the current (e.g. default) value, above.-->
@@ -2243,7 +2205,7 @@
                     <socket_child_frame>/bodyset/humerus_r</socket_child_frame>
                     <!--List containing the generalized coordinates (q's) that parameterize this joint.-->
                     <coordinates>
-                        <Coordinate name="shoulder_flexion_r">
+                        <Coordinate name="shoulder_r_rot_x">
                             <!--The value of this coordinate before any value has been set. Rotational coordinate value is in radians and Translational in meters.-->
                             <default_value>0</default_value>
                             <!--The speed value of this coordinate before any value has been set. Rotational coordinate value is in rad/s and Translational in m/s.-->
@@ -2257,7 +2219,7 @@
                             <!--Flag indicating whether or not the values of the coordinates should be prescribed according to the function above. It is ignored if the no prescribed function is specified.-->
                             <prescribed>false</prescribed>
                         </Coordinate>
-                        <Coordinate name="shoulder_abduction_r">
+                        <Coordinate name="shoulder_r_rot_y">
                             <!--The value of this coordinate before any value has been set. Rotational coordinate value is in radians and Translational in meters.-->
                             <default_value>0</default_value>
                             <!--The speed value of this coordinate before any value has been set. Rotational coordinate value is in rad/s and Translational in m/s.-->
@@ -2271,7 +2233,7 @@
                             <!--Flag indicating whether or not the values of the coordinates should be prescribed according to the function above. It is ignored if the no prescribed function is specified.-->
                             <prescribed>false</prescribed>
                         </Coordinate>
-                        <Coordinate name="shoulder_rotation_r">
+                        <Coordinate name="shoulder_r_rot_z">
                             <!--The value of this coordinate before any value has been set. Rotational coordinate value is in radians and Translational in meters.-->
                             <default_value>0</default_value>
                             <!--The speed value of this coordinate before any value has been set. Rotational coordinate value is in rad/s and Translational in m/s.-->
@@ -2306,78 +2268,15 @@
                             <orientation>-0.25 0 -0.125</orientation>
                         </PhysicalOffsetFrame>
                     </frames>
-                    <!--The spatial transform defining how the child body moves with respectto the parent as a function of the generalized coordinates.-->
-                    <SpatialTransform>
-                        <!--The first TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="rotation1">
-                            <!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
-                            <coordinates>shoulder_flexion_r</coordinates>
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>0 0 1</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <LinearFunction name="function">
-                                <coefficients>1 0</coefficients>
-                            </LinearFunction>
-                        </TransformAxis>
-                        <!--The second TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="rotation2">
-                            <!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
-                            <coordinates>shoulder_abduction_r</coordinates>
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>1 0 0</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <LinearFunction name="function">
-                                <coefficients>-1 0</coefficients>
-                            </LinearFunction>
-                        </TransformAxis>
-                        <!--The third TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="rotation3">
-                            <!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
-                            <coordinates>shoulder_rotation_r</coordinates>
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>0 1 0</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <LinearFunction name="function">
-                                <coefficients>1 0</coefficients>
-                            </LinearFunction>
-                        </TransformAxis>
-                        <!--The first TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="translation1">
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>1 0 0</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <Constant name="function">
-                                <value>0</value>
-                            </Constant>
-                        </TransformAxis>
-                        <!--The second TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="translation2">
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>0 1 0</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <Constant name="function">
-                                <value>0</value>
-                            </Constant>
-                        </TransformAxis>
-                        <!--The third TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="translation3">
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>0 0 1</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <Constant name="function">
-                                <value>0</value>
-                            </Constant>
-                        </TransformAxis>
-                    </SpatialTransform>
                 </BallJoint>
-                <CustomJoint name="glenohumeral_l">
+                <BallJoint name="glenohumeral_l">
                     <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
                     <socket_parent_frame>glenohumeral_l_parent_frame</socket_parent_frame>
                     <!--Path to a Component that satisfies the Socket 'child_frame' of type PhysicalFrame (description: The child frame for the joint.).-->
                     <socket_child_frame>/bodyset/humerus_l</socket_child_frame>
                     <!--List containing the generalized coordinates (q's) that parameterize this joint.-->
                     <coordinates>
-                        <Coordinate name="shoulder_flexion_l">
+                        <Coordinate name="shoulder_l_rot_x">
                             <!--The value of this coordinate before any value has been set. Rotational coordinate value is in radians and Translational in meters.-->
                             <default_value>0</default_value>
                             <!--The speed value of this coordinate before any value has been set. Rotational coordinate value is in rad/s and Translational in m/s.-->
@@ -2391,7 +2290,7 @@
                             <!--Flag indicating whether or not the values of the coordinates should be prescribed according to the function above. It is ignored if the no prescribed function is specified.-->
                             <prescribed>false</prescribed>
                         </Coordinate>
-                        <Coordinate name="shoulder_abduction_l">
+                        <Coordinate name="shoulder_l_rot_y">
                             <!--The value of this coordinate before any value has been set. Rotational coordinate value is in radians and Translational in meters.-->
                             <default_value>0</default_value>
                             <!--The speed value of this coordinate before any value has been set. Rotational coordinate value is in rad/s and Translational in m/s.-->
@@ -2405,7 +2304,7 @@
                             <!--Flag indicating whether or not the values of the coordinates should be prescribed according to the function above. It is ignored if the no prescribed function is specified.-->
                             <prescribed>false</prescribed>
                         </Coordinate>
-                        <Coordinate name="shoulder_rotation_l">
+                        <Coordinate name="shoulder_l_rot_z">
                             <!--The value of this coordinate before any value has been set. Rotational coordinate value is in radians and Translational in meters.-->
                             <default_value>0</default_value>
                             <!--The speed value of this coordinate before any value has been set. Rotational coordinate value is in rad/s and Translational in m/s.-->
@@ -2440,70 +2339,7 @@
                             <orientation>0.25 0 -0.125</orientation>
                         </PhysicalOffsetFrame>
                     </frames>
-                    <!--The spatial transform defining how the child body moves with respectto the parent as a function of the generalized coordinates.-->
-                    <SpatialTransform>
-                        <!--The first TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="rotation1">
-                            <!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
-                            <coordinates>shoulder_flexion_l</coordinates>
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>0 0 1</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <LinearFunction name="function">
-                                <coefficients>1 0</coefficients>
-                            </LinearFunction>
-                        </TransformAxis>
-                        <!--The second TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="rotation2">
-                            <!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
-                            <coordinates>shoulder_abduction_l</coordinates>
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>1 0 0</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <LinearFunction name="function">
-                                <coefficients>1 0</coefficients>
-                            </LinearFunction>
-                        </TransformAxis>
-                        <!--The third TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="rotation3">
-                            <!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
-                            <coordinates>shoulder_rotation_l</coordinates>
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>0 1 0</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <LinearFunction name="function">
-                                <coefficients>-1 0</coefficients>
-                            </LinearFunction>
-                        </TransformAxis>
-                        <!--The first TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="translation1">
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>1 0 0</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <Constant name="function">
-                                <value>0</value>
-                            </Constant>
-                        </TransformAxis>
-                        <!--The second TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="translation2">
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>0 1 0</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <Constant name="function">
-                                <value>0</value>
-                            </Constant>
-                        </TransformAxis>
-                        <!--The third TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
-                        <TransformAxis name="translation3">
-                            <!--The rotation or translation axis for the transform. Default: (1,0,0).-->
-                            <axis>0 0 1</axis>
-                            <!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
-                            <Constant name="function">
-                                <value>0</value>
-                            </Constant>
-                        </TransformAxis>
-                    </SpatialTransform>
-                </CustomJoint>
+                </BallJoint>
                 <PinJoint name="elbow_r">
                     <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
                     <socket_parent_frame>elbow_r_parent_frame</socket_parent_frame>
@@ -3282,217 +3118,278 @@
                     <!--Low position (rad for rotational, m for translational)-->
                     <q_low>-0.26179938779914941</q_low>
                 </CoordinateLinearStop>
-                <CoordinateLinearSpring name="elbow_flex_r_spring_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>elbow_flex_r</coordinate>
-                    <!--Default stiffness coefficient (N-m/(rad) for rotational, N/m for translational)-->
-                    <default_stiffness>0.001</default_stiffness>
-                    <!--Coordinate value at which spring produces no force.-->
-                    <rest_length>0</rest_length>
-                </CoordinateLinearSpring>
-                <CoordinateLinearDamper name="elbow_flex_r_damping_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>elbow_flex_r</coordinate>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>0.10000000000000001</damping>
-                </CoordinateLinearDamper>
-                <CoordinateLinearStop name="elbow_flex_r_limit_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>elbow_flex_r</coordinate>
-                    <!--Stiffness coefficient (N-m/rad for rotational, N/m for translational)-->
-                    <stiffness>500</stiffness>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>0.10000000000000001</damping>
-                    <!--High position (rad for rotational, m for translational)-->
-                    <q_high>2.6179938779914944</q_high>
-                    <!--Low position (rad for rotational, m for translational)-->
-                    <q_low>0</q_low>
-                </CoordinateLinearStop>
-                <CoordinateLinearSpring name="elbow_flex_l_spring_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>elbow_flex_l</coordinate>
-                    <!--Default stiffness coefficient (N-m/(rad) for rotational, N/m for translational)-->
-                    <default_stiffness>0.001</default_stiffness>
-                    <!--Coordinate value at which spring produces no force.-->
-                    <rest_length>0</rest_length>
-                </CoordinateLinearSpring>
-                <CoordinateLinearDamper name="elbow_flex_l_damping_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>elbow_flex_l</coordinate>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>0.10000000000000001</damping>
-                </CoordinateLinearDamper>
-                <CoordinateLinearStop name="elbow_flex_l_limit_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>elbow_flex_l</coordinate>
-                    <!--Stiffness coefficient (N-m/rad for rotational, N/m for translational)-->
-                    <stiffness>500</stiffness>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>0.10000000000000001</damping>
-                    <!--High position (rad for rotational, m for translational)-->
-                    <q_high>2.6179938779914944</q_high>
-                    <!--Low position (rad for rotational, m for translational)-->
-                    <q_low>0</q_low>
-                </CoordinateLinearStop>
-                <CoordinateLinearSpring name="pro_sup_r_spring_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>pro_sup_r</coordinate>
-                    <!--Default stiffness coefficient (N-m/(rad) for rotational, N/m for translational)-->
-                    <default_stiffness>5</default_stiffness>
-                    <!--Coordinate value at which spring produces no force.-->
-                    <rest_length>0</rest_length>
-                </CoordinateLinearSpring>
-                <CoordinateLinearDamper name="pro_sup_r_damping_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>pro_sup_r</coordinate>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>2</damping>
-                </CoordinateLinearDamper>
-                <CoordinateLinearStop name="pro_sup_r_limit_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>pro_sup_r</coordinate>
-                    <!--Stiffness coefficient (N-m/rad for rotational, N/m for translational)-->
-                    <stiffness>500</stiffness>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>0.10000000000000001</damping>
-                    <!--High position (rad for rotational, m for translational)-->
-                    <q_high>1.5707963267948966</q_high>
-                    <!--Low position (rad for rotational, m for translational)-->
-                    <q_low>0</q_low>
-                </CoordinateLinearStop>
-                <CoordinateLinearSpring name="pro_sup_l_spring_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>pro_sup_l</coordinate>
-                    <!--Default stiffness coefficient (N-m/(rad) for rotational, N/m for translational)-->
-                    <default_stiffness>5</default_stiffness>
-                    <!--Coordinate value at which spring produces no force.-->
-                    <rest_length>0</rest_length>
-                </CoordinateLinearSpring>
-                <CoordinateLinearDamper name="pro_sup_l_damping_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>pro_sup_l</coordinate>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>2</damping>
-                </CoordinateLinearDamper>
-                <CoordinateLinearStop name="pro_sup_l_limit_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>pro_sup_l</coordinate>
-                    <!--Stiffness coefficient (N-m/rad for rotational, N/m for translational)-->
-                    <stiffness>500</stiffness>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>0.10000000000000001</damping>
-                    <!--High position (rad for rotational, m for translational)-->
-                    <q_high>1.5707963267948966</q_high>
-                    <!--Low position (rad for rotational, m for translational)-->
-                    <q_low>0</q_low>
-                </CoordinateLinearStop>
-                <CoordinateLinearSpring name="wrist_flex_r_spring_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_flex_r</coordinate>
-                    <!--Default stiffness coefficient (N-m/(rad) for rotational, N/m for translational)-->
-                    <default_stiffness>5</default_stiffness>
-                    <!--Coordinate value at which spring produces no force.-->
-                    <rest_length>0</rest_length>
-                </CoordinateLinearSpring>
-                <CoordinateLinearDamper name="wrist_flex_r_damping_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_flex_r</coordinate>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>2</damping>
-                </CoordinateLinearDamper>
-                <CoordinateLinearStop name="wrist_flex_r_limit_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_flex_r</coordinate>
-                    <!--Stiffness coefficient (N-m/rad for rotational, N/m for translational)-->
-                    <stiffness>500</stiffness>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>0.10000000000000001</damping>
-                    <!--High position (rad for rotational, m for translational)-->
-                    <q_high>1.2566370614359172</q_high>
-                    <!--Low position (rad for rotational, m for translational)-->
-                    <q_low>-1.2566370614359172</q_low>
-                </CoordinateLinearStop>
-                <CoordinateLinearSpring name="wrist_dev_r_spring_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_dev_r</coordinate>
-                    <!--Default stiffness coefficient (N-m/(rad) for rotational, N/m for translational)-->
-                    <default_stiffness>5</default_stiffness>
-                    <!--Coordinate value at which spring produces no force.-->
-                    <rest_length>0</rest_length>
-                </CoordinateLinearSpring>
-                <CoordinateLinearDamper name="wrist_dev_r_damping_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_dev_r</coordinate>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>2</damping>
-                </CoordinateLinearDamper>
-                <CoordinateLinearStop name="wrist_dev_r_limit_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_dev_r</coordinate>
-                    <!--Stiffness coefficient (N-m/rad for rotational, N/m for translational)-->
-                    <stiffness>500</stiffness>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>0.10000000000000001</damping>
-                    <!--High position (rad for rotational, m for translational)-->
-                    <q_high>0.62831853071795862</q_high>
-                    <!--Low position (rad for rotational, m for translational)-->
-                    <q_low>-0.44879895051282759</q_low>
-                </CoordinateLinearStop>
-                <CoordinateLinearSpring name="wrist_flex_l_spring_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_flex_l</coordinate>
-                    <!--Default stiffness coefficient (N-m/(rad) for rotational, N/m for translational)-->
-                    <default_stiffness>5</default_stiffness>
-                    <!--Coordinate value at which spring produces no force.-->
-                    <rest_length>0</rest_length>
-                </CoordinateLinearSpring>
-                <CoordinateLinearDamper name="wrist_flex_l_damping_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_flex_l</coordinate>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>2</damping>
-                </CoordinateLinearDamper>
-                <CoordinateLinearStop name="wrist_flex_l_limit_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_flex_l</coordinate>
-                    <!--Stiffness coefficient (N-m/rad for rotational, N/m for translational)-->
-                    <stiffness>500</stiffness>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>0.10000000000000001</damping>
-                    <!--High position (rad for rotational, m for translational)-->
-                    <q_high>1.2566370614359172</q_high>
-                    <!--Low position (rad for rotational, m for translational)-->
-                    <q_low>-1.2566370614359172</q_low>
-                </CoordinateLinearStop>
-                <CoordinateLinearSpring name="wrist_dev_l_spring_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_dev_l</coordinate>
-                    <!--Default stiffness coefficient (N-m/(rad) for rotational, N/m for translational)-->
-                    <default_stiffness>5</default_stiffness>
-                    <!--Coordinate value at which spring produces no force.-->
-                    <rest_length>0</rest_length>
-                </CoordinateLinearSpring>
-                <CoordinateLinearDamper name="wrist_dev_l_damping_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_dev_l</coordinate>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>2</damping>
-                </CoordinateLinearDamper>
-                <CoordinateLinearStop name="wrist_dev_l_limit_force">
-                    <!--Coordinate (name) to apply force to.-->
-                    <coordinate>wrist_dev_l</coordinate>
-                    <!--Stiffness coefficient (N-m/rad for rotational, N/m for translational)-->
-                    <stiffness>500</stiffness>
-                    <!--Damping coefficient (N-m/(rad/s) for rotational, N/(m/s) for translational)-->
-                    <damping>0.10000000000000001</damping>
-                    <!--High position (rad for rotational, m for translational)-->
-                    <q_high>0.62831853071795862</q_high>
-                    <!--Low position (rad for rotational, m for translational)-->
-                    <q_low>-0.44879895051282759</q_low>
-                </CoordinateLinearStop>
 
+                <CoordinateLinearDamper name="shoulder_r_rot_x_damper">
+                    <coordinate>shoulder_r_rot_x</coordinate>
+                    <damping>1</damping>
+                </CoordinateLinearDamper>
+                <CoordinateLinearDamper name="shoulder_r_rot_y_damper">
+                    <coordinate>shoulder_r_rot_y</coordinate>
+                    <damping>1</damping>
+                </CoordinateLinearDamper>
+                <CoordinateLinearDamper name="shoulder_r_rot_z_damper">
+                    <coordinate>shoulder_r_rot_z</coordinate>
+                    <damping>1</damping>
+                </CoordinateLinearDamper>
+                <CoordinateLinearDamper name="shoulder_l_rot_x_damper">
+                    <coordinate>shoulder_l_rot_x</coordinate>
+                    <damping>1</damping>
+                </CoordinateLinearDamper>
+                <CoordinateLinearDamper name="shoulder_l_rot_y_damper">
+                    <coordinate>shoulder_l_rot_y</coordinate>
+                    <damping>1</damping>
+                </CoordinateLinearDamper>
+                <CoordinateLinearDamper name="shoulder_l_rot_z_damper">
+                    <coordinate>shoulder_l_rot_z</coordinate>
+                    <damping>1</damping>
+                </CoordinateLinearDamper>
+
+                <SpringGeneralizedForce name="elbow_flex_r_spring_force">
+                    <!--Name of the coordinate to which this force is applied.-->
+                    <coordinate>elbow_flex_r</coordinate>
+                    <!--Spring stiffness.-->
+                    <stiffness>0.001</stiffness>
+                    <!--Damping constant.-->
+                    <viscosity>0.10000000000000001</viscosity>
+                </SpringGeneralizedForce>
+                <CoordinateLimitForce name="elbow_flex_r_limit_force">
+                    <!--Coordinate (name) to be limited.-->
+                    <coordinate>elbow_flex_r</coordinate>
+                    <!--Stiffness of the passive limit force when coordinate exceeds upper limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <upper_stiffness>8.7266462599716483</upper_stiffness>
+                    <!--The upper limit of the coordinate range of motion (rotations in degrees).-->
+                    <upper_limit>150</upper_limit>
+                    <!--Stiffness of the passive limit force when coordinate exceeds lower limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <lower_stiffness>8.7266462599716483</lower_stiffness>
+                    <!--The lower limit of the coordinate range of motion (rotations in degrees).-->
+                    <lower_limit>0</lower_limit>
+                    <!--Damping factor on the coordinate's speed applied only when limit is exceeded. For translational has units N/(m/s) and rotational has Nm/(degree/s)-->
+                    <damping>0.0017453292519943296</damping>
+                    <!--Transition region width in the units of the coordinate (rotations in degrees). Dictates the transition from zero to constant stiffness as coordinate exceeds its limit.-->
+                    <transition>1</transition>
+                    <!--Option to compute the dissipation energy due to damping in the CoordinateLimitForce. If true the dissipation power is automatically integrated to provide energy. Default is false.-->
+                    <compute_dissipation_energy>false</compute_dissipation_energy>
+                </CoordinateLimitForce>
+                <SpringGeneralizedForce name="elbow_flex_l_spring_force">
+                    <!--Name of the coordinate to which this force is applied.-->
+                    <coordinate>elbow_flex_l</coordinate>
+                    <!--Spring stiffness.-->
+                    <stiffness>0.001</stiffness>
+                    <!--Damping constant.-->
+                    <viscosity>0.10000000000000001</viscosity>
+                </SpringGeneralizedForce>
+                <CoordinateLimitForce name="elbow_flex_l_limit_force">
+                    <!--Coordinate (name) to be limited.-->
+                    <coordinate>elbow_flex_l</coordinate>
+                    <!--Stiffness of the passive limit force when coordinate exceeds upper limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <upper_stiffness>8.7266462599716483</upper_stiffness>
+                    <!--The upper limit of the coordinate range of motion (rotations in degrees).-->
+                    <upper_limit>150</upper_limit>
+                    <!--Stiffness of the passive limit force when coordinate exceeds lower limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <lower_stiffness>8.7266462599716483</lower_stiffness>
+                    <!--The lower limit of the coordinate range of motion (rotations in degrees).-->
+                    <lower_limit>0</lower_limit>
+                    <!--Damping factor on the coordinate's speed applied only when limit is exceeded. For translational has units N/(m/s) and rotational has Nm/(degree/s)-->
+                    <damping>0.0017453292519943296</damping>
+                    <!--Transition region width in the units of the coordinate (rotations in degrees). Dictates the transition from zero to constant stiffness as coordinate exceeds its limit.-->
+                    <transition>1</transition>
+                    <!--Option to compute the dissipation energy due to damping in the CoordinateLimitForce. If true the dissipation power is automatically integrated to provide energy. Default is false.-->
+                    <compute_dissipation_energy>false</compute_dissipation_energy>
+                </CoordinateLimitForce>
+                <SpringGeneralizedForce name="pro_sup_r_spring_force">
+                    <!--Name of the coordinate to which this force is applied.-->
+                    <coordinate>pro_sup_r</coordinate>
+                    <!--Spring stiffness.-->
+                    <stiffness>5</stiffness>
+                    <!--Damping constant.-->
+                    <viscosity>2</viscosity>
+                </SpringGeneralizedForce>
+                <CoordinateLimitForce name="pro_sup_r_limit_force">
+                    <!--Coordinate (name) to be limited.-->
+                    <coordinate>pro_sup_r</coordinate>
+                    <!--Stiffness of the passive limit force when coordinate exceeds upper limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <upper_stiffness>8.7266462599716483</upper_stiffness>
+                    <!--The upper limit of the coordinate range of motion (rotations in degrees).-->
+                    <upper_limit>90</upper_limit>
+                    <!--Stiffness of the passive limit force when coordinate exceeds lower limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <lower_stiffness>8.7266462599716483</lower_stiffness>
+                    <!--The lower limit of the coordinate range of motion (rotations in degrees).-->
+                    <lower_limit>0</lower_limit>
+                    <!--Damping factor on the coordinate's speed applied only when limit is exceeded. For translational has units N/(m/s) and rotational has Nm/(degree/s)-->
+                    <damping>0.0017453292519943296</damping>
+                    <!--Transition region width in the units of the coordinate (rotations in degrees). Dictates the transition from zero to constant stiffness as coordinate exceeds its limit.-->
+                    <transition>1</transition>
+                    <!--Option to compute the dissipation energy due to damping in the CoordinateLimitForce. If true the dissipation power is automatically integrated to provide energy. Default is false.-->
+                    <compute_dissipation_energy>false</compute_dissipation_energy>
+                </CoordinateLimitForce>
+                <SpringGeneralizedForce name="pro_sup_l_spring_force">
+                    <!--Name of the coordinate to which this force is applied.-->
+                    <coordinate>pro_sup_l</coordinate>
+                    <!--Spring stiffness.-->
+                    <stiffness>5</stiffness>
+                    <!--Damping constant.-->
+                    <viscosity>2</viscosity>
+                </SpringGeneralizedForce>
+                <CoordinateLimitForce name="pro_sup_l_limit_force">
+                    <!--Coordinate (name) to be limited.-->
+                    <coordinate>pro_sup_l</coordinate>
+                    <!--Stiffness of the passive limit force when coordinate exceeds upper limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <upper_stiffness>8.7266462599716483</upper_stiffness>
+                    <!--The upper limit of the coordinate range of motion (rotations in degrees).-->
+                    <upper_limit>90</upper_limit>
+                    <!--Stiffness of the passive limit force when coordinate exceeds lower limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <lower_stiffness>8.7266462599716483</lower_stiffness>
+                    <!--The lower limit of the coordinate range of motion (rotations in degrees).-->
+                    <lower_limit>0</lower_limit>
+                    <!--Damping factor on the coordinate's speed applied only when limit is exceeded. For translational has units N/(m/s) and rotational has Nm/(degree/s)-->
+                    <damping>0.0017453292519943296</damping>
+                    <!--Transition region width in the units of the coordinate (rotations in degrees). Dictates the transition from zero to constant stiffness as coordinate exceeds its limit.-->
+                    <transition>1</transition>
+                    <!--Option to compute the dissipation energy due to damping in the CoordinateLimitForce. If true the dissipation power is automatically integrated to provide energy. Default is false.-->
+                    <compute_dissipation_energy>false</compute_dissipation_energy>
+                </CoordinateLimitForce>
+                <SpringGeneralizedForce name="wrist_flex_r_spring_force">
+                    <!--Name of the coordinate to which this force is applied.-->
+                    <coordinate>wrist_flex_r</coordinate>
+                    <!--Spring stiffness.-->
+                    <stiffness>5</stiffness>
+                    <!--Damping constant.-->
+                    <viscosity>2</viscosity>
+                </SpringGeneralizedForce>
+                <CoordinateLimitForce name="wrist_flex_r_limit_force">
+                    <!--Coordinate (name) to be limited.-->
+                    <coordinate>wrist_flex_r</coordinate>
+                    <!--Stiffness of the passive limit force when coordinate exceeds upper limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <upper_stiffness>8.7266462599716483</upper_stiffness>
+                    <!--The upper limit of the coordinate range of motion (rotations in degrees).-->
+                    <upper_limit>72</upper_limit>
+                    <!--Stiffness of the passive limit force when coordinate exceeds lower limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <lower_stiffness>8.7266462599716483</lower_stiffness>
+                    <!--The lower limit of the coordinate range of motion (rotations in degrees).-->
+                    <lower_limit>-72</lower_limit>
+                    <!--Damping factor on the coordinate's speed applied only when limit is exceeded. For translational has units N/(m/s) and rotational has Nm/(degree/s)-->
+                    <damping>0.0017453292519943296</damping>
+                    <!--Transition region width in the units of the coordinate (rotations in degrees). Dictates the transition from zero to constant stiffness as coordinate exceeds its limit.-->
+                    <transition>1</transition>
+                    <!--Option to compute the dissipation energy due to damping in the CoordinateLimitForce. If true the dissipation power is automatically integrated to provide energy. Default is false.-->
+                    <compute_dissipation_energy>false</compute_dissipation_energy>
+                </CoordinateLimitForce>
+                <SpringGeneralizedForce name="wrist_dev_r_spring_force">
+                    <!--Name of the coordinate to which this force is applied.-->
+                    <coordinate>wrist_dev_r</coordinate>
+                    <!--Spring stiffness.-->
+                    <stiffness>5</stiffness>
+                    <!--Damping constant.-->
+                    <viscosity>2</viscosity>
+                </SpringGeneralizedForce>
+                <CoordinateLimitForce name="wrist_dev_r_limit_force">
+                    <!--Coordinate (name) to be limited.-->
+                    <coordinate>wrist_dev_r</coordinate>
+                    <!--Stiffness of the passive limit force when coordinate exceeds upper limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <upper_stiffness>8.7266462599716483</upper_stiffness>
+                    <!--The upper limit of the coordinate range of motion (rotations in degrees).-->
+                    <upper_limit>36</upper_limit>
+                    <!--Stiffness of the passive limit force when coordinate exceeds lower limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <lower_stiffness>8.7266462599716483</lower_stiffness>
+                    <!--The lower limit of the coordinate range of motion (rotations in degrees).-->
+                    <lower_limit>-25.714285714285715</lower_limit>
+                    <!--Damping factor on the coordinate's speed applied only when limit is exceeded. For translational has units N/(m/s) and rotational has Nm/(degree/s)-->
+                    <damping>0.0017453292519943296</damping>
+                    <!--Transition region width in the units of the coordinate (rotations in degrees). Dictates the transition from zero to constant stiffness as coordinate exceeds its limit.-->
+                    <transition>1</transition>
+                    <!--Option to compute the dissipation energy due to damping in the CoordinateLimitForce. If true the dissipation power is automatically integrated to provide energy. Default is false.-->
+                    <compute_dissipation_energy>false</compute_dissipation_energy>
+                </CoordinateLimitForce>
+                <SpringGeneralizedForce name="wrist_flex_l_spring_force">
+                    <!--Name of the coordinate to which this force is applied.-->
+                    <coordinate>wrist_flex_l</coordinate>
+                    <!--Spring stiffness.-->
+                    <stiffness>5</stiffness>
+                    <!--Damping constant.-->
+                    <viscosity>2</viscosity>
+                </SpringGeneralizedForce>
+                <CoordinateLimitForce name="wrist_flex_l_limit_force">
+                    <!--Coordinate (name) to be limited.-->
+                    <coordinate>wrist_flex_l</coordinate>
+                    <!--Stiffness of the passive limit force when coordinate exceeds upper limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <upper_stiffness>8.7266462599716483</upper_stiffness>
+                    <!--The upper limit of the coordinate range of motion (rotations in degrees).-->
+                    <upper_limit>72</upper_limit>
+                    <!--Stiffness of the passive limit force when coordinate exceeds lower limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <lower_stiffness>8.7266462599716483</lower_stiffness>
+                    <!--The lower limit of the coordinate range of motion (rotations in degrees).-->
+                    <lower_limit>-72</lower_limit>
+                    <!--Damping factor on the coordinate's speed applied only when limit is exceeded. For translational has units N/(m/s) and rotational has Nm/(degree/s)-->
+                    <damping>0.0017453292519943296</damping>
+                    <!--Transition region width in the units of the coordinate (rotations in degrees). Dictates the transition from zero to constant stiffness as coordinate exceeds its limit.-->
+                    <transition>1</transition>
+                    <!--Option to compute the dissipation energy due to damping in the CoordinateLimitForce. If true the dissipation power is automatically integrated to provide energy. Default is false.-->
+                    <compute_dissipation_energy>false</compute_dissipation_energy>
+                </CoordinateLimitForce>
+                <SpringGeneralizedForce name="wrist_dev_l_spring_force">
+                    <!--Name of the coordinate to which this force is applied.-->
+                    <coordinate>wrist_dev_l</coordinate>
+                    <!--Spring stiffness.-->
+                    <stiffness>5</stiffness>
+                    <!--Damping constant.-->
+                    <viscosity>2</viscosity>
+                </SpringGeneralizedForce>
+                <CoordinateLimitForce name="wrist_dev_l_limit_force">
+                    <!--Coordinate (name) to be limited.-->
+                    <coordinate>wrist_dev_l</coordinate>
+                    <!--Stiffness of the passive limit force when coordinate exceeds upper limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <upper_stiffness>8.7266462599716483</upper_stiffness>
+                    <!--The upper limit of the coordinate range of motion (rotations in degrees).-->
+                    <upper_limit>36</upper_limit>
+                    <!--Stiffness of the passive limit force when coordinate exceeds lower limit. Note, rotational stiffness expected in N*m/degree.-->
+                    <lower_stiffness>8.7266462599716483</lower_stiffness>
+                    <!--The lower limit of the coordinate range of motion (rotations in degrees).-->
+                    <lower_limit>-25.714285714285715</lower_limit>
+                    <!--Damping factor on the coordinate's speed applied only when limit is exceeded. For translational has units N/(m/s) and rotational has Nm/(degree/s)-->
+                    <damping>0.0017453292519943296</damping>
+                    <!--Transition region width in the units of the coordinate (rotations in degrees). Dictates the transition from zero to constant stiffness as coordinate exceeds its limit.-->
+                    <transition>1</transition>
+                    <!--Option to compute the dissipation energy due to damping in the CoordinateLimitForce. If true the dissipation power is automatically integrated to provide energy. Default is false.-->
+                    <compute_dissipation_energy>false</compute_dissipation_energy>
+                </CoordinateLimitForce>
             </objects>
             <groups/>
         </ForceSet>
+
+        <MSKOnlySet>
+            <objects>
+                <SwingTwistLimit name="glenohumeral_r_swing_twist">
+                    <joint>glenohumeral_r</joint>
+
+                    <twist_low>-1.45</twist_low>
+                    <twist_high>1.13</twist_high>
+
+                    <swing1_neg_limit>3.14</swing1_neg_limit>
+                    <swing1_pos_limit>0.52</swing1_pos_limit>
+
+                    <swing2_neg_limit>0.87</swing2_neg_limit>
+                    <swing2_pos_limit>3.14</swing2_pos_limit>
+
+                    <stiffness>500</stiffness>
+                    <damping>0.10000000000000001</damping>
+                </SwingTwistLimit>
+
+                <SwingTwistLimit name="glenohumeral_l_swing_twist">
+                    <joint>glenohumeral_l</joint>
+
+                    <twist_low>-1.13</twist_low>
+                    <twist_high>1.45</twist_high>
+
+                    <swing1_neg_limit>0.52</swing1_neg_limit>
+                    <swing1_pos_limit>3.14</swing1_pos_limit>
+
+                    <swing2_neg_limit>0.87</swing2_neg_limit>
+                    <swing2_pos_limit>3.14</swing2_pos_limit>
+
+                    <stiffness>500</stiffness>
+                    <damping>0.10000000000000001</damping>
+                </SwingTwistLimit>
+            </objects>
+        </MSKOnlySet>
     </Model>
 </OpenSimDocument>

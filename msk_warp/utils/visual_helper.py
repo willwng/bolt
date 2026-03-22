@@ -8,7 +8,7 @@ from msk_warp.utils.property_helper import extract_vec3
 from msk_warp.utils.osim_types import OSimType
 
 
-def convert_visuals(model: osim.Model) -> list[VisualData]:
+def convert_visuals(model: OSimType.Model) -> list[VisualData]:
     """ Returns the all the converted visual geometry in the model """
     visual_data = []
 

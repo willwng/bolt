@@ -122,6 +122,37 @@ class ArticulatedInertia:
     F: wp.mat33  # mass moment
 
 
+@wp.struct
+class CoordinateLinearStop:
+    qpos_range: wp.vec2
+    qpos_adr: int
+    dof_adr: int
+    stiffness: float
+    damping: float
+
+
+@wp.struct
+class CoordinateLimitForce:
+    qpos_range: wp.vec2
+    qpos_adr: int
+    dof_adr: int
+    stiffness: wp.vec2
+    damping: float
+    transition: float
+
+
+@wp.struct
+class SwingTwistLimit:
+    qpos_adr: int
+    dof_adr: int
+
+    twist_range: wp.vec2
+    swing1_range: wp.vec2
+    swing2_range: wp.vec2
+    stiffness: float
+    damping: float
+
+
 def array(*args) -> wp.array:
     """A wrapper around wp.array that adds extra metadata to ease type introspection.
 
@@ -254,6 +285,7 @@ class ResidualResult:
 class MuscleMetadata:
     """Muscle metadata. """
     fn_based_path: bool
+    ignore_tendon_compliance: bool
 
     max_isometric_force: float
     optimal_fiber_length: float
@@ -358,6 +390,7 @@ class Model:
       nsite: number of sites
       nlinearstop: number of (CoordinateLinearStop) limits
       nlimitforce: number of (CoordinateLimitForce) limits
+      nswingtwist: number of swing-twist limits
 
       opt: physics options
       muscle_metadata: muscle metadata                         (nmuscle,)
@@ -410,19 +443,10 @@ class Model:
       dof_stiffness: stiffness coefficient                     (nv)
       qpos_spring_rest: rest position for dof spring           (nq,)
 
-     * limits, CoordinateLinearStop *
-      stop_qpos_range: qpos range for dof limits               (nlinearstop, 2)
-      stop_qpos_adr: qpos adr (to check range)                 (nlinearstop,)
-      stop_dof_adr: dof adr (to apply force)                   (nlinearstop,)
-      stop_dof_stiffness_damping: stiffness, damping           (nlinearstop, 2)
-
-     * limits, CoordinateLimitForce *
-      lf_qpos_range: qpos range for dof limit forces           (nlimitforce, 2)
-      lf_qpos_adr: qpos adr for dof limit forces               (nlimitforce,)
-      lf_dof_adr: dof adr for dof limit forces                 (nlimitforce,)
-      lf_stiffness: lower, upper stiffness                     (nlimitforce, 2)
-      lf_damping: damping                                      (nlimitforce,)
-      lf_transition: beyond transition, stiffness is const     (nlimitforce,)
+     * limits *
+      coordinate_linear_stop: Hunt-Crossley like joint limits  (nlinearstop, CoordinateLinearStop)
+      coordinate_limit_force: coordinate limit forces          (nlimitforce, CoordinateLimitForce)
+      swing_twist_limit: swing-twist limits for quaternions    (nswingtwist, SwingTwistLimit)
 
      * collision geometry *
       geom_type: geometric type (GeomType)                     (ngeom,)
@@ -478,6 +502,7 @@ class Model:
     nsite: int
     nlinearstop: int
     nlimitforce: int
+    nswingtwist: int
 
     nfunctions: int
     nlinearfn: int
@@ -531,17 +556,9 @@ class Model:
     dof_stiffness: array("nv", float)
     qpos_spring_rest: array("nq", float)
 
-    stop_qpos_range: array("nlinearstop", wp.vec2)
-    stop_qpos_adr: array("nlinearstop", int)
-    stop_dof_adr: array("nlinearstop", int)
-    stop_dof_stiffness_damping: array("nlinearstop", wp.vec2)
-
-    lf_qpos_range: array("nlimitforce", wp.vec2)
-    lf_qpos_adr: array("nlimitforce", int)
-    lf_dof_adr: array("nlimitforce", int)
-    lf_stiffness: array("nlimitforce", wp.vec2)
-    lf_damping: array("nlimitforce", float)
-    lf_transition: array("nlimitforce", float)
+    coordinate_linear_stop: array("nlinearstop", CoordinateLinearStop)
+    coordinate_limit_force: array("nlimitforce", CoordinateLimitForce)
+    swing_twist_limit: array("nswingtwist", SwingTwistLimit)
 
     # Collision geometry
     geom_type: array("ngeom", int)
@@ -691,7 +708,6 @@ class Data:
 
      * post-dynamics analytics *
       grf: ground reaction force                                  (nworld, 3)
-      joint_moments: joint moments                                (nworld, nv)
       geom_cforce: contact force on geoms                         (nworld, ngeom, 3)
 
       contact: contact data
@@ -727,6 +743,7 @@ class Data:
       body_total_centrifugal_force: total centrifugal force       (nworld, nbody, 6)
       body_articulated_centrifugal_force:                         (nworld, nbody, 6)
       body_zPlus: z = Pa + b - F, zPlus includes children         (nworld, nbody, 6)
+      body_zTmp: similar to zPlus, used for J^T calculations      (nworld, nbody, 6)
       body_eps: f - ~H * z                                        (nworld, nbody, 6)
 
       geom_X: Cartesian geom transform                            (nworld, ngeom, transform)
@@ -807,7 +824,6 @@ class Data:
     xfrc_applied: array("nworld", "nbody", wp.spatial_vector)
 
     grf: array("nworld", wp.vec3)
-    joint_moments: array("nworld", "nv", float)
     geom_cforce: array("nworld", "ngeom", wp.vec3)
 
     cst_fn_output: array("nworld", "nfunction", wp.vec3)
@@ -839,6 +855,7 @@ class Data:
     body_total_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
     body_articulated_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
     body_zPlus: wp.array2d(dtype=wp.spatial_vector)
+    body_zTmp: wp.array2d(dtype=wp.spatial_vector)
     body_eps: wp.array2d(dtype=wp.spatial_vector)
 
     geom_X: wp.array2d(dtype=wp.transform)

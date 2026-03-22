@@ -2,6 +2,8 @@ import opensim as osim
 
 
 class OSimType:
+    Model = osim.Model
+
     Frame = osim.simulation.PhysicalFrame
     PhysicalOffsetFrame = osim.PhysicalOffsetFrame
 

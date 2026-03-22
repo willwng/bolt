@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import warp as wp
 
 from . import types
@@ -59,6 +57,20 @@ def quat_normalize_in_place(q: wp.array(dtype=float), adr: int):
     q[adr + 1] = quat[1]
     q[adr + 2] = quat[2]
     q[adr + 3] = quat[3]
+
+
+@wp.func
+def quat_swing_twist(q: wp.quat, axis: wp.vec3) -> tuple[wp.quat, wp.quat]:
+    """ Decomposes the rotation q (q = q_swing * q_twist) into a swing and a twist about the given axis """
+    # based on bullet physics
+    q_axis = wp.vec3(q.x, q.y, q.z)
+    p = wp.dot(q_axis, axis)
+
+    twist_axis = p * axis
+    out_twist = wp.quat(twist_axis.x, twist_axis.y, twist_axis.z, q.w)
+    out_twist = wp.normalize(out_twist)
+    out_swing = q * wp.quat_inverse(out_twist)
+    return out_swing, out_twist
 
 
 @wp.func
@@ -200,7 +212,7 @@ def invert_upper_left(D: wp.spatial_matrix, dofnum: int) -> wp.spatial_matrix:
 
 
 @wp.func
-def extract_33_blocks(m: wp.spatial_matrix) -> Tuple[wp.mat33, wp.mat33, wp.mat33, wp.mat33]:
+def extract_33_blocks(m: wp.spatial_matrix) -> tuple[wp.mat33, wp.mat33, wp.mat33, wp.mat33]:
     """Extracts 3x3 blocks A, B, C, D from a 6x6 matrix M = [[A, B], [C, D]]"""
     A = wp.mat33(
         m[0, 0], m[0, 1], m[0, 2],
@@ -423,6 +435,25 @@ def mul_body_xyz_N_inv(cosxy: wp.vec2, sinxy: wp.vec2, qdot: wp.vec3) -> wp.vec3
 
 
 @wp.func
+def step_function(
+        x: float,
+        start_time: float,
+        end_time: float,
+        start_value: float,
+        end_value: float,
+):
+    """ A smooth step function that transitions from start_value to end_value between start_time and end_time. """
+    if x <= start_time:
+        return start_value
+    elif x >= end_time:
+        return end_value
+    else:
+        t = (x - start_time) / (end_time - start_time)
+        smooth_t = t * t * (3.0 - 2.0 * t)
+        return start_value + smooth_t * (end_value - start_value)
+
+
+@wp.func
 def fast_pow_pos(base: float, exp: int) -> float:
     """Fast integer exponentiation for positive, integer exponents."""
     result = float(1.0)
@@ -488,7 +519,7 @@ def evaluate_polynomial(
         start_idx: int,
         order: int,
         n_dof: int,
-) -> Tuple[float, types.PolyVec]:
+) -> tuple[float, types.PolyVec]:
     length = float(0.0)
     df_dq = types.PolyVec(0.0)
 

@@ -53,6 +53,8 @@ def main():
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
     model_path = "data/osim/athlete3.osim"
+    # model_path = "data/osim/athlete_upper_right.osim"
+    # model_path = "data/osim/athlete_upper.osim"
     polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
     # polynomial_data_path = None
     # model_path = "data/osim/athlete2.osim"
@@ -70,7 +72,7 @@ def main():
     qvel = wp.to_torch(d.qvel)
     qvel += torch.randn_like(qvel) * 0.3
     m.opt.use_inf_norm = False
-    m.opt.accuracy = 0.01
+    m.opt.accuracy = 1.0
 
     # quit()
 
@@ -81,11 +83,17 @@ def main():
         return load_result.dof_id_lookup[name]
 
     qpos = wp.to_torch(d.qpos)
+    qfrc = wp.to_torch(d.qfrc_total)
     qvel = wp.to_torch(d.qvel)
     qpos[:, qpos_id("pelvis_ty")] = 1.05
-    qpos[:, qpos_id("hip_flexion_r")] = 1.5
-    qpos[:, qpos_id("knee_angle_r")] = 1.5
-    # qvel[:, dof_id("pelvis_ty")] = -5
+    # qpos[:, qpos_id("humerus_r_quat_w")] = -0.50
+    # qpos[:, qpos_id("shoulder_r_rot_x")] = 0.50
+    # qpos[:, qpos_id("shoulder_r_rot_y")] = -0.50
+    # qpos[:, qpos_id("shoulder_r_rot_z")] = 0.50
+    # qpos[:, qpos_id("scapula_elevation_r")] = -0.80
+
+    d.world_reset.fill_(True)
+    forward.reset(m, d)
 
     dt = 1.0 / 500.0
     # dt = 1.0 / 10000.0
@@ -108,16 +116,42 @@ def main():
                 step.step(m, d)
             graph = capture.graph
 
+        # moment_arms = wp.to_torch(d.muscle_moment_arm)[0]
+        # all_moment_arms = []
         for i in range(args.nstep):
             step.increment_next_time(m, d, dt)
             if cuda_graphs:
                 wp.capture_launch(graph)
             else:
                 step.step(m, d)
+                forward.compute_muscle_moments(m, d)
+                # all_moment_arms.append(moment_arms.clone())
+                # quit()
             # if i % steps_per_render == 0:
             #     viewer.render(m, d)
             viewer.render(m, d)
         viewer.close()
+
+        # all_moment_arms = torch.stack(all_moment_arms, dim=0)
+        #
+        # muscle_id_to_name = {v: k for k, v in load_result.muscle_id_lookup.items()}
+        # dof_id_to_name = {v: k for k, v in load_result.dof_id_lookup.items()}
+        # import matplotlib.pyplot as plt
+        # for muscleid in range(m.nmuscle):
+        #     metadata = m.muscle_data[muscleid]
+        #     muscle_name = muscle_id_to_name[muscleid]
+        #     muscle_moment_arm = all_moment_arms[:, muscleid]
+        #     # Get the indices of the DOFs that have non-negligible moment arms for this muscle across all time steps
+        #     nonzero_dof_indices = torch.where(muscle_moment_arm.abs().max(dim=0).values > 1e-7)[0]
+        #     if len(nonzero_dof_indices) > 0:
+        #         plt.figure(figsize=(10, 6))
+        #         for dofid in nonzero_dof_indices:
+        #             dof_name = dof_id_to_name[int(dofid)]
+        #             plt.plot(all_moment_arms[:, muscleid, dofid].cpu().numpy(), label=dof_name)
+        #         plt.title(f"{muscle_name} (fn-based path: {metadata.fn_based_path})")
+        #         plt.xlabel("Time step")
+        #         plt.ylabel("Moment arm")
+        #         plt.legend()
 
     else:
         def benchmark_fn(m: msk_warp.Model, d: msk_warp.Data, dt: float):

@@ -106,6 +106,11 @@ def _next_muscle_state(
     if integration_done_in[worldid]:
         return
     mm = muscle_metadata[muscle_id]
+    # Rigid tendon, no state
+    if mm.ignore_tendon_compliance:
+        m_state_out[worldid, muscle_id] = 0.0
+        return
+
     step_size = actual_step_size_in[worldid] * scale
 
     norm_fiber_length = m_state_in[worldid, muscle_id]
