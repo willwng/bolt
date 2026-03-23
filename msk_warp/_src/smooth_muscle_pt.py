@@ -175,7 +175,7 @@ def apply_muscle_force(m: Model, d: Data):
 
 
 @event_scope
-def apply_muscle_force_one_muscle(m: Model, d: Data, muscle_id: int):
+def apply_unit_force_one_muscle(m: Model, d: Data, body_F_out: wp.array2d, muscle_id: int):
     if m.nmuscle:
         wp.launch(
             _apply_unit_muscle_force_one_muscle_kernel,
@@ -185,5 +185,5 @@ def apply_muscle_force_one_muscle(m: Model, d: Data, muscle_id: int):
                 d.site_pos_G, d.site_rel_pos_B,
                 muscle_id
             ],
-            outputs=[d.body_F_muscle],
+            outputs=[body_F_out],
         )
