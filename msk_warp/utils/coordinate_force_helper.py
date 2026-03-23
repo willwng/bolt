@@ -193,3 +193,40 @@ def create_coordinate_limit_force(
 
         coordinate_limit_forces.append(limit_force)
     return coordinate_limit_forces
+
+
+def create_limit_id_lookup(
+        coordinate_limit_forces: list[CoordinateLimitForceData],
+        coordinate_linear_stops: list[CoordinateLinearStopData],
+        qpos_ordering: dict[str, int]
+) -> dict[str, tuple[float, float]]:
+    """ For each coordinate, return the associated qpos range """
+    limit_id_lookup = {}
+
+    def update_limit_id(c: str, rng: wp.vec2):
+        """ If the coordinate already has a limit, update the range to be the min/max of the existing and new range """
+        if c in limit_id_lookup:
+            existing_range = limit_id_lookup[c]
+            new_range = wp.vec2(
+                min(existing_range[0], rng[0]),
+                max(existing_range[1], rng[1])
+            )
+            limit_id_lookup[c] = (new_range[0], new_range[1])
+        else:
+            limit_id_lookup[c] = (rng[0], rng[1])
+
+    # Coordinate limit forces
+    for limit_force in coordinate_limit_forces:
+        coord = limit_force.coordinate
+        update_limit_id(coord, limit_force.range)
+    # Then linear stops
+    for linear_stop in coordinate_linear_stops:
+        coord = linear_stop.coordinate
+        update_limit_id(coord, linear_stop.range)
+
+    # For any coordinate that doesn't have a limit force or linear stop, set to inf
+    for coordinate in qpos_ordering.keys():
+        if coordinate not in limit_id_lookup:
+            limit_id_lookup[coordinate] = (-float('inf'), float('inf'))
+
+    return limit_id_lookup

@@ -563,6 +563,8 @@ def load_model(
     muscle_ordering = muscle_helper.get_muscle_ordering(converted_muscles)
     actuator_ordering = actuator_helper.get_actuator_ordering(converted_activation_actuators)
     collider_ordering = geom_helper.get_geom_ordering(converted_geoms)
+    limit_id_lookup = coordinate_force_helper.create_limit_id_lookup(
+        converted_limit_forces, converted_stops, qpos_ordering)
 
     return ModelLoadResult(
         model=m,
@@ -570,7 +572,7 @@ def load_model(
         body_id_lookup=body_ordering,
         qpos_id_lookup=qpos_ordering,
         dof_id_lookup=dof_ordering,
-        limit_id_lookup={},
+        limit_id_lookup=limit_id_lookup,
         muscle_id_lookup=muscle_ordering,
         actuator_id_lookup=actuator_ordering,
         collider_id_lookup=collider_ordering,
