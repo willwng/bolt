@@ -25,12 +25,25 @@ def convert_path_point(point: OSimType.PathPoint) -> SiteData:
     )
 
 
-def collect_path_points(muscle_path: OSimType.ScholzPath) -> list[SiteData]:
+def collect_scholz_path_points(muscle_path: OSimType.ScholzPath) -> list[SiteData]:
     """ Collects the path points of a muscle and converts them to SiteData """
     num_path_points = muscle_path.getNumPathPoints()
     path_points = []
     for i in range(num_path_points):
         point = muscle_path.getPathPoint(i)
+        path_points.append(convert_path_point(point))
+    return path_points
+
+
+def collect_geometry_path_points(muscle_path: OSimType.GeometryPath) -> list[SiteData]:
+    """ Collects the path points of a muscle and converts them to SiteData """
+    path_point_set = muscle_path.getPathPointSet()
+    num_path_points = path_point_set.getSize()
+    path_points = []
+    for i in range(num_path_points):
+        point = path_point_set.get(i)
+        point = OSimType.PathPoint.safeDownCast(point)
+        print(point.getName())
         path_points.append(convert_path_point(point))
     return path_points
 
@@ -48,9 +61,20 @@ def convert_muscles(model: OSimType.Model) -> list[MuscleData]:
     muscles = get_muscles(model)
     for muscle in muscles:
         # Only handle MillardMuscles for now with ScholzPath. todo(future)
-        muscle = OSimType.MillardMuscle.safeDownCast(muscle)
-        muscle_name = muscle.getName()
-        muscle_path = OSimType.ScholzPath.safeDownCast(muscle.getPath())
+        if muscle.getConcreteClassName() == "Millard2012EquilibriumMuscle":
+            muscle = OSimType.MillardMuscle.safeDownCast(muscle)
+            muscle_name = muscle.getName()
+            muscle_path = OSimType.ScholzPath.safeDownCast(muscle.getPath())
+            fiber_damping = muscle.get_fiber_damping()
+            path_points = collect_scholz_path_points(muscle_path)
+        elif muscle.getConcreteClassName() == "Thelen2003Muscle":
+            muscle = OSimType.ThelenMuscle.safeDownCast(muscle)
+            muscle_name = muscle.getName()
+            muscle_path = OSimType.GeometryPath.safeDownCast(muscle.getPath())
+            fiber_damping = 0.01
+            path_points = collect_geometry_path_points(muscle_path)
+        else:
+            raise ValueError(f"Unsupported muscle type: {muscle.getConcreteClassName()} for muscle {muscle.getName()}")
 
         muscle_data.append(
             MuscleData(
@@ -65,9 +89,9 @@ def convert_muscles(model: OSimType.Model) -> list[MuscleData]:
                 optimal_fiber_length=muscle.get_optimal_fiber_length(),
                 tendon_slack_length=muscle.get_tendon_slack_length(),
                 pennation_angle_at_optimal=muscle.get_pennation_angle_at_optimal(),
-                fiber_damping=muscle.get_fiber_damping(),
+                fiber_damping=fiber_damping,
 
-                path_points=collect_path_points(muscle_path),
+                path_points=path_points,
             )
         )
 

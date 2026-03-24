@@ -52,11 +52,16 @@ def main():
     # model_path = "data/osim/example_gait3d_pin.osim"
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
-    model_path = "data/osim/athlete3.osim"
+    # model_path = "data/osim/athlete3.osim"
     # model_path = "data/osim/athlete_upper_right.osim"
     # model_path = "data/osim/athlete_upper.osim"
-    polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
+    # model_path = "data/osim/athlete_upper_right_only.osim"
+    # model_path = "data/osim/athlete_ball.osim"
+    # model_path = "data/osim/athlete_notball.osim"
+    model_path = "data/osim/Scaled_FullBody_HamnerModel_Muscle_withContact.osim"
+    # polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
     # polynomial_data_path = None
+    polynomial_data_path = "data/function_paths/scaled_model_function.xml"
     # model_path = "data/osim/athlete2.osim"
     # model_path = "data/osim/simple.osim"
     load_result = msk_warp.load_model(
@@ -70,7 +75,6 @@ def main():
 
     m, d = load_result.model, load_result.data
     qvel = wp.to_torch(d.qvel)
-    qvel += torch.randn_like(qvel) * 0.3
     m.opt.use_inf_norm = False
     m.opt.accuracy = 1.0
 
@@ -82,18 +86,33 @@ def main():
     def dof_id(name):
         return load_result.dof_id_lookup[name]
 
+    def muscle_id(name):
+        return load_result.muscle_id_lookup[name]
+
     qpos = wp.to_torch(d.qpos)
     qfrc = wp.to_torch(d.qfrc_total)
     qvel = wp.to_torch(d.qvel)
     qpos[:, qpos_id("pelvis_ty")] = 1.05
+    # qpos[:, qpos_id("lumbar_extension")] = -0.2
+    # qpos[:, qpos_id("thorax_extension")] = -0.2
+    # qpos[:, qpos_id("cervical_extension")] = -0.2
+    # qpos[:, qpos_id("pro_sup_r")] = np.pi / 2
     # qpos[:, qpos_id("humerus_r_quat_w")] = -0.50
     # qpos[:, qpos_id("shoulder_r_rot_x")] = 0.50
     # qpos[:, qpos_id("shoulder_r_rot_y")] = -0.50
     # qpos[:, qpos_id("shoulder_r_rot_z")] = 0.50
+
+    # qpos[:, qpos_id("humerus_l_quat_w")] = -0.50
+    # qpos[:, qpos_id("shoulder_l_rot_x")] = -0.50
+    # qpos[:, qpos_id("shoulder_l_rot_y")] = 0.50
+    # qpos[:, qpos_id("shoulder_l_rot_z")] = 0.50
     # qpos[:, qpos_id("scapula_elevation_r")] = -0.80
 
     d.world_reset.fill_(True)
     forward.reset(m, d)
+
+    # a_excitations = msk_warp.actuator_excitations(d)
+    # a_excitations[:] = 0.0
 
     dt = 1.0 / 500.0
     # dt = 1.0 / 10000.0
@@ -103,7 +122,7 @@ def main():
             load_result=load_result,
             renderer_type=RendererType.OPENGL,
             draw_visuals=True,
-            draw_colliders=False,
+            draw_colliders=True,
             draw_muscles=True,
             draw_body_mass=False,
             draw_beams=True
@@ -117,6 +136,10 @@ def main():
             graph = capture.graph
 
         # moment_arms = wp.to_torch(d.muscle_moment_arm)[0]
+        # excitations = wp.to_torch(d.m_excitations)
+        # excitations.zero_()
+        # excitations[:, muscle_id("biceps_brevis_r")] = 1.0
+        # excitations[:, muscle_id("biceps_long_r")] = 1.0
         # all_moment_arms = []
         for i in range(args.nstep):
             step.increment_next_time(m, d, dt)
@@ -124,9 +147,14 @@ def main():
                 wp.capture_launch(graph)
             else:
                 step.step(m, d)
-                forward.compute_muscle_moments(m, d)
+                # forward.compute_muscle_moments(m, d)
                 # all_moment_arms.append(moment_arms.clone())
                 # quit()
+
+                # qvel_diff = wp.to_torch(d.qvel_diff)
+                # for dof, dofid in load_result.dof_id_lookup.items():
+                #     print(f"{dof}: {qvel_diff[0, dofid].item()}")
+
             # if i % steps_per_render == 0:
             #     viewer.render(m, d)
             viewer.render(m, d)

@@ -403,6 +403,7 @@ def compute_body_velocities(m: Model, d: Data):
 
 @event_scope
 def compute_parent_to_child_accelerations(m: Model, d: Data):
+    """ Compute acceleration of child body relative to parent, expressed in ground frame """
     wp.launch(
         _compute_parent_to_child_accelerations,
         dim=(d.nworld, m.nbody),
