@@ -108,7 +108,7 @@ def get_num_actuators(m: Model) -> int:
 
 
 def get_num_limits(m: Model) -> int:
-    return m.nlinearstop
+    return m.nlinearstop + m.nlimitforce + (3 * m.nswingtwist)
 
 
 def get_qpos_adr(m: Model, body_id: int) -> torch.Tensor:
@@ -164,18 +164,6 @@ def is_adaptive(integrator_type: IntegratorType) -> bool:
         IntegratorType.EULER_ADAPTIVE,
         IntegratorType.RK_MERSON_ADAPTIVE,
     ]
-
-
-def joint_limit_ranges(m: Model) -> torch.Tensor:
-    return wp.to_torch(m.stop_qpos_range)
-
-
-def joint_limit_qadr(m: Model) -> torch.Tensor:
-    return wp.to_torch(m.stop_qpos_adr)
-
-
-def joint_limit_shapes(m: Model) -> torch.Tensor:
-    return wp.to_torch(m.stop_dof_stiffness_damping)
 
 
 # --- Data Fields ---

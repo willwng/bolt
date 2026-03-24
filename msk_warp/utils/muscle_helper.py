@@ -43,7 +43,6 @@ def collect_geometry_path_points(muscle_path: OSimType.GeometryPath) -> list[Sit
     for i in range(num_path_points):
         point = path_point_set.get(i)
         point = OSimType.PathPoint.safeDownCast(point)
-        print(point.getName())
         path_points.append(convert_path_point(point))
     return path_points
 
