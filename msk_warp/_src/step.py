@@ -1,8 +1,10 @@
 import warp as wp
 
 from . import integrate_euler_fixed
+from . import integrate_euler_midpoint_fixed
 from . import integrate_rk_fixed
 from . import integrate_euler_adaptive
+from . import integrate_euler_midpoint_adaptive
 from . import integrate_rk_adaptive
 from .types import Data
 from .types import IntegratorType
@@ -32,10 +34,14 @@ def step(m: Model, d: Data):
     """ Steps from d.time to d.next_time """
     if wp.static(m.opt.integrator) == IntegratorType.EULER_FIXED:
         integrate_euler_fixed.integrate(m, d)
+    if wp.static(m.opt.integrator) == IntegratorType.EULER_MIDPOINT_FIXED:
+        integrate_euler_midpoint_fixed.integrate(m, d)
     elif wp.static(m.opt.integrator) == IntegratorType.RK4_FIXED:
         integrate_rk_fixed.integrate(m, d)
     elif wp.static(m.opt.integrator) == IntegratorType.EULER_ADAPTIVE:
         integrate_euler_adaptive.integrate(m, d)
+    elif wp.static(m.opt.integrator) == IntegratorType.EULER_MIDPOINT_ADAPTIVE:
+        integrate_euler_midpoint_adaptive.integrate(m, d)
     elif wp.static(m.opt.integrator) == IntegratorType.RK_MERSON_ADAPTIVE:
         integrate_rk_adaptive.integrate(m, d)
     else:

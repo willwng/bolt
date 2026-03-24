@@ -2,8 +2,8 @@ import opensim as osim
 import os
 
 from msk_warp import Model, Data, IntegratorType, Option, ActivationType, MetabolicOptions, MuscleMetadata, \
-    ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, MuscleLengthInfo, FiberVelocityInfo, \
-    MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
+    ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, MuscleLengthInfo, \
+    FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
     CoordinateLinearStop, CoordinateLimitForce, vec5
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.utils import *
@@ -11,10 +11,12 @@ from msk_warp.utils import *
 
 def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:
     """ Returns number of additional copies of state and state_dot required for integration """
-    if integrator == IntegratorType.RK_MERSON_ADAPTIVE:
-        return 2, 5
-    elif integrator == IntegratorType.EULER_ADAPTIVE:
+    if integrator == IntegratorType.EULER_ADAPTIVE:
         return 2, 1
+    elif integrator == IntegratorType.EULER_MIDPOINT_ADAPTIVE:
+        return 2, 1
+    elif integrator == IntegratorType.RK_MERSON_ADAPTIVE:
+        return 2, 5
     return 0, 0
 
 
@@ -410,6 +412,7 @@ def load_model(
         ) for _ in range(n_int_dot_states)
     ]
 
+
     # Custom joints may need up to 6 additional vectors: [f(q), f'(q), f''(q)] for each 6 functions
     num_mob_scratch = 3 if n_custom_jnts == 0 else 6
 
@@ -423,6 +426,12 @@ def load_model(
 
         nworld=n_worlds,
         naconmax=naconmax,
+
+        # mid point integrators
+        integrator_midpoint_scratch =IntegratorMidpointScratch(
+            qvel=make_zero((n_worlds, nv), dtype=float),
+            qacc=make_zero((n_worlds, nv), dtype=float)
+        ),
 
         # for adaptive integrators
         integrator_scratch=integrator_scratch,

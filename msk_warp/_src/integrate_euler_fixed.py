@@ -11,7 +11,7 @@ wp.set_module_options({"enable_backward": False})
 
 @event_scope
 def integrate(m: Model, d: Data):
-    """Steps from d.time to d.next_time using RK4 """
+    """Steps from d.time to d.next_time using Symplectic Euler """
     integrate_common.update_step_size(m, d)
-    integrate_common.advance(m, d, d.qacc, d.qvel, scale=1.0, time_scale=1.0)
+    integrate_common.advance(m, d, d.qacc, d.qvel, scale=1.0, time_scale=1.0, symplectic=True)
     forward.fwd(m, d)  # realize state for next step

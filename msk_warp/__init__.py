@@ -23,6 +23,7 @@ from ._src.types import ActivationType as ActivationType
 from ._src.types import IntegratorType as IntegratorType
 from ._src.types import IntegratorStateScratch as IntegratorStateScratch
 from ._src.types import IntegratorDotScratch as IntegratorDotScratch
+from ._src.types import IntegratorMidpointScratch as IntegratorMidpointScratch
 from ._src.types import MeshLoadResult as MeshLoadResult
 from ._src.types import SpatialInertia as SpatialInertia
 from ._src.types import ArticulatedInertia as ArticulatedInertia

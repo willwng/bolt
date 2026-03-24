@@ -248,6 +248,22 @@ def advance(
 
 
 @event_scope
+def advance_velocity(
+        m: Model,
+        d: Data,
+        qacc: wp.array,
+        scale: float,
+):
+    """Advance only the derivative of first order state with accelerations """
+    wp.launch(
+        _next_velocity,
+        dim=(d.nworld, m.nv),
+        inputs=[d.integration_done, d.qvel, qacc, d.actual_step_size, scale],
+        outputs=[d.qvel],
+    )
+
+
+@event_scope
 def update_step_size(m: Model, d: Data):
     """ For fixed time-stepping. Updates the actual step size to match the desired dt """
     wp.launch(

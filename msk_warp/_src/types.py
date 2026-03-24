@@ -181,14 +181,18 @@ class IntegratorType(enum.IntEnum):
     """ Integrator type.
     Attributes:
         EULER_FIXED: Fixed-step Euler (semi-implicit)
+        EULER_MIDPOINT_FIXED: Fixed-step Midpoint Euler method
         RK4_FIXED: Fixed-step 4th-order Runge-Kutta
         EULER_ADAPTIVE: Adaptive-step Euler
+        EULER_MIDPOINT_ADAPTIVE: Adaptive-step Midpoint Euler method
         RK_MERSON_ADAPTIVE: Adaptive-step 4th-order Runge-Kutta-Merson
     """
     EULER_FIXED = 1
-    RK4_FIXED = 2
-    EULER_ADAPTIVE = 3
-    RK_MERSON_ADAPTIVE = 4
+    EULER_MIDPOINT_FIXED = 2
+    RK4_FIXED = 3
+    EULER_ADAPTIVE = 4
+    EULER_MIDPOINT_ADAPTIVE = 5
+    RK_MERSON_ADAPTIVE = 6
 
 
 @dataclass
@@ -660,6 +664,12 @@ class IntegratorDotScratch:
 
 
 @dataclass
+class IntegratorMidpointScratch:
+    qvel: wp.array2d(dtype=float)
+    qacc: wp.array2d(dtype=float)
+
+
+@dataclass
 class Data:
     """Dynamic state that updates each step.
 
@@ -905,6 +915,9 @@ class Data:
     z_err: wp.array(dtype=float)
     error: wp.array(dtype=float)
     steps_attempted: wp.array(dtype=int)
+
+    # Midpoint integrator scratch
+    integrator_midpoint_scratch: IntegratorMidpointScratch
 
     # Stored state for adaptive time-stepper
     integrator_scratch: list[IntegratorStateScratch]
