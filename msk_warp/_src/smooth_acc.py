@@ -34,7 +34,7 @@ def _calc_udot_pass_inward(
         mob_dofadr: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        qfrc_total_in: wp.array2d(dtype=float),
+        ufrc_total_in: wp.array2d(dtype=float),
         body_F_in: wp.array2d(dtype=wp.spatial_vector),
         mob_phi_in: wp.array2d(dtype=wp.vec3),
         mob_H_in: wp.array2d(dtype=wp.spatial_vector),
@@ -71,7 +71,7 @@ def _calc_udot_pass_inward(
         z += math.multiply_phi(phi_child, zPlus_child)
 
     # eps = f - ~H * z.
-    f = math.load_spatial_vec(qfrc_total_in[worldid], dofadr, dofnum)
+    f = math.load_spatial_vec(ufrc_total_in[worldid], dofadr, dofnum)
     eps = f - wp.transpose(H) @ z
     # zPlus = z + G * eps
     zPlus = z + G @ eps
@@ -152,7 +152,7 @@ def calc_udot(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[
                 m.body_children, m.body_children_num, m.body_children_adr, m.mob_dofnum, m.mob_dofadr,
-                d.integration_done, d.qfrc_total, d.body_F, d.mob_phi, d.mob_H, d.mob_G,
+                d.integration_done, d.ufrc_total, d.body_F, d.mob_phi, d.mob_H, d.mob_G,
                 d.body_articulated_centrifugal_force,
                 body_tree,
             ],

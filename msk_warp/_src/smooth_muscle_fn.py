@@ -24,11 +24,10 @@ def _compute_path_kernel(
         fn_path_term_coeff: wp.array(dtype=float),
         fn_path_term_start: wp.array(dtype=int),
         fn_path_qpos_adr: wp.array(dtype=PolyInts),
-        fn_path_dof_adr: wp.array(dtype=PolyInts),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
-        qvel_in: wp.array2d(dtype=float),
+        qdot_in: wp.array2d(dtype=float),
         # Data out:
         muscle_length_out: wp.array2d(dtype=float),
         muscle_moment_arm_out: wp.array3d(dtype=float),
@@ -45,7 +44,6 @@ def _compute_path_kernel(
     order = fn_path_order[muscle_id]
     start_idx = fn_path_term_start[muscle_id]
     qpos_adr = fn_path_qpos_adr[muscle_id]
-    dof_adr = fn_path_dof_adr[muscle_id]
 
     # Fetch q values into registers
     q = PolyVec(0.0)
@@ -66,14 +64,14 @@ def _compute_path_kernel(
     for i in range(wp.static(MAX_POLY_NUM_DOFS)):
         if i >= n_dof:
             break
-        muscle_moment_arm_out[worldid, muscle_id, dof_adr[i]] = -df_dq[i]
+        muscle_moment_arm_out[worldid, muscle_id, qpos_adr[i]] = -df_dq[i]
 
     # Compute velocity
     velocity = float(0.0)
     for i in range(wp.static(MAX_POLY_NUM_DOFS)):
         if i >= n_dof:
             break
-        velocity += df_dq[i] * qvel_in[worldid, dof_adr[i]]
+        velocity += df_dq[i] * qdot_in[worldid, qpos_adr[i]]
     muscle_velocity_out[worldid, muscle_id] = velocity
     return
 
@@ -143,7 +141,7 @@ def _apply_muscle_frc_kernel(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         fn_dimension: wp.array(dtype=int),
-        fn_dof_adr: wp.array(dtype=PolyInts),
+        fn_qpos_adr: wp.array(dtype=PolyInts),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         muscle_actuation_in: wp.array2d(dtype=float),
@@ -160,13 +158,15 @@ def _apply_muscle_frc_kernel(
     moment_arm = muscle_moment_arm_in[worldid, muscle_id]
     dimension = fn_dimension[muscle_id]
 
+    # Iterate over the dependent dofs
     for varid in range(wp.static(MAX_POLY_NUM_DOFS)):
         if varid >= dimension:
             break
-        dofid = fn_dof_adr[muscle_id][varid]
-        q_applied = actuation * moment_arm[dofid]
+        # q_forces[i] = r[i] * F_muscle
+        qposadr = fn_qpos_adr[muscle_id][varid]
+        q_applied = actuation * moment_arm[qposadr]
         if q_applied != 0.0:
-            wp.atomic_add(qfrc_applied_out[worldid], dofid, q_applied)
+            wp.atomic_add(qfrc_applied_out[worldid], qposadr, q_applied)
     return
 
 
@@ -192,8 +192,8 @@ def muscle_fn_path(m: Model, d: Data):
             dim=(d.nworld, m.nmuscle),
             inputs=[
                 m.muscle_metadata, m.fn_path_dimension, m.fn_path_order, m.fn_path_term_coeffs, m.fn_path_term_start,
-                m.fn_path_qpos_adr, m.fn_path_dof_adr,
-                d.integration_done, d.qpos, d.qvel
+                m.fn_path_qpos_adr,
+                d.integration_done, d.qpos, d.qdot
             ],
             outputs=[d.muscle_length, d.muscle_moment_arm, d.muscle_velocity],
         )
@@ -206,7 +206,7 @@ def apply_muscle_force(m: Model, d: Data):
         wp.launch(
             _apply_muscle_frc_kernel,
             dim=(d.nworld, m.nmuscle),
-            inputs=[m.muscle_metadata, m.fn_path_dimension, m.fn_path_dof_adr, d.integration_done, d.muscle_actuation,
-                    d.muscle_moment_arm, ],
+            inputs=[m.muscle_metadata, m.fn_path_dimension, m.fn_path_qpos_adr,
+                    d.integration_done, d.muscle_actuation, d.muscle_moment_arm, ],
             outputs=[d.qfrc_muscle],
         )

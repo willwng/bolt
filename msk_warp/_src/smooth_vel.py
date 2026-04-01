@@ -11,41 +11,30 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
-def _across_joint_velocity_jacobian_dot(
+def _calc_q_dot(
         # Model:
         mob_type: wp.array(dtype=int),
+        mob_qposadr: wp.array(dtype=int),
         mob_dofadr: wp.array(dtype=int),
-        mob_extra_info: wp.array(dtype=wp.vec3),
         mob_dofnum: wp.array(dtype=int),
-        mob_to_cst_id: wp.array(dtype=int),
-        cst_txfm_dof: wp.array2d(dtype=int),
-        cst_txfm_axes: wp.array2d(dtype=wp.vec3),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
+        qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
-        mob_scratch_in: wp.array3d(dtype=wp.vec3),
-        mob_V_FM_in: wp.array2d(dtype=wp.spatial_vector),
-        mob_H_FM_in: wp.array2d(dtype=wp.spatial_vector),
         # Data out:
-        HDot_FM_out: wp.array2d(dtype=wp.spatial_vector),
+        qdot_out: wp.array2d(dtype=float),
 ):
     worldid, bodyid = wp.tid()
     if integration_done_in[worldid]:
         return
 
     mob_type_ = mob_type[bodyid]
+    qposadr = mob_qposadr[bodyid]
     dofadr = mob_dofadr[bodyid]
-    extra_info = mob_extra_info[bodyid]
-    HDot_FM = HDot_FM_out[worldid]
-    mob_scratch = mob_scratch_in[worldid, bodyid]
-    qvel = qvel_in[worldid]
-    V_FM = mob_V_FM_in[worldid, bodyid]
-    H_FM = mob_H_FM_in[worldid]
     dofnum = mob_dofnum[bodyid]
-    cst_id = mob_to_cst_id[bodyid]
-    # Stores Jacobian in H_FM
-    mobilizers.calc_across_joint_velocity_jacobian_dot(mob_type_, dofadr, extra_info, mob_scratch, qvel, V_FM, H_FM,
-                                                       dofnum, cst_id, cst_txfm_dof, cst_txfm_axes, HDot_FM)
+    qpos = qpos_in[worldid]
+    qvel = qvel_in[worldid]
+    mobilizers.multiply_by_N(mob_type_, qpos, qvel, qposadr, dofadr, dofnum, qdot_out[worldid])
     return
 
 
@@ -142,6 +131,45 @@ def _compute_parent_to_child_accelerations(
         VD_PB_G += HDot[dofadr + i] * qv[dofadr + i]
 
     VD_PB_G_out[worldid, bodyid] = VD_PB_G
+    return
+
+
+@wp.kernel
+def _across_joint_velocity_jacobian_dot(
+        # Model:
+        mob_type: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
+        mob_extra_info: wp.array(dtype=wp.vec3),
+        mob_dofnum: wp.array(dtype=int),
+        mob_to_cst_id: wp.array(dtype=int),
+        cst_txfm_dof: wp.array2d(dtype=int),
+        cst_txfm_axes: wp.array2d(dtype=wp.vec3),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        qvel_in: wp.array2d(dtype=float),
+        mob_scratch_in: wp.array3d(dtype=wp.vec3),
+        mob_V_FM_in: wp.array2d(dtype=wp.spatial_vector),
+        mob_H_FM_in: wp.array2d(dtype=wp.spatial_vector),
+        # Data out:
+        HDot_FM_out: wp.array2d(dtype=wp.spatial_vector),
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    mob_type_ = mob_type[bodyid]
+    dofadr = mob_dofadr[bodyid]
+    extra_info = mob_extra_info[bodyid]
+    HDot_FM = HDot_FM_out[worldid]
+    mob_scratch = mob_scratch_in[worldid, bodyid]
+    qvel = qvel_in[worldid]
+    V_FM = mob_V_FM_in[worldid, bodyid]
+    H_FM = mob_H_FM_in[worldid]
+    dofnum = mob_dofnum[bodyid]
+    cst_id = mob_to_cst_id[bodyid]
+    # Stores Jacobian in H_FM
+    mobilizers.calc_across_joint_velocity_jacobian_dot(mob_type_, dofadr, extra_info, mob_scratch, qvel, V_FM, H_FM,
+                                                       dofnum, cst_id, cst_txfm_dof, cst_txfm_axes, HDot_FM)
     return
 
 
@@ -366,6 +394,20 @@ def joint_velocity_jacobian_dot(m: Model, d: Data):
             d.body_V_GB, d.body_V_FM
         ],
         outputs=[d.mob_HDot],
+    )
+
+
+@event_scope
+def calc_q_dot(m: Model, d: Data):
+    """ Computes qdot = N(q) * u """
+    wp.launch(
+        _calc_q_dot,
+        dim=(d.nworld, m.nbody),
+        inputs=[
+            m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
+            d.integration_done, d.qpos, d.qvel
+        ],
+        outputs=[d.qdot],
     )
 
 

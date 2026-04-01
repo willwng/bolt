@@ -22,7 +22,7 @@ def _process_limit_forces(
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
         # Data out:
-        qfrc_limit_out: wp.array2d(dtype=float),
+        ufrc_limit_out: wp.array2d(dtype=float),
 ):
     worldid, limitid = wp.tid()
     if integration_done_in[worldid]:
@@ -53,7 +53,7 @@ def _process_limit_forces(
     f_damp = -damping * (K_up / upper_stiffness + K_low / lower_stiffness) * qdot
     force = f_up + f_low + f_damp
 
-    wp.atomic_add(qfrc_limit_out, worldid, dof_adr, force)
+    wp.atomic_add(ufrc_limit_out, worldid, dof_adr, force)
     return
 
 
@@ -66,7 +66,7 @@ def _process_linear_stops(
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
         # Data out:
-        qfrc_limit_out: wp.array2d(dtype=float),
+        ufrc_limit_out: wp.array2d(dtype=float),
 ):
     worldid, limitid = wp.tid()
     if integration_done_in[worldid]:
@@ -90,7 +90,7 @@ def _process_linear_stops(
         force = wp.max(-stiffness * (q - qpos_range[0]) * (1.0 - damping * qdot), 0.0)
 
     # wp.printf("dof %d is %f, range is [%f, %f], force is %f\n", dof_qadr, qpos, dof_range[0], dof_range[1], force)
-    wp.atomic_add(qfrc_limit_out, worldid, dof_adr, force)
+    wp.atomic_add(ufrc_limit_out, worldid, dof_adr, force)
     return
 
 
@@ -103,7 +103,7 @@ def _process_swing_twist_limits(
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
         # Data out:
-        qfrc_limit_out: wp.array2d(dtype=float),
+        ufrc_limit_out: wp.array2d(dtype=float),
 ):
     worldid, limitid = wp.tid()
     if integration_done_in[worldid]:
@@ -178,9 +178,9 @@ def _process_swing_twist_limits(
 
     tau_corrective = twist_corrective + swing_corrective
     if wp.length(tau_corrective) > MSK_MINVAL:
-        wp.atomic_add(qfrc_limit_out[worldid], dof_adr + 0, tau_corrective.x)
-        wp.atomic_add(qfrc_limit_out[worldid], dof_adr + 1, tau_corrective.y)
-        wp.atomic_add(qfrc_limit_out[worldid], dof_adr + 2, tau_corrective.z)
+        wp.atomic_add(ufrc_limit_out[worldid], dof_adr + 0, tau_corrective.x)
+        wp.atomic_add(ufrc_limit_out[worldid], dof_adr + 1, tau_corrective.y)
+        wp.atomic_add(ufrc_limit_out[worldid], dof_adr + 2, tau_corrective.z)
     return
 
 
@@ -193,7 +193,7 @@ def linear_stop_force(m: Model, d: Data):
             m.coordinate_linear_stop,
             d.integration_done, d.qpos, d.qvel
         ],
-        outputs=[d.qfrc_limit,],
+        outputs=[d.ufrc_limit,],
     )
     return
 
@@ -207,7 +207,7 @@ def coordinate_limit_force(m: Model, d: Data):
             m.coordinate_limit_force,
             d.integration_done, d.qpos, d.qvel
         ],
-        outputs=[d.qfrc_limit,],
+        outputs=[d.ufrc_limit,],
     )
     return
 
@@ -221,6 +221,6 @@ def swing_twist_limit_force(m: Model, d: Data):
             m.swing_twist_limit,
             d.integration_done, d.qpos, d.qvel
         ],
-        outputs=[d.qfrc_limit,],
+        outputs=[d.ufrc_limit,],
     )
     return

@@ -204,24 +204,24 @@ def joint_accelerations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qacc)
 
 
-def qfrc_spring(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.qfrc_spring)
+def ufrc_spring(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.ufrc_spring)
 
 
-def qfrc_damper(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.qfrc_damper)
+def ufrc_damper(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.ufrc_damper)
 
 
-def qfrc_muscle(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.qfrc_muscle)
+def ufrc_muscle(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.ufrc_muscle)
 
 
-def qfrc_actuator(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.qfrc_actuator)
+def ufrc_actuator(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.ufrc_actuator)
 
 
-def qfrc_limit(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.qfrc_limit)
+def ufrc_limit(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.ufrc_limit)
 
 
 # -- Muscles ---

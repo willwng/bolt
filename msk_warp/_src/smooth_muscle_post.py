@@ -10,13 +10,13 @@ wp.set_module_options({"enable_backward": False})
 
 
 @event_scope
-def copy_qfrc_into_moment_arm(m: Model, d: Data, muscle_id: int, qfrc: wp.array2d(dtype=float)):
+def copy_ufrc_into_moment_arm(m: Model, d: Data, muscle_id: int, ufrc: wp.array2d(dtype=float)):
     @wp.kernel
-    def _copy_qfrc_into_moment_arm_kernel(
+    def _copy_ufrc_into_moment_arm_kernel(
             # Model:
             muscle_metadata: wp.array(dtype=MuscleMetadata),
             # Data in:
-            qfrc_in: wp.array2d(dtype=float),
+            ufrc_in: wp.array2d(dtype=float),
             # In:
             muscleid: int,
             # Data out:
@@ -26,17 +26,17 @@ def copy_qfrc_into_moment_arm(m: Model, d: Data, muscle_id: int, qfrc: wp.array2
         if muscle_metadata[muscleid].fn_based_path:  # fn-based paths are already done
             return
         nv = wp.static(m.nv)
-        qfrc_tile = wp.tile_load(qfrc_in[worldid], shape=nv)
-        wp.tile_store(muscle_moment_arm_out[worldid, muscleid], qfrc_tile)
+        ufrc_tile = wp.tile_load(ufrc_in[worldid], shape=nv)
+        wp.tile_store(muscle_moment_arm_out[worldid, muscleid], ufrc_tile)
         return
 
     if m.nmuscle:
         wp.launch_tiled(
-            _copy_qfrc_into_moment_arm_kernel,
+            _copy_ufrc_into_moment_arm_kernel,
             dim=(d.nworld,),
             inputs=[
                 m.muscle_metadata,
-                qfrc,
+                ufrc,
                 muscle_id,
             ],
             outputs=[d.muscle_moment_arm],

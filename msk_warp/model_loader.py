@@ -227,7 +227,6 @@ def load_model(
     fn_path_term_start, fn_path_term_count = function_based_path_helper.compute_fn_path_term_start_and_count(
         converted_function_paths)
     fn_path_qpos_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, qpos_ordering)
-    fn_path_dof_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, dof_ordering)
     fn_path_dimension = function_based_path_helper.get_fn_path_dimension(converted_function_paths)
     fn_path_order = function_based_path_helper.get_fn_path_order(converted_function_paths)
 
@@ -382,7 +381,6 @@ def load_model(
         fn_path_term_start=to_warp_array(fn_path_term_start, dtype=int),
         fn_path_term_count=to_warp_array(fn_path_term_count, dtype=int),
         fn_path_qpos_adr=to_warp_array(fn_path_qpos_adr, dtype=PolyInts),
-        fn_path_dof_adr=to_warp_array(fn_path_dof_adr, dtype=PolyInts),
         fn_path_dimension=to_warp_array(fn_path_dimension, dtype=int),
         fn_path_order=to_warp_array(fn_path_order, dtype=int),
 
@@ -468,6 +466,7 @@ def load_model(
 
         grf=make_zero((n_worlds,), dtype=wp.vec3),
 
+        qdot=make_zero((n_worlds, nq), dtype=float),
         qacc=make_zero((n_worlds, nv), dtype=float),
         m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
         a_act_dot=make_zero((n_worlds, nactuator), dtype=float),
@@ -522,7 +521,7 @@ def load_model(
 
         muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_moment_arm=make_zero((n_worlds, nmuscle, nv), dtype=float),
+        muscle_moment_arm=make_zero((n_worlds, nmuscle, nq), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_metabolic=make_zero((n_worlds, nmuscle), dtype=float),
 
@@ -537,14 +536,15 @@ def load_model(
         body_F_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
-        qfrc_applied=make_zero((n_worlds, nv), dtype=float),
-        qfrc_spring=make_zero((n_worlds, nv), dtype=float),
-        qfrc_damper=make_zero((n_worlds, nv), dtype=float),
-        qfrc_muscle=make_zero((n_worlds, nv), dtype=float),
-        qfrc_actuator=make_zero((n_worlds, nv), dtype=float),
-        qfrc_limit=make_zero((n_worlds, nv), dtype=float),
+        ufrc_applied=make_zero((n_worlds, nv), dtype=float),
+        ufrc_spring=make_zero((n_worlds, nv), dtype=float),
+        ufrc_damper=make_zero((n_worlds, nv), dtype=float),
+        qfrc_muscle=make_zero((n_worlds, nq), dtype=float),
+        ufrc_muscle=make_zero((n_worlds, nv), dtype=float),
+        ufrc_actuator=make_zero((n_worlds, nv), dtype=float),
+        ufrc_limit=make_zero((n_worlds, nv), dtype=float),
 
-        qfrc_total=make_zero((n_worlds, nv), dtype=float),
+        ufrc_total=make_zero((n_worlds, nv), dtype=float),
 
         contact=Contact(
             dist=make_zero(naconmax, dtype=float),

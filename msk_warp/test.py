@@ -59,8 +59,8 @@ def main():
     # model_path = "data/osim/athlete_ball.osim"
     # model_path = "data/osim/athlete_notball.osim"
     # model_path = "data/osim/Scaled_FullBody_HamnerModel_Muscle_withContact.osim"
-    # polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
-    polynomial_data_path = None
+    polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
+    # polynomial_data_path = None
     # polynomial_data_path = "data/function_paths/scaled_model_function.xml"
     # model_path = "data/osim/athlete2.osim"
     # model_path = "data/osim/simple.osim"
@@ -90,7 +90,7 @@ def main():
         return load_result.muscle_id_lookup[name]
 
     qpos = wp.to_torch(d.qpos)
-    qfrc = wp.to_torch(d.qfrc_total)
+    ufrc = wp.to_torch(d.ufrc_total)
     qvel = wp.to_torch(d.qvel)
     qpos[:, qpos_id("pelvis_ty")] = 1.05
     # qpos[:, qpos_id("lumbar_extension")] = -0.2

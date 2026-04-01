@@ -18,7 +18,7 @@ def _process_joint_limits(
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         # Data out:
-        qfrc_limit_out: wp.array2d(dtype=float),
+        ufrc_limit_out: wp.array2d(dtype=float),
 ):
     worldid, limitdofid = wp.tid()
     if integration_done_in[worldid]:
@@ -33,7 +33,7 @@ def _process_joint_limits(
     force = limit_forces[0] * wp.exp(-shape_factors[0] * (qpos - dof_range[0])) - \
             limit_forces[1] * wp.exp(shape_factors[1] * (qpos - dof_range[1]))
 
-    wp.atomic_add(qfrc_limit_out, worldid, dof_adr, force)
+    wp.atomic_add(ufrc_limit_out, worldid, dof_adr, force)
 
 
 def limit_forces(m: Model, d: Data):
@@ -50,7 +50,7 @@ def limit_forces(m: Model, d: Data):
             d.qpos,
         ],
         outputs=[
-            d.qfrc_limit,
+            d.ufrc_limit,
         ],
     )
     return

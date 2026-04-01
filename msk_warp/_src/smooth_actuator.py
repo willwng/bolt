@@ -52,14 +52,14 @@ def _compute_activation_dot(
 
 
 @wp.kernel
-def _qfrc_actuators(
+def _ufrc_actuators(
         # Model in:
         actuator_metadata: wp.array(dtype=ActuatorMetadata),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         a_act_in: wp.array2d(dtype=float),
         # Data out:
-        qfrc_actuator_out: wp.array2d(dtype=float),
+        ufrc_actuator_out: wp.array2d(dtype=float),
 ):
     worldid, actuator_id = wp.tid()
     if integration_done_in[worldid]:
@@ -67,7 +67,7 @@ def _qfrc_actuators(
     am = actuator_metadata[actuator_id]
     activation = a_act_in[worldid, actuator_id]
     actuation = (activation - 0.5) * 2.0 * am.optimal_force
-    wp.atomic_add(qfrc_actuator_out[worldid], am.coordinate, actuation)
+    wp.atomic_add(ufrc_actuator_out[worldid], am.coordinate, actuation)
     return
 
 
@@ -94,8 +94,8 @@ def activation_dynamics(m: Model, d: Data):
 @event_scope
 def actuator_force(m: Model, d: Data):
     wp.launch(
-        _qfrc_actuators,
+        _ufrc_actuators,
         dim=(d.nworld, m.nactuator),
         inputs=[m.actuator_metadata, d.integration_done, d.a_act],
-        outputs=[d.qfrc_actuator],
+        outputs=[d.ufrc_actuator],
     )

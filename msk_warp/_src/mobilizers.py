@@ -478,9 +478,9 @@ def integrate(
 
 @wp.func
 def multiply_by_N(
+        mobtype: int,
         qpos: wp.array(dtype=float),
         qvel: wp.array(dtype=float),
-        mobtype: int,
         qpos_adr: int,
         dof_adr: int,
         dof_num: int,
@@ -525,6 +525,50 @@ def multiply_by_N(
 
 
 @wp.func
+def multiply_by_N_transpose(
+        mobtype: int,
+        qpos: wp.array(dtype=float),
+        qfrc: wp.array(dtype=float),
+        qpos_adr: int,
+        dof_adr: int,
+        dof_num: int,
+        # Out
+        ufrc: wp.array(dtype=float),
+):
+    """ Maps from q_force to u_force (N^T q_force = u_force) """
+    if mobtype == MobilizerType.FREE:
+        rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
+        f_q_rot = wp.vec4(qfrc[qpos_adr + 0], qfrc[qpos_adr + 1], qfrc[qpos_adr + 2], qfrc[qpos_adr + 3])
+        f_u_rot = wp.transpose(math.calc_unnormalized_quaternion_N(rot)) @ f_q_rot
+        ufrc[dof_adr + 0] = f_u_rot[0]
+        ufrc[dof_adr + 1] = f_u_rot[1]
+        ufrc[dof_adr + 2] = f_u_rot[2]
+        ufrc[dof_adr + 3] = qfrc[qpos_adr + 4]
+        ufrc[dof_adr + 4] = qfrc[qpos_adr + 5]
+        ufrc[dof_adr + 5] = qfrc[qpos_adr + 6]
+    elif mobtype == MobilizerType.BALL:
+        rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
+        f_q_rot = wp.vec4(qfrc[qpos_adr + 0], qfrc[qpos_adr + 1], qfrc[qpos_adr + 2], qfrc[qpos_adr + 3])
+        f_u_rot = wp.transpose(math.calc_unnormalized_quaternion_N(rot)) @ f_q_rot
+        ufrc[dof_adr + 0] = f_u_rot[0]
+        ufrc[dof_adr + 1] = f_u_rot[1]
+        ufrc[dof_adr + 2] = f_u_rot[2]
+    elif mobtype == MobilizerType.ELLIPSOID:
+        cosxy = wp.vec2(wp.cos(qpos[qpos_adr + 0]), wp.cos(qpos[qpos_adr + 1]))
+        sinxy = wp.vec2(wp.sin(qpos[qpos_adr + 0]), wp.sin(qpos[qpos_adr + 1]))
+        oocosy = 1.0 / wp.cos(qpos[qpos_adr + 1])
+        f_q_eul = wp.vec3(qfrc[qpos_adr + 0], qfrc[qpos_adr + 1], qfrc[qpos_adr + 2])
+        f_u_eul = math.mul_body_xyz_NT(cosxy, sinxy, oocosy, f_q_eul)
+        ufrc[dof_adr + 0] = f_u_eul[0]
+        ufrc[dof_adr + 1] = f_u_eul[1]
+        ufrc[dof_adr + 2] = f_u_eul[2]
+    else:  # standard, N is the identity matrix
+        for i in range(dof_num):
+            ufrc[dof_adr + i] = qfrc[qpos_adr + i]
+    return
+
+
+@wp.func
 def multiply_by_N_inv(
         qpos: wp.array(dtype=float),
         dq: wp.array(dtype=float),
@@ -535,6 +579,7 @@ def multiply_by_N_inv(
         # Out
         qvel_out: wp.array(dtype=float),
 ):
+    """ Maps from q_dot to u (N^-1 q_dot = u) """
     if mobtype == MobilizerType.FREE:
         # rotation first
         rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
@@ -653,9 +698,9 @@ def multiply_N_kernel(
     dof_num = mob_dofnum[bodyid]
 
     multiply_by_N(
+        mob_type_,
         qpos,
         qvel_scaled[worldid],
-        mob_type_,
         qpos_adr,
         dof_adr,
         dof_num,

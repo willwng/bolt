@@ -484,9 +484,8 @@ class Model:
 
      * muscle function-based paths *
       fn_path_qpos_adr: qpos adr for each muscle fn path term      (nmuscle, PolyInt)
-      fn_path_dof_adr: dof adr for each muscle fn path term        (nmuscle, PolyInt)
-      fn_path_dimension: number of dependent variables                  (nmuscle,)
-      fn_path_order: order of polynomial function                       (nmuscle,)
+      fn_path_dimension: number of dependent variables             (nmuscle,)
+      fn_path_order: order of polynomial function                  (nmuscle,)
       fn_path_term_start: starting adr of each muscle's terms      (nmuscle,)
       fn_path_term_count: number of terms for each muscle's path   (nmuscle,)
       fn_path_term_coeffs: coefficients for each fn path term      (nmuscle, num_fn_terms)
@@ -602,7 +601,6 @@ class Model:
     muscle_dep_dof_adr: array("nmuscle", int)
 
     fn_path_qpos_adr: array("nmuscle", PolyInts)
-    fn_path_dof_adr: array("nmuscle", PolyInts)
     fn_path_dimension: array("nmuscle", int)
     fn_path_order: array("nmuscle", int)
     fn_path_term_start: array("nmuscle", int)
@@ -683,8 +681,8 @@ class Data:
 
       * Current state *
       time: simulation time                                       (nworld,)
-      qpos: position                                              (nworld, nq)
-      qvel: velocity                                              (nworld, nv)
+      qpos: generalized position                                  (nworld, nq)
+      qvel: generalized speeds                                    (nworld, nv)
       m_state: muscle state variable                              (nworld, nmuscles)
       m_act: muscle activation                                    (nworld, nmuscles)
       a_act: actuator activation                                  (nworld, nactuator)
@@ -694,26 +692,33 @@ class Data:
       a_excitations: actuator excitations                         (nworld, nactuator)
 
      * State derivatives *
+      qdot: derived from qvel, i.e. qdot = N(q) @ qvel            (nworld, nq)
       qacc: acceleration                                          (nworld, nv)
       m_state_dot: time-derivative of muscle state variable       (nworld, nmuscles)
       m_act_dot: time-derivative of actuator activation           (nworld, na)
       a_act_dot: time-derivative of actuator activation           (nworld, nactuator)
 
-     * simulator forces *
+     *
+        simulator forces.
+        body_F_ are Cartesian forces applied to bodies.
+        ufrc_ are generalized forces (in generalized speed space)
+        qfrc_ are generalized forces (in generalized position space, need to be converted)
+     *
       body_F_gravity: gravity Cartesian force/torque on body      (nworld, nbody, 6)
       body_F_contact: contact Cartesian force/torque on body      (nworld, nbody, 6)
       body_F_muscle: muscle Cartesian force/torque on body        (nworld, nbody, 6)
       body_F_drag: drag Cartesian force/torque on body            (nworld, nbody, 6)
       body_F: net Cartesian force/torque on body                  (nworld, nbody, 6)
-      qfrc_spring: passive spring force                           (nworld, nv)
-      qfrc_damper: passive damper force                           (nworld, nv)
-      qfrc_muscle: muscle generalized force                       (nworld, nv)
-      qfrc_actuator: actuator generalized force                   (nworld, nv)
-      qfrc_limit: dof limit generalized force                     (nworld, nv)
-      qfrc_total: net generalized force                           (nworld, nv)
+      ufrc_spring: passive spring force                           (nworld, nv)
+      ufrc_damper: passive damper force                           (nworld, nv)
+      qfrc_muscle: muscle generalized force in qpos space         (nworld, nq)
+      ufrc_muscle: muscle generalized force                       (nworld, nv)
+      ufrc_actuator: actuator generalized force                   (nworld, nv)
+      ufrc_limit: dof limit generalized force                     (nworld, nv)
+      ufrc_total: net generalized force                           (nworld, nv)
 
      * user-facing forces *
-      qfrc_applied: user-facing applied generalized force         (nworld, nv)
+      ufrc_applied: user-facing applied generalized force         (nworld, nv)
       xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
 
      * post-dynamics analytics *
@@ -778,7 +783,7 @@ class Data:
       site_vel_G: site velocity measured in ground                (nworld, nsite, 3)
 
      * function-based muscle paths
-      muscle_moment_arm: moment arm of muscle along each dof       (nworld, nmuscle, nv)
+      muscle_moment_arm: moment arm of muscle r = dL/dq           (nworld, nmuscle, nq)
 
      * muscle dynamics
       muscle_length_info: info for muscle length calculation      (nworld, nmuscle)
@@ -813,6 +818,7 @@ class Data:
     m_excitations: array("nworld", "nmuscle", float)
     a_excitations: array("nworld", "nactuator", float)
 
+    qdot: array("nworld", "nv", float)
     qacc: array("nworld", "nv", float)
     m_state_dot: array("nworld", "nmuscle", float)
     m_act_dot: array("nworld", "nmuscle", float)
@@ -823,14 +829,15 @@ class Data:
     body_F_muscle: array("nworld", "nbody", wp.spatial_vector)
     body_F_drag: array("nworld", "nbody", wp.spatial_vector)
     body_F: array("nworld", "nbody", wp.spatial_vector)
-    qfrc_spring: wp.array2d(dtype=float)
-    qfrc_damper: wp.array2d(dtype=float)
+    ufrc_spring: wp.array2d(dtype=float)
+    ufrc_damper: wp.array2d(dtype=float)
     qfrc_muscle: wp.array2d(dtype=float)
-    qfrc_actuator: wp.array2d(dtype=float)
-    qfrc_limit: wp.array2d(dtype=float)
-    qfrc_total: wp.array2d(dtype=float)
+    ufrc_muscle: wp.array2d(dtype=float)
+    ufrc_actuator: wp.array2d(dtype=float)
+    ufrc_limit: wp.array2d(dtype=float)
+    ufrc_total: wp.array2d(dtype=float)
 
-    qfrc_applied: array("nworld", "nv", float)
+    ufrc_applied: array("nworld", "nv", float)
     xfrc_applied: array("nworld", "nbody", wp.spatial_vector)
 
     grf: array("nworld", wp.vec3)

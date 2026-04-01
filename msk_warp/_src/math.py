@@ -419,10 +419,22 @@ def calc_unnormalized_quaternion_N_inv(q: wp.quat) -> types.mat34:
 
 @wp.func
 def mul_body_xyz_N(cosxy: wp.vec2, sinxy: wp.vec2, oocosy: float, w: wp.vec3) -> wp.vec3:
-    s0, s1, c0 = sinxy[0], sinxy[1], cosxy[0]
+    s0, c0 = sinxy[0], cosxy[0]
+    s1 = sinxy[1]
     w0, w1, w2 = w[0], w[1], w[2]
+
     t = (s0 * w1 - c0 * w2) * oocosy
     return wp.vec3(w0 + t * s1, c0 * w1 + s0 * w2, -t)
+
+
+@wp.func
+def mul_body_xyz_NT(cosxy: wp.vec2, sinxy: wp.vec2, oocosy: float, q: wp.vec3) -> wp.vec3:
+    s0, c0 = sinxy[0], cosxy[0]
+    s1 = sinxy[1]
+    q0, q1, q2 = q[0], q[1], q[2]
+
+    t = (q0 * s1 - q2) * oocosy
+    return wp.vec3(q0, c0 * q1 + t * s0, s0 * q1 - t * c0)
 
 
 @wp.func
