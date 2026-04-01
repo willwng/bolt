@@ -23,6 +23,7 @@ class OSimType:
     Muscle = osim.simulation.Muscle
     MillardMuscle = osim.Millard2012EquilibriumMuscle
     ThelenMuscle = osim.Thelen2003Muscle
+    Path = osim.AbstractGeometryPath
     ScholzPath = osim.Scholz2015GeometryPath
     GeometryPath = osim.GeometryPath
     FunctionBasedPath = osim.FunctionBasedPath

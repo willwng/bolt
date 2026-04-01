@@ -63,7 +63,7 @@ def is_fiber_state_clamped(
 
 
 @wp.func
-def clamp_fiber_length(
+def clamp_norm_fiber_length(
         norm_fiber_length: float,
         min_norm_fiber_length: float,
         max_norm_fiber_length: float
@@ -71,6 +71,18 @@ def clamp_fiber_length(
     return wp.clamp(norm_fiber_length,
                     min_norm_fiber_length,
                     max_norm_fiber_length)
+
+
+@wp.func
+def clamp_fiber_length(
+        norm_fiber_length: float,
+        optimal_fiber_length: float,
+        min_norm_fiber_length: float,
+        max_norm_fiber_length: float,
+) -> float:
+    return wp.clamp(norm_fiber_length,
+                    min_norm_fiber_length * optimal_fiber_length,
+                    max_norm_fiber_length * optimal_fiber_length)
 
 
 @wp.func

@@ -147,7 +147,7 @@ def _equilibrate(
     fiber_length = res_best.fiber_length
     norm_fiber_length = fiber_length / metadata.optimal_fiber_length
 
-    mstate_out[worldid, muscle_id] = dgf.clamp_fiber_length(
+    mstate_out[worldid, muscle_id] = dgf.clamp_norm_fiber_length(
         norm_fiber_length, metadata.min_norm_fiber_length,
         metadata.max_norm_fiber_length)
     return
@@ -188,8 +188,16 @@ def _contraction_dynamics_fused_kernel(
             tendon_slack_length=mm.tendon_slack_length,
             minimum_fiber_length=mm.min_norm_fiber_length * mm.optimal_fiber_length
         )
+        fiber_length = dgf.clamp_fiber_length(
+            fiber_length,
+            mm.optimal_fiber_length,
+            mm.min_norm_fiber_length,
+            mm.max_norm_fiber_length
+        )
+
         norm_fiber_length = fiber_length / mm.optimal_fiber_length
-    else:  # elastic tendon, fiber length is determined by state variable
+
+    else:  # elastic tendon, fiber length is determined by state variable, already is clamped
         norm_fiber_length = mstate_in[worldid, muscle_id]
         fiber_length = norm_fiber_length * mm.optimal_fiber_length
 

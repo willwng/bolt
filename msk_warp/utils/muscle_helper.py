@@ -54,24 +54,34 @@ def get_muscles(model: OSimType.Model) -> list[osim.Muscle]:
     return list(muscles)
 
 
+def convert_path(muscle_path: OSimType.Path) -> list[SiteData]:
+    """ Converts an OpenSim Path to a list of SiteData """
+    if muscle_path.getConcreteClassName() == "Scholz2015GeometryPath":
+        muscle_path = OSimType.ScholzPath.safeDownCast(muscle_path)
+        return collect_scholz_path_points(muscle_path)
+    elif muscle_path.getConcreteClassName() == "GeometryPath":
+        muscle_path = OSimType.GeometryPath.safeDownCast(muscle_path)
+        return collect_geometry_path_points(muscle_path)
+    elif muscle_path.getConcreteClassName() == "FunctionBasedPath":
+        muscle_path = OSimType.FunctionBasedPath.safeDownCast(muscle_path)
+        raise ValueError(f"Use the inputted polynomial path. TODO: support this better")
+    else:
+        raise ValueError(f"Unsupported muscle path type: {muscle_path.getConcreteClassName()}")
+
+
 def convert_muscles(model: OSimType.Model) -> list[MuscleData]:
     """ Returns the all the converted Muscles in the model """
     muscle_data = []
     muscles = get_muscles(model)
     for muscle in muscles:
-        # Only handle MillardMuscles for now with ScholzPath. todo(future)
         if muscle.getConcreteClassName() == "Millard2012EquilibriumMuscle":
             muscle = OSimType.MillardMuscle.safeDownCast(muscle)
             muscle_name = muscle.getName()
-            muscle_path = OSimType.ScholzPath.safeDownCast(muscle.getPath())
             fiber_damping = muscle.get_fiber_damping()
-            path_points = collect_scholz_path_points(muscle_path)
         elif muscle.getConcreteClassName() == "Thelen2003Muscle":
             muscle = OSimType.ThelenMuscle.safeDownCast(muscle)
             muscle_name = muscle.getName()
-            muscle_path = OSimType.GeometryPath.safeDownCast(muscle.getPath())
             fiber_damping = 0.01
-            path_points = collect_geometry_path_points(muscle_path)
         else:
             raise ValueError(f"Unsupported muscle type: {muscle.getConcreteClassName()} for muscle {muscle.getName()}")
 
@@ -90,7 +100,7 @@ def convert_muscles(model: OSimType.Model) -> list[MuscleData]:
                 pennation_angle_at_optimal=muscle.get_pennation_angle_at_optimal(),
                 fiber_damping=fiber_damping,
 
-                path_points=path_points,
+                path_points=convert_path(muscle.getPath())
             )
         )
 
