@@ -231,15 +231,18 @@ def damping(m: Model, d: Data):
 @event_scope
 def qfrc_to_ufrc(m: Model, d: Data):
     """ Converts all forces in qpos space to u space """
-    wp.launch(
-        _calc_ufrc_from_qfrc,
-        dim=(d.nworld, m.nbody),
-        inputs=[
-            m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
-            d.integration_done, d.qpos, d.qfrc_muscle
-        ],
-        outputs=[d.ufrc_muscle],
-    )
+    def qfrc_to_ufrc_helper(qfrc_in, ufrc_out):
+        wp.launch(
+            _calc_ufrc_from_qfrc,
+            dim=(d.nworld, m.nbody),
+            inputs=[
+                m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
+                d.integration_done, d.qpos, qfrc_in
+            ],
+            outputs=[ufrc_out],
+        )
+
+    qfrc_to_ufrc_helper(d.qfrc_muscle, d.ufrc_muscle)
 
 
 @event_scope

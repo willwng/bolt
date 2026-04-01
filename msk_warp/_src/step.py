@@ -34,7 +34,7 @@ def step(m: Model, d: Data):
     """ Steps from d.time to d.next_time """
     if wp.static(m.opt.integrator) == IntegratorType.EULER_FIXED:
         integrate_euler_fixed.integrate(m, d)
-    if wp.static(m.opt.integrator) == IntegratorType.EULER_MIDPOINT_FIXED:
+    elif wp.static(m.opt.integrator) == IntegratorType.EULER_MIDPOINT_FIXED:
         integrate_euler_midpoint_fixed.integrate(m, d)
     elif wp.static(m.opt.integrator) == IntegratorType.RK4_FIXED:
         integrate_rk_fixed.integrate(m, d)
