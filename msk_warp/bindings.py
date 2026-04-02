@@ -110,7 +110,7 @@ def get_num_actuators(m: Model) -> int:
 
 
 def get_num_limits(m: Model) -> int:
-    return m.nlinearstop + m.nlimitforce + (3 * m.nswingtwist)
+    return m.nlimitforce + (3 * m.nswingtwist)
 
 
 def get_qpos_adr(m: Model, body_id: int) -> torch.Tensor:
