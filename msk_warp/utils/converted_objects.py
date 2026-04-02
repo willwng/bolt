@@ -114,27 +114,11 @@ class SpatialTransformData:
 
 
 @dataclass
-class CoordinateLinearSpringData:
-    name: str
-    coordinate: str
-    default_stiffness: float
-    rest_length: float  # coordinate value at which the spring produces no force
-
-
-@dataclass
-class CoordinateLinearDamperData:
-    name: str
-    coordinate: str
-    damping: float
-
-
-@dataclass
-class CoordinateLinearStopData:
+class SpringGeneralizedForceData:
     name: str
     coordinate: str
     stiffness: float
-    damping: float
-    range: wp.vec2
+    viscosity: float
 
 
 @dataclass
@@ -157,14 +141,6 @@ class SwingTwistLimitData:
     twist_limits: wp.vec2
     swing1_limits: wp.vec2
     swing2_limits: wp.vec2
-
-
-@dataclass
-class SpringGeneralizedForceData:
-    name: str
-    coordinate: str
-    stiffness: float
-    viscosity: float
 
 
 @dataclass
