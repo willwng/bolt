@@ -177,6 +177,7 @@ def reset_forces(m: Model, d: Data):
     d.ufrc_actuator.zero_()
     d.ufrc_limit.zero_()
 
+    d.grf.zero_()
     d.geom_cforce.zero_()
 
 

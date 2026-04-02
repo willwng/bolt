@@ -52,6 +52,7 @@ def create_renderer(
         draw_muscles: bool,
         draw_body_mass: bool,
         draw_beams: bool,
+        draw_sites: bool,
 ):
     viewer = Renderer(
         m=load_result.model,
@@ -60,7 +61,8 @@ def create_renderer(
         draw_visuals=draw_visuals,
         draw_muscles=draw_muscles,
         draw_body_mass=draw_body_mass,
-        draw_beams=draw_beams
+        draw_beams=draw_beams,
+        draw_sites=draw_sites,
     )
     viewer.load_meshes(load_result.mesh_load_results)
     return viewer
@@ -250,7 +252,7 @@ def muscle_path_velocities(d: Data) -> torch.Tensor:
 
 
 def muscle_fiber_lengths(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.m_state)
+    return wp.to_torch(d.muscle_norm_fiber_length)
 
 
 def muscle_fiber_velocities(d: Data) -> torch.Tensor:

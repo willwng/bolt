@@ -1,10 +1,12 @@
 import warp as wp
 
+from . import math
 from . import mobilizers
 from .types import ActuatorMetadata
 from .types import Data
 from .types import Model
 from .types import MuscleMetadata
+from .types import ExponentialContact
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -148,6 +150,44 @@ def _next_actuator_activation(
 
 
 @wp.kernel
+def _next_exp_contact_state(
+        # Model:
+        exp_contact: wp.array(dtype=ExponentialContact),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        exp_contact_state_dot_in: wp.array2d(dtype=wp.vec4),
+        actual_step_size_in: wp.array(dtype=float),
+        # In:
+        scale: float,
+        # Data out:
+        exp_contact_state_out: wp.array2d(dtype=wp.vec4),
+):
+    worldid, conid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+    step_size = actual_step_size_in[worldid] * scale
+
+    contact = exp_contact[conid]
+    settle_velocity = contact.settle_velocity
+
+    # State_dot holds wp.length(p0_delta), p0.x, p0.y, p0.z
+    state_dot = exp_contact_state_dot_in[worldid, conid]
+    p0_delta_length = state_dot[0]
+    p0 = wp.vec3(state_dot[1], state_dot[2], state_dot[3])
+
+    # Compute new sliding state (K)
+    K = 1.0
+    if p0_delta_length > 0.0:
+        speed = p0_delta_length / step_size
+        speed_frac = speed / settle_velocity
+        K = math.step_up(wp.clamp(speed_frac, 0.0, 1.0))
+
+    # Update state
+    exp_contact_state_out[worldid, conid] = wp.vec4(K, p0.x, p0.y, p0.z)
+
+
+
+@wp.kernel
 def _next_time(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
@@ -209,6 +249,14 @@ def advance(
             dim=(d.nworld, m.nactuator),
             inputs=[m.actuator_metadata, d.integration_done, d.a_act, d.a_act_dot, d.actual_step_size, scale],
             outputs=[d.a_act],
+        )
+
+    if m.nexpcontact:
+        wp.launch(
+            _next_exp_contact_state,
+            dim=(d.nworld, m.nexpcontact),
+            inputs=[m.exp_contact, d.integration_done, d.exp_contact_state_dot, d.actual_step_size, scale],
+            outputs=[d.exp_contact_state],
         )
 
     if symplectic:

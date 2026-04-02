@@ -41,10 +41,8 @@ class OSimType:
     ContactSphere = osim.ContactSphere
     ContactEllipsoid = osim.ContactEllipsoid
     ContactHalfSpace = osim.ContactHalfSpace
+    ExponentialContactForce = osim.ExponentialContactForce
 
-    CoordinateLinearDamper = osim.CoordinateLinearDamper
-    CoordinateLinearStop = osim.CoordinateLinearStop
-    CoordinateLinearSpring = osim.CoordinateLinearSpring
     SpringGeneralizedForce = osim.SpringGeneralizedForce
     CoordinateLimitForce = osim.CoordinateLimitForce
     ActivationCoordinateActuator = osim.ActivationCoordinateActuator

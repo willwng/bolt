@@ -123,15 +123,6 @@ class ArticulatedInertia:
 
 
 @wp.struct
-class CoordinateLinearStop:
-    qpos_range: wp.vec2
-    qpos_adr: int
-    dof_adr: int
-    stiffness: float
-    damping: float
-
-
-@wp.struct
 class CoordinateLimitForce:
     qpos_range: wp.vec2
     qpos_adr: int
@@ -151,6 +142,23 @@ class SwingTwistLimit:
     swing2_range: wp.vec2
     stiffness: float
     damping: float
+
+
+@wp.struct
+class ExponentialContact:
+    contact_plane_transform: wp.transform
+    shape_parameters: wp.vec3
+    normal_viscosity: float
+    max_normal_force: float
+    friction_elasticity: float
+    friction_viscosity: float
+    settle_velocity: float
+    initial_mu_static: float
+    initial_mu_kinetic: float
+
+    siteid: int
+    bodyid: int
+    station_B: wp.vec3
 
 
 def array(*args) -> wp.array:
@@ -390,9 +398,9 @@ class Model:
       njnts_cst: number of custom joints
       nbeams: number of beam joints
       ngeom: number of collision geometry
+      nexpcontact: number of exponential contact forces
       nvis: number of visual geometry
       nsite: number of sites
-      nlinearstop: number of (CoordinateLinearStop) limits
       nlimitforce: number of (CoordinateLimitForce) limits
       nswingtwist: number of swing-twist limits
 
@@ -448,7 +456,6 @@ class Model:
       qpos_spring_rest: rest position for dof spring           (nq,)
 
      * limits *
-      coordinate_linear_stop: Hunt-Crossley like joint limits  (nlinearstop, CoordinateLinearStop)
       coordinate_limit_force: coordinate limit forces          (nlimitforce, CoordinateLimitForce)
       swing_twist_limit: swing-twist limits for quaternions    (nswingtwist, SwingTwistLimit)
 
@@ -464,6 +471,8 @@ class Model:
       geom_priority: collision priority (Hunt-Crossley)        (ngeom,)
       geom_aabb: axis-aligned bounding box (center, size)      (ngeom, 2, 3)
       geom_rbound: bounding sphere radius                      (ngeom,)
+
+      exp_contact: exponential contact force parameters        (nexpcontact, ExponentialContact)
 
      * colliders *
       geom_pair_type_count: count of max number of each potential collision
@@ -501,9 +510,9 @@ class Model:
     njnts_cst: int
     nbeams: int
     ngeom: int
+    nexpcontact: int
     nvis: int
     nsite: int
-    nlinearstop: int
     nlimitforce: int
     nswingtwist: int
 
@@ -559,7 +568,6 @@ class Model:
     dof_stiffness: array("nv", float)
     qpos_spring_rest: array("nq", float)
 
-    coordinate_linear_stop: array("nlinearstop", CoordinateLinearStop)
     coordinate_limit_force: array("nlimitforce", CoordinateLimitForce)
     swing_twist_limit: array("nswingtwist", SwingTwistLimit)
 
@@ -575,6 +583,8 @@ class Model:
     geom_priority: array("ngeom", int)
     geom_aabb: array("ngeom", 2, wp.vec3)
     geom_rbound: array("ngeom", float)
+
+    exp_contact: array("nexpcontact", ExponentialContact)
 
     geom_pair_type_count: tuple[int, ...]
     nxn_geom_pair_filtered: array("<=ngeom*(ngeom-1)/2", wp.vec2i)
@@ -650,6 +660,7 @@ class IntegratorStateScratch:
     m_state: wp.array2d(dtype=float)
     m_act: wp.array2d(dtype=float)
     a_act: wp.array2d(dtype=float)
+    exp_contact_state: wp.array2d(dtype=wp.vec4)
 
 
 @dataclass
@@ -659,6 +670,7 @@ class IntegratorDotScratch:
     m_state_dot: wp.array2d(dtype=float)
     m_act_dot: wp.array2d(dtype=float)
     a_act_dot: wp.array2d(dtype=float)
+    exp_contact_state_dot: wp.array2d(dtype=wp.vec4)
 
 
 @dataclass
@@ -686,6 +698,7 @@ class Data:
       m_state: muscle state variable                              (nworld, nmuscles)
       m_act: muscle activation                                    (nworld, nmuscles)
       a_act: actuator activation                                  (nworld, nactuator)
+      exp_contact_state: state variable for exponential contact   (nworld, nexpcontact, 4)
 
      * current controls *
       m_excitations: muscle excitations                           (nworld, nmuscles)
@@ -697,6 +710,7 @@ class Data:
       m_state_dot: time-derivative of muscle state variable       (nworld, nmuscles)
       m_act_dot: time-derivative of actuator activation           (nworld, na)
       a_act_dot: time-derivative of actuator activation           (nworld, nactuator)
+      exp_contact_state_dot: derivative info of exp contact state (nworld, nexpcontact, 4)
 
      *
         simulator forces.
@@ -789,6 +803,7 @@ class Data:
       muscle_length_info: info for muscle length calculation      (nworld, nmuscle)
       muscle_velocity_info: info for muscle velocity calculation  (nworld, nmuscle)
       muscle_dynamics_info: info for muscle force calculation     (nworld, nmuscle)
+      muscle_norm_fiber_length: norm fiber lengths (obs only)     (nworld, nmuscle)
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
       muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
 
@@ -814,6 +829,7 @@ class Data:
     m_state: array("nworld", "nmuscle", float)
     m_act: array("nworld", "nmuscle", float)
     a_act: array("nworld", "nactuator", float)
+    exp_contact_state: array("nworld", "nexpcontact", wp.vec4)
 
     m_excitations: array("nworld", "nmuscle", float)
     a_excitations: array("nworld", "nactuator", float)
@@ -823,6 +839,7 @@ class Data:
     m_state_dot: array("nworld", "nmuscle", float)
     m_act_dot: array("nworld", "nmuscle", float)
     a_act_dot: array("nworld", "nactuator", float)
+    exp_contact_state_dot: array("nworld", "nexpcontact", wp.vec4)
 
     body_F_gravity: array("nworld", "nbody", wp.spatial_vector)
     body_F_contact: array("nworld", "nbody", wp.spatial_vector)
@@ -898,6 +915,7 @@ class Data:
     muscle_length_info: wp.array2d(dtype=MuscleLengthInfo)
     muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
+    muscle_norm_fiber_length: wp.array2d(dtype=float)
     muscle_actuation: wp.array2d(dtype=float)
     muscle_metabolic: wp.array2d(dtype=float)
 

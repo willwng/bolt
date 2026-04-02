@@ -5,7 +5,6 @@ from .consts import MSK_MINVAL
 from .consts import MSK_SIG_REAL
 from .types import Data
 from .types import Model
-from .types import CoordinateLinearStop
 from .types import CoordinateLimitForce
 from .types import SwingTwistLimit
 from .warp_util import event_scope
@@ -33,63 +32,24 @@ def _process_limit_forces(
     qpos_adr = lf.qpos_adr
     dof_adr = lf.dof_adr
     stiffness = lf.stiffness
-    damping = lf.damping
+    damp = lf.damping
     transition = lf.transition
 
-    lower_limit, upper_limit = qpos_range[0], qpos_range[1]
+    q_low, q_up = qpos_range[0], qpos_range[1]
     lower_stiffness, upper_stiffness = stiffness[0], stiffness[1]
 
     q = qpos_in[worldid, qpos_adr]
     qdot = qvel_in[worldid, dof_adr]
 
-    # [lower_limit, upper_limit] -> no force
-    if q >= lower_limit and q <= upper_limit:
-        return
+    K_up = math.step_function(q, q_up, q_up + transition, 0.0, upper_stiffness)
+    K_low = math.step_function(q, q_low - transition, q_low, lower_stiffness, 0.0)
+    f_up = -K_up * (q - q_up)
+    f_low = K_low * (q_low - q)
+    # Dividing the stiffness by the constant yields the transition function that can also be applied to damping
+    f_damp = -damp * (K_up / upper_stiffness + K_low / lower_stiffness) * qdot
 
-    K_up = math.step_function(q, upper_limit, upper_limit + transition, 0.0, upper_stiffness)
-    K_low = math.step_function(q, lower_limit - transition, lower_limit, lower_stiffness, 0.0)
-    f_up = -K_up * (q - upper_limit)
-    f_low = K_low * (lower_limit - q)
-    f_damp = -damping * (K_up / upper_stiffness + K_low / lower_stiffness) * qdot
     force = f_up + f_low + f_damp
 
-    wp.atomic_add(ufrc_limit_out, worldid, dof_adr, force)
-    return
-
-
-@wp.kernel
-def _process_linear_stops(
-        # Model in:
-        coordinate_linear_stop: wp.array(dtype=CoordinateLinearStop),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        qpos_in: wp.array2d(dtype=float),
-        qvel_in: wp.array2d(dtype=float),
-        # Data out:
-        ufrc_limit_out: wp.array2d(dtype=float),
-):
-    worldid, limitid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-
-    stop = coordinate_linear_stop[limitid]
-    qpos_range = stop.qpos_range
-    qpos_adr = stop.qpos_adr
-    dof_adr = stop.dof_adr
-    stiffness = stop.stiffness
-    damping = stop.damping
-
-    q = qpos_in[worldid, qpos_adr]
-    qdot = qvel_in[worldid, dof_adr]
-
-    if q >= qpos_range[0] and q <= qpos_range[1]:
-        return
-    elif q > qpos_range[1]:
-        force = wp.min(-stiffness * (q - qpos_range[1]) * (1.0 + damping * qdot), 0.0)
-    else:
-        force = wp.max(-stiffness * (q - qpos_range[0]) * (1.0 - damping * qdot), 0.0)
-
-    # wp.printf("dof %d is %f, range is [%f, %f], force is %f\n", dof_qadr, qpos, dof_range[0], dof_range[1], force)
     wp.atomic_add(ufrc_limit_out, worldid, dof_adr, force)
     return
 
@@ -185,20 +145,6 @@ def _process_swing_twist_limits(
 
 
 @event_scope
-def linear_stop_force(m: Model, d: Data):
-    wp.launch(
-        _process_linear_stops,
-        dim=(d.nworld, m.nlinearstop),
-        inputs=[
-            m.coordinate_linear_stop,
-            d.integration_done, d.qpos, d.qvel
-        ],
-        outputs=[d.ufrc_limit,],
-    )
-    return
-
-
-@event_scope
 def coordinate_limit_force(m: Model, d: Data):
     wp.launch(
         _process_limit_forces,
@@ -207,7 +153,7 @@ def coordinate_limit_force(m: Model, d: Data):
             m.coordinate_limit_force,
             d.integration_done, d.qpos, d.qvel
         ],
-        outputs=[d.ufrc_limit,],
+        outputs=[d.ufrc_limit, ],
     )
     return
 
@@ -221,6 +167,6 @@ def swing_twist_limit_force(m: Model, d: Data):
             m.swing_twist_limit,
             d.integration_done, d.qpos, d.qvel
         ],
-        outputs=[d.ufrc_limit,],
+        outputs=[d.ufrc_limit, ],
     )
     return
