@@ -892,6 +892,9 @@ class Data:
     body_zTmp: wp.array2d(dtype=wp.spatial_vector)
     body_eps: wp.array2d(dtype=wp.spatial_vector)
 
+    subtree_com: wp.array2d(dtype=wp.vec3)
+    subtree_mass: wp.array2d(dtype=float)
+
     geom_X: wp.array2d(dtype=wp.transform)
     vis_X: wp.array2d(dtype=wp.transform)
     vis_beam_pos: array("nworld", "nbeams", "nbeam_visuals", wp.vec3)

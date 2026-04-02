@@ -337,6 +337,66 @@ def _beam_visuals(
     return
 
 
+@wp.kernel
+def _subtree_com_init(
+        # Model:
+        body_mass: wp.array(dtype=float),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        body_COM_G_in: wp.array2d(dtype=wp.vec3),
+        # Data out:
+        subtree_com_out: wp.array2d(dtype=wp.vec3),
+        subtree_mass_out: wp.array2d(dtype=float),
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+    subtree_com_out[worldid, bodyid] = body_COM_G_in[worldid, bodyid] * body_mass[bodyid]
+    subtree_mass_out[worldid, bodyid] = body_mass[bodyid]
+
+
+@wp.kernel
+def _subtree_com_acc(
+        # Model:
+        body_parentid: wp.array(dtype=int),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        subtree_com_in: wp.array2d(dtype=wp.vec3),
+        # In:
+        body_tree_: wp.array(dtype=int),
+        # Data out:
+        subtree_com_out: wp.array2d(dtype=wp.vec3),
+        subtree_mass_out: wp.array2d(dtype=float),
+):
+    worldid, nodeid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    bodyid = body_tree_[nodeid]
+    pid = body_parentid[bodyid]
+    wp.atomic_add(subtree_com_out, worldid, pid, subtree_com_in[worldid, bodyid])
+    wp.atomic_add(subtree_mass_out, worldid, pid, subtree_mass_out[worldid, bodyid])
+
+
+@wp.kernel
+def _subtree_div(
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        subtree_com_in: wp.array2d(dtype=wp.vec3),
+        subtree_mass_in: wp.array2d(dtype=float),
+        # Data out:
+        subtree_com_out: wp.array2d(dtype=wp.vec3),
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+    com = subtree_com_in[worldid, bodyid]
+    mass = subtree_mass_in[worldid, bodyid]
+    if mass != 0.0:
+        subtree_com_out[worldid, bodyid] = com / mass
+
+
+
 @event_scope
 def calc_mobilizer_X_FM(m: Model, d: Data):
     wp.launch(
@@ -455,3 +515,30 @@ def attachment_kinematics(m: Model, d: Data):
             ],
             outputs=[d.vis_beam_pos],
         )
+
+
+@event_scope
+def com_pos(m: Model, d: Data):
+    """ Computes subtree center of mass positions. """
+    wp.launch(
+        _subtree_com_init,
+        dim=(d.nworld, m.nbody),
+        inputs=[m.body_mass, d.integration_done, d.body_COM_G],
+        outputs=[d.subtree_com, d.subtree_mass],
+    )
+
+    for i in reversed(range(len(m.body_tree))):
+        body_tree = m.body_tree[i]
+        wp.launch(
+            _subtree_com_acc,
+            dim=(d.nworld, body_tree.size),
+            inputs=[m.body_parentid, d.integration_done, d.subtree_com, body_tree],
+            outputs=[d.subtree_com, d.subtree_mass],
+        )
+
+    wp.launch(
+        _subtree_div,
+        dim=(d.nworld, m.nbody),
+        inputs=[d.integration_done, d.subtree_com, d.subtree_mass],
+        outputs=[d.subtree_com]
+    )

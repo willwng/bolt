@@ -186,6 +186,10 @@ def body_com_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.body_COM_G)
 
 
+def body_subtree_com_positions(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.subtree_com)
+
+
 def body_velocities(d: Data) -> torch.Tensor:
     return wp.to_torch(d.body_V_GB)
 

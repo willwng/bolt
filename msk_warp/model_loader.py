@@ -503,13 +503,15 @@ def load_model(
         body_VD_PB_G=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_A_GB=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_eps=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-
         body_gyro_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_total_coriolis_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_total_centrifugal_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_articulated_centrifugal_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_zPlus=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_zTmp=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+
+        subtree_com = make_zero((n_worlds, nb), dtype=wp.vec3),
+        subtree_mass = make_zero((n_worlds, nb), dtype=float),
 
         geom_X=make_zero((n_worlds, ngeom), dtype=wp.transform),
         geom_cforce=make_zero((n_worlds, ngeom), dtype=float),
