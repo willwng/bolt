@@ -350,25 +350,33 @@ def _set_state(
         muscle_metadata: wp.array(dtype=MuscleMetadata),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
+        muscle_length_info_in: wp.array2d(dtype=MuscleLengthInfo),
         muscle_velocity_info_in: wp.array2d(dtype=FiberVelocityInfo),
         muscle_dynamics_info_in: wp.array2d(dtype=MuscleDynamicsInfo),
         # Data out:
         mstate_dot_out: wp.array2d(dtype=float),
         muscle_actuation_out: wp.array2d(dtype=float),
+        muscle_norm_fiber_length_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
         return
     mm = muscle_metadata[muscle_id]
+    mli = muscle_length_info_in[worldid, muscle_id]
     fvi = muscle_velocity_info_in[worldid, muscle_id]
     mdi = muscle_dynamics_info_in[worldid, muscle_id]
 
+    # Actuation
     muscle_actuation_out[worldid, muscle_id] = mdi.tendon_force
 
+    # State derivative
     if mm.ignore_tendon_compliance:
         mstate_dot_out[worldid, muscle_id] = 0.0
     else:
         mstate_dot_out[worldid, muscle_id] = fvi.fiber_velocity / mm.optimal_fiber_length
+
+    # Fiber length (for output/observation purposes, not used for dynamics)
+    muscle_norm_fiber_length_out[worldid, muscle_id] = mli.norm_fiber_length
     return
 
 
@@ -414,6 +422,9 @@ def contraction_dynamics(m: Model, d: Data):
     wp.launch(
         _set_state,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.integration_done, d.muscle_velocity_info, d.muscle_dynamics_info],
-        outputs=[d.m_state_dot, d.muscle_actuation],
+        inputs=[
+            m.muscle_metadata,
+            d.integration_done, d.muscle_length_info, d.muscle_velocity_info, d.muscle_dynamics_info
+        ],
+        outputs=[d.m_state_dot, d.muscle_actuation, d.muscle_norm_fiber_length],
     )

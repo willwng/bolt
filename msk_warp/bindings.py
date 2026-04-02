@@ -252,7 +252,7 @@ def muscle_path_velocities(d: Data) -> torch.Tensor:
 
 
 def muscle_fiber_lengths(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.m_state)
+    return wp.to_torch(d.muscle_norm_fiber_length)
 
 
 def muscle_fiber_velocities(d: Data) -> torch.Tensor:

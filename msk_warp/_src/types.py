@@ -816,6 +816,7 @@ class Data:
       muscle_length_info: info for muscle length calculation      (nworld, nmuscle)
       muscle_velocity_info: info for muscle velocity calculation  (nworld, nmuscle)
       muscle_dynamics_info: info for muscle force calculation     (nworld, nmuscle)
+      muscle_norm_fiber_length: norm fiber lengths (obs only)     (nworld, nmuscle)
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
       muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
 
@@ -927,6 +928,7 @@ class Data:
     muscle_length_info: wp.array2d(dtype=MuscleLengthInfo)
     muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
+    muscle_norm_fiber_length: wp.array2d(dtype=float)
     muscle_actuation: wp.array2d(dtype=float)
     muscle_metabolic: wp.array2d(dtype=float)
 

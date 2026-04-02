@@ -546,6 +546,7 @@ def load_model(
         muscle_length_info=make_zero((n_worlds, nmuscle), dtype=MuscleLengthInfo),
         muscle_velocity_info=make_zero((n_worlds, nmuscle), dtype=FiberVelocityInfo),
         muscle_dynamics_info=make_zero((n_worlds, nmuscle), dtype=MuscleDynamicsInfo),
+        muscle_norm_fiber_length=make_zero((n_worlds, nmuscle), dtype=float),
 
         body_F=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_gravity=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
