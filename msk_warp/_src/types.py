@@ -683,6 +683,7 @@ class IntegratorDotScratch:
     m_state_dot: wp.array2d(dtype=float)
     m_act_dot: wp.array2d(dtype=float)
     a_act_dot: wp.array2d(dtype=float)
+    exp_contact_state_dot: wp.array2d(dtype=wp.vec4)
 
 
 @dataclass
@@ -722,6 +723,7 @@ class Data:
       m_state_dot: time-derivative of muscle state variable       (nworld, nmuscles)
       m_act_dot: time-derivative of actuator activation           (nworld, na)
       a_act_dot: time-derivative of actuator activation           (nworld, nactuator)
+      exp_contact_state_dot: derivative info of exp contact state (nworld, nexpcontact, 4)
 
      *
         simulator forces.
@@ -839,7 +841,7 @@ class Data:
     m_state: array("nworld", "nmuscle", float)
     m_act: array("nworld", "nmuscle", float)
     a_act: array("nworld", "nactuator", float)
-    exp_contact_state: array("nworld", "nexpcontact", 4, float)
+    exp_contact_state: array("nworld", "nexpcontact", wp.vec4)
 
     m_excitations: array("nworld", "nmuscle", float)
     a_excitations: array("nworld", "nactuator", float)
@@ -849,6 +851,7 @@ class Data:
     m_state_dot: array("nworld", "nmuscle", float)
     m_act_dot: array("nworld", "nmuscle", float)
     a_act_dot: array("nworld", "nactuator", float)
+    exp_contact_state_dot: array("nworld", "nexpcontact", wp.vec4)
 
     body_F_gravity: array("nworld", "nbody", wp.spatial_vector)
     body_F_contact: array("nworld", "nbody", wp.spatial_vector)

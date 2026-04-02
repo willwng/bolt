@@ -11,6 +11,33 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
+def _reset_exp_contact_state(
+        # Model:
+        exp_contact: wp.array(dtype=ExponentialContact),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        site_pos_G_in: wp.array2d(dtype=wp.vec3),
+        # Data out:
+        exp_contact_state_out: wp.array2d(dtype=wp.vec4)
+):
+    worldid, conid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    contact = exp_contact[conid]
+    siteid = contact.siteid
+    X_GP = contact.contact_plane_transform
+
+    # Reset anchor point
+    p_G = site_pos_G_in[worldid, siteid]
+    p_P = wp.transform_point(wp.transform_inverse(X_GP), p_G)
+    p_P.z = 0.0  # Project onto contact plane
+    p0 = p_P
+    exp_contact_state_out[worldid, conid] = wp.vec4(1.0, p0.x, p0.y, p0.z)
+    return
+
+
+@wp.kernel
 def _process_contacts_exp(
         # Model:
         exp_contact: wp.array(dtype=ExponentialContact),
@@ -19,10 +46,9 @@ def _process_contacts_exp(
         site_pos_G_in: wp.array2d(dtype=wp.vec3),
         site_vel_G_in: wp.array2d(dtype=wp.vec3),
         mob_X_GB_in: wp.array2d(dtype=wp.transform),
-        actual_step_size_in: wp.array(dtype=float),
         exp_contact_state_in: wp.array2d(dtype=wp.vec4),
         # Data out:
-        exp_contact_state_out: wp.array2d(dtype=wp.vec4),
+        exp_contact_state_dot_out: wp.array2d(dtype=wp.vec4),
         body_F_contact_out: wp.array2d(dtype=wp.spatial_vector),
         grf_out: wp.array(dtype=wp.vec3)
 ):
@@ -39,7 +65,6 @@ def _process_contacts_exp(
     kv_fric = contact.friction_viscosity
     mus = contact.initial_mu_static
     muk = contact.initial_mu_kinetic
-    settle_velocity = contact.settle_velocity
     siteid = contact.siteid
     bodyid = contact.bodyid
     station_B = contact.station_B
@@ -54,7 +79,7 @@ def _process_contacts_exp(
     # Position of station in ground
     p_G = site_pos_G_in[worldid, siteid]
     # Transform into contact plane frame
-    p_P = wp.quat_rotate(wp.quat_inverse(R_GP), p_G)
+    p_P = wp.transform_point(wp.transform_inverse(X_GP), p_G)
     # Resolve into normal (z) and tangential (xy) components
     pz = p_P.z
     pxy = wp.vec3(p_P.x, p_P.y, 0.0)
@@ -128,18 +153,12 @@ def _process_contacts_exp(
         p0 = pxy + fric_elas_P / kp_fric
         p0.z = 0.0
 
-    # Determine the next sliding state (K)
-    K = 1.0
-    t_delta = actual_step_size_in[worldid]
-    if t_delta > MSK_SIG_REAL and fxy_limit > MSK_SIG_REAL:
-        # Compute the average speed of the elastic anchor point
+    # Store information needed for updating state
+    if fxy_limit > MSK_SIG_REAL:
         p0_delta = p0 - p0_last
-        speed = wp.length(p0_delta) / t_delta
-        speed_frac = speed / settle_velocity
-        K = math.step_up(wp.clamp(speed_frac, 0.0, 1.0))
-
-    # Update state
-    exp_contact_state_out[worldid, conid] = wp.vec4(K, p0.x, p0.y, p0.z)
+    else:
+        p0_delta = wp.vec3(0.0)
+    exp_contact_state_dot_out[worldid, conid] = wp.vec4(wp.length(p0_delta), p0.x, p0.y, p0.z)
 
     # --- Calculate Force ---
     f_P = fric_P
@@ -152,7 +171,18 @@ def _process_contacts_exp(
                   math.apply_force_to_body_point(X_GB, station_B, f_G))
 
     # Update GRF
-    wp.atomic_add(grf_out, worldid, -f_G)
+    wp.atomic_add(grf_out, worldid, f_G)
+
+
+@event_scope
+def reset_exp_contact_state(m: Model, d: Data):
+    wp.launch(
+        _reset_exp_contact_state,
+        dim=(d.nworld, m.nexpcontact),
+        inputs=[m.exp_contact, d.integration_done, d.site_pos_G],
+        outputs=[d.exp_contact_state]
+    )
+    return
 
 
 @event_scope
@@ -162,8 +192,8 @@ def contact_forces(m: Model, d: Data):
         dim=(d.nworld, m.nexpcontact),
         inputs=[
             m.exp_contact,
-            d.integration_done, d.site_pos_G, d.site_vel_G, d.mob_X_GB, d.actual_step_size, d.exp_contact_state
+            d.integration_done, d.site_pos_G, d.site_vel_G, d.mob_X_GB, d.exp_contact_state
         ],
-        outputs=[d.exp_contact_state, d.body_F_contact, d.grf]
+        outputs=[d.exp_contact_state_dot, d.body_F_contact, d.grf]
     )
     return

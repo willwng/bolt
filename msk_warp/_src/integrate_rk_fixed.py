@@ -137,6 +137,13 @@ def _rk_perturb_state(
             outputs=[d.a_act],
         )
 
+    if m.nexpcontact:
+        wp.launch(
+            integrate_common._next_exp_contact_state,
+            dim=(d.nworld, m.nexpcontact),
+            inputs=[m.exp_contact, d.integration_done, d.exp_contact_state_dot, d.actual_step_size, scale],
+            outputs=[d.exp_contact_state],
+        )
 
 @event_scope
 def rungekutta4(m: Model, d: Data):
