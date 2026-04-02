@@ -153,6 +153,23 @@ class SwingTwistLimit:
     damping: float
 
 
+@wp.struct
+class ExponentialContact:
+    contact_plane_transform: wp.transform
+    shape_parameters: wp.vec3
+    normal_viscosity: float
+    max_normal_force: float
+    friction_elasticity: float
+    friction_viscosity: float
+    settle_velocity: float
+    initial_mu_static: float
+    initial_mu_kinetic: float
+
+    siteid: int
+    bodyid: int
+    station_B: wp.vec3
+
+
 def array(*args) -> wp.array:
     """A wrapper around wp.array that adds extra metadata to ease type introspection.
 
@@ -390,6 +407,7 @@ class Model:
       njnts_cst: number of custom joints
       nbeams: number of beam joints
       ngeom: number of collision geometry
+      nexpcontact: number of exponential contact forces
       nvis: number of visual geometry
       nsite: number of sites
       nlinearstop: number of (CoordinateLinearStop) limits
@@ -465,6 +483,8 @@ class Model:
       geom_aabb: axis-aligned bounding box (center, size)      (ngeom, 2, 3)
       geom_rbound: bounding sphere radius                      (ngeom,)
 
+      exp_contact: exponential contact force parameters        (nexpcontact, ExponentialContact)
+
      * colliders *
       geom_pair_type_count: count of max number of each potential collision
       nxn_geom_pair_filtered: valid collision pair geom ids    (<=ngeom*(ngeom-1)/2,)
@@ -501,6 +521,7 @@ class Model:
     njnts_cst: int
     nbeams: int
     ngeom: int
+    nexpcontact: int
     nvis: int
     nsite: int
     nlinearstop: int
@@ -576,6 +597,8 @@ class Model:
     geom_aabb: array("ngeom", 2, wp.vec3)
     geom_rbound: array("ngeom", float)
 
+    exp_contact: array("nexpcontact", ExponentialContact)
+
     geom_pair_type_count: tuple[int, ...]
     nxn_geom_pair_filtered: array("<=ngeom*(ngeom-1)/2", wp.vec2i)
     nxn_pairid_filtered: array("<=ngeom*(ngeom-1)/2", wp.vec2i)
@@ -650,6 +673,7 @@ class IntegratorStateScratch:
     m_state: wp.array2d(dtype=float)
     m_act: wp.array2d(dtype=float)
     a_act: wp.array2d(dtype=float)
+    exp_contact_state: wp.array2d(dtype=wp.vec4)
 
 
 @dataclass
@@ -686,6 +710,7 @@ class Data:
       m_state: muscle state variable                              (nworld, nmuscles)
       m_act: muscle activation                                    (nworld, nmuscles)
       a_act: actuator activation                                  (nworld, nactuator)
+      exp_contact_state: state variable for exponential contact   (nworld, nexpcontact, 4)
 
      * current controls *
       m_excitations: muscle excitations                           (nworld, nmuscles)
@@ -814,6 +839,7 @@ class Data:
     m_state: array("nworld", "nmuscle", float)
     m_act: array("nworld", "nmuscle", float)
     a_act: array("nworld", "nactuator", float)
+    exp_contact_state: array("nworld", "nexpcontact", 4, float)
 
     m_excitations: array("nworld", "nmuscle", float)
     a_excitations: array("nworld", "nactuator", float)

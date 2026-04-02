@@ -33,24 +33,22 @@ def _process_limit_forces(
     qpos_adr = lf.qpos_adr
     dof_adr = lf.dof_adr
     stiffness = lf.stiffness
-    damping = lf.damping
+    damp = lf.damping
     transition = lf.transition
 
-    lower_limit, upper_limit = qpos_range[0], qpos_range[1]
+    q_low, q_up = qpos_range[0], qpos_range[1]
     lower_stiffness, upper_stiffness = stiffness[0], stiffness[1]
 
     q = qpos_in[worldid, qpos_adr]
     qdot = qvel_in[worldid, dof_adr]
 
-    # [lower_limit, upper_limit] -> no force
-    if q >= lower_limit and q <= upper_limit:
-        return
+    K_up = math.step_function(q, q_up, q_up + transition, 0.0, upper_stiffness)
+    K_low = math.step_function(q, q_low - transition, q_low, lower_stiffness, 0.0)
+    f_up = -K_up * (q - q_up)
+    f_low = K_low * (q_low - q)
+    # Dividing the stiffness by the constant yields the transition function that can also be applied to damping
+    f_damp = -damp * (K_up / upper_stiffness + K_low / lower_stiffness) * qdot
 
-    K_up = math.step_function(q, upper_limit, upper_limit + transition, 0.0, upper_stiffness)
-    K_low = math.step_function(q, lower_limit - transition, lower_limit, lower_stiffness, 0.0)
-    f_up = -K_up * (q - upper_limit)
-    f_low = K_low * (lower_limit - q)
-    f_damp = -damping * (K_up / upper_stiffness + K_low / lower_stiffness) * qdot
     force = f_up + f_low + f_damp
 
     wp.atomic_add(ufrc_limit_out, worldid, dof_adr, force)
@@ -193,7 +191,7 @@ def linear_stop_force(m: Model, d: Data):
             m.coordinate_linear_stop,
             d.integration_done, d.qpos, d.qvel
         ],
-        outputs=[d.ufrc_limit,],
+        outputs=[d.ufrc_limit, ],
     )
     return
 
@@ -207,7 +205,7 @@ def coordinate_limit_force(m: Model, d: Data):
             m.coordinate_limit_force,
             d.integration_done, d.qpos, d.qvel
         ],
-        outputs=[d.ufrc_limit,],
+        outputs=[d.ufrc_limit, ],
     )
     return
 
@@ -221,6 +219,6 @@ def swing_twist_limit_force(m: Model, d: Data):
             m.swing_twist_limit,
             d.integration_done, d.qpos, d.qvel
         ],
-        outputs=[d.ufrc_limit,],
+        outputs=[d.ufrc_limit, ],
     )
     return

@@ -447,13 +447,22 @@ def mul_body_xyz_N_inv(cosxy: wp.vec2, sinxy: wp.vec2, qdot: wp.vec3) -> wp.vec3
 
 
 @wp.func
+def step_up(x: float) -> float:
+    """
+    Interpolate smoothly from 0 to 1 as the argument goes from 0
+    with first and second derivatives zero at either end
+    """
+    return x * x * x * (10.0 + x * (6.0 * x - 15.0))
+
+
+@wp.func
 def step_function(
         x: float,
         start_time: float,
         end_time: float,
         start_value: float,
         end_value: float,
-):
+) -> float:
     """ A smooth step function that transitions from start_value to end_value between start_time and end_time. """
     if x <= start_time:
         return start_value

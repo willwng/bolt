@@ -178,6 +178,23 @@ class ActivationCoordinateActuatorData:
 
 
 @dataclass
+class ExponentialContactForce:
+    name: str
+
+    contact_plane_transform: wp.transform
+    exponential_shape_parameters: wp.vec3
+    normal_viscosity: float
+    max_normal_force: float
+    friction_elasticity: float
+    friction_viscosity: float
+    settle_velocity: float
+    initial_mu_static: float
+    initial_mu_kinetic: float
+
+    station: SiteData
+
+
+@dataclass
 class MuscleData:
     name: str
 

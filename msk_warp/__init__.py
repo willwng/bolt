@@ -30,6 +30,7 @@ from ._src.types import ArticulatedInertia as ArticulatedInertia
 from ._src.types import CoordinateLinearStop as CoordinateLinearStop
 from ._src.types import CoordinateLimitForce as CoordinateLimitForce
 from ._src.types import SwingTwistLimit as SwingTwistLimit
+from ._src.types import ExponentialContact as ExponentialContact
 from ._src.types import TileBlockDim as TileBlockDim
 from ._src.types import vec5 as vec5
 from ._src.types import PolyInts as PolyInts

@@ -52,6 +52,7 @@ def create_renderer(
         draw_muscles: bool,
         draw_body_mass: bool,
         draw_beams: bool,
+        draw_sites: bool,
 ):
     viewer = Renderer(
         m=load_result.model,
@@ -60,7 +61,8 @@ def create_renderer(
         draw_visuals=draw_visuals,
         draw_muscles=draw_muscles,
         draw_body_mass=draw_body_mass,
-        draw_beams=draw_beams
+        draw_beams=draw_beams,
+        draw_sites=draw_sites,
     )
     viewer.load_meshes(load_result.mesh_load_results)
     return viewer

@@ -10,6 +10,7 @@ import msk_warp.utils.site_helper as site_helper
 import msk_warp.utils.function_based_path_helper as function_based_path_helper
 import msk_warp.utils.actuator_helper as actuator_helper
 import msk_warp.utils.swing_twist_helper as swing_twist_helper
+import msk_warp.utils.exponential_contact_helper as exponential_contact_helper
 
 from msk_warp.utils.converted_objects import *
 from msk_warp.utils.kinematic_tree import KinematicTree

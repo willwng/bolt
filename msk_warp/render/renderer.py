@@ -27,6 +27,7 @@ class Renderer:
             draw_muscles: bool,
             draw_body_mass: bool,
             draw_beams: bool,
+            draw_sites: bool,
     ):
         if renderer_type == RendererType.OPENGL:
             self.renderer = wp.render.OpenGLRenderer(
@@ -71,6 +72,7 @@ class Renderer:
         self.draw_muscles = draw_muscles
         self.draw_body_mass = draw_body_mass
         self.draw_beams = draw_beams
+        self.draw_sites = draw_sites
 
         # model-specific: doesn't change during each step
         self.geom_types = m.geom_type.numpy()
@@ -90,7 +92,6 @@ class Renderer:
             "sphere": (0.7, 0.5, 0.5),
             "capsule": (0.7, 0.5, 0.5),
             "ellipsoid": (0.7, 0.5, 0.5),
-            "site_inactive": (0.3, 0.3, 0.3),
             "beam": (0.82, 0.78, 0.74),
         }
 
@@ -105,6 +106,8 @@ class Renderer:
             number_instances_per_world += m.nbody
         if self.draw_beams:
             number_instances_per_world += m.nbeams
+        if self.draw_sites:
+            number_instances_per_world += m.nsite
 
         # Required for rendering ellipsoids since they aren't built in to the renderer
         self.ellipsoid_mesh = create_ellipsoid_mesh(1.0, 1.0, 1.0)
@@ -150,6 +153,19 @@ class Renderer:
 
             # Ground
             self.renderer.render_ground()
+
+            # Sites
+            if self.draw_sites:
+                site_pos = d.site_pos_G.numpy()[wid]
+                for i in range(m.nsite):
+                    self.renderer.render_sphere(
+                        f"site_{obj_id}",
+                        site_pos[i],
+                        (0.0, 0.0, 0.0, 1.0),
+                        color=(1.0, 0.0, 1.0),
+                        radius=0.01,
+                    )
+                    obj_id += 1
 
             # Colliders
             if self.draw_colliders:
