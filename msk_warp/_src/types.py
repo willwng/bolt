@@ -123,15 +123,6 @@ class ArticulatedInertia:
 
 
 @wp.struct
-class CoordinateLinearStop:
-    qpos_range: wp.vec2
-    qpos_adr: int
-    dof_adr: int
-    stiffness: float
-    damping: float
-
-
-@wp.struct
 class CoordinateLimitForce:
     qpos_range: wp.vec2
     qpos_adr: int
@@ -410,7 +401,6 @@ class Model:
       nexpcontact: number of exponential contact forces
       nvis: number of visual geometry
       nsite: number of sites
-      nlinearstop: number of (CoordinateLinearStop) limits
       nlimitforce: number of (CoordinateLimitForce) limits
       nswingtwist: number of swing-twist limits
 
@@ -466,7 +456,6 @@ class Model:
       qpos_spring_rest: rest position for dof spring           (nq,)
 
      * limits *
-      coordinate_linear_stop: Hunt-Crossley like joint limits  (nlinearstop, CoordinateLinearStop)
       coordinate_limit_force: coordinate limit forces          (nlimitforce, CoordinateLimitForce)
       swing_twist_limit: swing-twist limits for quaternions    (nswingtwist, SwingTwistLimit)
 
@@ -524,7 +513,6 @@ class Model:
     nexpcontact: int
     nvis: int
     nsite: int
-    nlinearstop: int
     nlimitforce: int
     nswingtwist: int
 
@@ -580,7 +568,6 @@ class Model:
     dof_stiffness: array("nv", float)
     qpos_spring_rest: array("nq", float)
 
-    coordinate_linear_stop: array("nlinearstop", CoordinateLinearStop)
     coordinate_limit_force: array("nlimitforce", CoordinateLimitForce)
     swing_twist_limit: array("nswingtwist", SwingTwistLimit)
 

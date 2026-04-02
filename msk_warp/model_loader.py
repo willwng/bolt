@@ -4,7 +4,7 @@ import os
 from msk_warp import Model, Data, IntegratorType, Option, ActivationType, MetabolicOptions, MuscleMetadata, \
     ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, MuscleLengthInfo, \
     FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
-    CoordinateLinearStop, CoordinateLimitForce, ExponentialContact, vec5
+    CoordinateLimitForce, ExponentialContact, vec5
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.utils import *
 
@@ -47,10 +47,7 @@ def load_model(
     converted_exp_contacts = exponential_contact_helper.convert_exponential_contacts(model)
     converted_visuals = visual_helper.convert_visuals(model) if requires_visuals else []
     converted_spatial_transforms = spatial_transform_helper.convert_spatial_transforms(model)
-    converted_dampers = coordinate_force_helper.convert_coordinate_linear_damper(model)
-    converted_springs = coordinate_force_helper.convert_coordinate_linear_spring(model)
     converted_spring_gen_force = coordinate_force_helper.convert_spring_generalized_force(model)
-    converted_stops = coordinate_force_helper.convert_coordinate_linear_stop(model)  # this is a limit force
     converted_limit_forces = coordinate_force_helper.convert_coordinate_limit_force(model)  # also a limit force
     converted_swing_twists = swing_twist_helper.convert_swing_twist_limits(model_path)
     converted_activation_actuators = actuator_helper.convert_activation_actuators(model)
@@ -151,7 +148,6 @@ def load_model(
     nexpcontact = len(converted_exp_contacts)
     nvis = len(converted_visuals)
     nsite = len(converted_sites)
-    nlinearstop = len(converted_stops)
     nlimitforce = len(converted_limit_forces)
     nswingtwist = len(converted_swing_twists)
     nmuscle = len(converted_muscles)
@@ -208,11 +204,9 @@ def load_model(
     # Joint damping, spring, and linear stops (limits)
     # TODO: better separation between LinearSpring and SpringGeneralizedForce (i.e., if LinearSpring rest length != 0)
     dof_stiffness, dof_damping = coordinate_force_helper.get_dof_stiffness_damping(
-        converted_springs, converted_dampers, converted_spring_gen_force, dof_ordering)
-    qpos_spring_rest = coordinate_force_helper.get_qpos_spring_rest(converted_springs, qpos_ordering)
+        converted_spring_gen_force, dof_ordering)
+    qpos_spring_rest = coordinate_force_helper.get_qpos_spring_rest(qpos_ordering)
 
-    coordinate_linear_stops = coordinate_force_helper.create_coordinate_linear_stop(
-        converted_stops, qpos_ordering, dof_ordering)
     coordinate_limit_forces = coordinate_force_helper.create_coordinate_limit_force(
         converted_limit_forces, qpos_ordering, dof_ordering)
     swing_twist_limits = swing_twist_helper.create_swing_twist_data(
@@ -297,7 +291,6 @@ def load_model(
         nexpcontact=nexpcontact,
         nvis=nvis,
         nsite=nsite,
-        nlinearstop=nlinearstop,
         nlimitforce=nlimitforce,
         nswingtwist=nswingtwist,
 
@@ -353,7 +346,6 @@ def load_model(
         dof_stiffness=to_warp_array(dof_stiffness, dtype=float),
         qpos_spring_rest=to_warp_array(qpos_spring_rest, dtype=float),
 
-        coordinate_linear_stop=wp.array(coordinate_linear_stops, dtype=CoordinateLinearStop),
         coordinate_limit_force=wp.array(coordinate_limit_forces, dtype=CoordinateLimitForce),
         swing_twist_limit=wp.array(swing_twist_limits, dtype=SwingTwistLimit),
 
@@ -591,8 +583,7 @@ def load_model(
     muscle_ordering = muscle_helper.get_muscle_ordering(converted_muscles)
     actuator_ordering = actuator_helper.get_actuator_ordering(converted_activation_actuators)
     collider_ordering = geom_helper.get_geom_ordering(converted_geoms)
-    limit_id_lookup = coordinate_force_helper.create_limit_id_lookup(
-        converted_limit_forces, converted_stops, qpos_ordering)
+    limit_id_lookup = coordinate_force_helper.create_limit_id_lookup(converted_limit_forces, qpos_ordering)
 
     return ModelLoadResult(
         model=m,
