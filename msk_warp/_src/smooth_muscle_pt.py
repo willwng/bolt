@@ -161,7 +161,7 @@ def muscle_point_path(m: Model, d: Data):
 
 
 @event_scope
-def apply_muscle_force(m: Model, d: Data):
+def apply_muscle_force_pt(m: Model, d: Data):
     if m.nmuscle:
         wp.launch(
             _apply_muscle_force_kernel,

@@ -115,7 +115,7 @@ def _process_contacts_hc(
 
 
 @event_scope
-def contact_forces(m: Model, d: Data):
+def contact_forces_hc(m: Model, d: Data):
     wp.launch(
         _process_contacts_hc,
         dim=(d.naconmax),

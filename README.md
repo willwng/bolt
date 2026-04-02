@@ -11,7 +11,7 @@ GPU-accelerated physics simulations for articulated rigid bodies with muscle act
   - Includes option to use rigid tendons per muscle
   - Activation dynamics includes Degroote et al. and Millard et al. formulations.
 - Geometry-based and polynomial/function-based muscle paths.
-- Force-based Hunt-Crossley contacts.
+- Force-based [Hunt-Crossley contacts](https://simtk.org/api_docs/molmodel/api_docs22/Simbody/html/classSimTK_1_1HuntCrossleyForce.html) and ExponentialContactForces.
 - Force-based joint limits:
 Exponential joint limits based on [Anderson and Pandy](https://pubmed.ncbi.nlm.nih.gov/11264828/), 
 [Hunt-Crossley joint limits](https://simtk.org/api_docs/simbody/api_docs33/Simbody/html/classSimTK_1_1Force_1_1MobilityLinearStop.html), and

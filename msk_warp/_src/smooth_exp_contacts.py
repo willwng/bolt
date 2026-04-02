@@ -186,7 +186,7 @@ def reset_exp_contact_state(m: Model, d: Data):
 
 
 @event_scope
-def contact_forces(m: Model, d: Data):
+def contact_forces_exp(m: Model, d: Data):
     wp.launch(
         _process_contacts_exp,
         dim=(d.nworld, m.nexpcontact),
