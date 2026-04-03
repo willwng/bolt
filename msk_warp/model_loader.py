@@ -544,7 +544,7 @@ def load_model(
 
         body_F=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_gravity=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        xfrc_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
+        body_F_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),

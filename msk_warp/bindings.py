@@ -195,7 +195,7 @@ def body_velocities(d: Data) -> torch.Tensor:
 
 
 def body_user_forces(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.xfrc_applied)
+    return wp.to_torch(d.body_F_applied)
 
 
 def joint_positions(d: Data) -> torch.Tensor:

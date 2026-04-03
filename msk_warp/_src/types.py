@@ -733,7 +733,7 @@ class Data:
 
      * user-facing forces *
       ufrc_applied: user-facing applied generalized force         (nworld, nv)
-      xfrc_applied: applied Cartesian force/torque                (nworld, nbody, 6)
+      body_F_applied: applied Cartesian force/torque              (nworld, nbody, 6)
 
      * post-dynamics analytics *
       grf: ground reaction force                                  (nworld, 3)
@@ -855,7 +855,7 @@ class Data:
     ufrc_total: wp.array2d(dtype=float)
 
     ufrc_applied: array("nworld", "nv", float)
-    xfrc_applied: array("nworld", "nbody", wp.spatial_vector)
+    body_F_applied: array("nworld", "nbody", wp.spatial_vector)
 
     grf: array("nworld", wp.vec3)
     geom_cforce: array("nworld", "ngeom", wp.vec3)
