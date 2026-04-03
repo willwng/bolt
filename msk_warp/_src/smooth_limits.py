@@ -41,15 +41,18 @@ def _process_limit_forces(
     q = qpos_in[worldid, qpos_adr]
     qdot = qvel_in[worldid, dof_adr]
 
-    K_up = math.step_function(q, q_up, q_up + transition, 0.0, upper_stiffness)
-    K_low = math.step_function(q, q_low - transition, q_low, lower_stiffness, 0.0)
+    weight_up = math.step_function(q, q_up, q_up + transition, 0.0, 1.0)
+    weight_low = math.step_function(q, q_low - transition, q_low, 1.0, 0.0)
+
+    # Scale to get the stiffness values
+    K_up = weight_up * upper_stiffness
+    K_low = weight_low * lower_stiffness
+
     f_up = -K_up * (q - q_up)
     f_low = K_low * (q_low - q)
-    # Dividing the stiffness by the constant yields the transition function that can also be applied to damping
-    f_damp = -damp * (K_up / upper_stiffness + K_low / lower_stiffness) * qdot
 
+    f_damp = -damp * (weight_up + weight_low) * qdot
     force = f_up + f_low + f_damp
-
     wp.atomic_add(ufrc_limit_out, worldid, dof_adr, force)
     return
 
