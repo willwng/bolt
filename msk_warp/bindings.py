@@ -141,6 +141,10 @@ def gravity(m: Model) -> float:
     return m.opt.gravity
 
 
+def set_implicit_damping(m: Model, enabled: bool):
+    m.opt.implicit_damping = enabled
+
+
 def set_drag_enabled(m: Model, enabled: bool):
     m.opt.enable_drag = enabled
 

@@ -70,12 +70,15 @@ def _compute_articulated_inertia(
         # Model:
         mob_dofnum: wp.array(dtype=int),
         mob_dofadr: wp.array(dtype=int),
+        dof_damping: wp.array(dtype=float),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         mob_H_in: wp.array2d(dtype=wp.spatial_vector),
         body_P_in: wp.array2d(dtype=ArticulatedInertia),
+        actual_step_size_in: wp.array(dtype=float),
         # In:
         body_tree_: wp.array(dtype=int),
+        implicit_damping: bool,
         # Data out:
         mob_G_out: wp.array2d(dtype=wp.spatial_vector),
         mob_DI_out: wp.array2d(dtype=wp.spatial_vector),
@@ -93,7 +96,6 @@ def _compute_articulated_inertia(
     P = body_P_in[worldid, bodyid]
 
     # We're going to shove H, PH into matrices to make our life easier.
-    # todo: optimize this
     H, PH = wp.spatial_matrix(0.0), wp.spatial_matrix(0.0)
     for i in range(dofnum):
         H[i] = mob_H_in[worldid, dofadr + i]
@@ -104,8 +106,16 @@ def _compute_articulated_inertia(
     # First compute D, DI, G, then P+
     # D = ~H @ P @ H
     D = wp.transpose(H) @ PH
+
+    # Implicit damping: D = D + h * diag(dof_damping)
+    # TODO: this modifies P, which modifies P+, which is then used for parent's P, which then modifies the coriolis term
+    if implicit_damping:
+        h = actual_step_size_in[worldid]
+        for i in range(dofnum):
+            D[i, i] += h * dof_damping[dofadr + i]
+
     DI = math.invert_upper_left(D, dofnum)
-    G = PH * DI
+    G = PH @ DI
 
     # Store G and DI for later forward dynamics. here we store col by col
     math.store_mat66(mob_G_out[worldid], G, dofadr, dofnum)
@@ -158,6 +168,7 @@ def accumulate_articulated_body_inertia(m: Model, d: Data):
     # Backward pass: compute P+. Also store G and DI here
     for i in reversed(range(len(m.body_tree))):
         body_tree = m.body_tree[i]
+        # should we fuse these kernels? performance doesn't seem to take a hit keeping them un-fused
         wp.launch(
             _accumulate_child_articulated_inertia,
             dim=(d.nworld, body_tree.size),
@@ -172,9 +183,9 @@ def accumulate_articulated_body_inertia(m: Model, d: Data):
             _compute_articulated_inertia,
             dim=(d.nworld, body_tree.size),
             inputs=[
-                m.mob_dofnum, m.mob_dofadr,
-                d.integration_done, d.mob_H, d.body_P,
-                body_tree,
+                m.mob_dofnum, m.mob_dofadr, m.dof_damping,
+                d.integration_done, d.mob_H, d.body_P, d.actual_step_size,
+                body_tree, m.opt.implicit_damping
             ],
             outputs=[d.mob_G, d.mob_DI, d.body_PPlus],
         )

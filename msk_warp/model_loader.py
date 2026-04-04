@@ -245,6 +245,7 @@ def load_model(
     opt = Option(
         gravity=-9.80665,
         explicit_gravity=True,
+        implicit_damping=True,
         enable_drag=True,
         visuals=requires_visuals,
         nbeam_visuals=n_beam_visuals,

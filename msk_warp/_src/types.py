@@ -227,6 +227,7 @@ class Option:
     Attributes:
       gravity: gravitational acceleration
       explicit_gravity: flag to compute gravity as an explicit force (or as fictitious acceleration)
+      implicit_damping: flag to add h*damping to mass matrix for implicit damping
       enable_drag: flag to enable drag forces
       visuals: whether to handle visual geometry
       nbeam_visuals: number of beam visuals (for rendering beams joints)
@@ -251,6 +252,7 @@ class Option:
 
     gravity: float
     explicit_gravity: bool
+    implicit_damping: bool
     enable_drag: bool
     visuals: bool
     nbeam_visuals: int
