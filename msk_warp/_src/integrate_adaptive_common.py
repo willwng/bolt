@@ -407,11 +407,11 @@ def _adjust_step_size(
         if error <= accuracy:
             new_step_size = curr_step_size
         else:
-            new_step_size = min(new_step_size, hysteresis_low * curr_step_size)
+            new_step_size = wp.min(new_step_size, hysteresis_low * curr_step_size)
 
     # Keep the size change within the allowable bounds
-    new_step_size = min(new_step_size, max_grow * curr_step_size)
-    new_step_size = max(new_step_size, min_shrink * curr_step_size)
+    new_step_size = wp.min(new_step_size, max_grow * curr_step_size)
+    new_step_size = wp.max(new_step_size, min_shrink * curr_step_size)
     new_step_size = wp.clamp(new_step_size, min_step_size, max_step_size)
     step_size_out[worldid] = new_step_size
     # This is an odd definition of success
