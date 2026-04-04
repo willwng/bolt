@@ -454,6 +454,7 @@ class Model:
 
      * stiffness/damping *
       dof_damping: damping coefficient                         (nv)
+      dof_armature: armature added to joint-space inertia diag (nv,)
       dof_stiffness: stiffness coefficient                     (nv)
       qpos_spring_rest: rest position for dof spring           (nq,)
 
@@ -567,6 +568,7 @@ class Model:
     poly_fn_qpos_adr: array("npolyfn", int)
 
     dof_damping: array("nv", float)
+    dof_armature: array("nv", float)
     dof_stiffness: array("nv", float)
     qpos_spring_rest: array("nq", float)
 

@@ -344,6 +344,7 @@ def load_model(
         poly_fn_qpos_adr=to_warp_array(poly_fns_qpos_global_idx, dtype=int),
 
         dof_damping=to_warp_array(dof_damping, dtype=float),
+        dof_armature=make_zero(nv, dtype=float),  # user-modified later
         dof_stiffness=to_warp_array(dof_stiffness, dtype=float),
         qpos_spring_rest=to_warp_array(qpos_spring_rest, dtype=float),
 
@@ -511,8 +512,8 @@ def load_model(
         body_zPlus=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_zTmp=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
-        subtree_com = make_zero((n_worlds, nb), dtype=wp.vec3),
-        subtree_mass = make_zero((n_worlds, nb), dtype=float),
+        subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
+        subtree_mass=make_zero((n_worlds, nb), dtype=float),
 
         geom_X=make_zero((n_worlds, ngeom), dtype=wp.transform),
         geom_cforce=make_zero((n_worlds, ngeom), dtype=float),

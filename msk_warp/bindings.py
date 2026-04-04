@@ -73,6 +73,10 @@ def damping(m: Model) -> torch.Tensor:
     return wp.to_torch(m.dof_damping)
 
 
+def armature(m: Model) -> torch.Tensor:
+    return wp.to_torch(m.dof_armature)
+
+
 def stiffness(m: Model) -> torch.Tensor:
     return wp.to_torch(m.dof_stiffness)
 
