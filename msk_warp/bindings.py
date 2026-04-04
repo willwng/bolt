@@ -300,6 +300,10 @@ def actuator_activations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.a_act)
 
 
+def actuator_activations_dot(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.a_act_dot)
+
+
 def actuator_excitations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.a_excitations)
 

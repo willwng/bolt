@@ -176,24 +176,26 @@ def _process_contacts_exp(
 
 @event_scope
 def reset_exp_contact_state(m: Model, d: Data):
-    wp.launch(
-        _reset_exp_contact_state,
-        dim=(d.nworld, m.nexpcontact),
-        inputs=[m.exp_contact, d.integration_done, d.site_pos_G],
-        outputs=[d.exp_contact_state]
-    )
+    if m.nexpcontact:
+        wp.launch(
+            _reset_exp_contact_state,
+            dim=(d.nworld, m.nexpcontact),
+            inputs=[m.exp_contact, d.integration_done, d.site_pos_G],
+            outputs=[d.exp_contact_state]
+        )
     return
 
 
 @event_scope
 def contact_forces_exp(m: Model, d: Data):
-    wp.launch(
-        _process_contacts_exp,
-        dim=(d.nworld, m.nexpcontact),
-        inputs=[
-            m.exp_contact,
-            d.integration_done, d.site_pos_G, d.site_vel_G, d.mob_X_GB, d.exp_contact_state
-        ],
-        outputs=[d.exp_contact_state_dot, d.body_F_contact, d.grf]
-    )
+    if m.nexpcontact:
+        wp.launch(
+            _process_contacts_exp,
+            dim=(d.nworld, m.nexpcontact),
+            inputs=[
+                m.exp_contact,
+                d.integration_done, d.site_pos_G, d.site_vel_G, d.mob_X_GB, d.exp_contact_state
+            ],
+            outputs=[d.exp_contact_state_dot, d.body_F_contact, d.grf]
+        )
     return
