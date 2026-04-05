@@ -202,6 +202,10 @@ def body_velocities(d: Data) -> torch.Tensor:
     return wp.to_torch(d.body_V_GB)
 
 
+def body_accelerations(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_A_GB)
+
+
 def body_user_forces(d: Data) -> torch.Tensor:
     return wp.to_torch(d.body_F_applied)
 
