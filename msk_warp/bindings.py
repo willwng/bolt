@@ -366,6 +366,10 @@ def collider_forces(d: Data) -> torch.Tensor:
     return wp.to_torch(d.geom_cforce)
 
 
+def collider_self_forces(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.geom_self_cforce)
+
+
 def grf(d: Data) -> torch.Tensor:
     return wp.to_torch(d.grf)
 

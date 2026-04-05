@@ -741,7 +741,8 @@ class Data:
 
      * post-dynamics analytics *
       grf: ground reaction force                                  (nworld, 3)
-      geom_cforce: contact force on geoms                         (nworld, ngeom, 3)
+      geom_cforce: contact force on geoms                         (nworld, ngeom)
+      geom_self_cforce: self-contact force on geoms               (nworld, ngeom)
 
       contact: contact data
 
@@ -862,7 +863,8 @@ class Data:
     body_F_applied: array("nworld", "nbody", wp.spatial_vector)
 
     grf: array("nworld", wp.vec3)
-    geom_cforce: array("nworld", "ngeom", wp.vec3)
+    geom_cforce: array("nworld", "ngeom", float)
+    geom_self_cforce: array("nworld", "ngeom", float)
 
     cst_fn_output: array("nworld", "nfunction", wp.vec3)
 
