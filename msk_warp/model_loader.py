@@ -593,6 +593,7 @@ def load_model(
     return ModelLoadResult(
         model=m,
         data=d,
+        root_free=joint_helper.check_root_free(ordered_joints),
         body_id_lookup=body_ordering,
         qpos_id_lookup=qpos_ordering,
         dof_id_lookup=dof_ordering,

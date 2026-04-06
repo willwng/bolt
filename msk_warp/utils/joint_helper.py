@@ -226,6 +226,14 @@ def get_relative_dof_ordering_lookup(joints: list[JointData]) -> dict[str, int]:
     return relative_dof_ordering
 
 
+def check_root_free(joints: list[JointData]) -> bool:
+    """ Returns whether if the root joint is free """
+    for joint in joints:
+        if joint.parent_body_name == GROUND and joint.mob_type == MobilizerType.FREE:
+            return True
+    return False
+
+
 def get_mob_type(joints: list[JointData]) -> list[MobilizerType]:
     return [joint.mob_type for joint in joints]
 
