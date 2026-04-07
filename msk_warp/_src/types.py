@@ -742,7 +742,7 @@ class Data:
      * post-dynamics analytics *
       grf: ground reaction force                                  (nworld, 3)
       geom_cforce: contact force on geoms                         (nworld, ngeom)
-      geom_self_cforce: self-contact force on geoms               (nworld, ngeom)
+      geom_self_cforce: normal force on geoms, excl. ground ctc   (nworld, ngeom)
 
       contact: contact data
 
