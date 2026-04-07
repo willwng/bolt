@@ -7,6 +7,7 @@ from ._src.forward import reset as reset
 from ._src.forward import fk as fk
 from ._src.forward import post as post
 from ._src.forward import compute_muscle_moments as compute_muscle_moments
+from ._src.forward import compute_net_joint_moments as compute_net_joint_moments
 from ._src.types import Model as Model
 from ._src.types import Data as Data
 from ._src.types import MobilizerType
