@@ -110,8 +110,8 @@ def _process_contacts_hc(
 
     # Same body-group contact (TODO: fix me for if there is ever more than one model)
     if body1 != 0 and body2 != 0:
-        wp.atomic_add(geom_self_cforce_out[worldid], geom[0], wp.length(force))
-        wp.atomic_add(geom_self_cforce_out[worldid], geom[1], wp.length(force))
+        wp.atomic_add(geom_self_cforce_out[worldid], geom[0], wp.abs(f))
+        wp.atomic_add(geom_self_cforce_out[worldid], geom[1], wp.abs(f))
 
     # Keep track of ground reaction forces
     if body1 == 0:
