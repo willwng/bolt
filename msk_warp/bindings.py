@@ -222,6 +222,26 @@ def joint_accelerations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qacc)
 
 
+def body_force(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_F)
+
+
+def body_force_gravity(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_F_gravity)
+
+
+def body_force_contact(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_F_contact)
+
+
+def body_force_muscle(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_F_muscle)
+
+
+def body_force_drag(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_F_drag)
+
+
 def ufrc_spring(d: Data) -> torch.Tensor:
     return wp.to_torch(d.ufrc_spring)
 
