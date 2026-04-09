@@ -728,10 +728,12 @@ class Data:
       body_F_muscle: muscle Cartesian force/torque on body        (nworld, nbody, 6)
       body_F_drag: drag Cartesian force/torque on body            (nworld, nbody, 6)
       body_F: net Cartesian force/torque on body                  (nworld, nbody, 6)
+      qfrc_muscle: muscle generalized force in qpos space         (nworld, nq)
+      qfrc_muscle_passive: only passive component of muscle force (nworld, nq)
       ufrc_spring: passive spring force                           (nworld, nv)
       ufrc_damper: passive damper force                           (nworld, nv)
-      qfrc_muscle: muscle generalized force in qpos space         (nworld, nq)
       ufrc_muscle: muscle generalized force                       (nworld, nv)
+      ufrc_muscle_passive: only passive component of muscle force (nworld, nv)
       ufrc_actuator: actuator generalized force                   (nworld, nv)
       ufrc_limit: dof limit generalized force                     (nworld, nv)
       ufrc_total: net generalized force                           (nworld, nv)
@@ -812,6 +814,7 @@ class Data:
       muscle_dynamics_info: info for muscle force calculation     (nworld, nmuscle)
       muscle_norm_fiber_length: norm fiber lengths (obs only)     (nworld, nmuscle)
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
+      muscle_actuation_passive: passive component of actuation    (nworld, nmuscle)
       muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
 
 
@@ -853,10 +856,14 @@ class Data:
     body_F_muscle: array("nworld", "nbody", wp.spatial_vector)
     body_F_drag: array("nworld", "nbody", wp.spatial_vector)
     body_F: array("nworld", "nbody", wp.spatial_vector)
+
+    qfrc_muscle: wp.array2d(dtype=float)
+    qfrc_muscle_passive: wp.array2d(dtype=float)
+
     ufrc_spring: wp.array2d(dtype=float)
     ufrc_damper: wp.array2d(dtype=float)
-    qfrc_muscle: wp.array2d(dtype=float)
     ufrc_muscle: wp.array2d(dtype=float)
+    ufrc_muscle_passive: wp.array2d(dtype=float)
     ufrc_actuator: wp.array2d(dtype=float)
     ufrc_limit: wp.array2d(dtype=float)
     ufrc_total: wp.array2d(dtype=float)
@@ -929,6 +936,7 @@ class Data:
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
     muscle_norm_fiber_length: wp.array2d(dtype=float)
     muscle_actuation: wp.array2d(dtype=float)
+    muscle_actuation_passive: wp.array2d(dtype=float)
     muscle_metabolic: wp.array2d(dtype=float)
 
     # Adaptive integrator fields

@@ -356,6 +356,7 @@ def _set_state(
         # Data out:
         mstate_dot_out: wp.array2d(dtype=float),
         muscle_actuation_out: wp.array2d(dtype=float),
+        muscle_actuation_passive_out: wp.array2d(dtype=float),
         muscle_norm_fiber_length_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
@@ -368,6 +369,7 @@ def _set_state(
 
     # Actuation
     muscle_actuation_out[worldid, muscle_id] = mdi.tendon_force
+    muscle_actuation_passive_out[worldid, muscle_id] = mdi.passive_fiber_force
 
     # State derivative
     if mm.ignore_tendon_compliance:
@@ -426,5 +428,5 @@ def contraction_dynamics(m: Model, d: Data):
             m.muscle_metadata,
             d.integration_done, d.muscle_length_info, d.muscle_velocity_info, d.muscle_dynamics_info
         ],
-        outputs=[d.m_state_dot, d.muscle_actuation, d.muscle_norm_fiber_length],
+        outputs=[d.m_state_dot, d.muscle_actuation, d.muscle_actuation_passive, d.muscle_norm_fiber_length],
     )

@@ -258,6 +258,10 @@ def ufrc_muscle(d: Data) -> torch.Tensor:
     return wp.to_torch(d.ufrc_muscle)
 
 
+def ufrc_muscle_passive(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.ufrc_muscle_passive)
+
+
 def ufrc_actuator(d: Data) -> torch.Tensor:
     return wp.to_torch(d.ufrc_actuator)
 

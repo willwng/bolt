@@ -226,12 +226,15 @@ def muscle_fn_path(m: Model, d: Data):
 
 
 @event_scope
-def apply_muscle_force_fn(m: Model, d: Data):
+def apply_muscle_force_fn(m: Model, d: Data, passive_only: bool = False):
     if m.nmuscle:
+        actuation_in = d.muscle_actuation_passive if passive_only else d.muscle_actuation
+        qfrc_out = d.qfrc_muscle_passive if passive_only else d.qfrc_muscle
         wp.launch(
             _apply_muscle_frc_kernel,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.muscle_metadata, m.fn_path_dimension, m.fn_path_qpos_adr,
-                    d.integration_done, d.muscle_actuation, d.muscle_moment_arm, ],
-            outputs=[d.qfrc_muscle],
+                    d.integration_done, actuation_in, d.muscle_moment_arm, ],
+            outputs=[qfrc_out],
         )
+    return

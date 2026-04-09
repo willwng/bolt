@@ -540,6 +540,7 @@ def load_model(
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_moment_arm=make_zero((n_worlds, nmuscle, nq), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_actuation_passive=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_metabolic=make_zero((n_worlds, nmuscle), dtype=float),
 
         muscle_length_info=make_zero((n_worlds, nmuscle), dtype=MuscleLengthInfo),
@@ -554,11 +555,14 @@ def load_model(
         body_F_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
+        qfrc_muscle=make_zero((n_worlds, nq), dtype=float),
+        qfrc_muscle_passive=make_zero((n_worlds, nq), dtype=float),
+
         ufrc_applied=make_zero((n_worlds, nv), dtype=float),
         ufrc_spring=make_zero((n_worlds, nv), dtype=float),
         ufrc_damper=make_zero((n_worlds, nv), dtype=float),
-        qfrc_muscle=make_zero((n_worlds, nq), dtype=float),
         ufrc_muscle=make_zero((n_worlds, nv), dtype=float),
+        ufrc_muscle_passive=make_zero((n_worlds, nv), dtype=float),
         ufrc_actuator=make_zero((n_worlds, nv), dtype=float),
         ufrc_limit=make_zero((n_worlds, nv), dtype=float),
 
