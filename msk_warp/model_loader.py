@@ -229,12 +229,16 @@ def load_model(
 
     # Muscle function-based paths
     fn_path_term_coeffs = function_based_path_helper.get_fn_path_term_coeffs(converted_function_paths)
-    fn_path_term_exps = function_based_path_helper.get_fn_path_term_exps(converted_function_paths)
     fn_path_term_start, fn_path_term_count = function_based_path_helper.compute_fn_path_term_start_and_count(
         converted_function_paths)
     fn_path_qpos_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, qpos_ordering)
     fn_path_dimension = function_based_path_helper.get_fn_path_dimension(converted_function_paths)
     fn_path_order = function_based_path_helper.get_fn_path_order(converted_function_paths)
+
+    n_fn_path_tiles = function_based_path_helper.compute_num_function_tiles(converted_function_paths)
+    fn_path_term_exps = function_based_path_helper.get_fn_path_term_exps(converted_function_paths)
+    fn_tile_muscle_id = function_based_path_helper.get_fn_tile_muscle_id(converted_function_paths)
+    fn_tile_offset = function_based_path_helper.compute_fn_tile_offset(converted_function_paths)
 
     # Prepare contacts
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
@@ -248,6 +252,7 @@ def load_model(
         implicit_damping=True,
         enable_drag=True,
         visuals=requires_visuals,
+        use_tiled_fn_path=False,
         nbeam_visuals=n_beam_visuals,
 
         activation_type=ActivationType.MILLARD,
@@ -377,21 +382,17 @@ def load_model(
 
         muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
-        muscle_poly_coeffs=to_warp_array([], dtype=float),  # TODO
-        muscle_poly_adr=to_warp_array([], dtype=int),
-        muscle_poly_order=to_warp_array([], dtype=int),
-        muscle_poly_qpos_adr=to_warp_array([], dtype=int),
-        muscle_poly_dof_adr=to_warp_array([], dtype=int),
-        muscle_dep_dof_num=to_warp_array([], dtype=int),
-        muscle_dep_dof_adr=to_warp_array([], dtype=int),
 
         fn_path_term_coeffs=to_warp_array(fn_path_term_coeffs, dtype=float),
-        fn_path_term_exps=to_warp_array(fn_path_term_exps, dtype=PolyInts),
         fn_path_term_start=to_warp_array(fn_path_term_start, dtype=int),
-        fn_path_term_count=to_warp_array(fn_path_term_count, dtype=int),
         fn_path_qpos_adr=to_warp_array(fn_path_qpos_adr, dtype=PolyInts),
         fn_path_dimension=to_warp_array(fn_path_dimension, dtype=int),
         fn_path_order=to_warp_array(fn_path_order, dtype=int),
+
+        n_fn_path_tiles=n_fn_path_tiles,
+        fn_path_term_exps=to_warp_array(fn_path_term_exps, dtype=PolyInts),
+        fn_tile_muscle_id=to_warp_array(fn_tile_muscle_id, dtype=int),
+        fn_tile_offset=to_warp_array(fn_tile_offset, dtype=int),
 
         block_dim=TileBlockDim(),
     )

@@ -80,59 +80,67 @@ def _compute_path_kernel(
 def _compute_path_kernel_tiled(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
+        fn_tile_muscle_id: wp.array(dtype=int),
+        fn_tile_offset: wp.array(dtype=int),
+        fn_path_dimension: wp.array(dtype=int),
         fn_path_term_coeff: wp.array(dtype=float),
         fn_path_term_exps: wp.array(dtype=PolyInts),
         fn_path_term_start: wp.array(dtype=int),
-        fn_path_term_count: wp.array(dtype=int),
         fn_path_qpos_adr: wp.array(dtype=PolyInts),
-        fn_path_dof_adr: wp.array(dtype=PolyInts),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
-        qvel_in: wp.array2d(dtype=float),
+        qdot_in: wp.array2d(dtype=float),
         # Data out:
         muscle_length_out: wp.array2d(dtype=float),
         muscle_moment_arm_out: wp.array3d(dtype=float),
         muscle_velocity_out: wp.array2d(dtype=float),
 ):
-    worldid, muscle_id = wp.tid()
+    worldid, tile_id = wp.tid()
     if integration_done_in[worldid]:
         return
+
+    muscle_id = fn_tile_muscle_id[tile_id]
     if not muscle_metadata[muscle_id].fn_based_path:
         return
 
     # Fetch polynomial data: address into coeffs, order, and dependent dof addresses
+    n_dof = fn_path_dimension[muscle_id]
     start_idx = fn_path_term_start[muscle_id]
-    num_terms = fn_path_term_count[muscle_id]
     qpos_adr = fn_path_qpos_adr[muscle_id]
-    dof_adr = fn_path_dof_adr[muscle_id]
 
     # Fetch q values into registers
     q = PolyVec(0.0)
-    qv = PolyVec(0.0)
     for i in range(wp.static(MAX_POLY_NUM_DOFS)):
         q[i] = qpos_in[worldid, qpos_adr[i]]
-        qv[i] = qvel_in[worldid, dof_adr[i]]
 
-    f_accum = float(0.0)
-    ma_accum = PolyVec(0.0)
+    # Fetch coefficients and exponents
+    tile_offset = fn_tile_offset[tile_id]
     TILE_SIZE = wp.static(POLY_TILE_SIZE)
-    for i in range(0, num_terms, TILE_SIZE):
-        # Fetch coefficients and exponents
-        coeffs_tile = wp.tile_load(fn_path_term_coeff, shape=(TILE_SIZE,), offset=(start_idx + i,))
-        exps_tile = wp.tile_load(fn_path_term_exps, shape=(TILE_SIZE,), offset=(start_idx + i,))
+    coeffs_tile = wp.tile_load(fn_path_term_coeff, shape=(TILE_SIZE,), offset=(start_idx + tile_offset * TILE_SIZE,))
+    exps_tile = wp.tile_load(fn_path_term_exps, shape=(TILE_SIZE,), offset=(start_idx + tile_offset * TILE_SIZE,))
 
-        # Compute term value and derivative, accumulate
-        term_deriv = wp.tile_map(math.evaluate_term_and_deriv, coeffs_tile, exps_tile, q)
-        term_deriv_sum = wp.tile_sum(term_deriv)[0]
-        f_accum += term_deriv_sum[0]
-        ma_accum += math.poly_vec_from_eval(term_deriv_sum)
+    # Compute term value and derivative, accumulate
+    term_deriv = wp.tile_map(math.evaluate_term_and_deriv, coeffs_tile, exps_tile, q)
+    term_deriv_sum = wp.tile_sum(term_deriv)[0]
+    f_accum = term_deriv_sum[0]
+    df_dq = math.poly_vec_from_eval(term_deriv_sum)
 
     # Write out length and moment arms, note the negative sign since moment arm is -dL/dq
-    muscle_length_out[worldid, muscle_id] = f_accum
+    wp.atomic_add(muscle_length_out[worldid], muscle_id, f_accum)
     for i in range(wp.static(MAX_POLY_NUM_DOFS)):
-        muscle_moment_arm_out[worldid, muscle_id, dof_adr[i]] = -ma_accum[i]
-    muscle_velocity_out[worldid, muscle_id] = -wp.dot(ma_accum, qv)
+        if i >= n_dof:
+            break
+        if df_dq[i] != 0.0:
+            wp.atomic_add(muscle_moment_arm_out[worldid], muscle_id, qpos_adr[i], -df_dq[i])
+
+    # Compute velocity
+    velocity = float(0.0)
+    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
+        if i >= n_dof:
+            break
+        velocity += df_dq[i] * qdot_in[worldid, qpos_adr[i]]
+    wp.atomic_add(muscle_velocity_out[worldid], muscle_id, velocity)
     return
 
 
@@ -171,22 +179,30 @@ def _apply_muscle_frc_kernel(
 
 
 @event_scope
-def muscle_fn_path(m: Model, d: Data):
+def muscle_fn_path_tiled(m: Model, d: Data):
+    if m.nmuscle:
+        d.muscle_length.zero_()
+        d.muscle_moment_arm.zero_()
+        d.muscle_velocity.zero_()
+
+        wp.launch_tiled(
+            _compute_path_kernel_tiled,
+            dim=(d.nworld, m.n_fn_path_tiles),
+            inputs=[
+                m.muscle_metadata, m.fn_tile_muscle_id, m.fn_tile_offset, m.fn_path_dimension, m.fn_path_term_coeffs,
+                m.fn_path_term_exps,
+                m.fn_path_term_start, m.fn_path_qpos_adr,
+                d.integration_done, d.qpos, d.qvel
+            ],
+            outputs=[d.muscle_length, d.muscle_moment_arm, d.muscle_velocity],
+            block_dim=POLY_TILE_SIZE,
+        )
+
+
+@event_scope
+def muscle_fn_path_standard(m: Model, d: Data):
     """ Computes the muscle path length and moment arms using a polynomial function approximation """
     if m.nmuscle:
-        # wp.launch_tiled(
-        #     _compute_path_kernel_tiled,
-        #     dim=(d.nworld, m.nmuscle),
-        #     inputs=[
-        #         m.muscle_metadata, m.fn_path_term_coeffs, m.fn_path_term_exps, m.fn_path_term_start, m.fn_path_term_count,
-        #         m.fn_path_qpos_adr, m.fn_path_dof_adr,
-        #         d.integration_done, d.qpos, d.qvel
-        #     ],
-        #     outputs=[d.muscle_length, d.muscle_moment_arm, d.muscle_velocity],
-        #     block_dim=m.block_dim.muscle_path,
-        # )
-
-        # non-tiled seems faster, probably because of how many threads are launched in the tiled version
         wp.launch(
             _compute_path_kernel,
             dim=(d.nworld, m.nmuscle),
@@ -198,6 +214,15 @@ def muscle_fn_path(m: Model, d: Data):
             outputs=[d.muscle_length, d.muscle_moment_arm, d.muscle_velocity],
         )
     return
+
+
+@event_scope
+def muscle_fn_path(m: Model, d: Data):
+    """ Computes the muscle path length and moment arms using a polynomial function approximation """
+    if m.opt.use_tiled_fn_path:
+        muscle_fn_path_tiled(m, d)
+    else:
+        muscle_fn_path_standard(m, d)
 
 
 @event_scope

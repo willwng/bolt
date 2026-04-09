@@ -52,21 +52,17 @@ def parse_function_based_paths(
         muscle_name = muscle.getName()
         muscle_path_name = f"{muscle_name}_{muscle_path.getName()}"
 
-        # Dependent coordinates, pad to MAX_POLY_NUM_DOFS
+        # Dependent coordinates
         coordinates = muscle_path.getCoordinatePaths()
         coordinates = [remove_slash_prefix(coord) for coord in coordinates]
-        coordinates = pad_list(coordinates, target_length=MAX_POLY_NUM_DOFS, pad_value=PADDED_DOF)
-
         # Coefficients
         length_function = muscle_path.get_length_function()
         length_function = OSimType.MultivariatePolynomialFunction.safeDownCast(length_function)
         coefficients = extract_vector(length_function.get_coefficients())
         dimension = length_function.getDimension()
         order = length_function.getOrder()
-
-        # Build exponents, pad to the tile size
+        # Exponents
         exponents = list(polynomial_exponents(dimension, order))
-        exponents = pad_exponents_for_max_dimension(exponents, 0)
 
         # some checks
         num_expected_terms = comb(dimension + order, order)
@@ -79,9 +75,14 @@ def parse_function_based_paths(
         if order > MAX_POLY_ORDER:
             raise ValueError(f"Polynomial order {order} is greater than max supported {MAX_POLY_ORDER}")
 
-        # Now we need to pad everything so it can be processed using tiles, fill up to next multiple with dummy data
+        # Pad everything to the max dimension and order
+        exponents = pad_exponents_for_max_dimension(exponents, 0)
+        coordinates = pad_list(coordinates, target_length=MAX_POLY_NUM_DOFS, pad_value=PADDED_DOF)
+
+        # Now we need to pad everything so it can be processed using tiles
         n_terms = len(coefficients)
         n_padded_terms = ((n_terms + POLY_TILE_SIZE - 1) // POLY_TILE_SIZE) * POLY_TILE_SIZE
+        n_tiles = n_padded_terms // POLY_TILE_SIZE
         coefficients = pad_list(coefficients, target_length=n_padded_terms, pad_value=0.0)
         exponents = pad_list(exponents, target_length=n_padded_terms, pad_value=PolyInts(0))
 
@@ -90,9 +91,11 @@ def parse_function_based_paths(
                 name=muscle_path_name,
                 coordinates=coordinates,
                 coefficients=coefficients,
-                exponents=exponents,
                 dimension=dimension,
                 order=order,
+
+                num_tiles=n_tiles,
+                exponents=exponents,
             )
         )
         muscle_with_fn_path.add(muscle_name)
@@ -154,3 +157,24 @@ def get_fn_path_dimension(muscle_function_paths: list[MuscleFunctionPathData]) -
 
 def get_fn_path_order(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
     return [muscle_path.order for muscle_path in muscle_function_paths]
+
+
+def compute_num_function_tiles(muscle_function_paths: list[MuscleFunctionPathData]) -> int:
+    """ Computes the total number of tiles needed to process all muscle function paths """
+    return sum(muscle_path.num_tiles for muscle_path in muscle_function_paths)
+
+
+def get_fn_tile_muscle_id(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
+    """ Get the muscle id for each tile """
+    tile_muscle_id = []
+    for muscle_id, muscle_path in enumerate(muscle_function_paths):
+        tile_muscle_id.extend([muscle_id] * muscle_path.num_tiles)
+    return tile_muscle_id
+
+
+def compute_fn_tile_offset(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
+    """ Get the offset within the muscle function path for each tile """
+    tile_offset = []
+    for muscle_path in muscle_function_paths:
+        tile_offset.extend([i for i in range(muscle_path.num_tiles)])
+    return tile_offset

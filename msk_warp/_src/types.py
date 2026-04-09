@@ -230,6 +230,7 @@ class Option:
       implicit_damping: flag to add h*damping to mass matrix for implicit damping
       enable_drag: flag to enable drag forces
       visuals: whether to handle visual geometry
+      use_tiled_fn_path: whether to use tiled function-based muscle path evaluation
       nbeam_visuals: number of beam visuals (for rendering beams joints)
 
       activation_type: muscle activation dynamics type (ActivationType)
@@ -255,6 +256,7 @@ class Option:
     implicit_damping: bool
     enable_drag: bool
     visuals: bool
+    use_tiled_fn_path: bool
     nbeam_visuals: int
 
     activation_type: ActivationType
@@ -499,8 +501,11 @@ class Model:
       fn_path_dimension: number of dependent variables             (nmuscle,)
       fn_path_order: order of polynomial function                  (nmuscle,)
       fn_path_term_start: starting adr of each muscle's terms      (nmuscle,)
-      fn_path_term_count: number of terms for each muscle's path   (nmuscle,)
       fn_path_term_coeffs: coefficients for each fn path term      (nmuscle, num_fn_terms)
+
+     * muscle function-based paths (tile specific) *
+      n_fn_path_tiles: number of tiles for fn path evaluation
+      fn_tile_muscle_id: muscle id for each tile                   (num_fn_tiles,)
       fn_path_term_exps: exponents for each fn path term           (nmuscle, num_fn_terms, PolyInt)
     """
 
@@ -605,21 +610,17 @@ class Model:
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)
     muscle_pts_num: wp.array(dtype=int)
-    # Polynomial/function paths
-    muscle_poly_coeffs: array("npoly_coeffs", float)
-    muscle_poly_adr: array("nmuscle", int)
-    muscle_poly_order: array("nmuscle", int)
-    muscle_poly_qpos_adr: array("total_order", int)
-    muscle_poly_dof_adr: array("total_order", int)
-    muscle_dep_dof_num: array("nmuscle", int)
-    muscle_dep_dof_adr: array("nmuscle", int)
 
+    # Polynomial/function paths
     fn_path_qpos_adr: array("nmuscle", PolyInts)
     fn_path_dimension: array("nmuscle", int)
     fn_path_order: array("nmuscle", int)
     fn_path_term_start: array("nmuscle", int)
-    fn_path_term_count: array("nmuscle", int)
     fn_path_term_coeffs: array("nmuscle", "num_fn_terms", float)
+
+    n_fn_path_tiles: int
+    fn_tile_muscle_id: array("num_fn_tiles", int)
+    fn_tile_offset: array("num_fn_tiles", int)
     fn_path_term_exps: array("nmuscle", "num_fn_terms", PolyInts)
 
     block_dim: TileBlockDim

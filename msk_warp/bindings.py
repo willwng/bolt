@@ -149,6 +149,10 @@ def set_implicit_damping(m: Model, enabled: bool):
     m.opt.implicit_damping = enabled
 
 
+def set_use_tiled_fn_path(m: Model, enabled: bool):
+    m.opt.use_tiled_fn_path = enabled
+
+
 def set_drag_enabled(m: Model, enabled: bool):
     m.opt.enable_drag = enabled
 
