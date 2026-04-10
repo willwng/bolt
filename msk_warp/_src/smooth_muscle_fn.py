@@ -186,7 +186,6 @@ def _post_tile_muscle(
 @wp.kernel
 def _apply_muscle_frc_kernel(
         # Model:
-        muscle_metadata: wp.array(dtype=MuscleMetadata),
         fn_dimension: wp.array(dtype=int),
         fn_qpos_adr: wp.array(dtype=PolyInts),
         # Data in:
@@ -279,7 +278,7 @@ def apply_muscle_force_fn(m: Model, d: Data, passive_only: bool = False):
         wp.launch(
             _apply_muscle_frc_kernel,
             dim=(d.nworld, m.nmuscle),
-            inputs=[m.muscle_metadata, m.fn_path_dimension, m.fn_path_qpos_adr,
+            inputs=[m.fn_path_dimension, m.fn_path_qpos_adr,
                     d.integration_done, actuation_in, d.muscle_moment_arm, ],
             outputs=[qfrc_out],
         )
