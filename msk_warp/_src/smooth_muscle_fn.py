@@ -48,6 +48,8 @@ def _compute_path_kernel(
     # Fetch q values into registers
     q = PolyVec(0.0)
     for i in range(wp.static(MAX_POLY_NUM_DOFS)):
+        if i >= n_dof:
+            break
         q[i] = qpos_in[worldid, qpos_adr[i]]
 
     # Pre-calculate powers
@@ -94,7 +96,7 @@ def _compute_path_kernel_tiled(
         muscle_length_out: wp.array2d(dtype=float),
         muscle_fn_tile_ma_tmp_out: wp.array3d(dtype=float),
 ):
-    worldid, tile_id = wp.tid()
+    worldid, tile_id, tid = wp.tid()
     if integration_done_in[worldid]:
         return
 
@@ -102,35 +104,31 @@ def _compute_path_kernel_tiled(
     if not muscle_metadata[muscle_id].fn_based_path:
         return
 
-    # Fetch polynomial data: address into coeffs, order, and dependent dof addresses
     n_dof = fn_path_dimension[muscle_id]
-    start_idx = fn_path_term_start[muscle_id]
-    qpos_adr = fn_path_qpos_adr[muscle_id]
 
-    # Fetch q values into registers
     q = PolyVec(0.0)
+    qpos_adr = fn_path_qpos_adr[muscle_id]
     for i in range(wp.static(MAX_POLY_NUM_DOFS)):
-        q[i] = qpos_in[worldid, qpos_adr[i]]
+        if i < n_dof:
+            q[i] = qpos_in[worldid, qpos_adr[i]]
 
-    # Fetch coefficients and exponents
-    tile_offset = fn_tile_offset[tile_id]
     TILE_SIZE = wp.static(POLY_TILE_SIZE)
-    coeffs_tile = wp.tile_load(fn_path_term_coeff, shape=(TILE_SIZE,), offset=(start_idx + tile_offset * TILE_SIZE,))
-    exps_tile = wp.tile_load(fn_path_term_exps, shape=(TILE_SIZE,), offset=(start_idx + tile_offset * TILE_SIZE,))
+    offset_idx = fn_path_term_start[muscle_id] + fn_tile_offset[tile_id] * TILE_SIZE
+    coeffs_tile = wp.tile_load(fn_path_term_coeff, shape=(TILE_SIZE,), offset=(offset_idx,))
+    exps_tile = wp.tile_load(fn_path_term_exps, shape=(TILE_SIZE,), offset=(offset_idx,))
 
     # Compute term value and derivative, accumulate
     term_deriv = wp.tile_map(math.evaluate_term_and_deriv, coeffs_tile, exps_tile, q)
     term_deriv_sum = wp.tile_sum(term_deriv)[0]
-    f_accum = term_deriv_sum[0]
-    df_dq = math.poly_vec_from_eval(term_deriv_sum)
 
-    # Write out length and moment arms, note the negative sign since moment arm is -dL/dq
-    wp.atomic_add(muscle_length_out[worldid], muscle_id, f_accum)
-    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
-        if i >= n_dof:
-            break
-        if df_dq[i] != 0.0:
-            wp.atomic_add(muscle_fn_tile_ma_tmp_out[worldid], muscle_id, i, df_dq[i])
+    # Write out length and moment arms
+    if tid == 0:
+        f_accum = term_deriv_sum[0]
+        df_dq = math.poly_vec_from_eval(term_deriv_sum)
+        wp.atomic_add(muscle_length_out[worldid], muscle_id, f_accum)
+        for i in range(wp.static(MAX_POLY_NUM_DOFS)):
+            if i < n_dof:
+                wp.atomic_add(muscle_fn_tile_ma_tmp_out[worldid], muscle_id, i, df_dq[i])
     return
 
 

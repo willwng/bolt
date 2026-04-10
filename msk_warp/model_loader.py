@@ -235,6 +235,10 @@ def load_model(
     fn_path_dimension = function_based_path_helper.get_fn_path_dimension(converted_function_paths)
     fn_path_order = function_based_path_helper.get_fn_path_order(converted_function_paths)
 
+    # We need tiles if max number of dofs is higher than 6. Performance is probably also a bit better anyway
+    max_fn_path_dimension = max(fn_path_dimension)
+    use_tiled_fn_path = max_fn_path_dimension > 6
+
     n_fn_path_tiles = function_based_path_helper.compute_num_function_tiles(converted_function_paths)
     fn_path_term_exps = function_based_path_helper.get_fn_path_term_exps(converted_function_paths)
     fn_tile_muscle_id = function_based_path_helper.get_fn_tile_muscle_id(converted_function_paths)
@@ -252,7 +256,7 @@ def load_model(
         implicit_damping=True,
         enable_drag=True,
         visuals=requires_visuals,
-        use_tiled_fn_path=False,
+        use_tiled_fn_path=use_tiled_fn_path,
         nbeam_visuals=n_beam_visuals,
 
         activation_type=ActivationType.MILLARD,
