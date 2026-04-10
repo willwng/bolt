@@ -10,21 +10,23 @@ wp.set_module_options({"enable_backward": False})
 
 
 @event_scope
-def copy_ufrc_into_moment_arm(m: Model, d: Data, muscle_id: int, ufrc: wp.array2d(dtype=float)):
+def copy_ufrc_into_moment_arm(m: Model, d: Data, nodeid: int, ufrc: wp.array2d(dtype=float)):
+    """ For point-based paths only """
+
     @wp.kernel
     def _copy_ufrc_into_moment_arm_kernel(
             # Model:
-            muscle_metadata: wp.array(dtype=MuscleMetadata),
+            muscle_pt_to_mid: wp.array(dtype=int),
             # Data in:
             ufrc_in: wp.array2d(dtype=float),
             # In:
-            muscleid: int,
+            nid: int,
             # Data out:
             muscle_moment_arm_out: wp.array3d(dtype=float),
     ):
         worldid = wp.tid()
-        if muscle_metadata[muscleid].fn_based_path:  # fn-based paths are already done
-            return
+        muscleid = muscle_pt_to_mid[nid]
+
         nv = wp.static(m.nv)
         ufrc_tile = wp.tile_load(ufrc_in[worldid], shape=nv)
         wp.tile_store(muscle_moment_arm_out[worldid, muscleid], ufrc_tile)
@@ -34,11 +36,7 @@ def copy_ufrc_into_moment_arm(m: Model, d: Data, muscle_id: int, ufrc: wp.array2
         wp.launch_tiled(
             _copy_ufrc_into_moment_arm_kernel,
             dim=(d.nworld,),
-            inputs=[
-                m.muscle_metadata,
-                ufrc,
-                muscle_id,
-            ],
+            inputs=[m.muscle_metadata, ufrc, nodeid, ],
             outputs=[d.muscle_moment_arm],
             block_dim=m.block_dim.muscle_path,
         )

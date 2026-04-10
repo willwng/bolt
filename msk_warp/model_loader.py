@@ -4,7 +4,7 @@ import os
 from msk_warp import Model, Data, IntegratorType, Option, ActivationType, MetabolicOptions, MuscleMetadata, \
     ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, MuscleLengthInfo, \
     FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
-    CoordinateLimitForce, ExponentialContact, vec5, MAX_POLY_NUM_DOFS
+    CoordinateLimitForce, ExponentialContact, MAX_POLY_NUM_DOFS, vec5
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.utils import *
 
@@ -60,10 +60,12 @@ def load_model(
     site_start_muscle, site_start_contact, site_start_rem = 0, len(sites_mus), len(sites_mus) + len(sites_exp)
 
     # Function-based paths
-    converted_function_paths, muscle_with_fn_path = [], set()
     if polynomial_data_path is not None:
-        converted_function_paths, muscle_with_fn_path = (
+        converted_function_paths = (
             function_based_path_helper.parse_function_based_paths(model_path, polynomial_data_path))
+        assert len(converted_function_paths) == len(converted_muscles)
+    else:
+        converted_function_paths = [USE_POINT_PATH] * len(converted_muscles)
 
     # Create a lookup from body name -> body data. Needed for joint->body lookup
     body_name_to_body = {body.name: body for body in converted_bodies}
@@ -224,25 +226,28 @@ def load_model(
     muscle_pts_num = muscle_helper.get_muscle_pts_num(converted_muscles)
     muscle_pts_adr = exclusive_scan(muscle_pts_num)
     muscle_pts_adr = [adr + site_start_muscle for adr in muscle_pts_adr]  # shift by number of sites before muscles
-    muscle_data = muscle_helper.create_muscle_metadata(converted_muscles, muscle_with_fn_path)
+    muscle_data = muscle_helper.create_muscle_metadata(converted_muscles)
     mm = wp.array(muscle_data, dtype=MuscleMetadata)
 
     # Muscle function-based paths
     fn_path_term_coeffs = function_based_path_helper.get_fn_path_term_coeffs(converted_function_paths)
+    fn_path_term_exps = function_based_path_helper.get_fn_path_term_exps(converted_function_paths)
     fn_path_term_start, fn_path_term_count = function_based_path_helper.compute_fn_path_term_start_and_count(
         converted_function_paths)
     fn_path_qpos_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, qpos_ordering)
     fn_path_dimension = function_based_path_helper.get_fn_path_dimension(converted_function_paths)
     fn_path_order = function_based_path_helper.get_fn_path_order(converted_function_paths)
-
-    # We need tiles if max number of dofs is higher than 6. Performance is probably also a bit better anyway
-    max_fn_path_dimension = max(fn_path_dimension)
-    use_tiled_fn_path = max_fn_path_dimension > 6
-
-    n_fn_path_tiles = function_based_path_helper.compute_num_function_tiles(converted_function_paths)
-    fn_path_term_exps = function_based_path_helper.get_fn_path_term_exps(converted_function_paths)
-    fn_tile_muscle_id = function_based_path_helper.get_fn_tile_muscle_id(converted_function_paths)
-    fn_tile_offset = function_based_path_helper.compute_fn_tile_offset(converted_function_paths)
+    # Determine the path type for each muscle
+    point_paths_id, function_paths_id, function_tiled_paths_id = function_based_path_helper.path_type_to_muscle(
+        converted_function_paths)
+    npointpaths, nfnpaths, nfntilepaths = len(point_paths_id), len(function_paths_id), len(function_tiled_paths_id)
+    # Prepare tiles (if needed)
+    n_fn_path_tiles = function_based_path_helper.compute_num_function_tiles(
+        converted_function_paths, function_tiled_paths_id)
+    fn_tile_muscle_id = function_based_path_helper.get_fn_tile_muscle_id(
+        converted_function_paths, function_tiled_paths_id)
+    fn_tile_offset = function_based_path_helper.compute_fn_tile_offset(
+        converted_function_paths, function_tiled_paths_id)
 
     # Prepare contacts
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
@@ -256,7 +261,6 @@ def load_model(
         implicit_damping=True,
         enable_drag=True,
         visuals=requires_visuals,
-        use_tiled_fn_path=use_tiled_fn_path,
         nbeam_visuals=n_beam_visuals,
 
         activation_type=ActivationType.MILLARD,
@@ -308,6 +312,10 @@ def load_model(
         nlinearfn=nlinearfn,
         nconstfn=nconstfn,
         npolyfn=npolyfn,
+
+        nm_pointpaths=npointpaths,
+        nm_fnpaths=nfnpaths,
+        nm_fntilepaths=nfntilepaths,
 
         opt=opt,
         muscle_metadata=mm,
@@ -386,6 +394,10 @@ def load_model(
 
         muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
+
+        muscle_pt_to_mid=to_warp_array(point_paths_id, dtype=int),
+        muscle_fn_to_mid=to_warp_array(function_paths_id, dtype=int),
+        muscle_fn_tiled_to_mid=to_warp_array(function_tiled_paths_id, dtype=int),
 
         fn_path_term_coeffs=to_warp_array(fn_path_term_coeffs, dtype=float),
         fn_path_term_start=to_warp_array(fn_path_term_start, dtype=int),

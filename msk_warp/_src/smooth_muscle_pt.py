@@ -12,7 +12,7 @@ wp.set_module_options({"enable_backward": False})
 @wp.kernel
 def _compute_path_kernel(
         # Model:
-        muscle_metadata: wp.array(dtype=MuscleMetadata),
+        muscle_pt_to_mid: wp.array(dtype=int),
         muscle_pts_adr: wp.array(dtype=int),
         muscle_pts_num: wp.array(dtype=int),
         # Data in:
@@ -23,11 +23,10 @@ def _compute_path_kernel(
         muscle_length_out: wp.array2d(dtype=float),
         muscle_velocity_out: wp.array2d(dtype=float),
 ):
-    worldid, muscle_id = wp.tid()
+    worldid, nodeid = wp.tid()
     if integration_done_in[worldid]:
         return
-    if muscle_metadata[muscle_id].fn_based_path:
-        return
+    muscle_id = muscle_pt_to_mid[nodeid]
 
     pts_adr = muscle_pts_adr[muscle_id]
     pts_num = muscle_pts_num[muscle_id]
@@ -87,7 +86,7 @@ def apply_muscle_force_to_bodies(
 @wp.kernel
 def _apply_muscle_force_kernel(
         # Model:
-        muscle_metadata: wp.array(dtype=MuscleMetadata),
+        muscle_pt_to_mid: wp.array(dtype=int),
         muscle_pts_adr: wp.array(dtype=int),
         muscle_pts_num: wp.array(dtype=int),
         site_bodyid: wp.array(dtype=int),
@@ -99,11 +98,10 @@ def _apply_muscle_force_kernel(
         # Data out:
         body_F_muscle_out: wp.array2d(dtype=wp.spatial_vector),
 ):
-    worldid, muscle_id = wp.tid()
+    worldid, nodeid = wp.tid()
     if integration_done_in[worldid]:
         return
-    if muscle_metadata[muscle_id].fn_based_path:
-        return
+    muscle_id = muscle_pt_to_mid[nodeid]
 
     actuation = muscle_actuation_in[worldid, muscle_id]
 
@@ -119,7 +117,7 @@ def _apply_muscle_force_kernel(
 @wp.kernel
 def _apply_unit_muscle_force_one_muscle_kernel(
         # Model:
-        muscle_metadata: wp.array(dtype=MuscleMetadata),
+        muscle_pt_to_mid: wp.array(dtype=int),
         muscle_pts_adr: wp.array(dtype=int),
         muscle_pts_num: wp.array(dtype=int),
         site_bodyid: wp.array(dtype=int),
@@ -127,13 +125,12 @@ def _apply_unit_muscle_force_one_muscle_kernel(
         site_pos_G_in: wp.array2d(dtype=wp.vec3),
         site_rel_pos_B_in: wp.array2d(dtype=wp.vec3),
         # In:
-        muscle_id: int,
+        nodeid: int,
         # Data out:
         body_F_muscle_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid = wp.tid()
-    if muscle_metadata[muscle_id].fn_based_path:
-        return
+    muscle_id = muscle_pt_to_mid[nodeid]
 
     actuation = 1.0
     pts_adr = muscle_pts_adr[muscle_id]
@@ -148,12 +145,12 @@ def _apply_unit_muscle_force_one_muscle_kernel(
 @event_scope
 def muscle_point_path(m: Model, d: Data):
     """ Computes the muscle path length and velocity for point-based paths """
-    if m.nmuscle:
+    if m.nm_pointpaths:
         wp.launch(
             _compute_path_kernel,
-            dim=(d.nworld, m.nmuscle),
+            dim=(d.nworld, m.nm_pointpaths),
             inputs=[
-                m.muscle_metadata, m.muscle_pts_adr, m.muscle_pts_num,
+                m.muscle_pt_to_mid, m.muscle_pts_adr, m.muscle_pts_num,
                 d.integration_done, d.site_pos_G, d.site_vel_G
             ],
             outputs=[d.muscle_length, d.muscle_velocity],
@@ -162,12 +159,12 @@ def muscle_point_path(m: Model, d: Data):
 
 @event_scope
 def apply_muscle_force_pt(m: Model, d: Data):
-    if m.nmuscle:
+    if m.nm_pointpaths:
         wp.launch(
             _apply_muscle_force_kernel,
-            dim=(d.nworld, m.nmuscle),
+            dim=(d.nworld, m.nm_pointpaths),
             inputs=[
-                m.muscle_metadata, m.muscle_pts_adr, m.muscle_pts_num, m.site_bodyid,
+                m.muscle_pt_to_mid, m.muscle_pts_adr, m.muscle_pts_num, m.site_bodyid,
                 d.integration_done, d.muscle_actuation, d.site_pos_G, d.site_rel_pos_B
             ],
             outputs=[d.body_F_muscle],
@@ -175,15 +172,14 @@ def apply_muscle_force_pt(m: Model, d: Data):
 
 
 @event_scope
-def apply_unit_force_one_muscle(m: Model, d: Data, body_F_out: wp.array2d, muscle_id: int):
-    if m.nmuscle:
+def apply_unit_force_one_muscle(m: Model, d: Data, body_F_out: wp.array2d, nodeid: int):
+    if m.nm_pointpaths:
         wp.launch(
             _apply_unit_muscle_force_one_muscle_kernel,
             dim=(d.nworld,),
             inputs=[
-                m.muscle_metadata, m.muscle_pts_adr, m.muscle_pts_num, m.site_bodyid,
-                d.site_pos_G, d.site_rel_pos_B,
-                muscle_id
+                m.muscle_pt_to_mid, m.muscle_pts_adr, m.muscle_pts_num, m.site_bodyid,
+                d.site_pos_G, d.site_rel_pos_B, nodeid
             ],
             outputs=[body_F_out],
         )

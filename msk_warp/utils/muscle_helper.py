@@ -122,13 +122,10 @@ def get_muscle_pts_num(muscles: list[MuscleData]) -> list[int]:
 
 def create_muscle_metadata(
         muscles: list[MuscleData],
-        muscle_with_fn_path: set[str]
 ) -> list[MuscleMetadata]:
     muscle_metadata = []
     for muscle in muscles:
         muscle_meta = MuscleMetadata()
-        # Whether muscle uses function-based path
-        muscle_meta.fn_based_path = muscle.name in muscle_with_fn_path
         # Muscle properties
         muscle_meta.ignore_tendon_compliance = muscle.ignore_tendon_compliance
         muscle_meta.max_isometric_force = muscle.max_isometric_force

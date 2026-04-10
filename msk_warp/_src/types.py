@@ -230,7 +230,6 @@ class Option:
       implicit_damping: flag to add h*damping to mass matrix for implicit damping
       enable_drag: flag to enable drag forces
       visuals: whether to handle visual geometry
-      use_tiled_fn_path: whether to use tiled function-based muscle path evaluation
       nbeam_visuals: number of beam visuals (for rendering beams joints)
 
       activation_type: muscle activation dynamics type (ActivationType)
@@ -256,7 +255,6 @@ class Option:
     implicit_damping: bool
     enable_drag: bool
     visuals: bool
-    use_tiled_fn_path: bool
     nbeam_visuals: int
 
     activation_type: ActivationType
@@ -300,7 +298,6 @@ class ResidualResult:
 @wp.struct
 class MuscleMetadata:
     """Muscle metadata. """
-    fn_based_path: bool
     ignore_tendon_compliance: bool
 
     max_isometric_force: float
@@ -408,6 +405,15 @@ class Model:
       nlimitforce: number of (CoordinateLimitForce) limits
       nswingtwist: number of swing-twist limits
 
+      nfunctions: number of custom functions
+      nlinearfn: number of linear functions
+      nconstfn: number of constant functions
+      npolyfn: number of polynomial functions
+
+      nm_pointpaths: number of muscles with point paths
+      nm_fnpaths: number of muscles with function-based paths
+      nm_fntilepaths: number of muscles with function-based paths that requires tiles
+
       opt: physics options
       muscle_metadata: muscle metadata                         (nmuscle,)
       muscle_data: same as above, but intended for future modification
@@ -490,23 +496,28 @@ class Model:
 
      * sites *
       site_bodyid: id of site's body                           (nsite,)
-      site_offset: local position offset rel. to body             (nsite, 3)
+      site_offset: local position offset rel. to body          (nsite, 3)
 
      * muscles *
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
 
+     * muscle paths *
+      muscle_pt_to_mid: point-path to muscle id lookup         (npointpath)
+      muscle_fn_to_mid: function path to muscle id lookup      (nfnpath)
+      muscle_fn_tiled_to_mid: tiled fn path to muscle id       (nfntilepaths)
+
      * muscle function-based paths *
-      fn_path_qpos_adr: qpos adr for each muscle fn path term      (nmuscle, PolyInt)
-      fn_path_dimension: number of dependent variables             (nmuscle,)
-      fn_path_order: order of polynomial function                  (nmuscle,)
-      fn_path_term_start: starting adr of each muscle's terms      (nmuscle,)
-      fn_path_term_coeffs: coefficients for each fn path term      (nmuscle, num_fn_terms)
+      fn_path_qpos_adr: qpos adr for each muscle fn path term  (nmuscle, PolyInt)
+      fn_path_dimension: number of dependent variables         (nmuscle,)
+      fn_path_order: order of polynomial function              (nmuscle,)
+      fn_path_term_start: starting adr of each muscle's terms  (nmuscle,)
+      fn_path_term_coeffs: coefficients for each fn path term  (nmuscle, num_fn_terms)
 
      * muscle function-based paths (tile specific) *
       n_fn_path_tiles: number of tiles for fn path evaluation
-      fn_tile_muscle_id: muscle id for each tile                   (num_fn_tiles,)
-      fn_path_term_exps: exponents for each fn path term           (nmuscle, num_fn_terms, PolyInt)
+      fn_tile_muscle_id: muscle id for each tile                (num_fn_tiles,)
+      fn_path_term_exps: exponents for each fn path term        (nmuscle, num_fn_terms, PolyInt)
     """
 
     nbody: int
@@ -528,6 +539,10 @@ class Model:
     nlinearfn: int
     nconstfn: int
     npolyfn: int
+
+    nm_pointpaths: int
+    nm_fnpaths: int
+    nm_fntilepaths: int
 
     opt: Option
     muscle_metadata: array("nmuscle", MuscleMetadata)
@@ -610,6 +625,11 @@ class Model:
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)
     muscle_pts_num: wp.array(dtype=int)
+
+    # Muscle paths
+    muscle_pt_to_mid: array("npointpath", int)
+    muscle_fn_to_mid: array("nfnpaths", int)
+    muscle_fn_tiled_to_mid: array("nfntilepaths", int)
 
     # Polynomial/function paths
     fn_path_qpos_adr: array("nmuscle", PolyInts)
@@ -801,7 +821,7 @@ class Data:
       muscle_length: muscle lengths                               (nworld, nmuscle)
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
      * tile-only
-      muscle_fn_tile_ma_tmp: temporary moment arm contribution    (nworld, num_fn_tiles, MAX_POLY_NUM_DOFS)
+      muscle_fn_tile_ma_tmp: temporary moment arm contribution    (nworld, nmuscle, MAX_POLY_NUM_DOFS)
 
      * point-path based muscle paths
       site_rel_pos_B: site position relative to body              (nworld, nsite, 3)
@@ -929,7 +949,7 @@ class Data:
     muscle_length: wp.array2d(dtype=float)
     muscle_velocity: wp.array2d(dtype=float)
 
-    muscle_fn_tile_ma_tmp: wp.array3d(dtype=float)
+    muscle_fn_tile_ma_tmp: wp.array3d(dtype=float)  # need dtype float for supporting atomics
 
     site_rel_pos_B: wp.array2d(dtype=wp.vec3)
     site_pos_G: wp.array2d(dtype=wp.vec3)

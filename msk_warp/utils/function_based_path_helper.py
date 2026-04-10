@@ -2,7 +2,7 @@ import opensim as osim
 import itertools
 
 from math import comb
-from msk_warp import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, POLY_TILE_SIZE, PolyInts
+from msk_warp import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, POLY_TILE_SIZE, MAX_POLY_NUM_DOFS_STANDARD, PolyInts
 from msk_warp.utils.osim_types import OSimType
 from msk_warp.utils.converted_objects import MuscleFunctionPathData, USE_POINT_PATH, PADDED_DOF
 from msk_warp.utils.muscle_helper import get_muscles
@@ -29,10 +29,9 @@ def pad_exponents_for_max_dimension(exponents: list[tuple], pad_value: int) -> l
 def parse_function_based_paths(
         model_path: str,
         function_based_path_file: str
-) -> tuple[list[MuscleFunctionPathData], set[str]]:
+) -> list[MuscleFunctionPathData]:
     """ Converts the muscle paths in the given model to function-based paths using the provided file """
     muscle_function_path_data = []
-    muscle_with_fn_path = set()
 
     # Load the model and process it with the FunctionBasedPath processor
     processor = osim.ModelProcessor(model_path)
@@ -98,8 +97,26 @@ def parse_function_based_paths(
                 exponents=exponents,
             )
         )
-        muscle_with_fn_path.add(muscle_name)
-    return muscle_function_path_data, muscle_with_fn_path
+    return muscle_function_path_data
+
+
+def path_type_to_muscle(
+        muscle_function_paths: list[MuscleFunctionPathData]
+) -> tuple[list[int], list[int], list[int]]:
+    """
+    Get mapping from (point | function | function_tiled) id to muscle id
+    This function decides what type of path each muscle should use
+    """
+    point_paths, function_paths, function_tiled_paths = [], [], []
+    for i, muscle_path in enumerate(muscle_function_paths):
+        if muscle_path == USE_POINT_PATH:
+            point_paths.append(i)
+        elif muscle_path.dimension <= MAX_POLY_NUM_DOFS_STANDARD:
+            function_paths.append(i)
+        else:  # We need tiles if max number of dofs is higher. Performance is probably also a bit better for these
+            function_tiled_paths.append(i)
+
+    return point_paths, function_paths, function_tiled_paths
 
 
 def get_fn_path_term_coeffs(muscle_function_paths: list[MuscleFunctionPathData]) -> list[float]:
@@ -108,14 +125,6 @@ def get_fn_path_term_coeffs(muscle_function_paths: list[MuscleFunctionPathData])
     for muscle_path in muscle_function_paths:
         coeffs.extend(muscle_path.coefficients)
     return coeffs
-
-
-def get_fn_path_term_exps(muscle_function_paths: list[MuscleFunctionPathData]) -> list[PolyInts]:
-    """ Gets the exponents of the polynomial terms for all the muscle function paths """
-    exps = []
-    for muscle_path in muscle_function_paths:
-        exps.extend(muscle_path.exponents)
-    return exps
 
 
 def compute_fn_path_term_start_and_count(
@@ -159,22 +168,46 @@ def get_fn_path_order(muscle_function_paths: list[MuscleFunctionPathData]) -> li
     return [muscle_path.order for muscle_path in muscle_function_paths]
 
 
-def compute_num_function_tiles(muscle_function_paths: list[MuscleFunctionPathData]) -> int:
+# --- TILED MUSCLE FUNCTION PATHS ---
+def compute_num_function_tiles(
+        muscle_function_paths: list[MuscleFunctionPathData],
+        function_tiled_paths_id: list[int]
+) -> int:
     """ Computes the total number of tiles needed to process all muscle function paths """
-    return sum(muscle_path.num_tiles for muscle_path in muscle_function_paths)
+    num_total_tiles = 0
+    for muscle_id in function_tiled_paths_id:
+        muscle_path = muscle_function_paths[muscle_id]
+        num_total_tiles += muscle_path.num_tiles
+    return num_total_tiles
 
 
-def get_fn_tile_muscle_id(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
+def get_fn_path_term_exps(muscle_function_paths: list[MuscleFunctionPathData]) -> list[PolyInts]:
+    """ Gets the exponents of the polynomial terms for all the muscle function paths """
+    exps = []
+    for muscle_path in muscle_function_paths:
+        exps.extend(muscle_path.exponents)
+    return exps
+
+
+def get_fn_tile_muscle_id(
+        muscle_function_paths: list[MuscleFunctionPathData],
+        function_tiled_paths_id: list[int]
+) -> list[int]:
     """ Get the muscle id for each tile """
     tile_muscle_id = []
-    for muscle_id, muscle_path in enumerate(muscle_function_paths):
+    for muscle_id in function_tiled_paths_id:
+        muscle_path = muscle_function_paths[muscle_id]
         tile_muscle_id.extend([muscle_id] * muscle_path.num_tiles)
     return tile_muscle_id
 
 
-def compute_fn_tile_offset(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
+def compute_fn_tile_offset(
+        muscle_function_paths: list[MuscleFunctionPathData],
+        function_tiled_paths_id: list[int]
+) -> list[int]:
     """ Get the offset within the muscle function path for each tile """
     tile_offset = []
-    for muscle_path in muscle_function_paths:
+    for muscle_id in function_tiled_paths_id:
+        muscle_path = muscle_function_paths[muscle_id]
         tile_offset.extend([i for i in range(muscle_path.num_tiles)])
     return tile_offset

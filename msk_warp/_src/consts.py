@@ -1,6 +1,7 @@
 # Function-based fitting for muscle paths
-MAX_POLY_NUM_DOFS = 12
-MAX_POLY_ORDER = 10
+MAX_POLY_NUM_DOFS_STANDARD = 6  # Maximum number of DOFs before we switch to tiled representation
+MAX_POLY_NUM_DOFS = 12  # Maximum number of DOFs a function can support
+MAX_POLY_ORDER = 4  # Maximum polynomial order
 POLY_TILE_SIZE = 32
 
 MSK_MINVAL = 1e-15
