@@ -799,6 +799,8 @@ class Data:
      * muscle paths
       muscle_length: muscle lengths                               (nworld, nmuscle)
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
+     * tile-only
+      muscle_fn_tile_ma_tmp: temporary moment arm contribution    (nworld, num_fn_tiles, MAX_POLY_NUM_DOFS)
 
      * point-path based muscle paths
       site_rel_pos_B: site position relative to body              (nworld, nsite, 3)
@@ -924,6 +926,8 @@ class Data:
 
     muscle_length: wp.array2d(dtype=float)
     muscle_velocity: wp.array2d(dtype=float)
+
+    muscle_fn_tile_ma_tmp: wp.array3d(dtype=float)
 
     site_rel_pos_B: wp.array2d(dtype=wp.vec3)
     site_pos_G: wp.array2d(dtype=wp.vec3)

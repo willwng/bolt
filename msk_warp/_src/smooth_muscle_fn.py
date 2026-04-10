@@ -90,11 +90,9 @@ def _compute_path_kernel_tiled(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
-        qdot_in: wp.array2d(dtype=float),
         # Data out:
         muscle_length_out: wp.array2d(dtype=float),
-        muscle_moment_arm_out: wp.array3d(dtype=float),
-        muscle_velocity_out: wp.array2d(dtype=float),
+        muscle_fn_tile_ma_tmp_out: wp.array3d(dtype=float),
 ):
     worldid, tile_id = wp.tid()
     if integration_done_in[worldid]:
@@ -132,7 +130,34 @@ def _compute_path_kernel_tiled(
         if i >= n_dof:
             break
         if df_dq[i] != 0.0:
-            wp.atomic_add(muscle_moment_arm_out[worldid], muscle_id, qpos_adr[i], -df_dq[i])
+            wp.atomic_add(muscle_fn_tile_ma_tmp_out[worldid], muscle_id, i, df_dq[i])
+    return
+
+
+@wp.kernel
+def _post_tile_muscle(
+        # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
+        fn_path_dimension: wp.array(dtype=int),
+        fn_path_qpos_adr: wp.array(dtype=PolyInts),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        muscle_fn_tile_ma_tmp_in: wp.array3d(dtype=float),
+        qdot_in: wp.array2d(dtype=float),
+        # Data out:
+        muscle_moment_arm_out: wp.array3d(dtype=float),
+        muscle_velocity_out: wp.array2d(dtype=float),
+):
+    worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
+    if not muscle_metadata[muscle_id].fn_based_path:
+        return
+
+    # Fetch polynomial data: dimension, order, address into coeffs, and dependent dof addresses
+    n_dof = fn_path_dimension[muscle_id]
+    qpos_adr = fn_path_qpos_adr[muscle_id]
+    df_dq = muscle_fn_tile_ma_tmp_in[worldid, muscle_id]
 
     # Compute velocity
     velocity = float(0.0)
@@ -140,7 +165,8 @@ def _compute_path_kernel_tiled(
         if i >= n_dof:
             break
         velocity += df_dq[i] * qdot_in[worldid, qpos_adr[i]]
-    wp.atomic_add(muscle_velocity_out[worldid], muscle_id, velocity)
+        muscle_moment_arm_out[worldid, muscle_id, qpos_adr[i]] = -df_dq[i]
+    muscle_velocity_out[worldid, muscle_id] = velocity
     return
 
 
@@ -182,20 +208,26 @@ def _apply_muscle_frc_kernel(
 def muscle_fn_path_tiled(m: Model, d: Data):
     if m.nmuscle:
         d.muscle_length.zero_()
-        d.muscle_moment_arm.zero_()
-        d.muscle_velocity.zero_()
-
+        d.muscle_fn_tile_ma_tmp.zero_()
         wp.launch_tiled(
             _compute_path_kernel_tiled,
             dim=(d.nworld, m.n_fn_path_tiles),
             inputs=[
                 m.muscle_metadata, m.fn_tile_muscle_id, m.fn_tile_offset, m.fn_path_dimension, m.fn_path_term_coeffs,
-                m.fn_path_term_exps,
-                m.fn_path_term_start, m.fn_path_qpos_adr,
-                d.integration_done, d.qpos, d.qvel
+                m.fn_path_term_exps, m.fn_path_term_start, m.fn_path_qpos_adr,
+                d.integration_done, d.qpos,
             ],
-            outputs=[d.muscle_length, d.muscle_moment_arm, d.muscle_velocity],
-            block_dim=POLY_TILE_SIZE,
+            outputs=[d.muscle_length, d.muscle_fn_tile_ma_tmp],
+            block_dim=m.block_dim.muscle_path,
+        )
+        wp.launch(
+            _post_tile_muscle,
+            dim=(d.nworld, m.nmuscle),
+            inputs=[
+                m.muscle_metadata, m.fn_path_dimension, m.fn_path_qpos_adr,
+                d.integration_done, d.muscle_fn_tile_ma_tmp, d.qdot
+            ],
+            outputs=[d.muscle_moment_arm, d.muscle_velocity],
         )
 
 

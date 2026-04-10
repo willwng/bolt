@@ -4,7 +4,7 @@ import os
 from msk_warp import Model, Data, IntegratorType, Option, ActivationType, MetabolicOptions, MuscleMetadata, \
     ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, MuscleLengthInfo, \
     FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
-    CoordinateLimitForce, ExponentialContact, vec5
+    CoordinateLimitForce, ExponentialContact, vec5, MAX_POLY_NUM_DOFS
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.utils import *
 
@@ -538,6 +538,7 @@ def load_model(
 
         muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_fn_tile_ma_tmp=make_zero((n_worlds, nmuscle, MAX_POLY_NUM_DOFS), dtype=float),
         muscle_moment_arm=make_zero((n_worlds, nmuscle, nq), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation_passive=make_zero((n_worlds, nmuscle), dtype=float),
