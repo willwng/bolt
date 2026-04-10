@@ -25,15 +25,12 @@ def _calc_eq_residual(
         mm: MuscleMetadata,
 ) -> ResidualResult:
     # Retrieve tendon length from force
-    norm_tendon_length = dgf.calc_tendon_force_length_inverse_curve(
-        norm_tendon_force)
+    norm_tendon_length = dgf.calc_tendon_force_length_inverse_curve(norm_tendon_force)
     tendon_length = norm_tendon_length * mm.tendon_slack_length
     # From path and tendon length compute fiber length
-    fiber_width = dgf.get_fiber_width(mm.optimal_fiber_length,
-                                      mm.optimal_pennation_angle)
+    fiber_width = dgf.get_fiber_width(mm.optimal_fiber_length, mm.optimal_pennation_angle)
     fiber_length_along_tendon = path_length - tendon_length
-    fiber_length = wp.sqrt(
-        fiber_length_along_tendon ** 2.0 + fiber_width ** 2.0)
+    fiber_length = wp.sqrt(fiber_length_along_tendon ** 2.0 + fiber_width ** 2.0)
     norm_fiber_length = fiber_length / mm.optimal_fiber_length
     # Pennation angle
     cos_pennation_angle = fiber_length_along_tendon / fiber_length
@@ -44,16 +41,13 @@ def _calc_eq_residual(
         cos_pennation_angle = wp.cos(pennation_angle)
         sin_pennation_angle = wp.sin(pennation_angle)
     # Tendon velocity
-    norm_tendon_velocity = (
-        dgf.calc_tendon_force_length_inverse_curve_derivative(
-            0.0, norm_tendon_length))
+    norm_tendon_velocity = (dgf.calc_tendon_force_length_inverse_curve_derivative(0.0, norm_tendon_length))
     tendon_velocity = mm.tendon_slack_length * norm_tendon_velocity
     # Fiber velocity
     fiber_velocity_along_tendon = path_velocity - tendon_velocity
     fiber_velocity = fiber_velocity_along_tendon * cos_pennation_angle
-    norm_fiber_velocity = (fiber_velocity /
-                           dgf.get_max_contraction_velocity_in_meters_per_second(
-                               mm.v_max, mm.optimal_fiber_length))
+    norm_fiber_velocity = (fiber_velocity / dgf.get_max_contraction_velocity_in_meters_per_second(
+        mm.v_max, mm.optimal_fiber_length))
     # Residual
     active_fiber_force = dgf.calc_active_fiber_force(
         mm.max_isometric_force, activation, norm_fiber_length,
@@ -63,8 +57,7 @@ def _calc_eq_residual(
         mm.fiber_damping, mm.min_norm_fiber_length)
     fiber_force = (active_fiber_force + passive_fiber_force)
     fiber_force_along_tendon = fiber_force * cos_pennation_angle
-    residual = (norm_tendon_force -
-                fiber_force_along_tendon / mm.max_isometric_force)
+    residual = (norm_tendon_force - fiber_force_along_tendon / mm.max_isometric_force)
 
     return ResidualResult(
         norm_tendon_force=norm_tendon_force,
@@ -77,7 +70,8 @@ def _calc_eq_residual(
         norm_tendon_velocity=norm_tendon_velocity,
         active_fiber_force=active_fiber_force,
         fiber_velocity=fiber_velocity,
-        fiber_force_along_tendon=fiber_force_along_tendon)
+        fiber_force_along_tendon=fiber_force_along_tendon
+    )
 
 
 @wp.kernel

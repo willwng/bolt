@@ -1,6 +1,7 @@
 import warp as wp
 
 from . import math
+from . import polynomial_evaluator
 from .consts import MAX_POLY_NUM_DOFS
 from .consts import MAX_POLY_ORDER
 from .consts import POLY_TILE_SIZE
@@ -46,32 +47,24 @@ def _compute_path_kernel(
 
     # Fetch q values into registers
     q = PolyVec(0.0)
-    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
-        if i >= n_dof:
-            break
+    for i in range(n_dof):
         q[i] = qpos_in[worldid, qpos_adr[i]]
 
     # Pre-calculate powers
     q_pows = PolyPowCache(1.0)
-    for d in range(MAX_POLY_NUM_DOFS):
-        for p in range(1, MAX_POLY_ORDER + 1):
+    for d in range(n_dof):
+        for p in range(1, order + 1):
             q_pows[d, p] = q_pows[d, p - 1] * q[d]
 
     # Evaluate polynomial and derivative
-    length, df_dq = math.evaluate_polynomial(fn_path_term_coeff, q_pows, start_idx, order, n_dof)
+    length, df_dq = polynomial_evaluator.evaluate_polynomial(fn_path_term_coeff, q_pows, start_idx, order, n_dof)
 
-    # Write out length and moment arms, note the negative sign since moment arm is -dL/dq
+    # Write out length
     muscle_length_out[worldid, muscle_id] = length
-    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
-        if i >= n_dof:
-            break
-        muscle_moment_arm_out[worldid, muscle_id, qpos_adr[i]] = -df_dq[i]
-
-    # Compute velocity
+    # Write moment arm and compute velocity
     velocity = float(0.0)
-    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
-        if i >= n_dof:
-            break
+    for i in range(n_dof):
+        muscle_moment_arm_out[worldid, muscle_id, qpos_adr[i]] = -df_dq[i]
         velocity += df_dq[i] * qdot_in[worldid, qpos_adr[i]]
     muscle_velocity_out[worldid, muscle_id] = velocity
     return

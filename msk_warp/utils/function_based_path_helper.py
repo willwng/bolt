@@ -2,7 +2,7 @@ import opensim as osim
 import itertools
 
 from math import comb
-from msk_warp import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, POLY_TILE_SIZE, MAX_POLY_NUM_DOFS_STANDARD, PolyInts
+from msk_warp import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, POLY_TILE_SIZE, PolyInts
 from msk_warp.utils.osim_types import OSimType
 from msk_warp.utils.converted_objects import MuscleFunctionPathData, USE_POINT_PATH, PADDED_DOF
 from msk_warp.utils.muscle_helper import get_muscles
@@ -111,10 +111,12 @@ def path_type_to_muscle(
     for i, muscle_path in enumerate(muscle_function_paths):
         if muscle_path == USE_POINT_PATH:
             point_paths.append(i)
-        elif muscle_path.dimension <= MAX_POLY_NUM_DOFS_STANDARD:
+        else:
             function_paths.append(i)
-        else:  # We need tiles if max number of dofs is higher. Performance is probably also a bit better for these
-            function_tiled_paths.append(i)
+
+        # TODO: tiles just aren't that fast, maybe future work
+        # else:  # We need tiles if max number of dofs is higher. Performance is probably also a bit better for these
+        #     function_tiled_paths.append(i)
 
     return point_paths, function_paths, function_tiled_paths
 
