@@ -34,6 +34,7 @@ def _process_contacts_hc(
         body_F_contact_out: wp.array2d(dtype=wp.spatial_vector),
         grf_out: wp.array(dtype=wp.vec3),
         geom_cforce_out: wp.array2d(dtype=float),
+        body_self_cforce_out: wp.array2d(dtype=float),
         geom_self_cforce_out: wp.array2d(dtype=float)
 ):
     conid = wp.tid()
@@ -113,6 +114,9 @@ def _process_contacts_hc(
         wp.atomic_add(geom_self_cforce_out[worldid], geom[0], wp.abs(f))
         wp.atomic_add(geom_self_cforce_out[worldid], geom[1], wp.abs(f))
 
+        wp.atomic_add(body_self_cforce_out[worldid], body1, wp.abs(f))
+        wp.atomic_add(body_self_cforce_out[worldid], body2, wp.abs(f))
+
     # Keep track of ground reaction forces
     if body1 == 0:
         wp.atomic_add(grf_out, worldid, force)
@@ -125,27 +129,14 @@ def contact_forces_hc(m: Model, d: Data):
     wp.launch(
         _process_contacts_hc,
         dim=(d.naconmax),
-        inputs=[m.geom_bodyid,
-                d.integration_done,
-                d.mob_X_GB,
-                d.body_V_GB,
-                d.nacon,
-                d.contact.dist,
-                d.contact.curvature,
-                d.contact.stiffness,
-                d.contact.dissipation,
-                d.contact.transition_velocity,
-                d.contact.worldid,
-                d.contact.geom,
-                d.contact.pos,
-                d.contact.frame,
-                d.contact.friction,
-                ],
+        inputs=[
+            m.geom_bodyid,
+            d.integration_done, d.mob_X_GB, d.body_V_GB, d.nacon, d.contact.dist, d.contact.curvature,
+            d.contact.stiffness, d.contact.dissipation, d.contact.transition_velocity, d.contact.worldid,
+            d.contact.geom, d.contact.pos, d.contact.frame, d.contact.friction,
+        ],
         outputs=[
-            d.body_F_contact,
-            d.grf,
-            d.geom_cforce,
-            d.geom_self_cforce
+            d.body_F_contact, d.grf, d.geom_cforce, d.body_self_cforce, d.geom_self_cforce
         ],
     )
     return

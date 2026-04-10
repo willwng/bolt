@@ -523,6 +523,7 @@ def load_model(
         geom_X=make_zero((n_worlds, ngeom), dtype=wp.transform),
         geom_cforce=make_zero((n_worlds, ngeom), dtype=float),
         geom_self_cforce=make_zero((n_worlds, ngeom), dtype=float),
+        body_self_cforce=make_zero((n_worlds, nb), dtype=float),
         joint_moments=make_zero((n_worlds, nv), dtype=float),
 
         vis_X=make_zero((n_worlds, nvis), dtype=wp.transform),

@@ -182,6 +182,7 @@ def reset_forces(m: Model, d: Data):
     d.grf.zero_()
     d.geom_cforce.zero_()
     d.geom_self_cforce.zero_()
+    d.body_self_cforce.zero_()
 
 
 @event_scope

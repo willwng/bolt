@@ -746,6 +746,7 @@ class Data:
       grf: ground reaction force                                  (nworld, 3)
       geom_cforce: contact force on geoms                         (nworld, ngeom)
       geom_self_cforce: normal force on geoms, excl. ground ctc   (nworld, ngeom)
+      body_self_cforce: normal force on bodies, excl. ground      (nworld, nbody)
       joint_moments: net moment                                   (nworld, nv)
 
       contact: contact data
@@ -876,6 +877,7 @@ class Data:
     grf: array("nworld", wp.vec3)
     geom_cforce: array("nworld", "ngeom", float)
     geom_self_cforce: array("nworld", "ngeom", float)
+    body_self_cforce: array("nworld", "nbody", float)
     joint_moments: array("nworld", "nv", float)
 
     cst_fn_output: array("nworld", "nfunction", wp.vec3)
