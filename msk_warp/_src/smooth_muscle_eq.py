@@ -363,7 +363,9 @@ def _set_state(
 
     # Actuation
     muscle_actuation_out[worldid, muscle_id] = mdi.tendon_force
-    muscle_actuation_passive_out[worldid, muscle_id] = mdi.passive_fiber_force
+    # muscle_actuation_passive_out[worldid, muscle_id] = mdi.passive_fiber_force
+    muscle_actuation_passive_out[
+        worldid, muscle_id] = mm.max_isometric_force * mli.fiber_passive_force_length_multiplier
 
     # State derivative
     if mm.ignore_tendon_compliance:
