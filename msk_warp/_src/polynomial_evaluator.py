@@ -4,6 +4,29 @@ from . import types
 
 
 @wp.func
+def evaluate_polynomial_dimension1_order2(
+        coefficients: wp.array(dtype=float),
+        q_pows: types.PolyPowCache,
+        start_idx: int,
+) -> tuple[float, types.PolyVec]:
+    length = float(0.0)
+    df_dq = types.PolyVec(0.0)
+
+    # Coefficient 0: Exponents (0,)
+    length += coefficients[start_idx + 0]
+
+    # Coefficient 1: Exponents (1,)
+    length += coefficients[start_idx + 1] * q_pows[0, 1]
+    df_dq[0] += coefficients[start_idx + 1] * 1.0
+
+    # Coefficient 2: Exponents (2,)
+    length += coefficients[start_idx + 2] * q_pows[0, 2]
+    df_dq[0] += coefficients[start_idx + 2] * 2.0 * q_pows[0, 1]
+
+    return length, df_dq
+
+
+@wp.func
 def evaluate_polynomial_dimension1_order3(
         coefficients: wp.array(dtype=float),
         q_pows: types.PolyPowCache,
@@ -192,6 +215,593 @@ def evaluate_polynomial_dimension2_order4(
     # Coefficient 14: Exponents (4, 0)
     length += coefficients[start_idx + 14] * q_pows[0, 4]
     df_dq[0] += coefficients[start_idx + 14] * 4.0 * q_pows[0, 3]
+
+    return length, df_dq
+
+
+@wp.func
+def evaluate_polynomial_dimension2_order5(
+        coefficients: wp.array(dtype=float),
+        q_pows: types.PolyPowCache,
+        start_idx: int,
+) -> tuple[float, types.PolyVec]:
+    length = float(0.0)
+    df_dq = types.PolyVec(0.0)
+
+    # Coefficient 0: Exponents (0, 0)
+    length += coefficients[start_idx + 0]
+
+    # Coefficient 1: Exponents (0, 1)
+    length += coefficients[start_idx + 1] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 1] * 1.0
+
+    # Coefficient 2: Exponents (0, 2)
+    length += coefficients[start_idx + 2] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 2] * 2.0 * q_pows[1, 1]
+
+    # Coefficient 3: Exponents (0, 3)
+    length += coefficients[start_idx + 3] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 3] * 3.0 * q_pows[1, 2]
+
+    # Coefficient 4: Exponents (0, 4)
+    length += coefficients[start_idx + 4] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 4] * 4.0 * q_pows[1, 3]
+
+    # Coefficient 5: Exponents (0, 5)
+    length += coefficients[start_idx + 5] * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 5] * 5.0 * q_pows[1, 4]
+
+    # Coefficient 6: Exponents (1, 0)
+    length += coefficients[start_idx + 6] * q_pows[0, 1]
+    df_dq[0] += coefficients[start_idx + 6] * 1.0
+
+    # Coefficient 7: Exponents (1, 1)
+    length += coefficients[start_idx + 7] * q_pows[0, 1] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 7] * 1.0 * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 7] * 1.0 * q_pows[0, 1]
+
+    # Coefficient 8: Exponents (1, 2)
+    length += coefficients[start_idx + 8] * q_pows[0, 1] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 8] * 1.0 * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 8] * 2.0 * q_pows[0, 1] * q_pows[1, 1]
+
+    # Coefficient 9: Exponents (1, 3)
+    length += coefficients[start_idx + 9] * q_pows[0, 1] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 9] * 1.0 * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 9] * 3.0 * q_pows[0, 1] * q_pows[1, 2]
+
+    # Coefficient 10: Exponents (1, 4)
+    length += coefficients[start_idx + 10] * q_pows[0, 1] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 10] * 1.0 * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 10] * \
+        4.0 * q_pows[0, 1] * q_pows[1, 3]
+
+    # Coefficient 11: Exponents (2, 0)
+    length += coefficients[start_idx + 11] * q_pows[0, 2]
+    df_dq[0] += coefficients[start_idx + 11] * 2.0 * q_pows[0, 1]
+
+    # Coefficient 12: Exponents (2, 1)
+    length += coefficients[start_idx + 12] * q_pows[0, 2] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 12] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 12] * 1.0 * q_pows[0, 2]
+
+    # Coefficient 13: Exponents (2, 2)
+    length += coefficients[start_idx + 13] * q_pows[0, 2] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 13] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 13] * \
+        2.0 * q_pows[0, 2] * q_pows[1, 1]
+
+    # Coefficient 14: Exponents (2, 3)
+    length += coefficients[start_idx + 14] * q_pows[0, 2] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 14] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 14] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 2]
+
+    # Coefficient 15: Exponents (3, 0)
+    length += coefficients[start_idx + 15] * q_pows[0, 3]
+    df_dq[0] += coefficients[start_idx + 15] * 3.0 * q_pows[0, 2]
+
+    # Coefficient 16: Exponents (3, 1)
+    length += coefficients[start_idx + 16] * q_pows[0, 3] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 16] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 16] * 1.0 * q_pows[0, 3]
+
+    # Coefficient 17: Exponents (3, 2)
+    length += coefficients[start_idx + 17] * q_pows[0, 3] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 17] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 17] * \
+        2.0 * q_pows[0, 3] * q_pows[1, 1]
+
+    # Coefficient 18: Exponents (4, 0)
+    length += coefficients[start_idx + 18] * q_pows[0, 4]
+    df_dq[0] += coefficients[start_idx + 18] * 4.0 * q_pows[0, 3]
+
+    # Coefficient 19: Exponents (4, 1)
+    length += coefficients[start_idx + 19] * q_pows[0, 4] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 19] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 19] * 1.0 * q_pows[0, 4]
+
+    # Coefficient 20: Exponents (5, 0)
+    length += coefficients[start_idx + 20] * q_pows[0, 5]
+    df_dq[0] += coefficients[start_idx + 20] * 5.0 * q_pows[0, 4]
+
+    return length, df_dq
+
+
+@wp.func
+def evaluate_polynomial_dimension2_order6(
+        coefficients: wp.array(dtype=float),
+        q_pows: types.PolyPowCache,
+        start_idx: int,
+) -> tuple[float, types.PolyVec]:
+    length = float(0.0)
+    df_dq = types.PolyVec(0.0)
+
+    # Coefficient 0: Exponents (0, 0)
+    length += coefficients[start_idx + 0]
+
+    # Coefficient 1: Exponents (0, 1)
+    length += coefficients[start_idx + 1] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 1] * 1.0
+
+    # Coefficient 2: Exponents (0, 2)
+    length += coefficients[start_idx + 2] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 2] * 2.0 * q_pows[1, 1]
+
+    # Coefficient 3: Exponents (0, 3)
+    length += coefficients[start_idx + 3] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 3] * 3.0 * q_pows[1, 2]
+
+    # Coefficient 4: Exponents (0, 4)
+    length += coefficients[start_idx + 4] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 4] * 4.0 * q_pows[1, 3]
+
+    # Coefficient 5: Exponents (0, 5)
+    length += coefficients[start_idx + 5] * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 5] * 5.0 * q_pows[1, 4]
+
+    # Coefficient 6: Exponents (0, 6)
+    length += coefficients[start_idx + 6] * q_pows[1, 6]
+    df_dq[1] += coefficients[start_idx + 6] * 6.0 * q_pows[1, 5]
+
+    # Coefficient 7: Exponents (1, 0)
+    length += coefficients[start_idx + 7] * q_pows[0, 1]
+    df_dq[0] += coefficients[start_idx + 7] * 1.0
+
+    # Coefficient 8: Exponents (1, 1)
+    length += coefficients[start_idx + 8] * q_pows[0, 1] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 8] * 1.0 * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 8] * 1.0 * q_pows[0, 1]
+
+    # Coefficient 9: Exponents (1, 2)
+    length += coefficients[start_idx + 9] * q_pows[0, 1] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 9] * 1.0 * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 9] * 2.0 * q_pows[0, 1] * q_pows[1, 1]
+
+    # Coefficient 10: Exponents (1, 3)
+    length += coefficients[start_idx + 10] * q_pows[0, 1] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 10] * 1.0 * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 10] * \
+        3.0 * q_pows[0, 1] * q_pows[1, 2]
+
+    # Coefficient 11: Exponents (1, 4)
+    length += coefficients[start_idx + 11] * q_pows[0, 1] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 11] * 1.0 * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 11] * \
+        4.0 * q_pows[0, 1] * q_pows[1, 3]
+
+    # Coefficient 12: Exponents (1, 5)
+    length += coefficients[start_idx + 12] * q_pows[0, 1] * q_pows[1, 5]
+    df_dq[0] += coefficients[start_idx + 12] * 1.0 * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 12] * \
+        5.0 * q_pows[0, 1] * q_pows[1, 4]
+
+    # Coefficient 13: Exponents (2, 0)
+    length += coefficients[start_idx + 13] * q_pows[0, 2]
+    df_dq[0] += coefficients[start_idx + 13] * 2.0 * q_pows[0, 1]
+
+    # Coefficient 14: Exponents (2, 1)
+    length += coefficients[start_idx + 14] * q_pows[0, 2] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 14] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 14] * 1.0 * q_pows[0, 2]
+
+    # Coefficient 15: Exponents (2, 2)
+    length += coefficients[start_idx + 15] * q_pows[0, 2] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 15] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 15] * \
+        2.0 * q_pows[0, 2] * q_pows[1, 1]
+
+    # Coefficient 16: Exponents (2, 3)
+    length += coefficients[start_idx + 16] * q_pows[0, 2] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 16] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 16] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 2]
+
+    # Coefficient 17: Exponents (2, 4)
+    length += coefficients[start_idx + 17] * q_pows[0, 2] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 17] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 17] * \
+        4.0 * q_pows[0, 2] * q_pows[1, 3]
+
+    # Coefficient 18: Exponents (3, 0)
+    length += coefficients[start_idx + 18] * q_pows[0, 3]
+    df_dq[0] += coefficients[start_idx + 18] * 3.0 * q_pows[0, 2]
+
+    # Coefficient 19: Exponents (3, 1)
+    length += coefficients[start_idx + 19] * q_pows[0, 3] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 19] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 19] * 1.0 * q_pows[0, 3]
+
+    # Coefficient 20: Exponents (3, 2)
+    length += coefficients[start_idx + 20] * q_pows[0, 3] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 20] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 20] * \
+        2.0 * q_pows[0, 3] * q_pows[1, 1]
+
+    # Coefficient 21: Exponents (3, 3)
+    length += coefficients[start_idx + 21] * q_pows[0, 3] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 21] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 21] * \
+        3.0 * q_pows[0, 3] * q_pows[1, 2]
+
+    # Coefficient 22: Exponents (4, 0)
+    length += coefficients[start_idx + 22] * q_pows[0, 4]
+    df_dq[0] += coefficients[start_idx + 22] * 4.0 * q_pows[0, 3]
+
+    # Coefficient 23: Exponents (4, 1)
+    length += coefficients[start_idx + 23] * q_pows[0, 4] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 23] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 23] * 1.0 * q_pows[0, 4]
+
+    # Coefficient 24: Exponents (4, 2)
+    length += coefficients[start_idx + 24] * q_pows[0, 4] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 24] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 24] * \
+        2.0 * q_pows[0, 4] * q_pows[1, 1]
+
+    # Coefficient 25: Exponents (5, 0)
+    length += coefficients[start_idx + 25] * q_pows[0, 5]
+    df_dq[0] += coefficients[start_idx + 25] * 5.0 * q_pows[0, 4]
+
+    # Coefficient 26: Exponents (5, 1)
+    length += coefficients[start_idx + 26] * q_pows[0, 5] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 26] * \
+        5.0 * q_pows[0, 4] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 26] * 1.0 * q_pows[0, 5]
+
+    # Coefficient 27: Exponents (6, 0)
+    length += coefficients[start_idx + 27] * q_pows[0, 6]
+    df_dq[0] += coefficients[start_idx + 27] * 6.0 * q_pows[0, 5]
+
+    return length, df_dq
+
+
+@wp.func
+def evaluate_polynomial_dimension2_order8(
+        coefficients: wp.array(dtype=float),
+        q_pows: types.PolyPowCache,
+        start_idx: int,
+) -> tuple[float, types.PolyVec]:
+    length = float(0.0)
+    df_dq = types.PolyVec(0.0)
+
+    # Coefficient 0: Exponents (0, 0)
+    length += coefficients[start_idx + 0]
+
+    # Coefficient 1: Exponents (0, 1)
+    length += coefficients[start_idx + 1] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 1] * 1.0
+
+    # Coefficient 2: Exponents (0, 2)
+    length += coefficients[start_idx + 2] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 2] * 2.0 * q_pows[1, 1]
+
+    # Coefficient 3: Exponents (0, 3)
+    length += coefficients[start_idx + 3] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 3] * 3.0 * q_pows[1, 2]
+
+    # Coefficient 4: Exponents (0, 4)
+    length += coefficients[start_idx + 4] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 4] * 4.0 * q_pows[1, 3]
+
+    # Coefficient 5: Exponents (0, 5)
+    length += coefficients[start_idx + 5] * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 5] * 5.0 * q_pows[1, 4]
+
+    # Coefficient 6: Exponents (0, 6)
+    length += coefficients[start_idx + 6] * q_pows[1, 6]
+    df_dq[1] += coefficients[start_idx + 6] * 6.0 * q_pows[1, 5]
+
+    # Coefficient 7: Exponents (0, 7)
+    length += coefficients[start_idx + 7] * q_pows[1, 7]
+    df_dq[1] += coefficients[start_idx + 7] * 7.0 * q_pows[1, 6]
+
+    # Coefficient 8: Exponents (0, 8)
+    length += coefficients[start_idx + 8] * q_pows[1, 8]
+    df_dq[1] += coefficients[start_idx + 8] * 8.0 * q_pows[1, 7]
+
+    # Coefficient 9: Exponents (1, 0)
+    length += coefficients[start_idx + 9] * q_pows[0, 1]
+    df_dq[0] += coefficients[start_idx + 9] * 1.0
+
+    # Coefficient 10: Exponents (1, 1)
+    length += coefficients[start_idx + 10] * q_pows[0, 1] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 10] * 1.0 * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 10] * 1.0 * q_pows[0, 1]
+
+    # Coefficient 11: Exponents (1, 2)
+    length += coefficients[start_idx + 11] * q_pows[0, 1] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 11] * 1.0 * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 11] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 1]
+
+    # Coefficient 12: Exponents (1, 3)
+    length += coefficients[start_idx + 12] * q_pows[0, 1] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 12] * 1.0 * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 12] * \
+        3.0 * q_pows[0, 1] * q_pows[1, 2]
+
+    # Coefficient 13: Exponents (1, 4)
+    length += coefficients[start_idx + 13] * q_pows[0, 1] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 13] * 1.0 * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 13] * \
+        4.0 * q_pows[0, 1] * q_pows[1, 3]
+
+    # Coefficient 14: Exponents (1, 5)
+    length += coefficients[start_idx + 14] * q_pows[0, 1] * q_pows[1, 5]
+    df_dq[0] += coefficients[start_idx + 14] * 1.0 * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 14] * \
+        5.0 * q_pows[0, 1] * q_pows[1, 4]
+
+    # Coefficient 15: Exponents (1, 6)
+    length += coefficients[start_idx + 15] * q_pows[0, 1] * q_pows[1, 6]
+    df_dq[0] += coefficients[start_idx + 15] * 1.0 * q_pows[1, 6]
+    df_dq[1] += coefficients[start_idx + 15] * \
+        6.0 * q_pows[0, 1] * q_pows[1, 5]
+
+    # Coefficient 16: Exponents (1, 7)
+    length += coefficients[start_idx + 16] * q_pows[0, 1] * q_pows[1, 7]
+    df_dq[0] += coefficients[start_idx + 16] * 1.0 * q_pows[1, 7]
+    df_dq[1] += coefficients[start_idx + 16] * \
+        7.0 * q_pows[0, 1] * q_pows[1, 6]
+
+    # Coefficient 17: Exponents (2, 0)
+    length += coefficients[start_idx + 17] * q_pows[0, 2]
+    df_dq[0] += coefficients[start_idx + 17] * 2.0 * q_pows[0, 1]
+
+    # Coefficient 18: Exponents (2, 1)
+    length += coefficients[start_idx + 18] * q_pows[0, 2] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 18] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 18] * 1.0 * q_pows[0, 2]
+
+    # Coefficient 19: Exponents (2, 2)
+    length += coefficients[start_idx + 19] * q_pows[0, 2] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 19] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 19] * \
+        2.0 * q_pows[0, 2] * q_pows[1, 1]
+
+    # Coefficient 20: Exponents (2, 3)
+    length += coefficients[start_idx + 20] * q_pows[0, 2] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 20] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 20] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 2]
+
+    # Coefficient 21: Exponents (2, 4)
+    length += coefficients[start_idx + 21] * q_pows[0, 2] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 21] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 21] * \
+        4.0 * q_pows[0, 2] * q_pows[1, 3]
+
+    # Coefficient 22: Exponents (2, 5)
+    length += coefficients[start_idx + 22] * q_pows[0, 2] * q_pows[1, 5]
+    df_dq[0] += coefficients[start_idx + 22] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 22] * \
+        5.0 * q_pows[0, 2] * q_pows[1, 4]
+
+    # Coefficient 23: Exponents (2, 6)
+    length += coefficients[start_idx + 23] * q_pows[0, 2] * q_pows[1, 6]
+    df_dq[0] += coefficients[start_idx + 23] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 6]
+    df_dq[1] += coefficients[start_idx + 23] * \
+        6.0 * q_pows[0, 2] * q_pows[1, 5]
+
+    # Coefficient 24: Exponents (3, 0)
+    length += coefficients[start_idx + 24] * q_pows[0, 3]
+    df_dq[0] += coefficients[start_idx + 24] * 3.0 * q_pows[0, 2]
+
+    # Coefficient 25: Exponents (3, 1)
+    length += coefficients[start_idx + 25] * q_pows[0, 3] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 25] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 25] * 1.0 * q_pows[0, 3]
+
+    # Coefficient 26: Exponents (3, 2)
+    length += coefficients[start_idx + 26] * q_pows[0, 3] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 26] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 26] * \
+        2.0 * q_pows[0, 3] * q_pows[1, 1]
+
+    # Coefficient 27: Exponents (3, 3)
+    length += coefficients[start_idx + 27] * q_pows[0, 3] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 27] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 27] * \
+        3.0 * q_pows[0, 3] * q_pows[1, 2]
+
+    # Coefficient 28: Exponents (3, 4)
+    length += coefficients[start_idx + 28] * q_pows[0, 3] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 28] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 28] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 3]
+
+    # Coefficient 29: Exponents (3, 5)
+    length += coefficients[start_idx + 29] * q_pows[0, 3] * q_pows[1, 5]
+    df_dq[0] += coefficients[start_idx + 29] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 29] * \
+        5.0 * q_pows[0, 3] * q_pows[1, 4]
+
+    # Coefficient 30: Exponents (4, 0)
+    length += coefficients[start_idx + 30] * q_pows[0, 4]
+    df_dq[0] += coefficients[start_idx + 30] * 4.0 * q_pows[0, 3]
+
+    # Coefficient 31: Exponents (4, 1)
+    length += coefficients[start_idx + 31] * q_pows[0, 4] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 31] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 31] * 1.0 * q_pows[0, 4]
+
+    # Coefficient 32: Exponents (4, 2)
+    length += coefficients[start_idx + 32] * q_pows[0, 4] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 32] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 32] * \
+        2.0 * q_pows[0, 4] * q_pows[1, 1]
+
+    # Coefficient 33: Exponents (4, 3)
+    length += coefficients[start_idx + 33] * q_pows[0, 4] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 33] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 33] * \
+        3.0 * q_pows[0, 4] * q_pows[1, 2]
+
+    # Coefficient 34: Exponents (4, 4)
+    length += coefficients[start_idx + 34] * q_pows[0, 4] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 34] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 34] * \
+        4.0 * q_pows[0, 4] * q_pows[1, 3]
+
+    # Coefficient 35: Exponents (5, 0)
+    length += coefficients[start_idx + 35] * q_pows[0, 5]
+    df_dq[0] += coefficients[start_idx + 35] * 5.0 * q_pows[0, 4]
+
+    # Coefficient 36: Exponents (5, 1)
+    length += coefficients[start_idx + 36] * q_pows[0, 5] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 36] * \
+        5.0 * q_pows[0, 4] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 36] * 1.0 * q_pows[0, 5]
+
+    # Coefficient 37: Exponents (5, 2)
+    length += coefficients[start_idx + 37] * q_pows[0, 5] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 37] * \
+        5.0 * q_pows[0, 4] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 37] * \
+        2.0 * q_pows[0, 5] * q_pows[1, 1]
+
+    # Coefficient 38: Exponents (5, 3)
+    length += coefficients[start_idx + 38] * q_pows[0, 5] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 38] * \
+        5.0 * q_pows[0, 4] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 38] * \
+        3.0 * q_pows[0, 5] * q_pows[1, 2]
+
+    # Coefficient 39: Exponents (6, 0)
+    length += coefficients[start_idx + 39] * q_pows[0, 6]
+    df_dq[0] += coefficients[start_idx + 39] * 6.0 * q_pows[0, 5]
+
+    # Coefficient 40: Exponents (6, 1)
+    length += coefficients[start_idx + 40] * q_pows[0, 6] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 40] * \
+        6.0 * q_pows[0, 5] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 40] * 1.0 * q_pows[0, 6]
+
+    # Coefficient 41: Exponents (6, 2)
+    length += coefficients[start_idx + 41] * q_pows[0, 6] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 41] * \
+        6.0 * q_pows[0, 5] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 41] * \
+        2.0 * q_pows[0, 6] * q_pows[1, 1]
+
+    # Coefficient 42: Exponents (7, 0)
+    length += coefficients[start_idx + 42] * q_pows[0, 7]
+    df_dq[0] += coefficients[start_idx + 42] * 7.0 * q_pows[0, 6]
+
+    # Coefficient 43: Exponents (7, 1)
+    length += coefficients[start_idx + 43] * q_pows[0, 7] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 43] * \
+        7.0 * q_pows[0, 6] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 43] * 1.0 * q_pows[0, 7]
+
+    # Coefficient 44: Exponents (8, 0)
+    length += coefficients[start_idx + 44] * q_pows[0, 8]
+    df_dq[0] += coefficients[start_idx + 44] * 8.0 * q_pows[0, 7]
+
+    return length, df_dq
+
+
+@wp.func
+def evaluate_polynomial_dimension3_order2(
+        coefficients: wp.array(dtype=float),
+        q_pows: types.PolyPowCache,
+        start_idx: int,
+) -> tuple[float, types.PolyVec]:
+    length = float(0.0)
+    df_dq = types.PolyVec(0.0)
+
+    # Coefficient 0: Exponents (0, 0, 0)
+    length += coefficients[start_idx + 0]
+
+    # Coefficient 1: Exponents (0, 0, 1)
+    length += coefficients[start_idx + 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 1] * 1.0
+
+    # Coefficient 2: Exponents (0, 0, 2)
+    length += coefficients[start_idx + 2] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 2] * 2.0 * q_pows[2, 1]
+
+    # Coefficient 3: Exponents (0, 1, 0)
+    length += coefficients[start_idx + 3] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 3] * 1.0
+
+    # Coefficient 4: Exponents (0, 1, 1)
+    length += coefficients[start_idx + 4] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 4] * 1.0 * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 4] * 1.0 * q_pows[1, 1]
+
+    # Coefficient 5: Exponents (0, 2, 0)
+    length += coefficients[start_idx + 5] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 5] * 2.0 * q_pows[1, 1]
+
+    # Coefficient 6: Exponents (1, 0, 0)
+    length += coefficients[start_idx + 6] * q_pows[0, 1]
+    df_dq[0] += coefficients[start_idx + 6] * 1.0
+
+    # Coefficient 7: Exponents (1, 0, 1)
+    length += coefficients[start_idx + 7] * q_pows[0, 1] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 7] * 1.0 * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 7] * 1.0 * q_pows[0, 1]
+
+    # Coefficient 8: Exponents (1, 1, 0)
+    length += coefficients[start_idx + 8] * q_pows[0, 1] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 8] * 1.0 * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 8] * 1.0 * q_pows[0, 1]
+
+    # Coefficient 9: Exponents (2, 0, 0)
+    length += coefficients[start_idx + 9] * q_pows[0, 2]
+    df_dq[0] += coefficients[start_idx + 9] * 2.0 * q_pows[0, 1]
 
     return length, df_dq
 
@@ -511,6 +1121,1677 @@ def evaluate_polynomial_dimension3_order4(
     # Coefficient 34: Exponents (4, 0, 0)
     length += coefficients[start_idx + 34] * q_pows[0, 4]
     df_dq[0] += coefficients[start_idx + 34] * 4.0 * q_pows[0, 3]
+
+    return length, df_dq
+
+
+@wp.func
+def evaluate_polynomial_dimension3_order9(
+        coefficients: wp.array(dtype=float),
+        q_pows: types.PolyPowCache,
+        start_idx: int,
+) -> tuple[float, types.PolyVec]:
+    length = float(0.0)
+    df_dq = types.PolyVec(0.0)
+
+    # Coefficient 0: Exponents (0, 0, 0)
+    length += coefficients[start_idx + 0]
+
+    # Coefficient 1: Exponents (0, 0, 1)
+    length += coefficients[start_idx + 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 1] * 1.0
+
+    # Coefficient 2: Exponents (0, 0, 2)
+    length += coefficients[start_idx + 2] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 2] * 2.0 * q_pows[2, 1]
+
+    # Coefficient 3: Exponents (0, 0, 3)
+    length += coefficients[start_idx + 3] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 3] * 3.0 * q_pows[2, 2]
+
+    # Coefficient 4: Exponents (0, 0, 4)
+    length += coefficients[start_idx + 4] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 4] * 4.0 * q_pows[2, 3]
+
+    # Coefficient 5: Exponents (0, 0, 5)
+    length += coefficients[start_idx + 5] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 5] * 5.0 * q_pows[2, 4]
+
+    # Coefficient 6: Exponents (0, 0, 6)
+    length += coefficients[start_idx + 6] * q_pows[2, 6]
+    df_dq[2] += coefficients[start_idx + 6] * 6.0 * q_pows[2, 5]
+
+    # Coefficient 7: Exponents (0, 0, 7)
+    length += coefficients[start_idx + 7] * q_pows[2, 7]
+    df_dq[2] += coefficients[start_idx + 7] * 7.0 * q_pows[2, 6]
+
+    # Coefficient 8: Exponents (0, 0, 8)
+    length += coefficients[start_idx + 8] * q_pows[2, 8]
+    df_dq[2] += coefficients[start_idx + 8] * 8.0 * q_pows[2, 7]
+
+    # Coefficient 9: Exponents (0, 0, 9)
+    length += coefficients[start_idx + 9] * q_pows[2, 9]
+    df_dq[2] += coefficients[start_idx + 9] * 9.0 * q_pows[2, 8]
+
+    # Coefficient 10: Exponents (0, 1, 0)
+    length += coefficients[start_idx + 10] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 10] * 1.0
+
+    # Coefficient 11: Exponents (0, 1, 1)
+    length += coefficients[start_idx + 11] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 11] * 1.0 * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 11] * 1.0 * q_pows[1, 1]
+
+    # Coefficient 12: Exponents (0, 1, 2)
+    length += coefficients[start_idx + 12] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 12] * 1.0 * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 12] * \
+        2.0 * q_pows[1, 1] * q_pows[2, 1]
+
+    # Coefficient 13: Exponents (0, 1, 3)
+    length += coefficients[start_idx + 13] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 13] * 1.0 * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 13] * \
+        3.0 * q_pows[1, 1] * q_pows[2, 2]
+
+    # Coefficient 14: Exponents (0, 1, 4)
+    length += coefficients[start_idx + 14] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 14] * 1.0 * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 14] * \
+        4.0 * q_pows[1, 1] * q_pows[2, 3]
+
+    # Coefficient 15: Exponents (0, 1, 5)
+    length += coefficients[start_idx + 15] * q_pows[1, 1] * q_pows[2, 5]
+    df_dq[1] += coefficients[start_idx + 15] * 1.0 * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 15] * \
+        5.0 * q_pows[1, 1] * q_pows[2, 4]
+
+    # Coefficient 16: Exponents (0, 1, 6)
+    length += coefficients[start_idx + 16] * q_pows[1, 1] * q_pows[2, 6]
+    df_dq[1] += coefficients[start_idx + 16] * 1.0 * q_pows[2, 6]
+    df_dq[2] += coefficients[start_idx + 16] * \
+        6.0 * q_pows[1, 1] * q_pows[2, 5]
+
+    # Coefficient 17: Exponents (0, 1, 7)
+    length += coefficients[start_idx + 17] * q_pows[1, 1] * q_pows[2, 7]
+    df_dq[1] += coefficients[start_idx + 17] * 1.0 * q_pows[2, 7]
+    df_dq[2] += coefficients[start_idx + 17] * \
+        7.0 * q_pows[1, 1] * q_pows[2, 6]
+
+    # Coefficient 18: Exponents (0, 1, 8)
+    length += coefficients[start_idx + 18] * q_pows[1, 1] * q_pows[2, 8]
+    df_dq[1] += coefficients[start_idx + 18] * 1.0 * q_pows[2, 8]
+    df_dq[2] += coefficients[start_idx + 18] * \
+        8.0 * q_pows[1, 1] * q_pows[2, 7]
+
+    # Coefficient 19: Exponents (0, 2, 0)
+    length += coefficients[start_idx + 19] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 19] * 2.0 * q_pows[1, 1]
+
+    # Coefficient 20: Exponents (0, 2, 1)
+    length += coefficients[start_idx + 20] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 20] * \
+        2.0 * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 20] * 1.0 * q_pows[1, 2]
+
+    # Coefficient 21: Exponents (0, 2, 2)
+    length += coefficients[start_idx + 21] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 21] * \
+        2.0 * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 21] * \
+        2.0 * q_pows[1, 2] * q_pows[2, 1]
+
+    # Coefficient 22: Exponents (0, 2, 3)
+    length += coefficients[start_idx + 22] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 22] * \
+        2.0 * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 22] * \
+        3.0 * q_pows[1, 2] * q_pows[2, 2]
+
+    # Coefficient 23: Exponents (0, 2, 4)
+    length += coefficients[start_idx + 23] * q_pows[1, 2] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 23] * \
+        2.0 * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 23] * \
+        4.0 * q_pows[1, 2] * q_pows[2, 3]
+
+    # Coefficient 24: Exponents (0, 2, 5)
+    length += coefficients[start_idx + 24] * q_pows[1, 2] * q_pows[2, 5]
+    df_dq[1] += coefficients[start_idx + 24] * \
+        2.0 * q_pows[1, 1] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 24] * \
+        5.0 * q_pows[1, 2] * q_pows[2, 4]
+
+    # Coefficient 25: Exponents (0, 2, 6)
+    length += coefficients[start_idx + 25] * q_pows[1, 2] * q_pows[2, 6]
+    df_dq[1] += coefficients[start_idx + 25] * \
+        2.0 * q_pows[1, 1] * q_pows[2, 6]
+    df_dq[2] += coefficients[start_idx + 25] * \
+        6.0 * q_pows[1, 2] * q_pows[2, 5]
+
+    # Coefficient 26: Exponents (0, 2, 7)
+    length += coefficients[start_idx + 26] * q_pows[1, 2] * q_pows[2, 7]
+    df_dq[1] += coefficients[start_idx + 26] * \
+        2.0 * q_pows[1, 1] * q_pows[2, 7]
+    df_dq[2] += coefficients[start_idx + 26] * \
+        7.0 * q_pows[1, 2] * q_pows[2, 6]
+
+    # Coefficient 27: Exponents (0, 3, 0)
+    length += coefficients[start_idx + 27] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 27] * 3.0 * q_pows[1, 2]
+
+    # Coefficient 28: Exponents (0, 3, 1)
+    length += coefficients[start_idx + 28] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 28] * \
+        3.0 * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 28] * 1.0 * q_pows[1, 3]
+
+    # Coefficient 29: Exponents (0, 3, 2)
+    length += coefficients[start_idx + 29] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 29] * \
+        3.0 * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 29] * \
+        2.0 * q_pows[1, 3] * q_pows[2, 1]
+
+    # Coefficient 30: Exponents (0, 3, 3)
+    length += coefficients[start_idx + 30] * q_pows[1, 3] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 30] * \
+        3.0 * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 30] * \
+        3.0 * q_pows[1, 3] * q_pows[2, 2]
+
+    # Coefficient 31: Exponents (0, 3, 4)
+    length += coefficients[start_idx + 31] * q_pows[1, 3] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 31] * \
+        3.0 * q_pows[1, 2] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 31] * \
+        4.0 * q_pows[1, 3] * q_pows[2, 3]
+
+    # Coefficient 32: Exponents (0, 3, 5)
+    length += coefficients[start_idx + 32] * q_pows[1, 3] * q_pows[2, 5]
+    df_dq[1] += coefficients[start_idx + 32] * \
+        3.0 * q_pows[1, 2] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 32] * \
+        5.0 * q_pows[1, 3] * q_pows[2, 4]
+
+    # Coefficient 33: Exponents (0, 3, 6)
+    length += coefficients[start_idx + 33] * q_pows[1, 3] * q_pows[2, 6]
+    df_dq[1] += coefficients[start_idx + 33] * \
+        3.0 * q_pows[1, 2] * q_pows[2, 6]
+    df_dq[2] += coefficients[start_idx + 33] * \
+        6.0 * q_pows[1, 3] * q_pows[2, 5]
+
+    # Coefficient 34: Exponents (0, 4, 0)
+    length += coefficients[start_idx + 34] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 34] * 4.0 * q_pows[1, 3]
+
+    # Coefficient 35: Exponents (0, 4, 1)
+    length += coefficients[start_idx + 35] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 35] * \
+        4.0 * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 35] * 1.0 * q_pows[1, 4]
+
+    # Coefficient 36: Exponents (0, 4, 2)
+    length += coefficients[start_idx + 36] * q_pows[1, 4] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 36] * \
+        4.0 * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 36] * \
+        2.0 * q_pows[1, 4] * q_pows[2, 1]
+
+    # Coefficient 37: Exponents (0, 4, 3)
+    length += coefficients[start_idx + 37] * q_pows[1, 4] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 37] * \
+        4.0 * q_pows[1, 3] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 37] * \
+        3.0 * q_pows[1, 4] * q_pows[2, 2]
+
+    # Coefficient 38: Exponents (0, 4, 4)
+    length += coefficients[start_idx + 38] * q_pows[1, 4] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 38] * \
+        4.0 * q_pows[1, 3] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 38] * \
+        4.0 * q_pows[1, 4] * q_pows[2, 3]
+
+    # Coefficient 39: Exponents (0, 4, 5)
+    length += coefficients[start_idx + 39] * q_pows[1, 4] * q_pows[2, 5]
+    df_dq[1] += coefficients[start_idx + 39] * \
+        4.0 * q_pows[1, 3] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 39] * \
+        5.0 * q_pows[1, 4] * q_pows[2, 4]
+
+    # Coefficient 40: Exponents (0, 5, 0)
+    length += coefficients[start_idx + 40] * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 40] * 5.0 * q_pows[1, 4]
+
+    # Coefficient 41: Exponents (0, 5, 1)
+    length += coefficients[start_idx + 41] * q_pows[1, 5] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 41] * \
+        5.0 * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 41] * 1.0 * q_pows[1, 5]
+
+    # Coefficient 42: Exponents (0, 5, 2)
+    length += coefficients[start_idx + 42] * q_pows[1, 5] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 42] * \
+        5.0 * q_pows[1, 4] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 42] * \
+        2.0 * q_pows[1, 5] * q_pows[2, 1]
+
+    # Coefficient 43: Exponents (0, 5, 3)
+    length += coefficients[start_idx + 43] * q_pows[1, 5] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 43] * \
+        5.0 * q_pows[1, 4] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 43] * \
+        3.0 * q_pows[1, 5] * q_pows[2, 2]
+
+    # Coefficient 44: Exponents (0, 5, 4)
+    length += coefficients[start_idx + 44] * q_pows[1, 5] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 44] * \
+        5.0 * q_pows[1, 4] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 44] * \
+        4.0 * q_pows[1, 5] * q_pows[2, 3]
+
+    # Coefficient 45: Exponents (0, 6, 0)
+    length += coefficients[start_idx + 45] * q_pows[1, 6]
+    df_dq[1] += coefficients[start_idx + 45] * 6.0 * q_pows[1, 5]
+
+    # Coefficient 46: Exponents (0, 6, 1)
+    length += coefficients[start_idx + 46] * q_pows[1, 6] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 46] * \
+        6.0 * q_pows[1, 5] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 46] * 1.0 * q_pows[1, 6]
+
+    # Coefficient 47: Exponents (0, 6, 2)
+    length += coefficients[start_idx + 47] * q_pows[1, 6] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 47] * \
+        6.0 * q_pows[1, 5] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 47] * \
+        2.0 * q_pows[1, 6] * q_pows[2, 1]
+
+    # Coefficient 48: Exponents (0, 6, 3)
+    length += coefficients[start_idx + 48] * q_pows[1, 6] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 48] * \
+        6.0 * q_pows[1, 5] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 48] * \
+        3.0 * q_pows[1, 6] * q_pows[2, 2]
+
+    # Coefficient 49: Exponents (0, 7, 0)
+    length += coefficients[start_idx + 49] * q_pows[1, 7]
+    df_dq[1] += coefficients[start_idx + 49] * 7.0 * q_pows[1, 6]
+
+    # Coefficient 50: Exponents (0, 7, 1)
+    length += coefficients[start_idx + 50] * q_pows[1, 7] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 50] * \
+        7.0 * q_pows[1, 6] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 50] * 1.0 * q_pows[1, 7]
+
+    # Coefficient 51: Exponents (0, 7, 2)
+    length += coefficients[start_idx + 51] * q_pows[1, 7] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 51] * \
+        7.0 * q_pows[1, 6] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 51] * \
+        2.0 * q_pows[1, 7] * q_pows[2, 1]
+
+    # Coefficient 52: Exponents (0, 8, 0)
+    length += coefficients[start_idx + 52] * q_pows[1, 8]
+    df_dq[1] += coefficients[start_idx + 52] * 8.0 * q_pows[1, 7]
+
+    # Coefficient 53: Exponents (0, 8, 1)
+    length += coefficients[start_idx + 53] * q_pows[1, 8] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 53] * \
+        8.0 * q_pows[1, 7] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 53] * 1.0 * q_pows[1, 8]
+
+    # Coefficient 54: Exponents (0, 9, 0)
+    length += coefficients[start_idx + 54] * q_pows[1, 9]
+    df_dq[1] += coefficients[start_idx + 54] * 9.0 * q_pows[1, 8]
+
+    # Coefficient 55: Exponents (1, 0, 0)
+    length += coefficients[start_idx + 55] * q_pows[0, 1]
+    df_dq[0] += coefficients[start_idx + 55] * 1.0
+
+    # Coefficient 56: Exponents (1, 0, 1)
+    length += coefficients[start_idx + 56] * q_pows[0, 1] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 56] * 1.0 * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 56] * 1.0 * q_pows[0, 1]
+
+    # Coefficient 57: Exponents (1, 0, 2)
+    length += coefficients[start_idx + 57] * q_pows[0, 1] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 57] * 1.0 * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 57] * \
+        2.0 * q_pows[0, 1] * q_pows[2, 1]
+
+    # Coefficient 58: Exponents (1, 0, 3)
+    length += coefficients[start_idx + 58] * q_pows[0, 1] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 58] * 1.0 * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 58] * \
+        3.0 * q_pows[0, 1] * q_pows[2, 2]
+
+    # Coefficient 59: Exponents (1, 0, 4)
+    length += coefficients[start_idx + 59] * q_pows[0, 1] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 59] * 1.0 * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 59] * \
+        4.0 * q_pows[0, 1] * q_pows[2, 3]
+
+    # Coefficient 60: Exponents (1, 0, 5)
+    length += coefficients[start_idx + 60] * q_pows[0, 1] * q_pows[2, 5]
+    df_dq[0] += coefficients[start_idx + 60] * 1.0 * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 60] * \
+        5.0 * q_pows[0, 1] * q_pows[2, 4]
+
+    # Coefficient 61: Exponents (1, 0, 6)
+    length += coefficients[start_idx + 61] * q_pows[0, 1] * q_pows[2, 6]
+    df_dq[0] += coefficients[start_idx + 61] * 1.0 * q_pows[2, 6]
+    df_dq[2] += coefficients[start_idx + 61] * \
+        6.0 * q_pows[0, 1] * q_pows[2, 5]
+
+    # Coefficient 62: Exponents (1, 0, 7)
+    length += coefficients[start_idx + 62] * q_pows[0, 1] * q_pows[2, 7]
+    df_dq[0] += coefficients[start_idx + 62] * 1.0 * q_pows[2, 7]
+    df_dq[2] += coefficients[start_idx + 62] * \
+        7.0 * q_pows[0, 1] * q_pows[2, 6]
+
+    # Coefficient 63: Exponents (1, 0, 8)
+    length += coefficients[start_idx + 63] * q_pows[0, 1] * q_pows[2, 8]
+    df_dq[0] += coefficients[start_idx + 63] * 1.0 * q_pows[2, 8]
+    df_dq[2] += coefficients[start_idx + 63] * \
+        8.0 * q_pows[0, 1] * q_pows[2, 7]
+
+    # Coefficient 64: Exponents (1, 1, 0)
+    length += coefficients[start_idx + 64] * q_pows[0, 1] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 64] * 1.0 * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 64] * 1.0 * q_pows[0, 1]
+
+    # Coefficient 65: Exponents (1, 1, 1)
+    length += coefficients[start_idx + 65] * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 65] * \
+        1.0 * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 65] * \
+        1.0 * q_pows[0, 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 65] * \
+        1.0 * q_pows[0, 1] * q_pows[1, 1]
+
+    # Coefficient 66: Exponents (1, 1, 2)
+    length += coefficients[start_idx + 66] * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 66] * \
+        1.0 * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 66] * \
+        1.0 * q_pows[0, 1] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 66] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 1]
+
+    # Coefficient 67: Exponents (1, 1, 3)
+    length += coefficients[start_idx + 67] * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 67] * \
+        1.0 * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 67] * \
+        1.0 * q_pows[0, 1] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 67] * 3.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 2]
+
+    # Coefficient 68: Exponents (1, 1, 4)
+    length += coefficients[start_idx + 68] * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 68] * \
+        1.0 * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 68] * \
+        1.0 * q_pows[0, 1] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 68] * 4.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 3]
+
+    # Coefficient 69: Exponents (1, 1, 5)
+    length += coefficients[start_idx + 69] * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 5]
+    df_dq[0] += coefficients[start_idx + 69] * \
+        1.0 * q_pows[1, 1] * q_pows[2, 5]
+    df_dq[1] += coefficients[start_idx + 69] * \
+        1.0 * q_pows[0, 1] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 69] * 5.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 4]
+
+    # Coefficient 70: Exponents (1, 1, 6)
+    length += coefficients[start_idx + 70] * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 6]
+    df_dq[0] += coefficients[start_idx + 70] * \
+        1.0 * q_pows[1, 1] * q_pows[2, 6]
+    df_dq[1] += coefficients[start_idx + 70] * \
+        1.0 * q_pows[0, 1] * q_pows[2, 6]
+    df_dq[2] += coefficients[start_idx + 70] * 6.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 5]
+
+    # Coefficient 71: Exponents (1, 1, 7)
+    length += coefficients[start_idx + 71] * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 7]
+    df_dq[0] += coefficients[start_idx + 71] * \
+        1.0 * q_pows[1, 1] * q_pows[2, 7]
+    df_dq[1] += coefficients[start_idx + 71] * \
+        1.0 * q_pows[0, 1] * q_pows[2, 7]
+    df_dq[2] += coefficients[start_idx + 71] * 7.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 6]
+
+    # Coefficient 72: Exponents (1, 2, 0)
+    length += coefficients[start_idx + 72] * q_pows[0, 1] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 72] * 1.0 * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 72] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 1]
+
+    # Coefficient 73: Exponents (1, 2, 1)
+    length += coefficients[start_idx + 73] * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 73] * \
+        1.0 * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 73] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 73] * \
+        1.0 * q_pows[0, 1] * q_pows[1, 2]
+
+    # Coefficient 74: Exponents (1, 2, 2)
+    length += coefficients[start_idx + 74] * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 74] * \
+        1.0 * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 74] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 74] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 1]
+
+    # Coefficient 75: Exponents (1, 2, 3)
+    length += coefficients[start_idx + 75] * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 75] * \
+        1.0 * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 75] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 75] * 3.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 2]
+
+    # Coefficient 76: Exponents (1, 2, 4)
+    length += coefficients[start_idx + 76] * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 76] * \
+        1.0 * q_pows[1, 2] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 76] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 76] * 4.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 3]
+
+    # Coefficient 77: Exponents (1, 2, 5)
+    length += coefficients[start_idx + 77] * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 5]
+    df_dq[0] += coefficients[start_idx + 77] * \
+        1.0 * q_pows[1, 2] * q_pows[2, 5]
+    df_dq[1] += coefficients[start_idx + 77] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 77] * 5.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 4]
+
+    # Coefficient 78: Exponents (1, 2, 6)
+    length += coefficients[start_idx + 78] * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 6]
+    df_dq[0] += coefficients[start_idx + 78] * \
+        1.0 * q_pows[1, 2] * q_pows[2, 6]
+    df_dq[1] += coefficients[start_idx + 78] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 6]
+    df_dq[2] += coefficients[start_idx + 78] * 6.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 5]
+
+    # Coefficient 79: Exponents (1, 3, 0)
+    length += coefficients[start_idx + 79] * q_pows[0, 1] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 79] * 1.0 * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 79] * \
+        3.0 * q_pows[0, 1] * q_pows[1, 2]
+
+    # Coefficient 80: Exponents (1, 3, 1)
+    length += coefficients[start_idx + 80] * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 80] * \
+        1.0 * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 80] * 3.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 80] * \
+        1.0 * q_pows[0, 1] * q_pows[1, 3]
+
+    # Coefficient 81: Exponents (1, 3, 2)
+    length += coefficients[start_idx + 81] * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 81] * \
+        1.0 * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 81] * 3.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 81] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 1]
+
+    # Coefficient 82: Exponents (1, 3, 3)
+    length += coefficients[start_idx + 82] * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 82] * \
+        1.0 * q_pows[1, 3] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 82] * 3.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 82] * 3.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 2]
+
+    # Coefficient 83: Exponents (1, 3, 4)
+    length += coefficients[start_idx + 83] * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 83] * \
+        1.0 * q_pows[1, 3] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 83] * 3.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 83] * 4.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 3]
+
+    # Coefficient 84: Exponents (1, 3, 5)
+    length += coefficients[start_idx + 84] * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 5]
+    df_dq[0] += coefficients[start_idx + 84] * \
+        1.0 * q_pows[1, 3] * q_pows[2, 5]
+    df_dq[1] += coefficients[start_idx + 84] * 3.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 84] * 5.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 4]
+
+    # Coefficient 85: Exponents (1, 4, 0)
+    length += coefficients[start_idx + 85] * q_pows[0, 1] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 85] * 1.0 * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 85] * \
+        4.0 * q_pows[0, 1] * q_pows[1, 3]
+
+    # Coefficient 86: Exponents (1, 4, 1)
+    length += coefficients[start_idx + 86] * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 86] * \
+        1.0 * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 86] * 4.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 86] * \
+        1.0 * q_pows[0, 1] * q_pows[1, 4]
+
+    # Coefficient 87: Exponents (1, 4, 2)
+    length += coefficients[start_idx + 87] * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 87] * \
+        1.0 * q_pows[1, 4] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 87] * 4.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 87] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 1]
+
+    # Coefficient 88: Exponents (1, 4, 3)
+    length += coefficients[start_idx + 88] * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 88] * \
+        1.0 * q_pows[1, 4] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 88] * 4.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 88] * 3.0 * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 2]
+
+    # Coefficient 89: Exponents (1, 4, 4)
+    length += coefficients[start_idx + 89] * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 89] * \
+        1.0 * q_pows[1, 4] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 89] * 4.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 89] * 4.0 * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 3]
+
+    # Coefficient 90: Exponents (1, 5, 0)
+    length += coefficients[start_idx + 90] * q_pows[0, 1] * q_pows[1, 5]
+    df_dq[0] += coefficients[start_idx + 90] * 1.0 * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 90] * \
+        5.0 * q_pows[0, 1] * q_pows[1, 4]
+
+    # Coefficient 91: Exponents (1, 5, 1)
+    length += coefficients[start_idx + 91] * \
+        q_pows[0, 1] * q_pows[1, 5] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 91] * \
+        1.0 * q_pows[1, 5] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 91] * 5.0 * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 91] * \
+        1.0 * q_pows[0, 1] * q_pows[1, 5]
+
+    # Coefficient 92: Exponents (1, 5, 2)
+    length += coefficients[start_idx + 92] * \
+        q_pows[0, 1] * q_pows[1, 5] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 92] * \
+        1.0 * q_pows[1, 5] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 92] * 5.0 * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 92] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 5] * q_pows[2, 1]
+
+    # Coefficient 93: Exponents (1, 5, 3)
+    length += coefficients[start_idx + 93] * \
+        q_pows[0, 1] * q_pows[1, 5] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 93] * \
+        1.0 * q_pows[1, 5] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 93] * 5.0 * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 93] * 3.0 * \
+        q_pows[0, 1] * q_pows[1, 5] * q_pows[2, 2]
+
+    # Coefficient 94: Exponents (1, 6, 0)
+    length += coefficients[start_idx + 94] * q_pows[0, 1] * q_pows[1, 6]
+    df_dq[0] += coefficients[start_idx + 94] * 1.0 * q_pows[1, 6]
+    df_dq[1] += coefficients[start_idx + 94] * \
+        6.0 * q_pows[0, 1] * q_pows[1, 5]
+
+    # Coefficient 95: Exponents (1, 6, 1)
+    length += coefficients[start_idx + 95] * \
+        q_pows[0, 1] * q_pows[1, 6] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 95] * \
+        1.0 * q_pows[1, 6] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 95] * 6.0 * \
+        q_pows[0, 1] * q_pows[1, 5] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 95] * \
+        1.0 * q_pows[0, 1] * q_pows[1, 6]
+
+    # Coefficient 96: Exponents (1, 6, 2)
+    length += coefficients[start_idx + 96] * \
+        q_pows[0, 1] * q_pows[1, 6] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 96] * \
+        1.0 * q_pows[1, 6] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 96] * 6.0 * \
+        q_pows[0, 1] * q_pows[1, 5] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 96] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 6] * q_pows[2, 1]
+
+    # Coefficient 97: Exponents (1, 7, 0)
+    length += coefficients[start_idx + 97] * q_pows[0, 1] * q_pows[1, 7]
+    df_dq[0] += coefficients[start_idx + 97] * 1.0 * q_pows[1, 7]
+    df_dq[1] += coefficients[start_idx + 97] * \
+        7.0 * q_pows[0, 1] * q_pows[1, 6]
+
+    # Coefficient 98: Exponents (1, 7, 1)
+    length += coefficients[start_idx + 98] * \
+        q_pows[0, 1] * q_pows[1, 7] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 98] * \
+        1.0 * q_pows[1, 7] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 98] * 7.0 * \
+        q_pows[0, 1] * q_pows[1, 6] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 98] * \
+        1.0 * q_pows[0, 1] * q_pows[1, 7]
+
+    # Coefficient 99: Exponents (1, 8, 0)
+    length += coefficients[start_idx + 99] * q_pows[0, 1] * q_pows[1, 8]
+    df_dq[0] += coefficients[start_idx + 99] * 1.0 * q_pows[1, 8]
+    df_dq[1] += coefficients[start_idx + 99] * \
+        8.0 * q_pows[0, 1] * q_pows[1, 7]
+
+    # Coefficient 100: Exponents (2, 0, 0)
+    length += coefficients[start_idx + 100] * q_pows[0, 2]
+    df_dq[0] += coefficients[start_idx + 100] * 2.0 * q_pows[0, 1]
+
+    # Coefficient 101: Exponents (2, 0, 1)
+    length += coefficients[start_idx + 101] * q_pows[0, 2] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 101] * \
+        2.0 * q_pows[0, 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 101] * 1.0 * q_pows[0, 2]
+
+    # Coefficient 102: Exponents (2, 0, 2)
+    length += coefficients[start_idx + 102] * q_pows[0, 2] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 102] * \
+        2.0 * q_pows[0, 1] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 102] * \
+        2.0 * q_pows[0, 2] * q_pows[2, 1]
+
+    # Coefficient 103: Exponents (2, 0, 3)
+    length += coefficients[start_idx + 103] * q_pows[0, 2] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 103] * \
+        2.0 * q_pows[0, 1] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 103] * \
+        3.0 * q_pows[0, 2] * q_pows[2, 2]
+
+    # Coefficient 104: Exponents (2, 0, 4)
+    length += coefficients[start_idx + 104] * q_pows[0, 2] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 104] * \
+        2.0 * q_pows[0, 1] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 104] * \
+        4.0 * q_pows[0, 2] * q_pows[2, 3]
+
+    # Coefficient 105: Exponents (2, 0, 5)
+    length += coefficients[start_idx + 105] * q_pows[0, 2] * q_pows[2, 5]
+    df_dq[0] += coefficients[start_idx + 105] * \
+        2.0 * q_pows[0, 1] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 105] * \
+        5.0 * q_pows[0, 2] * q_pows[2, 4]
+
+    # Coefficient 106: Exponents (2, 0, 6)
+    length += coefficients[start_idx + 106] * q_pows[0, 2] * q_pows[2, 6]
+    df_dq[0] += coefficients[start_idx + 106] * \
+        2.0 * q_pows[0, 1] * q_pows[2, 6]
+    df_dq[2] += coefficients[start_idx + 106] * \
+        6.0 * q_pows[0, 2] * q_pows[2, 5]
+
+    # Coefficient 107: Exponents (2, 0, 7)
+    length += coefficients[start_idx + 107] * q_pows[0, 2] * q_pows[2, 7]
+    df_dq[0] += coefficients[start_idx + 107] * \
+        2.0 * q_pows[0, 1] * q_pows[2, 7]
+    df_dq[2] += coefficients[start_idx + 107] * \
+        7.0 * q_pows[0, 2] * q_pows[2, 6]
+
+    # Coefficient 108: Exponents (2, 1, 0)
+    length += coefficients[start_idx + 108] * q_pows[0, 2] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 108] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 108] * 1.0 * q_pows[0, 2]
+
+    # Coefficient 109: Exponents (2, 1, 1)
+    length += coefficients[start_idx + 109] * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 109] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 109] * \
+        1.0 * q_pows[0, 2] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 109] * \
+        1.0 * q_pows[0, 2] * q_pows[1, 1]
+
+    # Coefficient 110: Exponents (2, 1, 2)
+    length += coefficients[start_idx + 110] * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 110] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 110] * \
+        1.0 * q_pows[0, 2] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 110] * 2.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 1]
+
+    # Coefficient 111: Exponents (2, 1, 3)
+    length += coefficients[start_idx + 111] * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 111] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 111] * \
+        1.0 * q_pows[0, 2] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 111] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 2]
+
+    # Coefficient 112: Exponents (2, 1, 4)
+    length += coefficients[start_idx + 112] * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 112] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 112] * \
+        1.0 * q_pows[0, 2] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 112] * 4.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 3]
+
+    # Coefficient 113: Exponents (2, 1, 5)
+    length += coefficients[start_idx + 113] * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 5]
+    df_dq[0] += coefficients[start_idx + 113] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 5]
+    df_dq[1] += coefficients[start_idx + 113] * \
+        1.0 * q_pows[0, 2] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 113] * 5.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 4]
+
+    # Coefficient 114: Exponents (2, 1, 6)
+    length += coefficients[start_idx + 114] * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 6]
+    df_dq[0] += coefficients[start_idx + 114] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 1] * q_pows[2, 6]
+    df_dq[1] += coefficients[start_idx + 114] * \
+        1.0 * q_pows[0, 2] * q_pows[2, 6]
+    df_dq[2] += coefficients[start_idx + 114] * 6.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 5]
+
+    # Coefficient 115: Exponents (2, 2, 0)
+    length += coefficients[start_idx + 115] * q_pows[0, 2] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 115] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 115] * \
+        2.0 * q_pows[0, 2] * q_pows[1, 1]
+
+    # Coefficient 116: Exponents (2, 2, 1)
+    length += coefficients[start_idx + 116] * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 116] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 116] * 2.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 116] * \
+        1.0 * q_pows[0, 2] * q_pows[1, 2]
+
+    # Coefficient 117: Exponents (2, 2, 2)
+    length += coefficients[start_idx + 117] * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 117] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 117] * 2.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 117] * 2.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 1]
+
+    # Coefficient 118: Exponents (2, 2, 3)
+    length += coefficients[start_idx + 118] * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 118] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 118] * 2.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 118] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 2]
+
+    # Coefficient 119: Exponents (2, 2, 4)
+    length += coefficients[start_idx + 119] * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 119] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 119] * 2.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 119] * 4.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 3]
+
+    # Coefficient 120: Exponents (2, 2, 5)
+    length += coefficients[start_idx + 120] * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 5]
+    df_dq[0] += coefficients[start_idx + 120] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 2] * q_pows[2, 5]
+    df_dq[1] += coefficients[start_idx + 120] * 2.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 120] * 5.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 4]
+
+    # Coefficient 121: Exponents (2, 3, 0)
+    length += coefficients[start_idx + 121] * q_pows[0, 2] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 121] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 121] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 2]
+
+    # Coefficient 122: Exponents (2, 3, 1)
+    length += coefficients[start_idx + 122] * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 122] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 122] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 122] * \
+        1.0 * q_pows[0, 2] * q_pows[1, 3]
+
+    # Coefficient 123: Exponents (2, 3, 2)
+    length += coefficients[start_idx + 123] * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 123] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 123] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 123] * 2.0 * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 1]
+
+    # Coefficient 124: Exponents (2, 3, 3)
+    length += coefficients[start_idx + 124] * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 124] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 124] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 124] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 2]
+
+    # Coefficient 125: Exponents (2, 3, 4)
+    length += coefficients[start_idx + 125] * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 125] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 3] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 125] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 125] * 4.0 * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 3]
+
+    # Coefficient 126: Exponents (2, 4, 0)
+    length += coefficients[start_idx + 126] * q_pows[0, 2] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 126] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 126] * \
+        4.0 * q_pows[0, 2] * q_pows[1, 3]
+
+    # Coefficient 127: Exponents (2, 4, 1)
+    length += coefficients[start_idx + 127] * \
+        q_pows[0, 2] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 127] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 127] * 4.0 * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 127] * \
+        1.0 * q_pows[0, 2] * q_pows[1, 4]
+
+    # Coefficient 128: Exponents (2, 4, 2)
+    length += coefficients[start_idx + 128] * \
+        q_pows[0, 2] * q_pows[1, 4] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 128] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 128] * 4.0 * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 128] * 2.0 * \
+        q_pows[0, 2] * q_pows[1, 4] * q_pows[2, 1]
+
+    # Coefficient 129: Exponents (2, 4, 3)
+    length += coefficients[start_idx + 129] * \
+        q_pows[0, 2] * q_pows[1, 4] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 129] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 4] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 129] * 4.0 * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 129] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 4] * q_pows[2, 2]
+
+    # Coefficient 130: Exponents (2, 5, 0)
+    length += coefficients[start_idx + 130] * q_pows[0, 2] * q_pows[1, 5]
+    df_dq[0] += coefficients[start_idx + 130] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 130] * \
+        5.0 * q_pows[0, 2] * q_pows[1, 4]
+
+    # Coefficient 131: Exponents (2, 5, 1)
+    length += coefficients[start_idx + 131] * \
+        q_pows[0, 2] * q_pows[1, 5] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 131] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 5] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 131] * 5.0 * \
+        q_pows[0, 2] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 131] * \
+        1.0 * q_pows[0, 2] * q_pows[1, 5]
+
+    # Coefficient 132: Exponents (2, 5, 2)
+    length += coefficients[start_idx + 132] * \
+        q_pows[0, 2] * q_pows[1, 5] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 132] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 5] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 132] * 5.0 * \
+        q_pows[0, 2] * q_pows[1, 4] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 132] * 2.0 * \
+        q_pows[0, 2] * q_pows[1, 5] * q_pows[2, 1]
+
+    # Coefficient 133: Exponents (2, 6, 0)
+    length += coefficients[start_idx + 133] * q_pows[0, 2] * q_pows[1, 6]
+    df_dq[0] += coefficients[start_idx + 133] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 6]
+    df_dq[1] += coefficients[start_idx + 133] * \
+        6.0 * q_pows[0, 2] * q_pows[1, 5]
+
+    # Coefficient 134: Exponents (2, 6, 1)
+    length += coefficients[start_idx + 134] * \
+        q_pows[0, 2] * q_pows[1, 6] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 134] * 2.0 * \
+        q_pows[0, 1] * q_pows[1, 6] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 134] * 6.0 * \
+        q_pows[0, 2] * q_pows[1, 5] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 134] * \
+        1.0 * q_pows[0, 2] * q_pows[1, 6]
+
+    # Coefficient 135: Exponents (2, 7, 0)
+    length += coefficients[start_idx + 135] * q_pows[0, 2] * q_pows[1, 7]
+    df_dq[0] += coefficients[start_idx + 135] * \
+        2.0 * q_pows[0, 1] * q_pows[1, 7]
+    df_dq[1] += coefficients[start_idx + 135] * \
+        7.0 * q_pows[0, 2] * q_pows[1, 6]
+
+    # Coefficient 136: Exponents (3, 0, 0)
+    length += coefficients[start_idx + 136] * q_pows[0, 3]
+    df_dq[0] += coefficients[start_idx + 136] * 3.0 * q_pows[0, 2]
+
+    # Coefficient 137: Exponents (3, 0, 1)
+    length += coefficients[start_idx + 137] * q_pows[0, 3] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 137] * \
+        3.0 * q_pows[0, 2] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 137] * 1.0 * q_pows[0, 3]
+
+    # Coefficient 138: Exponents (3, 0, 2)
+    length += coefficients[start_idx + 138] * q_pows[0, 3] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 138] * \
+        3.0 * q_pows[0, 2] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 138] * \
+        2.0 * q_pows[0, 3] * q_pows[2, 1]
+
+    # Coefficient 139: Exponents (3, 0, 3)
+    length += coefficients[start_idx + 139] * q_pows[0, 3] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 139] * \
+        3.0 * q_pows[0, 2] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 139] * \
+        3.0 * q_pows[0, 3] * q_pows[2, 2]
+
+    # Coefficient 140: Exponents (3, 0, 4)
+    length += coefficients[start_idx + 140] * q_pows[0, 3] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 140] * \
+        3.0 * q_pows[0, 2] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 140] * \
+        4.0 * q_pows[0, 3] * q_pows[2, 3]
+
+    # Coefficient 141: Exponents (3, 0, 5)
+    length += coefficients[start_idx + 141] * q_pows[0, 3] * q_pows[2, 5]
+    df_dq[0] += coefficients[start_idx + 141] * \
+        3.0 * q_pows[0, 2] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 141] * \
+        5.0 * q_pows[0, 3] * q_pows[2, 4]
+
+    # Coefficient 142: Exponents (3, 0, 6)
+    length += coefficients[start_idx + 142] * q_pows[0, 3] * q_pows[2, 6]
+    df_dq[0] += coefficients[start_idx + 142] * \
+        3.0 * q_pows[0, 2] * q_pows[2, 6]
+    df_dq[2] += coefficients[start_idx + 142] * \
+        6.0 * q_pows[0, 3] * q_pows[2, 5]
+
+    # Coefficient 143: Exponents (3, 1, 0)
+    length += coefficients[start_idx + 143] * q_pows[0, 3] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 143] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 143] * 1.0 * q_pows[0, 3]
+
+    # Coefficient 144: Exponents (3, 1, 1)
+    length += coefficients[start_idx + 144] * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 144] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 144] * \
+        1.0 * q_pows[0, 3] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 144] * \
+        1.0 * q_pows[0, 3] * q_pows[1, 1]
+
+    # Coefficient 145: Exponents (3, 1, 2)
+    length += coefficients[start_idx + 145] * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 145] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 145] * \
+        1.0 * q_pows[0, 3] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 145] * 2.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 1]
+
+    # Coefficient 146: Exponents (3, 1, 3)
+    length += coefficients[start_idx + 146] * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 146] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 146] * \
+        1.0 * q_pows[0, 3] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 146] * 3.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 2]
+
+    # Coefficient 147: Exponents (3, 1, 4)
+    length += coefficients[start_idx + 147] * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 147] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 147] * \
+        1.0 * q_pows[0, 3] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 147] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 3]
+
+    # Coefficient 148: Exponents (3, 1, 5)
+    length += coefficients[start_idx + 148] * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 5]
+    df_dq[0] += coefficients[start_idx + 148] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 1] * q_pows[2, 5]
+    df_dq[1] += coefficients[start_idx + 148] * \
+        1.0 * q_pows[0, 3] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 148] * 5.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 4]
+
+    # Coefficient 149: Exponents (3, 2, 0)
+    length += coefficients[start_idx + 149] * q_pows[0, 3] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 149] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 149] * \
+        2.0 * q_pows[0, 3] * q_pows[1, 1]
+
+    # Coefficient 150: Exponents (3, 2, 1)
+    length += coefficients[start_idx + 150] * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 150] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 150] * 2.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 150] * \
+        1.0 * q_pows[0, 3] * q_pows[1, 2]
+
+    # Coefficient 151: Exponents (3, 2, 2)
+    length += coefficients[start_idx + 151] * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 151] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 151] * 2.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 151] * 2.0 * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 1]
+
+    # Coefficient 152: Exponents (3, 2, 3)
+    length += coefficients[start_idx + 152] * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 152] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 152] * 2.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 152] * 3.0 * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 2]
+
+    # Coefficient 153: Exponents (3, 2, 4)
+    length += coefficients[start_idx + 153] * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 153] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 2] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 153] * 2.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 153] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 3]
+
+    # Coefficient 154: Exponents (3, 3, 0)
+    length += coefficients[start_idx + 154] * q_pows[0, 3] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 154] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 154] * \
+        3.0 * q_pows[0, 3] * q_pows[1, 2]
+
+    # Coefficient 155: Exponents (3, 3, 1)
+    length += coefficients[start_idx + 155] * \
+        q_pows[0, 3] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 155] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 155] * 3.0 * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 155] * \
+        1.0 * q_pows[0, 3] * q_pows[1, 3]
+
+    # Coefficient 156: Exponents (3, 3, 2)
+    length += coefficients[start_idx + 156] * \
+        q_pows[0, 3] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 156] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 156] * 3.0 * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 156] * 2.0 * \
+        q_pows[0, 3] * q_pows[1, 3] * q_pows[2, 1]
+
+    # Coefficient 157: Exponents (3, 3, 3)
+    length += coefficients[start_idx + 157] * \
+        q_pows[0, 3] * q_pows[1, 3] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 157] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 3] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 157] * 3.0 * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 157] * 3.0 * \
+        q_pows[0, 3] * q_pows[1, 3] * q_pows[2, 2]
+
+    # Coefficient 158: Exponents (3, 4, 0)
+    length += coefficients[start_idx + 158] * q_pows[0, 3] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 158] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 158] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 3]
+
+    # Coefficient 159: Exponents (3, 4, 1)
+    length += coefficients[start_idx + 159] * \
+        q_pows[0, 3] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 159] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 159] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 159] * \
+        1.0 * q_pows[0, 3] * q_pows[1, 4]
+
+    # Coefficient 160: Exponents (3, 4, 2)
+    length += coefficients[start_idx + 160] * \
+        q_pows[0, 3] * q_pows[1, 4] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 160] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 4] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 160] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 160] * 2.0 * \
+        q_pows[0, 3] * q_pows[1, 4] * q_pows[2, 1]
+
+    # Coefficient 161: Exponents (3, 5, 0)
+    length += coefficients[start_idx + 161] * q_pows[0, 3] * q_pows[1, 5]
+    df_dq[0] += coefficients[start_idx + 161] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 161] * \
+        5.0 * q_pows[0, 3] * q_pows[1, 4]
+
+    # Coefficient 162: Exponents (3, 5, 1)
+    length += coefficients[start_idx + 162] * \
+        q_pows[0, 3] * q_pows[1, 5] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 162] * 3.0 * \
+        q_pows[0, 2] * q_pows[1, 5] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 162] * 5.0 * \
+        q_pows[0, 3] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 162] * \
+        1.0 * q_pows[0, 3] * q_pows[1, 5]
+
+    # Coefficient 163: Exponents (3, 6, 0)
+    length += coefficients[start_idx + 163] * q_pows[0, 3] * q_pows[1, 6]
+    df_dq[0] += coefficients[start_idx + 163] * \
+        3.0 * q_pows[0, 2] * q_pows[1, 6]
+    df_dq[1] += coefficients[start_idx + 163] * \
+        6.0 * q_pows[0, 3] * q_pows[1, 5]
+
+    # Coefficient 164: Exponents (4, 0, 0)
+    length += coefficients[start_idx + 164] * q_pows[0, 4]
+    df_dq[0] += coefficients[start_idx + 164] * 4.0 * q_pows[0, 3]
+
+    # Coefficient 165: Exponents (4, 0, 1)
+    length += coefficients[start_idx + 165] * q_pows[0, 4] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 165] * \
+        4.0 * q_pows[0, 3] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 165] * 1.0 * q_pows[0, 4]
+
+    # Coefficient 166: Exponents (4, 0, 2)
+    length += coefficients[start_idx + 166] * q_pows[0, 4] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 166] * \
+        4.0 * q_pows[0, 3] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 166] * \
+        2.0 * q_pows[0, 4] * q_pows[2, 1]
+
+    # Coefficient 167: Exponents (4, 0, 3)
+    length += coefficients[start_idx + 167] * q_pows[0, 4] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 167] * \
+        4.0 * q_pows[0, 3] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 167] * \
+        3.0 * q_pows[0, 4] * q_pows[2, 2]
+
+    # Coefficient 168: Exponents (4, 0, 4)
+    length += coefficients[start_idx + 168] * q_pows[0, 4] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 168] * \
+        4.0 * q_pows[0, 3] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 168] * \
+        4.0 * q_pows[0, 4] * q_pows[2, 3]
+
+    # Coefficient 169: Exponents (4, 0, 5)
+    length += coefficients[start_idx + 169] * q_pows[0, 4] * q_pows[2, 5]
+    df_dq[0] += coefficients[start_idx + 169] * \
+        4.0 * q_pows[0, 3] * q_pows[2, 5]
+    df_dq[2] += coefficients[start_idx + 169] * \
+        5.0 * q_pows[0, 4] * q_pows[2, 4]
+
+    # Coefficient 170: Exponents (4, 1, 0)
+    length += coefficients[start_idx + 170] * q_pows[0, 4] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 170] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 170] * 1.0 * q_pows[0, 4]
+
+    # Coefficient 171: Exponents (4, 1, 1)
+    length += coefficients[start_idx + 171] * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 171] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 171] * \
+        1.0 * q_pows[0, 4] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 171] * \
+        1.0 * q_pows[0, 4] * q_pows[1, 1]
+
+    # Coefficient 172: Exponents (4, 1, 2)
+    length += coefficients[start_idx + 172] * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 172] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 172] * \
+        1.0 * q_pows[0, 4] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 172] * 2.0 * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 1]
+
+    # Coefficient 173: Exponents (4, 1, 3)
+    length += coefficients[start_idx + 173] * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 173] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 173] * \
+        1.0 * q_pows[0, 4] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 173] * 3.0 * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 2]
+
+    # Coefficient 174: Exponents (4, 1, 4)
+    length += coefficients[start_idx + 174] * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 174] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 1] * q_pows[2, 4]
+    df_dq[1] += coefficients[start_idx + 174] * \
+        1.0 * q_pows[0, 4] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 174] * 4.0 * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 3]
+
+    # Coefficient 175: Exponents (4, 2, 0)
+    length += coefficients[start_idx + 175] * q_pows[0, 4] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 175] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 175] * \
+        2.0 * q_pows[0, 4] * q_pows[1, 1]
+
+    # Coefficient 176: Exponents (4, 2, 1)
+    length += coefficients[start_idx + 176] * \
+        q_pows[0, 4] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 176] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 176] * 2.0 * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 176] * \
+        1.0 * q_pows[0, 4] * q_pows[1, 2]
+
+    # Coefficient 177: Exponents (4, 2, 2)
+    length += coefficients[start_idx + 177] * \
+        q_pows[0, 4] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 177] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 177] * 2.0 * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 177] * 2.0 * \
+        q_pows[0, 4] * q_pows[1, 2] * q_pows[2, 1]
+
+    # Coefficient 178: Exponents (4, 2, 3)
+    length += coefficients[start_idx + 178] * \
+        q_pows[0, 4] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 178] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 2] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 178] * 2.0 * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 178] * 3.0 * \
+        q_pows[0, 4] * q_pows[1, 2] * q_pows[2, 2]
+
+    # Coefficient 179: Exponents (4, 3, 0)
+    length += coefficients[start_idx + 179] * q_pows[0, 4] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 179] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 179] * \
+        3.0 * q_pows[0, 4] * q_pows[1, 2]
+
+    # Coefficient 180: Exponents (4, 3, 1)
+    length += coefficients[start_idx + 180] * \
+        q_pows[0, 4] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 180] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 180] * 3.0 * \
+        q_pows[0, 4] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 180] * \
+        1.0 * q_pows[0, 4] * q_pows[1, 3]
+
+    # Coefficient 181: Exponents (4, 3, 2)
+    length += coefficients[start_idx + 181] * \
+        q_pows[0, 4] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 181] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 3] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 181] * 3.0 * \
+        q_pows[0, 4] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 181] * 2.0 * \
+        q_pows[0, 4] * q_pows[1, 3] * q_pows[2, 1]
+
+    # Coefficient 182: Exponents (4, 4, 0)
+    length += coefficients[start_idx + 182] * q_pows[0, 4] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 182] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 182] * \
+        4.0 * q_pows[0, 4] * q_pows[1, 3]
+
+    # Coefficient 183: Exponents (4, 4, 1)
+    length += coefficients[start_idx + 183] * \
+        q_pows[0, 4] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 183] * 4.0 * \
+        q_pows[0, 3] * q_pows[1, 4] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 183] * 4.0 * \
+        q_pows[0, 4] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 183] * \
+        1.0 * q_pows[0, 4] * q_pows[1, 4]
+
+    # Coefficient 184: Exponents (4, 5, 0)
+    length += coefficients[start_idx + 184] * q_pows[0, 4] * q_pows[1, 5]
+    df_dq[0] += coefficients[start_idx + 184] * \
+        4.0 * q_pows[0, 3] * q_pows[1, 5]
+    df_dq[1] += coefficients[start_idx + 184] * \
+        5.0 * q_pows[0, 4] * q_pows[1, 4]
+
+    # Coefficient 185: Exponents (5, 0, 0)
+    length += coefficients[start_idx + 185] * q_pows[0, 5]
+    df_dq[0] += coefficients[start_idx + 185] * 5.0 * q_pows[0, 4]
+
+    # Coefficient 186: Exponents (5, 0, 1)
+    length += coefficients[start_idx + 186] * q_pows[0, 5] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 186] * \
+        5.0 * q_pows[0, 4] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 186] * 1.0 * q_pows[0, 5]
+
+    # Coefficient 187: Exponents (5, 0, 2)
+    length += coefficients[start_idx + 187] * q_pows[0, 5] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 187] * \
+        5.0 * q_pows[0, 4] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 187] * \
+        2.0 * q_pows[0, 5] * q_pows[2, 1]
+
+    # Coefficient 188: Exponents (5, 0, 3)
+    length += coefficients[start_idx + 188] * q_pows[0, 5] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 188] * \
+        5.0 * q_pows[0, 4] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 188] * \
+        3.0 * q_pows[0, 5] * q_pows[2, 2]
+
+    # Coefficient 189: Exponents (5, 0, 4)
+    length += coefficients[start_idx + 189] * q_pows[0, 5] * q_pows[2, 4]
+    df_dq[0] += coefficients[start_idx + 189] * \
+        5.0 * q_pows[0, 4] * q_pows[2, 4]
+    df_dq[2] += coefficients[start_idx + 189] * \
+        4.0 * q_pows[0, 5] * q_pows[2, 3]
+
+    # Coefficient 190: Exponents (5, 1, 0)
+    length += coefficients[start_idx + 190] * q_pows[0, 5] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 190] * \
+        5.0 * q_pows[0, 4] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 190] * 1.0 * q_pows[0, 5]
+
+    # Coefficient 191: Exponents (5, 1, 1)
+    length += coefficients[start_idx + 191] * \
+        q_pows[0, 5] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 191] * 5.0 * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 191] * \
+        1.0 * q_pows[0, 5] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 191] * \
+        1.0 * q_pows[0, 5] * q_pows[1, 1]
+
+    # Coefficient 192: Exponents (5, 1, 2)
+    length += coefficients[start_idx + 192] * \
+        q_pows[0, 5] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 192] * 5.0 * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 192] * \
+        1.0 * q_pows[0, 5] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 192] * 2.0 * \
+        q_pows[0, 5] * q_pows[1, 1] * q_pows[2, 1]
+
+    # Coefficient 193: Exponents (5, 1, 3)
+    length += coefficients[start_idx + 193] * \
+        q_pows[0, 5] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 193] * 5.0 * \
+        q_pows[0, 4] * q_pows[1, 1] * q_pows[2, 3]
+    df_dq[1] += coefficients[start_idx + 193] * \
+        1.0 * q_pows[0, 5] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 193] * 3.0 * \
+        q_pows[0, 5] * q_pows[1, 1] * q_pows[2, 2]
+
+    # Coefficient 194: Exponents (5, 2, 0)
+    length += coefficients[start_idx + 194] * q_pows[0, 5] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 194] * \
+        5.0 * q_pows[0, 4] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 194] * \
+        2.0 * q_pows[0, 5] * q_pows[1, 1]
+
+    # Coefficient 195: Exponents (5, 2, 1)
+    length += coefficients[start_idx + 195] * \
+        q_pows[0, 5] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 195] * 5.0 * \
+        q_pows[0, 4] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 195] * 2.0 * \
+        q_pows[0, 5] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 195] * \
+        1.0 * q_pows[0, 5] * q_pows[1, 2]
+
+    # Coefficient 196: Exponents (5, 2, 2)
+    length += coefficients[start_idx + 196] * \
+        q_pows[0, 5] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 196] * 5.0 * \
+        q_pows[0, 4] * q_pows[1, 2] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 196] * 2.0 * \
+        q_pows[0, 5] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 196] * 2.0 * \
+        q_pows[0, 5] * q_pows[1, 2] * q_pows[2, 1]
+
+    # Coefficient 197: Exponents (5, 3, 0)
+    length += coefficients[start_idx + 197] * q_pows[0, 5] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 197] * \
+        5.0 * q_pows[0, 4] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 197] * \
+        3.0 * q_pows[0, 5] * q_pows[1, 2]
+
+    # Coefficient 198: Exponents (5, 3, 1)
+    length += coefficients[start_idx + 198] * \
+        q_pows[0, 5] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 198] * 5.0 * \
+        q_pows[0, 4] * q_pows[1, 3] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 198] * 3.0 * \
+        q_pows[0, 5] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 198] * \
+        1.0 * q_pows[0, 5] * q_pows[1, 3]
+
+    # Coefficient 199: Exponents (5, 4, 0)
+    length += coefficients[start_idx + 199] * q_pows[0, 5] * q_pows[1, 4]
+    df_dq[0] += coefficients[start_idx + 199] * \
+        5.0 * q_pows[0, 4] * q_pows[1, 4]
+    df_dq[1] += coefficients[start_idx + 199] * \
+        4.0 * q_pows[0, 5] * q_pows[1, 3]
+
+    # Coefficient 200: Exponents (6, 0, 0)
+    length += coefficients[start_idx + 200] * q_pows[0, 6]
+    df_dq[0] += coefficients[start_idx + 200] * 6.0 * q_pows[0, 5]
+
+    # Coefficient 201: Exponents (6, 0, 1)
+    length += coefficients[start_idx + 201] * q_pows[0, 6] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 201] * \
+        6.0 * q_pows[0, 5] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 201] * 1.0 * q_pows[0, 6]
+
+    # Coefficient 202: Exponents (6, 0, 2)
+    length += coefficients[start_idx + 202] * q_pows[0, 6] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 202] * \
+        6.0 * q_pows[0, 5] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 202] * \
+        2.0 * q_pows[0, 6] * q_pows[2, 1]
+
+    # Coefficient 203: Exponents (6, 0, 3)
+    length += coefficients[start_idx + 203] * q_pows[0, 6] * q_pows[2, 3]
+    df_dq[0] += coefficients[start_idx + 203] * \
+        6.0 * q_pows[0, 5] * q_pows[2, 3]
+    df_dq[2] += coefficients[start_idx + 203] * \
+        3.0 * q_pows[0, 6] * q_pows[2, 2]
+
+    # Coefficient 204: Exponents (6, 1, 0)
+    length += coefficients[start_idx + 204] * q_pows[0, 6] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 204] * \
+        6.0 * q_pows[0, 5] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 204] * 1.0 * q_pows[0, 6]
+
+    # Coefficient 205: Exponents (6, 1, 1)
+    length += coefficients[start_idx + 205] * \
+        q_pows[0, 6] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 205] * 6.0 * \
+        q_pows[0, 5] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 205] * \
+        1.0 * q_pows[0, 6] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 205] * \
+        1.0 * q_pows[0, 6] * q_pows[1, 1]
+
+    # Coefficient 206: Exponents (6, 1, 2)
+    length += coefficients[start_idx + 206] * \
+        q_pows[0, 6] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 206] * 6.0 * \
+        q_pows[0, 5] * q_pows[1, 1] * q_pows[2, 2]
+    df_dq[1] += coefficients[start_idx + 206] * \
+        1.0 * q_pows[0, 6] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 206] * 2.0 * \
+        q_pows[0, 6] * q_pows[1, 1] * q_pows[2, 1]
+
+    # Coefficient 207: Exponents (6, 2, 0)
+    length += coefficients[start_idx + 207] * q_pows[0, 6] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 207] * \
+        6.0 * q_pows[0, 5] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 207] * \
+        2.0 * q_pows[0, 6] * q_pows[1, 1]
+
+    # Coefficient 208: Exponents (6, 2, 1)
+    length += coefficients[start_idx + 208] * \
+        q_pows[0, 6] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 208] * 6.0 * \
+        q_pows[0, 5] * q_pows[1, 2] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 208] * 2.0 * \
+        q_pows[0, 6] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 208] * \
+        1.0 * q_pows[0, 6] * q_pows[1, 2]
+
+    # Coefficient 209: Exponents (6, 3, 0)
+    length += coefficients[start_idx + 209] * q_pows[0, 6] * q_pows[1, 3]
+    df_dq[0] += coefficients[start_idx + 209] * \
+        6.0 * q_pows[0, 5] * q_pows[1, 3]
+    df_dq[1] += coefficients[start_idx + 209] * \
+        3.0 * q_pows[0, 6] * q_pows[1, 2]
+
+    # Coefficient 210: Exponents (7, 0, 0)
+    length += coefficients[start_idx + 210] * q_pows[0, 7]
+    df_dq[0] += coefficients[start_idx + 210] * 7.0 * q_pows[0, 6]
+
+    # Coefficient 211: Exponents (7, 0, 1)
+    length += coefficients[start_idx + 211] * q_pows[0, 7] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 211] * \
+        7.0 * q_pows[0, 6] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 211] * 1.0 * q_pows[0, 7]
+
+    # Coefficient 212: Exponents (7, 0, 2)
+    length += coefficients[start_idx + 212] * q_pows[0, 7] * q_pows[2, 2]
+    df_dq[0] += coefficients[start_idx + 212] * \
+        7.0 * q_pows[0, 6] * q_pows[2, 2]
+    df_dq[2] += coefficients[start_idx + 212] * \
+        2.0 * q_pows[0, 7] * q_pows[2, 1]
+
+    # Coefficient 213: Exponents (7, 1, 0)
+    length += coefficients[start_idx + 213] * q_pows[0, 7] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 213] * \
+        7.0 * q_pows[0, 6] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 213] * 1.0 * q_pows[0, 7]
+
+    # Coefficient 214: Exponents (7, 1, 1)
+    length += coefficients[start_idx + 214] * \
+        q_pows[0, 7] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 214] * 7.0 * \
+        q_pows[0, 6] * q_pows[1, 1] * q_pows[2, 1]
+    df_dq[1] += coefficients[start_idx + 214] * \
+        1.0 * q_pows[0, 7] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 214] * \
+        1.0 * q_pows[0, 7] * q_pows[1, 1]
+
+    # Coefficient 215: Exponents (7, 2, 0)
+    length += coefficients[start_idx + 215] * q_pows[0, 7] * q_pows[1, 2]
+    df_dq[0] += coefficients[start_idx + 215] * \
+        7.0 * q_pows[0, 6] * q_pows[1, 2]
+    df_dq[1] += coefficients[start_idx + 215] * \
+        2.0 * q_pows[0, 7] * q_pows[1, 1]
+
+    # Coefficient 216: Exponents (8, 0, 0)
+    length += coefficients[start_idx + 216] * q_pows[0, 8]
+    df_dq[0] += coefficients[start_idx + 216] * 8.0 * q_pows[0, 7]
+
+    # Coefficient 217: Exponents (8, 0, 1)
+    length += coefficients[start_idx + 217] * q_pows[0, 8] * q_pows[2, 1]
+    df_dq[0] += coefficients[start_idx + 217] * \
+        8.0 * q_pows[0, 7] * q_pows[2, 1]
+    df_dq[2] += coefficients[start_idx + 217] * 1.0 * q_pows[0, 8]
+
+    # Coefficient 218: Exponents (8, 1, 0)
+    length += coefficients[start_idx + 218] * q_pows[0, 8] * q_pows[1, 1]
+    df_dq[0] += coefficients[start_idx + 218] * \
+        8.0 * q_pows[0, 7] * q_pows[1, 1]
+    df_dq[1] += coefficients[start_idx + 218] * 1.0 * q_pows[0, 8]
+
+    # Coefficient 219: Exponents (9, 0, 0)
+    length += coefficients[start_idx + 219] * q_pows[0, 9]
+    df_dq[0] += coefficients[start_idx + 219] * 9.0 * q_pows[0, 8]
 
     return length, df_dq
 
@@ -27381,7 +29662,9 @@ def evaluate_polynomial(
     order: int,
     dimension: int,
 ) -> tuple[float, types.PolyVec]:
-    if dimension == 1 and order == 3:
+    if dimension == 1 and order == 2:
+        return evaluate_polynomial_dimension1_order2(coefficients, q_pows, start_idx)
+    elif dimension == 1 and order == 3:
         return evaluate_polynomial_dimension1_order3(coefficients, q_pows, start_idx)
     elif dimension == 1 and order == 4:
         return evaluate_polynomial_dimension1_order4(coefficients, q_pows, start_idx)
@@ -27389,10 +29672,20 @@ def evaluate_polynomial(
         return evaluate_polynomial_dimension2_order3(coefficients, q_pows, start_idx)
     elif dimension == 2 and order == 4:
         return evaluate_polynomial_dimension2_order4(coefficients, q_pows, start_idx)
+    elif dimension == 2 and order == 5:
+        return evaluate_polynomial_dimension2_order5(coefficients, q_pows, start_idx)
+    elif dimension == 2 and order == 6:
+        return evaluate_polynomial_dimension2_order6(coefficients, q_pows, start_idx)
+    elif dimension == 2 and order == 8:
+        return evaluate_polynomial_dimension2_order8(coefficients, q_pows, start_idx)
+    elif dimension == 3 and order == 2:
+        return evaluate_polynomial_dimension3_order2(coefficients, q_pows, start_idx)
     elif dimension == 3 and order == 3:
         return evaluate_polynomial_dimension3_order3(coefficients, q_pows, start_idx)
     elif dimension == 3 and order == 4:
         return evaluate_polynomial_dimension3_order4(coefficients, q_pows, start_idx)
+    elif dimension == 3 and order == 9:
+        return evaluate_polynomial_dimension3_order9(coefficients, q_pows, start_idx)
     elif dimension == 4 and order == 3:
         return evaluate_polynomial_dimension4_order3(coefficients, q_pows, start_idx)
     elif dimension == 4 and order == 4:

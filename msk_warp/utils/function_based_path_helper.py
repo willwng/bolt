@@ -2,7 +2,7 @@ import opensim as osim
 import itertools
 
 from math import comb
-from msk_warp import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, POLY_TILE_SIZE, PolyInts
+from msk_warp import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, POLY_TILE_SIZE, SUPPORTED_DIM_ORDER, PolyInts
 from msk_warp.utils.osim_types import OSimType
 from msk_warp.utils.converted_objects import MuscleFunctionPathData, USE_POINT_PATH, PADDED_DOF
 from msk_warp.utils.muscle_helper import get_muscles
@@ -73,6 +73,9 @@ def parse_function_based_paths(
             raise ValueError(f"Polynomial dimension {dimension} is greater than max supported {MAX_POLY_NUM_DOFS}")
         if order > MAX_POLY_ORDER:
             raise ValueError(f"Polynomial order {order} is greater than max supported {MAX_POLY_ORDER}")
+        if (dimension, order) not in SUPPORTED_DIM_ORDER:
+            raise ValueError(f"dimension {dimension} and order {order} are not supported. Please generate new funcs")
+
 
         # Pad everything to the max dimension and order
         exponents = pad_exponents_for_max_dimension(exponents, 0)
