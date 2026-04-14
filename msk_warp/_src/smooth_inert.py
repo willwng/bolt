@@ -121,16 +121,16 @@ def _compute_articulated_inertia(
     body_PPlus_out[worldid, bodyid] = PPlus
 
     # Implicit damping: modify "M^{-1}" to be (M + h * D)^{-1}, but do not modify M itself
-    D_imp = D
     if implicit_damping:
         h = actual_step_size_in[worldid]
         for i in range(dofnum):
-            D_imp[i, i] += h * dof_damping[dofadr + i]
-    DI_imp = math.invert_upper_left(D_imp, dofnum)
-    G_imp = PH @ DI_imp
+            D[i, i] += h * dof_damping[dofadr + i]
+        DI = math.invert_upper_left(D, dofnum)
+        G = PH @ DI
+
     # Need G and DI for computing accelerations. here we store col by col
-    math.store_mat66(mob_G_out[worldid], G_imp, dofadr, dofnum)
-    math.store_mat66(mob_DI_out[worldid], DI_imp, dofadr, dofnum)
+    math.store_mat66(mob_G_out[worldid], G, dofadr, dofnum)
+    math.store_mat66(mob_DI_out[worldid], DI, dofadr, dofnum)
     return
 
 
