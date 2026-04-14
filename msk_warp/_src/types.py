@@ -75,6 +75,10 @@ class vec5(wp.types.vector(length=5, dtype=float)):
     pass
 
 
+class vec6(wp.types.vector(length=6, dtype=float)):
+    pass
+
+
 class mat34(wp.types.matrix(shape=(3, 4), dtype=float)):
     pass
 
@@ -185,6 +189,16 @@ class ActivationType(enum.IntEnum):
     MILLARD = 2
 
 
+class ContractionType(enum.IntEnum):
+    """ Muscle contraction dynamics
+    Attributes:
+        DGF: DeGroote-Fregly muscle contraction dynamics
+        MILLARD: Millard muscle contraction dynamics (splines)
+    """
+    DGF = 1
+    MILLARD = 2
+
+
 class IntegratorType(enum.IntEnum):
     """ Integrator type.
     Attributes:
@@ -233,6 +247,7 @@ class Option:
       nbeam_visuals: number of beam visuals (for rendering beams joints)
 
       activation_type: muscle activation dynamics type (ActivationType)
+      contraction_type: muscle contraction dynamics type (ContractionType)
       integrator: integrator type (IntegratorType)
 
       metabolic_options: options for muscle metabolic energy calculations (MetabolicOptions)
@@ -258,6 +273,7 @@ class Option:
     nbeam_visuals: int
 
     activation_type: ActivationType
+    contraction_type: ContractionType
     integrator: IntegratorType
 
     metabolic_options: MetabolicOptions
@@ -306,6 +322,13 @@ class MuscleMetadata:
     optimal_pennation_angle: float
     fiber_damping: float
     v_max: float
+
+    # Passive force-length curve
+    strain_at_zero_force: float
+    strain_at_one_norm_force: float
+    stiffness_at_low_force: float
+    stiffness_at_one_norm_force: float
+    curviness: float
 
     activation_time_const: float
     deactivation_time_const: float

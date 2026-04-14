@@ -1,10 +1,10 @@
 import opensim as osim
 import os
 
-from msk_warp import Model, Data, IntegratorType, Option, ActivationType, MetabolicOptions, MuscleMetadata, \
-    ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, MuscleLengthInfo, \
-    FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
-    CoordinateLimitForce, ExponentialContact, MAX_POLY_NUM_DOFS, vec5
+from msk_warp import Model, Data, IntegratorType, Option, ActivationType, ContractionType, MetabolicOptions, \
+    MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, \
+    MuscleLengthInfo, FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, \
+    SwingTwistLimit, CoordinateLimitForce, ExponentialContact, MAX_POLY_NUM_DOFS, vec5
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.utils import *
 
@@ -264,6 +264,7 @@ def load_model(
         nbeam_visuals=n_beam_visuals,
 
         activation_type=ActivationType.MILLARD,
+        contraction_type=ContractionType.MILLARD,
         integrator=integrator,
 
         metabolic_options=MetabolicOptions(

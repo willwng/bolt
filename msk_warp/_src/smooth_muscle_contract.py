@@ -1,6 +1,7 @@
 import warp as wp
 
-from . import dgf
+from . import pennation
+from . import force_curves
 from .consts import M_MAX_NORM_TENDON_FORCE
 from .consts import M_MIN_NORM_TENDON_FORCE
 from .consts import MSK_SIG_REAL
@@ -23,12 +24,13 @@ def _calc_eq_residual(
         path_velocity: float,
         activation: float,
         mm: MuscleMetadata,
+        contraction_type: int,
 ) -> ResidualResult:
     # Retrieve tendon length from force
-    norm_tendon_length = dgf.calc_tendon_force_length_inverse_curve(norm_tendon_force)
+    norm_tendon_length = force_curves.calc_tendon_force_inverse(norm_tendon_force, contraction_type)
     tendon_length = norm_tendon_length * mm.tendon_slack_length
     # From path and tendon length compute fiber length
-    fiber_width = dgf.get_fiber_width(mm.optimal_fiber_length, mm.optimal_pennation_angle)
+    fiber_width = pennation.get_fiber_width(mm.optimal_fiber_length, mm.optimal_pennation_angle)
     fiber_length_along_tendon = path_length - tendon_length
     fiber_length = wp.sqrt(fiber_length_along_tendon ** 2.0 + fiber_width ** 2.0)
     norm_fiber_length = fiber_length / mm.optimal_fiber_length
@@ -39,22 +41,29 @@ def _calc_eq_residual(
     if pennation_angle > wp.acos(0.1):
         pennation_angle = wp.acos(0.1)
         cos_pennation_angle = wp.cos(pennation_angle)
-        sin_pennation_angle = wp.sin(pennation_angle)
     # Tendon velocity
-    norm_tendon_velocity = (dgf.calc_tendon_force_length_inverse_curve_derivative(0.0, norm_tendon_length))
+    norm_tendon_velocity = force_curves.calc_tendon_force_inverse_derivative(norm_tendon_length, contraction_type)
     tendon_velocity = mm.tendon_slack_length * norm_tendon_velocity
     # Fiber velocity
     fiber_velocity_along_tendon = path_velocity - tendon_velocity
     fiber_velocity = fiber_velocity_along_tendon * cos_pennation_angle
-    norm_fiber_velocity = (fiber_velocity / dgf.get_max_contraction_velocity_in_meters_per_second(
+    norm_fiber_velocity = (fiber_velocity / pennation.get_max_contraction_velocity_in_meters_per_second(
         mm.v_max, mm.optimal_fiber_length))
     # Residual
-    active_fiber_force = dgf.calc_active_fiber_force(
-        mm.max_isometric_force, activation, norm_fiber_length,
-        norm_fiber_velocity)
-    passive_fiber_force = dgf.calc_passive_fiber_force(
-        mm.max_isometric_force, norm_fiber_length, norm_fiber_velocity,
-        mm.fiber_damping, mm.min_norm_fiber_length)
+    active_fiber_force = force_curves.calc_active_fiber_force(
+        max_isometric_force=mm.max_isometric_force,
+        activation=activation,
+        norm_fiber_length=norm_fiber_length,
+        norm_fiber_velocity=norm_fiber_velocity,
+        contraction_type=contraction_type,
+    )
+    passive_fiber_force = force_curves.calc_passive_fiber_force(
+        norm_fiber_length=norm_fiber_length,
+        norm_fiber_velocity=norm_fiber_velocity,
+        mm=mm,
+        contraction_type=contraction_type
+    )
+
     fiber_force = (active_fiber_force + passive_fiber_force)
     fiber_force_along_tendon = fiber_force * cos_pennation_angle
     residual = (norm_tendon_force - fiber_force_along_tendon / mm.max_isometric_force)
@@ -83,6 +92,8 @@ def _equilibrate(
         muscle_length_in: wp.array2d(dtype=float),
         muscle_velocity_in: wp.array2d(dtype=float),
         act_in: wp.array2d(dtype=float),
+        # In:
+        contraction_type: int,
         # Data out:
         mstate_out: wp.array2d(dtype=float)
 ):
@@ -110,14 +121,10 @@ def _equilibrate(
     path_velocity = muscle_velocity_in[worldid, muscle_id]
     activation = act_in[worldid, muscle_id]
 
-    res_lower = _calc_eq_residual(lower, path_length, path_velocity,
-                                  activation, metadata)
-    res_upper = _calc_eq_residual(upper, path_length, path_velocity,
-                                  activation, metadata)
-    res_mid = _calc_eq_residual(mid, path_length, path_velocity,
-                                activation, metadata)
-    res_best = res_lower if wp.abs(res_lower.residual) < wp.abs(
-        res_upper.residual) else res_upper
+    res_lower = _calc_eq_residual(lower, path_length, path_velocity, activation, metadata, contraction_type)
+    res_upper = _calc_eq_residual(upper, path_length, path_velocity, activation, metadata, contraction_type)
+    res_mid = _calc_eq_residual(mid, path_length, path_velocity, activation, metadata, contraction_type)
+    res_best = res_lower if wp.abs(res_lower.residual) < wp.abs(res_upper.residual) else res_upper
 
     for i in range(max_iters):
         # Converted or interval is sufficiently small
@@ -131,8 +138,7 @@ def _equilibrate(
             upper = mid
         # New midpoint
         mid = 0.5 * (lower + upper)
-        res_mid = _calc_eq_residual(mid, path_length, path_velocity,
-                                    activation, metadata)
+        res_mid = _calc_eq_residual(mid, path_length, path_velocity, activation, metadata, contraction_type)
         # Update best
         if abs(res_mid.residual) < abs(res_best.residual):
             res_best = res_mid
@@ -141,9 +147,8 @@ def _equilibrate(
     fiber_length = res_best.fiber_length
     norm_fiber_length = fiber_length / metadata.optimal_fiber_length
 
-    mstate_out[worldid, muscle_id] = dgf.clamp_norm_fiber_length(
-        norm_fiber_length, metadata.min_norm_fiber_length,
-        metadata.max_norm_fiber_length)
+    mstate_out[worldid, muscle_id] = pennation.clamp_norm_fiber_length(
+        norm_fiber_length, metadata.min_norm_fiber_length, metadata.max_norm_fiber_length)
     return
 
 
@@ -159,6 +164,7 @@ def _contraction_dynamics_fused_kernel(
         muscle_velocity_in: wp.array2d(dtype=float),
         # In:
         rng_state: wp.array(dtype=wp.uint32),
+        contraction_type: int,
         # Data out:
         muscle_length_info_out: wp.array2d(dtype=MuscleLengthInfo),
         muscle_velocity_info_out: wp.array2d(dtype=FiberVelocityInfo),
@@ -175,18 +181,18 @@ def _contraction_dynamics_fused_kernel(
 
     ### --- LENGTH INFO ---
     if mm.ignore_tendon_compliance:  # rigid tendon
-        fiber_length = dgf.pennation_model_calc_fiber_length(
+        fiber_length = pennation.calc_fiber_length(
             muscle_length=path_length,
             optimal_fiber_length=mm.optimal_fiber_length,
             optimal_pennation_angle=mm.optimal_pennation_angle,
             tendon_slack_length=mm.tendon_slack_length,
             minimum_fiber_length=mm.min_norm_fiber_length * mm.optimal_fiber_length
         )
-        fiber_length = dgf.clamp_fiber_length(
-            fiber_length,
-            mm.optimal_fiber_length,
-            mm.min_norm_fiber_length,
-            mm.max_norm_fiber_length
+        fiber_length = pennation.clamp_fiber_length(
+            fiber_length=fiber_length,
+            optimal_fiber_length=mm.optimal_fiber_length,
+            min_norm_fiber_length=mm.min_norm_fiber_length,
+            max_norm_fiber_length=mm.max_norm_fiber_length
         )
 
         norm_fiber_length = fiber_length / mm.optimal_fiber_length
@@ -197,10 +203,12 @@ def _contraction_dynamics_fused_kernel(
 
     min_norm_fiber_length = mm.min_norm_fiber_length
     # Pennation angle
-    pennation_angle = dgf.calc_pennation_angle(mm.optimal_pennation_angle,
-                                               mm.optimal_fiber_length,
-                                               norm_fiber_length,
-                                               min_norm_fiber_length)
+    pennation_angle = pennation.calc_pennation_angle(
+        optimal_pennation_angle=mm.optimal_pennation_angle,
+        optimal_fiber_length=mm.optimal_fiber_length,
+        norm_fiber_length=norm_fiber_length,
+        min_norm_fiber_length=min_norm_fiber_length,
+    )
     cos_pennation_angle = wp.cos(pennation_angle)
     sin_pennation_angle = wp.sin(pennation_angle)
     fiber_length_along_tendon = fiber_length * cos_pennation_angle
@@ -209,67 +217,100 @@ def _contraction_dynamics_fused_kernel(
     norm_tendon_length = tendon_length / mm.tendon_slack_length
     tendon_strain = norm_tendon_length - 1.0
     # Force multipliers
-    fiber_passive_force_length_multiplier = dgf.calc_passive_force_multiplier(norm_fiber_length, min_norm_fiber_length)
-    fiber_active_force_length_multiplier = dgf.calc_active_force_length_multiplier(norm_fiber_length)
-    tendon_force_multiplier = dgf.calc_tendon_force_multiplier(norm_tendon_length, True)
+    fiber_passive_force_length_multiplier = force_curves.calc_passive_fiber_force_length(
+        norm_fiber_length=norm_fiber_length,
+        mm=mm,
+        contraction_type=contraction_type
+    )
+    fiber_active_force_length_multiplier = force_curves.calc_active_fiber_force_length(
+        norm_fiber_length=norm_fiber_length,
+        contraction_type=contraction_type
+    )
+    tendon_force_multiplier = force_curves.calc_tendon_force_length(
+        norm_tendon_length=norm_tendon_length,
+        contraction_type=contraction_type
+    )
 
     ### --- VELOCITY INFO ---
-    v_max_in_ms = dgf.get_max_contraction_velocity_in_meters_per_second(mm.v_max, mm.optimal_fiber_length)
+    v_max_in_ms = pennation.get_max_contraction_velocity_in_meters_per_second(
+        v_max=mm.v_max,
+        optimal_fiber_length=mm.optimal_fiber_length
+    )
     if mm.ignore_tendon_compliance:  # Rigid tendon
         if tendon_length < mm.tendon_slack_length - MSK_SIG_REAL:
             # Tendon is buckling, fiber velocity is zero
             norm_fiber_velocity = 0.0
             fiber_force_velocity_multiplier = 1.0
         else:
-            dlce = dgf.pennation_model_calc_fiber_velocity(
+            dlce = pennation.calc_fiber_velocity(
                 cos_pennation_angle=cos_pennation_angle,
                 muscle_velocity=path_velocity,
                 tendon_velocity=0.0
             )
             norm_fiber_velocity = dlce / v_max_in_ms
-            fiber_force_velocity_multiplier = dgf.calc_force_velocity_multiplier(norm_fiber_velocity)
+            fiber_force_velocity_multiplier, _ = force_curves.calc_active_fiber_force_velocity(
+                norm_fiber_velocity=norm_fiber_velocity,
+                contraction_type=contraction_type
+            )
     elif mm.fiber_damping > 0.0:  # Elastic tendon with damping
-        dlceN_dt, fv = dgf.calc_damped_norm_fiber_velocity(
-            mm.max_isometric_force,
-            activation,
-            fiber_active_force_length_multiplier,
-            fiber_passive_force_length_multiplier,
-            tendon_force_multiplier,
-            mm.fiber_damping,
-            cos_pennation_angle,
-            rng_state
+        dlceN_dt, fv = force_curves.calc_damped_norm_fiber_velocity(
+            f_iso=mm.max_isometric_force,
+            a=activation,
+            fal=fiber_active_force_length_multiplier,
+            fpe=fiber_passive_force_length_multiplier,
+            fse=tendon_force_multiplier,
+            beta=mm.fiber_damping,
+            cos_phi=cos_pennation_angle,
+            contraction_type=contraction_type,
+            state=rng_state
         )
         norm_fiber_velocity = dlceN_dt
         fiber_force_velocity_multiplier = fv
     else:  # Elastic tendon without damping
-        fv = dgf.calc_undamped_fiber_force_velocity_multiplier(
-            activation,
-            fiber_active_force_length_multiplier,
-            fiber_passive_force_length_multiplier,
-            tendon_force_multiplier,
-            cos_pennation_angle
+        fv = force_curves.calc_undamped_fiber_force_velocity_multiplier(
+            a=activation,
+            fal=fiber_active_force_length_multiplier,
+            fp=fiber_passive_force_length_multiplier,
+            fse=tendon_force_multiplier,
+            cos_phi=cos_pennation_angle
         )
-        norm_fiber_velocity = dgf.calc_force_velocity_inverse_curve(fv)
+        norm_fiber_velocity = force_curves.calc_active_fiber_force_velocity_inverse(
+            force_velocity_mult=fv,
+            contraction_type=contraction_type
+        )
         fiber_force_velocity_multiplier = fv
 
     fiber_velocity = norm_fiber_velocity * v_max_in_ms
-    pennation_angular_velocity = dgf.calc_pennation_angular_velocity(
-        mm.optimal_pennation_angle, fiber_length, fiber_velocity,
-        wp.tan(pennation_angle))
-    fiber_velocity_along_tendon = dgf.calc_fiber_velocity_along_tendon(
-        fiber_length, fiber_velocity, sin_pennation_angle,
-        cos_pennation_angle, pennation_angular_velocity)
-
-    tendon_velocity = dgf.calc_tendon_velocity(
-        cos_pennation_angle, sin_pennation_angle,
-        pennation_angular_velocity, fiber_length,
-        fiber_velocity, path_velocity)
+    pennation_angular_velocity = pennation.calc_pennation_angular_velocity(
+        optimal_pennation_angle=mm.optimal_pennation_angle,
+        fiber_length=fiber_length,
+        fiber_velocity=fiber_velocity,
+        tan_pennation_angle=wp.tan(pennation_angle)
+    )
+    fiber_velocity_along_tendon = pennation.calc_fiber_velocity_along_tendon(
+        fiber_length=fiber_length,
+        fiber_velocity=fiber_velocity,
+        sin_pennation_angle=sin_pennation_angle,
+        cos_pennation_angle=cos_pennation_angle,
+        pennation_angular_velocity=pennation_angular_velocity
+    )
+    tendon_velocity = pennation.calc_tendon_velocity(
+        cos_pennation_angle=cos_pennation_angle,
+        sin_pennation_angle=sin_pennation_angle,
+        pennation_angular_velocity=pennation_angular_velocity,
+        fiber_length=fiber_length,
+        fiber_velocity=fiber_velocity,
+        muscle_velocity=path_velocity
+    )
     norm_tendon_velocity = tendon_velocity / mm.tendon_slack_length
 
     # Check to see whether the fiber length was clamped
     min_norm_fiber_length = mm.min_norm_fiber_length
-    fiber_state_clamped = dgf.is_fiber_state_clamped(
-        norm_fiber_length, norm_fiber_velocity, min_norm_fiber_length)
+    fiber_state_clamped = pennation.is_fiber_state_clamped(
+        norm_fiber_length=norm_fiber_length,
+        norm_fiber_velocity=norm_fiber_velocity,
+        min_norm_fiber_length=min_norm_fiber_length
+    )
     if fiber_state_clamped:
         norm_fiber_velocity = 0.0
         fiber_velocity = 0.0
@@ -386,7 +427,7 @@ def contraction_dynamics_fused(m: Model, d: Data):
         inputs=[
             m.muscle_metadata,
             d.integration_done, d.m_act, d.m_state, d.muscle_length, d.muscle_velocity,
-            d.rng_state
+            d.rng_state, m.opt.contraction_type
         ],
         outputs=[d.muscle_length_info, d.muscle_velocity_info, d.muscle_dynamics_info],
     )
@@ -402,8 +443,11 @@ def equilibrate(m: Model, d: Data):
     wp.launch(
         _equilibrate,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata, d.world_reset, d.muscle_length,
-                d.muscle_velocity, d.m_act],
+        inputs=[
+            m.muscle_metadata,
+            d.world_reset, d.muscle_length, d.muscle_velocity, d.m_act,
+            m.opt.contraction_type
+        ],
         outputs=[d.m_state],
     )
 

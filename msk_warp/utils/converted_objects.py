@@ -185,6 +185,13 @@ class MuscleData:
     pennation_angle_at_optimal: float
     fiber_damping: float
 
+    # Fiber passive force length curve
+    strain_at_zero_force: float
+    strain_at_one_norm_force: float
+    stiffness_at_low_force: float
+    stiffness_at_one_norm_force: float
+    curviness: float
+
     path_points: list[SiteData]
 
 
