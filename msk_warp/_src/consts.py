@@ -2,9 +2,6 @@
 MAX_POLY_NUM_DOFS = 12  # Maximum number of DOFs a function can support
 MAX_POLY_ORDER = 10  # Maximum polynomial order
 POLY_TILE_SIZE = 32
-SUPPORTED_DIM_ORDER = [(1, 2), (1, 3), (1, 4), (2, 3), (2, 4), (2, 5),
-                       (2, 6), (2, 8), (3, 2), (3, 3), (3, 4), (3, 9),
-                       (4, 3), (4, 4), (5, 4), (6, 4), (9, 4), (12, 4), ]
 
 MSK_MINVAL = 1e-15
 MSK_MAXVAL = 10000000000.0
