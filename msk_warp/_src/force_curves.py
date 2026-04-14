@@ -158,28 +158,14 @@ def calc_passive_fiber_force(
         mm: MuscleMetadata,
         contraction_type: int,
 ) -> float:
-    if contraction_type == ContractionType.DGF:
-        return dgf.calc_passive_fiber_force(
-            max_isometric_force=mm.max_isometric_force,
-            norm_fiber_length=norm_fiber_length,
-            norm_fiber_velocity=norm_fiber_velocity,
-            fiber_damping=mm.fiber_damping,
-            min_norm_fiber_length=mm.min_norm_fiber_length,
-            passive_fiber_strain_at_one_norm_force=mm.strain_at_one_norm_force
-        )
-    elif contraction_type == ContractionType.MILLARD:
-        return millard.calc_passive_fiber_force(
-            max_isometric_force=mm.max_isometric_force,
-            norm_fiber_length=norm_fiber_length,
-            strain_at_zero_force=mm.strain_at_zero_force,
-            strain_at_one_norm_force=mm.strain_at_one_norm_force,
-            stiffness_at_low_force=mm.stiffness_at_low_force,
-            stiffness_at_one_norm_force=mm.stiffness_at_one_norm_force,
-            curviness=mm.curviness,
-            norm_fiber_velocity=norm_fiber_velocity,
-            fiber_damping=mm.fiber_damping,
-        )
-    assert False
+    fp = calc_passive_fiber_force_length(
+        norm_fiber_length=norm_fiber_length,
+        mm=mm,
+        contraction_type=contraction_type
+    )
+    fd = mm.fiber_damping * norm_fiber_velocity
+    passive_force = mm.max_isometric_force * (fp + fd)
+    return passive_force
 
 
 # --- FIBER VELOCITY ESTIMATION ---

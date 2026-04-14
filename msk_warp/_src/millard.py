@@ -365,30 +365,6 @@ def calc_passive_force_multiplier(
     return evaluate_quintic_bezier(u, y_pts)
 
 
-@wp.func
-def calc_passive_fiber_force(
-        max_isometric_force: float,
-        norm_fiber_length: float,
-        strain_at_zero_force: float,
-        strain_at_one_norm_force: float,
-        stiffness_at_low_force: float,
-        stiffness_at_one_norm_force: float,
-        curviness: float,
-        norm_fiber_velocity: float,
-        fiber_damping: float,
-) -> float:
-    fp = calc_passive_force_multiplier(
-        norm_fiber_length=norm_fiber_length,
-        strain_at_zero_force=strain_at_zero_force,
-        strain_at_one_norm_force=strain_at_one_norm_force,
-        stiffness_at_low_force=stiffness_at_low_force,
-        stiffness_at_one_norm_force=stiffness_at_one_norm_force,
-        curviness=curviness,
-    )
-    fd = fiber_damping * norm_fiber_velocity
-    passive_force = max_isometric_force * (fp + fd)
-    return passive_force
-
 
 # --- TENDON FORCE ----
 @wp.func

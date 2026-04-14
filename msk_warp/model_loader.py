@@ -264,7 +264,7 @@ def load_model(
         nbeam_visuals=n_beam_visuals,
 
         activation_type=ActivationType.MILLARD,
-        contraction_type=ContractionType.MILLARD,
+        contraction_type=ContractionType.DGF,
         integrator=integrator,
 
         metabolic_options=MetabolicOptions(

@@ -110,38 +110,6 @@ def calc_passive_force_multiplier(
     return (wp.exp(kPE * (norm_fiber_length - 1.0) / e0) - offset) / denom
 
 
-@wp.func
-def calc_active_fiber_force(
-        max_isometric_force: float,
-        activation: float,
-        norm_fiber_length: float,
-        norm_fiber_velocity: float,
-) -> float:
-    fl = calc_active_force_length_multiplier(norm_fiber_length)
-    fv = calc_force_velocity_multiplier(norm_fiber_velocity)
-    fiber_force = max_isometric_force * (activation * fl * fv)
-    return fiber_force
-
-
-@wp.func
-def calc_passive_fiber_force(
-        max_isometric_force: float,
-        norm_fiber_length: float,
-        norm_fiber_velocity: float,
-        fiber_damping: float,
-        min_norm_fiber_length: float,
-        passive_fiber_strain_at_one_norm_force: float
-) -> float:
-    fp = calc_passive_force_multiplier(
-        norm_fiber_length=norm_fiber_length,
-        min_norm_fiber_length=min_norm_fiber_length,
-        passive_fiber_strain_at_one_norm_force=passive_fiber_strain_at_one_norm_force
-    )
-    fd = fiber_damping * norm_fiber_velocity
-    passive_force = max_isometric_force * (fp + fd)
-    return passive_force
-
-
 ### --- Begin Tendon --- ###
 @wp.func
 def get_tendon_stiffness_parameter() -> float:
