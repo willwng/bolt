@@ -71,11 +71,20 @@ def calc_passive_fiber_force_length(
         contraction_type: int,
 ) -> float:
     if contraction_type == ContractionType.DGF:
-        return dgf.calc_passive_force_multiplier(
+        # fixme. we're using the millard passive curve for now for its tunability
+        return millard.calc_passive_force_multiplier(
             norm_fiber_length=norm_fiber_length,
-            min_norm_fiber_length=mm.min_norm_fiber_length,
-            passive_fiber_strain_at_one_norm_force=mm.strain_at_one_norm_force
+            strain_at_zero_force=mm.strain_at_zero_force,
+            strain_at_one_norm_force=mm.strain_at_one_norm_force,
+            stiffness_at_low_force=mm.stiffness_at_low_force,
+            stiffness_at_one_norm_force=mm.stiffness_at_one_norm_force,
+            curviness=mm.curviness,
         )
+        # return dgf.calc_passive_force_multiplier(
+        #     norm_fiber_length=norm_fiber_length,
+        #     min_norm_fiber_length=mm.min_norm_fiber_length,
+        #     passive_fiber_strain_at_one_norm_force=mm.strain_at_one_norm_force
+        # )
     elif contraction_type == ContractionType.MILLARD:
         return millard.calc_passive_force_multiplier(
             norm_fiber_length=norm_fiber_length,
