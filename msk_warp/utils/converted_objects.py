@@ -203,19 +203,14 @@ class MuscleFunctionPathData:
     dimension: int
     order: int
 
-    num_tiles: int
-    exponents: list[PolyInts]
-
 
 # Place-holder for muscles that don't use function-based paths
 USE_POINT_PATH = MuscleFunctionPathData(
     name="use_point_path",
     coordinates=[],
     coefficients=[],
-    exponents=[],
     dimension=0,
     order=0,
-    num_tiles=0,
 )
 
 GROUND_BODY = BodyData(

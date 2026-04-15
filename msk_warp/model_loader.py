@@ -1,10 +1,11 @@
-import opensim as osim
 import os
+
+import opensim as osim
 
 from msk_warp import Model, Data, IntegratorType, Option, ActivationType, ContractionType, MetabolicOptions, \
     MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, \
     MuscleLengthInfo, FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, \
-    SwingTwistLimit, CoordinateLimitForce, ExponentialContact, MAX_POLY_NUM_DOFS, vec5
+    SwingTwistLimit, CoordinateLimitForce, ExponentialContact, vec5
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.utils import *
 
@@ -231,23 +232,14 @@ def load_model(
 
     # Muscle function-based paths
     fn_path_term_coeffs = function_based_path_helper.get_fn_path_term_coeffs(converted_function_paths)
-    fn_path_term_exps = function_based_path_helper.get_fn_path_term_exps(converted_function_paths)
     fn_path_term_start, fn_path_term_count = function_based_path_helper.compute_fn_path_term_start_and_count(
         converted_function_paths)
     fn_path_qpos_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, qpos_ordering)
     fn_path_dimension = function_based_path_helper.get_fn_path_dimension(converted_function_paths)
     fn_path_order = function_based_path_helper.get_fn_path_order(converted_function_paths)
     # Determine the path type for each muscle
-    point_paths_id, function_paths_id, function_tiled_paths_id = function_based_path_helper.path_type_to_muscle(
-        converted_function_paths)
-    npointpaths, nfnpaths, nfntilepaths = len(point_paths_id), len(function_paths_id), len(function_tiled_paths_id)
-    # Prepare tiles (if needed)
-    n_fn_path_tiles = function_based_path_helper.compute_num_function_tiles(
-        converted_function_paths, function_tiled_paths_id)
-    fn_tile_muscle_id = function_based_path_helper.get_fn_tile_muscle_id(
-        converted_function_paths, function_tiled_paths_id)
-    fn_tile_offset = function_based_path_helper.compute_fn_tile_offset(
-        converted_function_paths, function_tiled_paths_id)
+    point_paths_id, function_paths_id = function_based_path_helper.path_type_to_muscle(converted_function_paths)
+    npointpaths, nfnpaths = len(point_paths_id), len(function_paths_id)
 
     # Prepare contacts
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
@@ -316,7 +308,6 @@ def load_model(
 
         nm_pointpaths=npointpaths,
         nm_fnpaths=nfnpaths,
-        nm_fntilepaths=nfntilepaths,
 
         opt=opt,
         muscle_metadata=mm,
@@ -398,18 +389,12 @@ def load_model(
 
         muscle_pt_to_mid=to_warp_array(point_paths_id, dtype=int),
         muscle_fn_to_mid=to_warp_array(function_paths_id, dtype=int),
-        muscle_fn_tiled_to_mid=to_warp_array(function_tiled_paths_id, dtype=int),
 
         fn_path_term_coeffs=to_warp_array(fn_path_term_coeffs, dtype=float),
         fn_path_term_start=to_warp_array(fn_path_term_start, dtype=int),
         fn_path_qpos_adr=to_warp_array(fn_path_qpos_adr, dtype=PolyInts),
         fn_path_dimension=to_warp_array(fn_path_dimension, dtype=int),
         fn_path_order=to_warp_array(fn_path_order, dtype=int),
-
-        n_fn_path_tiles=n_fn_path_tiles,
-        fn_path_term_exps=to_warp_array(fn_path_term_exps, dtype=PolyInts),
-        fn_tile_muscle_id=to_warp_array(fn_tile_muscle_id, dtype=int),
-        fn_tile_offset=to_warp_array(fn_tile_offset, dtype=int),
 
         block_dim=TileBlockDim(),
     )
@@ -556,7 +541,6 @@ def load_model(
 
         muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_fn_tile_ma_tmp=make_zero((n_worlds, nmuscle, MAX_POLY_NUM_DOFS), dtype=float),
         muscle_moment_arm=make_zero((n_worlds, nmuscle, nq), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation_passive=make_zero((n_worlds, nmuscle), dtype=float),

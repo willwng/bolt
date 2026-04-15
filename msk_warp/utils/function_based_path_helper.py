@@ -10,22 +10,6 @@ from msk_warp.utils.python_util import remove_slash_prefix, pad_list, exclusive_
 from msk_warp.utils.property_helper import extract_vector
 
 
-def polynomial_exponents(dimension: int, order: int):
-    """ Generates all combinations of exponents for a multivariate polynomial of given order and number of variables."""
-    for exps in itertools.product(range(order + 1), repeat=dimension):
-        if sum(exps) <= order:
-            yield exps
-
-
-def pad_exponents_for_max_dimension(exponents: list[tuple], pad_value: int) -> list[PolyInts]:
-    """ Pads a list of exponent so that each exponent has a value for each variable up to MAX_POLY_NUM_DOFS. """
-    padded_exps = []
-    for exp in exponents:
-        padded_exp = pad_list(lst=list(exp), target_length=MAX_POLY_NUM_DOFS, pad_value=pad_value)
-        padded_exps.append(PolyInts(*padded_exp))
-    return padded_exps
-
-
 def parse_function_based_paths(
         model_path: str,
         function_based_path_file: str
@@ -60,15 +44,11 @@ def parse_function_based_paths(
         coefficients = extract_vector(length_function.get_coefficients())
         dimension = length_function.getDimension()
         order = length_function.getOrder()
-        # Exponents
-        exponents = list(polynomial_exponents(dimension, order))
 
         # some checks
         num_expected_terms = comb(dimension + order, order)
         if len(coefficients) != num_expected_terms:
             raise ValueError(f"Num coefficients {len(coefficients)} does not match expected {num_expected_terms}")
-        if len(exponents) != num_expected_terms:
-            raise ValueError(f"Num exponents {len(exponents)} does not match expected {num_expected_terms}")
         if dimension > MAX_POLY_NUM_DOFS:
             raise ValueError(f"Polynomial dimension {dimension} is greater than max supported {MAX_POLY_NUM_DOFS}")
         if order > MAX_POLY_ORDER:
@@ -76,17 +56,8 @@ def parse_function_based_paths(
         if (dimension, order) not in SUPPORTED_DIM_ORDER:
             raise ValueError(f"dimension {dimension} and order {order} are not supported. Please generate new funcs")
 
-
         # Pad everything to the max dimension and order
-        exponents = pad_exponents_for_max_dimension(exponents, 0)
         coordinates = pad_list(coordinates, target_length=MAX_POLY_NUM_DOFS, pad_value=PADDED_DOF)
-
-        # Now we need to pad everything so it can be processed using tiles
-        n_terms = len(coefficients)
-        n_padded_terms = ((n_terms + POLY_TILE_SIZE - 1) // POLY_TILE_SIZE) * POLY_TILE_SIZE
-        n_tiles = n_padded_terms // POLY_TILE_SIZE
-        coefficients = pad_list(coefficients, target_length=n_padded_terms, pad_value=0.0)
-        exponents = pad_list(exponents, target_length=n_padded_terms, pad_value=PolyInts(0))
 
         muscle_function_path_data.append(
             MuscleFunctionPathData(
@@ -95,9 +66,6 @@ def parse_function_based_paths(
                 coefficients=coefficients,
                 dimension=dimension,
                 order=order,
-
-                num_tiles=n_tiles,
-                exponents=exponents,
             )
         )
     return muscle_function_path_data
@@ -105,23 +73,19 @@ def parse_function_based_paths(
 
 def path_type_to_muscle(
         muscle_function_paths: list[MuscleFunctionPathData]
-) -> tuple[list[int], list[int], list[int]]:
+) -> tuple[list[int], list[int]]:
     """
-    Get mapping from (point | function | function_tiled) id to muscle id
+    Get mapping from (point | function) id to muscle id
     This function decides what type of path each muscle should use
     """
-    point_paths, function_paths, function_tiled_paths = [], [], []
+    point_paths, function_paths = [], []
     for i, muscle_path in enumerate(muscle_function_paths):
         if muscle_path == USE_POINT_PATH:
             point_paths.append(i)
         else:
             function_paths.append(i)
 
-        # TODO: tiles just aren't that fast, maybe future work
-        # else:  # We need tiles if max number of dofs is higher. Performance is probably also a bit better for these
-        #     function_tiled_paths.append(i)
-
-    return point_paths, function_paths, function_tiled_paths
+    return point_paths, function_paths
 
 
 def get_fn_path_term_coeffs(muscle_function_paths: list[MuscleFunctionPathData]) -> list[float]:
