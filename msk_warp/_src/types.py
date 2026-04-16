@@ -523,6 +523,7 @@ class Model:
 
      * muscle paths *
       muscle_pt_group: muscle ids for point paths
+      muscle_pt_group_tuple: muscle ids for point paths (tuple for post processing)
       muscle_fn_groups: muscle ids for function paths, grouped by same (dim, order)
 
      * muscle function-based paths *
@@ -637,6 +638,7 @@ class Model:
 
     # Muscle paths
     muscle_pt_group: wp.array(dtype=int)
+    muscle_pt_group_tuple: tuple[int, ...]
     muscle_fn_groups: tuple[wp.array(dtype=int), ...]
 
     # Polynomial/function paths

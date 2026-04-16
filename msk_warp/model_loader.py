@@ -385,6 +385,7 @@ def load_model(
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
 
         muscle_pt_group=to_warp_array(point_paths_group, dtype=int),
+        muscle_pt_group_tuple=tuple(point_paths_group),
         muscle_fn_groups=function_paths_groups_warp,
 
         fn_path_term_coeffs=to_warp_array(fn_path_term_coeffs, dtype=float),
