@@ -7,6 +7,7 @@ from ._src.forward import reset as reset
 from ._src.forward import fk as fk
 from ._src.forward import post as post
 from ._src.forward import compute_muscle_moments as compute_muscle_moments
+from ._src.forward import compute_net_joint_moments as compute_net_joint_moments
 from ._src.types import Model as Model
 from ._src.types import Data as Data
 from ._src.types import MobilizerType
@@ -20,6 +21,7 @@ from ._src.types import ActuatorMetadata as ActuatorMetadata
 from ._src.types import GeomType as GeomType
 from ._src.types import Contact as Contact
 from ._src.types import ActivationType as ActivationType
+from ._src.types import ContractionType as ContractionType
 from ._src.types import IntegratorType as IntegratorType
 from ._src.types import IntegratorStateScratch as IntegratorStateScratch
 from ._src.types import IntegratorDotScratch as IntegratorDotScratch
@@ -33,11 +35,14 @@ from ._src.types import ExponentialContact as ExponentialContact
 from ._src.types import TileBlockDim as TileBlockDim
 from ._src.types import vec5 as vec5
 from ._src.types import PolyInts as PolyInts
+from ._src.types import PolyVec as PolyVec
 from ._src.consts import MIN_NORM_FIBER_LENGTH
+from ._src.consts import MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH
 from ._src.consts import MAX_NORM_FIBER_LENGTH
 from ._src.consts import MAX_POLY_NUM_DOFS
 from ._src.consts import MAX_POLY_ORDER
-from ._src.consts import POLY_TILE_SIZE
+from ._src.consts import MSK_SIG_REAL
+from ._src.polynomial_evaluator import SUPPORTED_DIM_ORDER
 from .render.renderer import RendererType as RendererType
 
 from .bindings import *

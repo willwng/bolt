@@ -7,6 +7,7 @@ from .types import Data
 from .types import Model
 from .types import MuscleMetadata
 from .types import ExponentialContact
+from .consts import MSK_SIG_REAL
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -177,7 +178,7 @@ def _next_exp_contact_state(
 
     # Compute new sliding state (K)
     K = 1.0
-    if p0_delta_length > 0.0:
+    if p0_delta_length > 0.0 and step_size > MSK_SIG_REAL:
         speed = p0_delta_length / step_size
         speed_frac = speed / settle_velocity
         K = math.step_up(wp.clamp(speed_frac, 0.0, 1.0))

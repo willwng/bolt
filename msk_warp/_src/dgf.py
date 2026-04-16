@@ -1,6 +1,7 @@
 import warp as wp
 
 from . import consts
+from .types import vec6
 
 wp.set_module_options({"enable_backward": False})
 
@@ -26,147 +27,6 @@ def calc_gaussian_like_curve_der(
 ) -> float:
     return (b1 * wp.exp(-(b2 - x) ** 2.0 / (2 * (b3 + b4 * x) ** 2.0)) *
             (b2 - x) * (b3 + b2 * b4)) / (b3 + b4 * x) ** 3
-
-
-### --- Begin Pennation --- ###
-@wp.func
-def get_tendon_stiffness_parameter() -> float:
-    return wp.log((1.0 + consts.DGF_C3) / consts.DGF_C1) / \
-        (1.0 + consts.TENDON_STRAIN_AT_ONE_NORM_FORCE - consts.DGF_C2)
-
-
-@wp.func
-def get_fiber_width(
-        optimal_fiber_length: float,
-        optimal_pennation_angle: float
-) -> float:
-    return optimal_fiber_length * wp.sin(optimal_pennation_angle)
-
-
-@wp.func
-def get_max_contraction_velocity_in_meters_per_second(
-        v_max: float,
-        optimal_fiber_length: float
-) -> float:
-    return v_max * optimal_fiber_length
-
-
-@wp.func
-def is_fiber_state_clamped(
-        norm_fiber_length: float,
-        norm_fiber_velocity: float,
-        min_norm_fiber_length: float,
-) -> bool:
-    return (norm_fiber_length <= min_norm_fiber_length and
-            norm_fiber_velocity < 0.0) or \
-        (norm_fiber_length < min_norm_fiber_length)
-
-
-@wp.func
-def clamp_norm_fiber_length(
-        norm_fiber_length: float,
-        min_norm_fiber_length: float,
-        max_norm_fiber_length: float
-) -> float:
-    return wp.clamp(norm_fiber_length,
-                    min_norm_fiber_length,
-                    max_norm_fiber_length)
-
-
-@wp.func
-def clamp_fiber_length(
-        norm_fiber_length: float,
-        optimal_fiber_length: float,
-        min_norm_fiber_length: float,
-        max_norm_fiber_length: float,
-) -> float:
-    return wp.clamp(norm_fiber_length,
-                    min_norm_fiber_length * optimal_fiber_length,
-                    max_norm_fiber_length * optimal_fiber_length)
-
-
-@wp.func
-def pennation_model_calc_fiber_length(
-        muscle_length: float,
-        optimal_fiber_length: float,
-        optimal_pennation_angle: float,
-        tendon_slack_length: float,
-        minimum_fiber_length: float,
-) -> float:
-    fiber_length_AT = muscle_length - tendon_slack_length
-    minimum_fiber_length_along_tendon = minimum_fiber_length * wp.cos(consts.M_MAX_PENNATION_ANGLE)
-    if fiber_length_AT >= minimum_fiber_length_along_tendon:
-        parallelogram_height = get_fiber_width(optimal_fiber_length, optimal_pennation_angle)
-        fiber_length = wp.sqrt(parallelogram_height * parallelogram_height + fiber_length_AT * fiber_length_AT)
-    else:
-        fiber_length = minimum_fiber_length_along_tendon
-    return fiber_length
-
-
-@wp.func
-def pennation_model_calc_fiber_velocity(
-        cos_pennation_angle: float,
-        muscle_velocity: float,
-        tendon_velocity: float,
-) -> float:
-    return (muscle_velocity - tendon_velocity) * cos_pennation_angle
-
-
-@wp.func
-def calc_pennation_angle(
-        optimal_pennation_angle: float,
-        optimal_fiber_length: float,
-        norm_fiber_length: float,
-        min_norm_fiber_length: float,
-) -> float:
-    phi = 0.0
-
-    if optimal_pennation_angle > 1e-8:
-        if norm_fiber_length > min_norm_fiber_length:
-            parallelogram_height = get_fiber_width(optimal_fiber_length, optimal_pennation_angle)
-            max_sin_pennation_angle = wp.sin(consts.M_MAX_PENNATION_ANGLE)
-            fiber_length = norm_fiber_length * optimal_fiber_length
-            sin_phi = parallelogram_height / fiber_length
-            phi = wp.where(sin_phi < max_sin_pennation_angle, wp.asin(sin_phi), consts.M_MAX_PENNATION_ANGLE)
-        else:
-            phi = consts.M_MAX_PENNATION_ANGLE
-    return phi
-
-
-@wp.func
-def calc_pennation_angular_velocity(
-        optimal_pennation_angle: float,
-        fiber_length: float,
-        fiber_velocity: float,
-        tan_pennation_angle: float
-) -> float:
-    d_phi = -(fiber_velocity / fiber_length) * tan_pennation_angle
-    return wp.where(optimal_pennation_angle > 1e-8, d_phi, 0.0)
-
-
-@wp.func
-def calc_fiber_velocity_along_tendon(
-        fiber_length: float,
-        fiber_velocity: float,
-        sin_pennation_angle: float,
-        cos_pennation_angle: float,
-        pennation_angular_velocity: float
-) -> float:
-    return (fiber_velocity * cos_pennation_angle
-            - fiber_length * sin_pennation_angle * pennation_angular_velocity)
-
-
-@wp.func
-def calc_tendon_velocity(
-        cos_pennation_angle: float,
-        sin_pennation_angle: float,
-        pennation_angular_velocity: float,
-        fiber_length: float,
-        fiber_velocity: float,
-        muscle_velocity: float
-) -> float:
-    return muscle_velocity - fiber_velocity * cos_pennation_angle + \
-        fiber_length * sin_pennation_angle * pennation_angular_velocity
 
 
 ### --- Begin Fiber --- ###
@@ -241,42 +101,22 @@ def calc_force_velocity_inverse_curve(
 def calc_passive_force_multiplier(
         norm_fiber_length: float,
         min_norm_fiber_length: float,
+        passive_fiber_strain_at_one_norm_force: float
 ) -> float:
     kPE = consts.DGF_KPE
-    e0 = consts.PASSIVE_FIBER_STRAIN_AT_ONE_NORM_FORCE
+    e0 = passive_fiber_strain_at_one_norm_force
     offset = wp.exp(kPE * (min_norm_fiber_length - 1.0) / e0)
     denom = wp.exp(kPE) - offset
     return (wp.exp(kPE * (norm_fiber_length - 1.0) / e0) - offset) / denom
 
 
-@wp.func
-def calc_active_fiber_force(
-        max_isometric_force: float,
-        activation: float,
-        norm_fiber_length: float,
-        norm_fiber_velocity: float,
-) -> float:
-    fl = calc_active_force_length_multiplier(norm_fiber_length)
-    fv = calc_force_velocity_multiplier(norm_fiber_velocity)
-    fiber_force = max_isometric_force * (activation * fl * fv)
-    return fiber_force
-
-
-@wp.func
-def calc_passive_fiber_force(
-        max_isometric_force: float,
-        norm_fiber_length: float,
-        norm_fiber_velocity: float,
-        fiber_damping: float,
-        min_norm_fiber_length: float,
-) -> float:
-    fp = calc_passive_force_multiplier(norm_fiber_length, min_norm_fiber_length)
-    fd = fiber_damping * norm_fiber_velocity
-    passive_force = max_isometric_force * (fp + fd)
-    return passive_force
-
-
 ### --- Begin Tendon --- ###
+@wp.func
+def get_tendon_stiffness_parameter() -> float:
+    return wp.log((1.0 + consts.DGF_C3) / consts.DGF_C1) / \
+        (1.0 + consts.TENDON_STRAIN_AT_ONE_NORM_FORCE - consts.DGF_C2)
+
+
 @wp.func
 def calc_tendon_force_multiplier(
         norm_tendon_length: float,
@@ -289,7 +129,7 @@ def calc_tendon_force_multiplier(
 
 
 @wp.func
-def calc_tendon_force_length_inverse_curve(
+def calc_tendon_force_length_inverse(
         norm_tendon_force: float,
 ) -> float:
     return wp.log((1.0 / consts.DGF_C1) * (norm_tendon_force + consts.DGF_C3)) / \
@@ -305,64 +145,3 @@ def calc_tendon_force_length_inverse_curve_derivative(
             consts.DGF_C1 * get_tendon_stiffness_parameter()
             * wp.exp(get_tendon_stiffness_parameter() * (
             norm_tendon_length - consts.DGF_C2)))
-
-
-@wp.func
-def calc_undamped_fiber_force_velocity_multiplier(
-        a: float,
-        fal: float,
-        fp: float,
-        fse: float,
-        cos_phi: float
-) -> float:
-    return (fse / cos_phi - fp) / (a * fal)
-
-
-@wp.func
-def calc_damped_norm_fiber_velocity(
-        f_iso: float,
-        a: float,
-        fal: float,
-        fpe: float,
-        fse: float,
-        beta: float,
-        cos_phi: float,
-        state: wp.array(dtype=wp.uint32)
-) -> tuple[float, float]:
-    max_iter = wp.static(20)
-    tol = wp.max(1e-10 * f_iso, consts.MSK_SIG_REAL * 100.0)
-    err = float(1e10)
-    i = int(0)
-
-    # use undamped estimate as initial guess
-    fv = calc_undamped_fiber_force_velocity_multiplier(
-        wp.max(a, 0.01),
-        wp.max(fal, 0.01),
-        fpe,
-        fse,
-        wp.max(cos_phi, 0.01)
-    )
-    dlceN_dt = calc_force_velocity_inverse_curve(fv)
-    # approximation is poor beyond maximum velocities
-    dlceN_dt = wp.clamp(dlceN_dt, -1.0, 1.0)
-
-    while wp.abs(err) > tol and i < max_iter:
-        fv = calc_force_velocity_multiplier(dlceN_dt)
-        fvDer = calc_force_velocity_multiplier_derivative(dlceN_dt)
-        fiber_force = f_iso * (a * fal * fv + fpe + beta * dlceN_dt)
-
-        err = fiber_force * cos_phi - fse * f_iso
-        df_d_dlceNdt = f_iso * (a * fal * fvDer + beta)
-        derr_d_dlceNdt = df_d_dlceNdt * cos_phi
-
-        if wp.abs(err) > tol and wp.abs(derr_d_dlceNdt) > consts.MSK_SIG_REAL:
-            delta = -err / derr_d_dlceNdt
-            dlceN_dt = dlceN_dt + delta
-        elif wp.abs(derr_d_dlceNdt) < consts.MSK_SIG_REAL:
-            # Perturb the solution if we lost rank: shouldn't happen
-            perturbation = 2.0 * wp.randf(state[0]) - 1.0
-            wp.atomic_add(state, 0, wp.uint32(1))
-            dlceN_dt = dlceN_dt + perturbation * 0.05
-        i += 1
-
-    return dlceN_dt, fv

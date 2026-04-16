@@ -75,6 +75,10 @@ class vec5(wp.types.vector(length=5, dtype=float)):
     pass
 
 
+class vec6(wp.types.vector(length=6, dtype=float)):
+    pass
+
+
 class mat34(wp.types.matrix(shape=(3, 4), dtype=float)):
     pass
 
@@ -185,6 +189,16 @@ class ActivationType(enum.IntEnum):
     MILLARD = 2
 
 
+class ContractionType(enum.IntEnum):
+    """ Muscle contraction dynamics
+    Attributes:
+        DGF: DeGroote-Fregly muscle contraction dynamics
+        MILLARD: Millard muscle contraction dynamics (splines)
+    """
+    DGF = 1
+    MILLARD = 2
+
+
 class IntegratorType(enum.IntEnum):
     """ Integrator type.
     Attributes:
@@ -227,11 +241,13 @@ class Option:
     Attributes:
       gravity: gravitational acceleration
       explicit_gravity: flag to compute gravity as an explicit force (or as fictitious acceleration)
+      implicit_damping: flag to add h*damping to mass matrix for implicit damping
       enable_drag: flag to enable drag forces
       visuals: whether to handle visual geometry
       nbeam_visuals: number of beam visuals (for rendering beams joints)
 
       activation_type: muscle activation dynamics type (ActivationType)
+      contraction_type: muscle contraction dynamics type (ContractionType)
       integrator: integrator type (IntegratorType)
 
       metabolic_options: options for muscle metabolic energy calculations (MetabolicOptions)
@@ -251,11 +267,13 @@ class Option:
 
     gravity: float
     explicit_gravity: bool
+    implicit_damping: bool
     enable_drag: bool
     visuals: bool
     nbeam_visuals: int
 
     activation_type: ActivationType
+    contraction_type: ContractionType
     integrator: IntegratorType
 
     metabolic_options: MetabolicOptions
@@ -296,7 +314,6 @@ class ResidualResult:
 @wp.struct
 class MuscleMetadata:
     """Muscle metadata. """
-    fn_based_path: bool
     ignore_tendon_compliance: bool
 
     max_isometric_force: float
@@ -305,6 +322,13 @@ class MuscleMetadata:
     optimal_pennation_angle: float
     fiber_damping: float
     v_max: float
+
+    # Passive force-length curve
+    strain_at_zero_force: float
+    strain_at_one_norm_force: float
+    stiffness_at_low_force: float
+    stiffness_at_one_norm_force: float
+    curviness: float
 
     activation_time_const: float
     deactivation_time_const: float
@@ -404,6 +428,11 @@ class Model:
       nlimitforce: number of (CoordinateLimitForce) limits
       nswingtwist: number of swing-twist limits
 
+      nfunctions: number of custom functions
+      nlinearfn: number of linear functions
+      nconstfn: number of constant functions
+      npolyfn: number of polynomial functions
+
       opt: physics options
       muscle_metadata: muscle metadata                         (nmuscle,)
       muscle_data: same as above, but intended for future modification
@@ -452,6 +481,7 @@ class Model:
 
      * stiffness/damping *
       dof_damping: damping coefficient                         (nv)
+      dof_armature: armature added to joint-space inertia diag (nv,)
       dof_stiffness: stiffness coefficient                     (nv)
       qpos_spring_rest: rest position for dof spring           (nq,)
 
@@ -485,20 +515,23 @@ class Model:
 
      * sites *
       site_bodyid: id of site's body                           (nsite,)
-      site_offset: local position offset rel. to body             (nsite, 3)
+      site_offset: local position offset rel. to body          (nsite, 3)
 
      * muscles *
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
 
+     * muscle paths *
+      muscle_pt_group: muscle ids for point paths
+      muscle_pt_group_tuple: muscle ids for point paths (tuple for post processing)
+      muscle_fn_groups: muscle ids for function paths, grouped by same (dim, order)
+
      * muscle function-based paths *
-      fn_path_qpos_adr: qpos adr for each muscle fn path term      (nmuscle, PolyInt)
-      fn_path_dimension: number of dependent variables             (nmuscle,)
-      fn_path_order: order of polynomial function                  (nmuscle,)
-      fn_path_term_start: starting adr of each muscle's terms      (nmuscle,)
-      fn_path_term_count: number of terms for each muscle's path   (nmuscle,)
-      fn_path_term_coeffs: coefficients for each fn path term      (nmuscle, num_fn_terms)
-      fn_path_term_exps: exponents for each fn path term           (nmuscle, num_fn_terms, PolyInt)
+      fn_path_qpos_adr: qpos adr for each muscle fn path term  (nmuscle, PolyInt)
+      fn_path_dimension: number of dependent variables         (nmuscle,)
+      fn_path_order: order of polynomial function              (nmuscle,)
+      fn_path_term_start: starting adr of each muscle's terms  (nmuscle,)
+      fn_path_term_coeffs: coefficients for each fn path term  (nmuscle, num_fn_terms)
     """
 
     nbody: int
@@ -565,6 +598,7 @@ class Model:
     poly_fn_qpos_adr: array("npolyfn", int)
 
     dof_damping: array("nv", float)
+    dof_armature: array("nv", float)
     dof_stiffness: array("nv", float)
     qpos_spring_rest: array("nq", float)
 
@@ -601,22 +635,18 @@ class Model:
     # Muscles
     muscle_pts_adr: wp.array(dtype=int)
     muscle_pts_num: wp.array(dtype=int)
-    # Polynomial/function paths
-    muscle_poly_coeffs: array("npoly_coeffs", float)
-    muscle_poly_adr: array("nmuscle", int)
-    muscle_poly_order: array("nmuscle", int)
-    muscle_poly_qpos_adr: array("total_order", int)
-    muscle_poly_dof_adr: array("total_order", int)
-    muscle_dep_dof_num: array("nmuscle", int)
-    muscle_dep_dof_adr: array("nmuscle", int)
 
+    # Muscle paths
+    muscle_pt_group: wp.array(dtype=int)
+    muscle_pt_group_tuple: tuple[int, ...]
+    muscle_fn_groups: tuple[wp.array(dtype=int), ...]
+
+    # Polynomial/function paths
     fn_path_qpos_adr: array("nmuscle", PolyInts)
     fn_path_dimension: array("nmuscle", int)
     fn_path_order: array("nmuscle", int)
     fn_path_term_start: array("nmuscle", int)
-    fn_path_term_count: array("nmuscle", int)
     fn_path_term_coeffs: array("nmuscle", "num_fn_terms", float)
-    fn_path_term_exps: array("nmuscle", "num_fn_terms", PolyInts)
 
     block_dim: TileBlockDim
 
@@ -723,10 +753,12 @@ class Data:
       body_F_muscle: muscle Cartesian force/torque on body        (nworld, nbody, 6)
       body_F_drag: drag Cartesian force/torque on body            (nworld, nbody, 6)
       body_F: net Cartesian force/torque on body                  (nworld, nbody, 6)
+      qfrc_muscle: muscle generalized force in qpos space         (nworld, nq)
+      qfrc_muscle_passive: only passive component of muscle force (nworld, nq)
       ufrc_spring: passive spring force                           (nworld, nv)
       ufrc_damper: passive damper force                           (nworld, nv)
-      qfrc_muscle: muscle generalized force in qpos space         (nworld, nq)
       ufrc_muscle: muscle generalized force                       (nworld, nv)
+      ufrc_muscle_passive: only passive component of muscle force (nworld, nv)
       ufrc_actuator: actuator generalized force                   (nworld, nv)
       ufrc_limit: dof limit generalized force                     (nworld, nv)
       ufrc_total: net generalized force                           (nworld, nv)
@@ -737,7 +769,10 @@ class Data:
 
      * post-dynamics analytics *
       grf: ground reaction force                                  (nworld, 3)
-      geom_cforce: contact force on geoms                         (nworld, ngeom, 3)
+      geom_cforce: contact force on geoms                         (nworld, ngeom)
+      geom_self_cforce: normal force on geoms, excl. ground ctc   (nworld, ngeom)
+      body_self_cforce: normal force on bodies, excl. ground      (nworld, nbody)
+      joint_moments: net moment                                   (nworld, nv)
 
       contact: contact data
 
@@ -805,6 +840,7 @@ class Data:
       muscle_dynamics_info: info for muscle force calculation     (nworld, nmuscle)
       muscle_norm_fiber_length: norm fiber lengths (obs only)     (nworld, nmuscle)
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
+      muscle_actuation_passive: passive component of actuation    (nworld, nmuscle)
       muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
 
 
@@ -846,10 +882,14 @@ class Data:
     body_F_muscle: array("nworld", "nbody", wp.spatial_vector)
     body_F_drag: array("nworld", "nbody", wp.spatial_vector)
     body_F: array("nworld", "nbody", wp.spatial_vector)
+
+    qfrc_muscle: wp.array2d(dtype=float)
+    qfrc_muscle_passive: wp.array2d(dtype=float)
+
     ufrc_spring: wp.array2d(dtype=float)
     ufrc_damper: wp.array2d(dtype=float)
-    qfrc_muscle: wp.array2d(dtype=float)
     ufrc_muscle: wp.array2d(dtype=float)
+    ufrc_muscle_passive: wp.array2d(dtype=float)
     ufrc_actuator: wp.array2d(dtype=float)
     ufrc_limit: wp.array2d(dtype=float)
     ufrc_total: wp.array2d(dtype=float)
@@ -858,7 +898,10 @@ class Data:
     body_F_applied: array("nworld", "nbody", wp.spatial_vector)
 
     grf: array("nworld", wp.vec3)
-    geom_cforce: array("nworld", "ngeom", wp.vec3)
+    geom_cforce: array("nworld", "ngeom", float)
+    geom_self_cforce: array("nworld", "ngeom", float)
+    body_self_cforce: array("nworld", "nbody", float)
+    joint_moments: array("nworld", "nv", float)
 
     cst_fn_output: array("nworld", "nfunction", wp.vec3)
 
@@ -920,6 +963,7 @@ class Data:
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
     muscle_norm_fiber_length: wp.array2d(dtype=float)
     muscle_actuation: wp.array2d(dtype=float)
+    muscle_actuation_passive: wp.array2d(dtype=float)
     muscle_metabolic: wp.array2d(dtype=float)
 
     # Adaptive integrator fields

@@ -185,6 +185,13 @@ class MuscleData:
     pennation_angle_at_optimal: float
     fiber_damping: float
 
+    # Fiber passive force length curve
+    strain_at_zero_force: float
+    strain_at_one_norm_force: float
+    stiffness_at_low_force: float
+    stiffness_at_one_norm_force: float
+    curviness: float
+
     path_points: list[SiteData]
 
 
@@ -193,7 +200,6 @@ class MuscleFunctionPathData:
     name: str
     coordinates: list[str]
     coefficients: list[float]
-    exponents: list[PolyInts]
     dimension: int
     order: int
 
@@ -203,9 +209,8 @@ USE_POINT_PATH = MuscleFunctionPathData(
     name="use_point_path",
     coordinates=[],
     coefficients=[],
-    exponents=[],
     dimension=0,
-    order=0
+    order=0,
 )
 
 GROUND_BODY = BodyData(

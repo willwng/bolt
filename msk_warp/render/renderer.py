@@ -86,6 +86,10 @@ class Renderer:
         self.joint_parent_id = m.body_parentid.numpy()
         self.beam_radius = 0.01
 
+        self.site_start_muscle = 0
+        self.site_start_exp = self.muscle_num_pts.sum()
+        self.site_start_rem = self.site_start_exp + m.nexpcontact
+
         # Default colors
         self.colors = {
             "mesh": (0.82, 0.78, 0.74),
@@ -93,6 +97,9 @@ class Renderer:
             "capsule": (0.7, 0.5, 0.5),
             "ellipsoid": (0.7, 0.5, 0.5),
             "beam": (0.82, 0.78, 0.74),
+            "muscle_site": (1.0, 0.0, 1.0),
+            "exp_contact_site": (0.7, 0.5, 0.5),
+            "site": (0.5, 0.5, 0.5),
         }
 
         number_instances_per_world = 0
@@ -158,19 +165,28 @@ class Renderer:
             if self.draw_sites:
                 site_pos = d.site_pos_G.numpy()[wid]
                 for i in range(m.nsite):
+                    if self.site_start_muscle <= i < self.site_start_exp:
+                        color = self.colors["muscle_site"]
+                        radius = 0.005
+                    elif self.site_start_exp <= i < self.site_start_rem:
+                        color = self.colors["exp_contact_site"]
+                        radius = 0.01
+                    else:
+                        color = self.colors["site"]
+                        radius = 0.01
+
                     self.renderer.render_sphere(
                         f"site_{obj_id}",
                         site_pos[i],
                         (0.0, 0.0, 0.0, 1.0),
-                        color=(1.0, 0.0, 1.0),
-                        radius=0.01,
+                        color=color,
+                        radius=radius,
                     )
                     obj_id += 1
 
             # Colliders
             if self.draw_colliders:
                 geom_X = d.geom_X.numpy()[wid]
-                ellipsoid_idx = 0
 
                 for i in range(m.ngeom):
                     pos, rot = geom_X[i, :3], geom_X[i, 3:]

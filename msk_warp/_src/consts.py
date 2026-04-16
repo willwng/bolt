@@ -1,7 +1,6 @@
 # Function-based fitting for muscle paths
-MAX_POLY_NUM_DOFS = 6
-MAX_POLY_ORDER = 10
-POLY_TILE_SIZE = 32
+MAX_POLY_NUM_DOFS = 12  # Maximum number of DOFs a function can support
+MAX_POLY_ORDER = 10  # Maximum polynomial order
 
 MSK_MINVAL = 1e-15
 MSK_MAXVAL = 10000000000.0
@@ -58,4 +57,6 @@ M_MAX_PENNATION_ANGLE = 1.47062891
 
 ACTIVE_FORCE_WIDTH_SCALE = 1.
 TENDON_STRAIN_AT_ONE_NORM_FORCE = 0.049
-PASSIVE_FIBER_STRAIN_AT_ONE_NORM_FORCE = 0.6
+
+# MILLARD: move to metadata at some point
+MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH = 0.4441

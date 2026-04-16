@@ -6,6 +6,7 @@ from . import integrate_rk_fixed
 from . import integrate_euler_adaptive
 from . import integrate_euler_midpoint_adaptive
 from . import integrate_rk_adaptive
+from . import forward
 from .types import Data
 from .types import IntegratorType
 from .types import Model
@@ -32,6 +33,8 @@ def _increment_next_time(
 @event_scope
 def step(m: Model, d: Data):
     """ Steps from d.time to d.next_time """
+    forward.fwd(m, d)  # Realize state (needed if for example excitation changes after a step)
+
     if wp.static(m.opt.integrator) == IntegratorType.EULER_FIXED:
         integrate_euler_fixed.integrate(m, d)
     elif wp.static(m.opt.integrator) == IntegratorType.EULER_MIDPOINT_FIXED:

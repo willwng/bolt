@@ -6,6 +6,7 @@ from dataclasses import dataclass
 class ModelLoadResult:
     model: Model
     data: Data
+    root_free: bool
     body_id_lookup: dict[str, int]
     dof_id_lookup: dict[str, int]
     qpos_id_lookup: dict[str, int]

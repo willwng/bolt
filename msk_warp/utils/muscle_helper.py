@@ -1,7 +1,7 @@
 import opensim as osim
 import warp as wp
 
-from msk_warp import MuscleMetadata, MIN_NORM_FIBER_LENGTH, MAX_NORM_FIBER_LENGTH
+from msk_warp import MuscleMetadata, MIN_NORM_FIBER_LENGTH, MAX_NORM_FIBER_LENGTH, MSK_SIG_REAL
 from msk_warp.utils.converted_objects import MuscleData, SiteData
 from msk_warp.utils.osim_types import OSimType
 from msk_warp.utils.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
@@ -69,22 +69,48 @@ def convert_path(muscle_path: OSimType.Path) -> list[SiteData]:
         raise ValueError(f"Unsupported muscle path type: {muscle_path.getConcreteClassName()}")
 
 
+def get_passive_fiber_force_curve(muscle: OSimType.Muscle) -> tuple[float, float, float, float, float]:
+    if muscle.getConcreteClassName() == "Millard2012EquilibriumMuscle":
+        muscle = OSimType.MillardMuscle.safeDownCast(muscle)
+        force_length_curve = muscle.getFiberForceLengthCurve()
+
+        strain_at_zero_force = force_length_curve.get_strain_at_zero_force()
+        strain_at_one_norm_force = force_length_curve.get_strain_at_one_norm_force()
+        stiffness_at_low_force = force_length_curve.get_stiffness_at_low_force()
+        stiffness_at_one_norm_force = force_length_curve.get_stiffness_at_one_norm_force()
+        curviness = force_length_curve.get_curviness()
+        return (strain_at_zero_force, strain_at_one_norm_force, stiffness_at_low_force,
+                stiffness_at_one_norm_force, curviness)
+    elif muscle.getConcreteClassName() == "Thelen2003Muscle":
+        muscle = OSimType.ThelenMuscle.safeDownCast(muscle)
+        strain_at_zero_force = 0.0
+        strain_at_one_norm_force = muscle.get_FmaxMuscleStrain()  # TODO
+        stiffness_at_low_force = 0.2
+        stiffness_at_one_norm_force = 2.857142857142857
+        curviness = 0.75
+        return (strain_at_zero_force, strain_at_one_norm_force, stiffness_at_low_force,
+                stiffness_at_one_norm_force, curviness)
+    raise ValueError(f"Unsupported muscle type: {muscle.getConcreteClassName()} for muscle {muscle.getName()}")
+
+
 def convert_muscles(model: OSimType.Model) -> list[MuscleData]:
     """ Returns the all the converted Muscles in the model """
     muscle_data = []
     muscles = get_muscles(model)
     for muscle in muscles:
+        muscle_name = muscle.getName()
+
         if muscle.getConcreteClassName() == "Millard2012EquilibriumMuscle":
             muscle = OSimType.MillardMuscle.safeDownCast(muscle)
-            muscle_name = muscle.getName()
             fiber_damping = muscle.get_fiber_damping()
         elif muscle.getConcreteClassName() == "Thelen2003Muscle":
             muscle = OSimType.ThelenMuscle.safeDownCast(muscle)
-            muscle_name = muscle.getName()
             fiber_damping = 0.01
         else:
             raise ValueError(f"Unsupported muscle type: {muscle.getConcreteClassName()} for muscle {muscle.getName()}")
 
+        (strain_at_zero_force, strain_at_one_norm_force, stiffness_at_low_force,
+         stiffness_at_one_norm_force, curviness) = get_passive_fiber_force_curve(muscle)
         muscle_data.append(
             MuscleData(
                 name=muscle_name,
@@ -99,6 +125,12 @@ def convert_muscles(model: OSimType.Model) -> list[MuscleData]:
                 tendon_slack_length=muscle.get_tendon_slack_length(),
                 pennation_angle_at_optimal=muscle.get_pennation_angle_at_optimal(),
                 fiber_damping=fiber_damping,
+
+                strain_at_zero_force=strain_at_zero_force,
+                strain_at_one_norm_force=strain_at_one_norm_force,
+                stiffness_at_low_force=stiffness_at_low_force,
+                stiffness_at_one_norm_force=stiffness_at_one_norm_force,
+                curviness=curviness,
 
                 path_points=convert_path(muscle.getPath())
             )
@@ -122,13 +154,10 @@ def get_muscle_pts_num(muscles: list[MuscleData]) -> list[int]:
 
 def create_muscle_metadata(
         muscles: list[MuscleData],
-        muscle_with_fn_path: set[str]
 ) -> list[MuscleMetadata]:
     muscle_metadata = []
     for muscle in muscles:
         muscle_meta = MuscleMetadata()
-        # Whether muscle uses function-based path
-        muscle_meta.fn_based_path = muscle.name in muscle_with_fn_path
         # Muscle properties
         muscle_meta.ignore_tendon_compliance = muscle.ignore_tendon_compliance
         muscle_meta.max_isometric_force = muscle.max_isometric_force
@@ -138,16 +167,25 @@ def create_muscle_metadata(
         muscle_meta.fiber_damping = muscle.fiber_damping
         muscle_meta.min_activation = muscle.min_control
         muscle_meta.max_activation = muscle.max_control
+        # Fiber passive length curve
+        muscle_meta.strain_at_zero_force = muscle.strain_at_zero_force
+        muscle_meta.strain_at_one_norm_force = muscle.strain_at_one_norm_force
+        muscle_meta.stiffness_at_low_force = muscle.stiffness_at_low_force
+        muscle_meta.stiffness_at_one_norm_force = muscle.stiffness_at_one_norm_force
+        muscle_meta.curviness = muscle.curviness
         # Defaults, can be user-modified later
         muscle_meta.v_max = 10.0
         muscle_meta.activation_time_const = 0.010
         muscle_meta.deactivation_time_const = 0.040
         muscle_meta.activation_dynamics_smoothing = 10.0
-        muscle_meta.min_norm_fiber_length = MIN_NORM_FIBER_LENGTH
-        muscle_meta.max_norm_fiber_length = MAX_NORM_FIBER_LENGTH
         muscle_meta.specific_tension = 0.5e6
         muscle_meta.density = 1059.7
         muscle_meta.slow_twitch_ratio = 0.5
+
+        # To be set during model initialization
+        muscle_meta.min_norm_fiber_length = MIN_NORM_FIBER_LENGTH
+        muscle_meta.max_norm_fiber_length = MAX_NORM_FIBER_LENGTH
+
         muscle_metadata.append(muscle_meta)
     return muscle_metadata
 

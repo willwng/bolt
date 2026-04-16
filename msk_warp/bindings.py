@@ -4,7 +4,8 @@ import torch
 import msk_warp
 
 import msk_warp.model_loader as model_loader
-from msk_warp import Model, Data, IntegratorType, ActivationType, MuscleMetadata
+from msk_warp import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata, MSK_SIG_REAL, \
+    MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH, MIN_NORM_FIBER_LENGTH
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.render.renderer import Renderer, RendererType
 
@@ -30,9 +31,31 @@ def load_model(
     return load_result
 
 
+def adjust_min_norm_fiber_length(muscle: MuscleMetadata, contraction_dynamics: ContractionType):
+    # Compute pennation model's minimum fiber length
+    parallelogram_height = wp.sin(muscle.optimal_pennation_angle)
+    maximum_pennation_angle = wp.acos(0.1)
+    maximum_sin_pennation = wp.sin(maximum_pennation_angle)
+    if maximum_pennation_angle > MSK_SIG_REAL:
+        pennation_min_norm_fiber_length = parallelogram_height / maximum_sin_pennation
+    else:
+        pennation_min_norm_fiber_length = 0.01
+
+    # Compute active force-length's minimum fiber length
+    if contraction_dynamics == ContractionType.MILLARD:
+        active_curve_min_norm_fiber_length = MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH
+    else:
+        active_curve_min_norm_fiber_length = MIN_NORM_FIBER_LENGTH
+
+    muscle.min_norm_fiber_length = max(pennation_min_norm_fiber_length, active_curve_min_norm_fiber_length)
+
+
 def reinitialize_model(m: Model, d: Data, ):
     """ Re-initialize the model (i.e., if any parameters have changed). """
-    # Ensure the muscle metadata is up to date
+    for muscle in m.muscle_data:
+        adjust_min_norm_fiber_length(muscle, m.opt.contraction_type)
+
+    # Update the warp array
     mm = wp.array(m.muscle_data, dtype=MuscleMetadata)
     m.muscle_metadata = mm
 
@@ -71,6 +94,10 @@ def create_renderer(
 # --- Model Fields ---
 def damping(m: Model) -> torch.Tensor:
     return wp.to_torch(m.dof_damping)
+
+
+def armature(m: Model) -> torch.Tensor:
+    return wp.to_torch(m.dof_armature)
 
 
 def stiffness(m: Model) -> torch.Tensor:
@@ -141,12 +168,20 @@ def gravity(m: Model) -> float:
     return m.opt.gravity
 
 
+def set_implicit_damping(m: Model, enabled: bool):
+    m.opt.implicit_damping = enabled
+
+
 def set_drag_enabled(m: Model, enabled: bool):
     m.opt.enable_drag = enabled
 
 
 def set_activation_type(m: Model, activation_type: ActivationType):
     m.opt.activation_type = activation_type
+
+
+def set_contraction_type(m: Model, contraction_type: ContractionType):
+    m.opt.contraction_type = contraction_type
 
 
 def steps_attempted(d: Data) -> torch.Tensor:
@@ -194,6 +229,10 @@ def body_velocities(d: Data) -> torch.Tensor:
     return wp.to_torch(d.body_V_GB)
 
 
+def body_accelerations(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_A_GB)
+
+
 def body_user_forces(d: Data) -> torch.Tensor:
     return wp.to_torch(d.body_F_applied)
 
@@ -210,6 +249,26 @@ def joint_accelerations(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qacc)
 
 
+def body_force(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_F)
+
+
+def body_force_gravity(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_F_gravity)
+
+
+def body_force_contact(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_F_contact)
+
+
+def body_force_muscle(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_F_muscle)
+
+
+def body_force_drag(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_F_drag)
+
+
 def ufrc_spring(d: Data) -> torch.Tensor:
     return wp.to_torch(d.ufrc_spring)
 
@@ -220,6 +279,10 @@ def ufrc_damper(d: Data) -> torch.Tensor:
 
 def ufrc_muscle(d: Data) -> torch.Tensor:
     return wp.to_torch(d.ufrc_muscle)
+
+
+def ufrc_muscle_passive(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.ufrc_muscle_passive)
 
 
 def ufrc_actuator(d: Data) -> torch.Tensor:
@@ -356,6 +419,14 @@ def get_collider_transforms(d: Data) -> torch.Tensor:
 
 def collider_forces(d: Data) -> torch.Tensor:
     return wp.to_torch(d.geom_cforce)
+
+
+def collider_self_forces(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.geom_self_cforce)
+
+
+def body_self_collisions(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.body_self_cforce)
 
 
 def grf(d: Data) -> torch.Tensor:

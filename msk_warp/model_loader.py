@@ -1,10 +1,11 @@
-import opensim as osim
 import os
 
-from msk_warp import Model, Data, IntegratorType, Option, ActivationType, MetabolicOptions, MuscleMetadata, \
-    ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, MuscleLengthInfo, \
-    FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
-    CoordinateLimitForce, ExponentialContact, vec5
+import opensim as osim
+
+from msk_warp import Model, Data, IntegratorType, Option, ActivationType, ContractionType, MetabolicOptions, \
+    MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, \
+    MuscleLengthInfo, FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, \
+    SwingTwistLimit, CoordinateLimitForce, ExponentialContact, vec5
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.utils import *
 
@@ -60,10 +61,12 @@ def load_model(
     site_start_muscle, site_start_contact, site_start_rem = 0, len(sites_mus), len(sites_mus) + len(sites_exp)
 
     # Function-based paths
-    converted_function_paths, muscle_with_fn_path = [], set()
     if polynomial_data_path is not None:
-        converted_function_paths, muscle_with_fn_path = (
+        converted_function_paths = (
             function_based_path_helper.parse_function_based_paths(model_path, polynomial_data_path))
+        assert len(converted_function_paths) == len(converted_muscles)
+    else:
+        converted_function_paths = [USE_POINT_PATH] * len(converted_muscles)
 
     # Create a lookup from body name -> body data. Needed for joint->body lookup
     body_name_to_body = {body.name: body for body in converted_bodies}
@@ -224,17 +227,19 @@ def load_model(
     muscle_pts_num = muscle_helper.get_muscle_pts_num(converted_muscles)
     muscle_pts_adr = exclusive_scan(muscle_pts_num)
     muscle_pts_adr = [adr + site_start_muscle for adr in muscle_pts_adr]  # shift by number of sites before muscles
-    muscle_data = muscle_helper.create_muscle_metadata(converted_muscles, muscle_with_fn_path)
+    muscle_data = muscle_helper.create_muscle_metadata(converted_muscles)
     mm = wp.array(muscle_data, dtype=MuscleMetadata)
 
     # Muscle function-based paths
     fn_path_term_coeffs = function_based_path_helper.get_fn_path_term_coeffs(converted_function_paths)
-    fn_path_term_exps = function_based_path_helper.get_fn_path_term_exps(converted_function_paths)
     fn_path_term_start, fn_path_term_count = function_based_path_helper.compute_fn_path_term_start_and_count(
         converted_function_paths)
     fn_path_qpos_adr = function_based_path_helper.get_fn_term_adr(converted_function_paths, qpos_ordering)
     fn_path_dimension = function_based_path_helper.get_fn_path_dimension(converted_function_paths)
     fn_path_order = function_based_path_helper.get_fn_path_order(converted_function_paths)
+    # Determine the path type for each muscle
+    point_paths_group, function_paths_groups = function_based_path_helper.path_type_to_muscle(converted_function_paths)
+    function_paths_groups_warp = tuple([to_warp_array(group, dtype=int) for group in function_paths_groups])
 
     # Prepare contacts
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
@@ -245,11 +250,13 @@ def load_model(
     opt = Option(
         gravity=-9.80665,
         explicit_gravity=True,
+        implicit_damping=True,
         enable_drag=True,
         visuals=requires_visuals,
         nbeam_visuals=n_beam_visuals,
 
         activation_type=ActivationType.MILLARD,
+        contraction_type=ContractionType.DGF,
         integrator=integrator,
 
         metabolic_options=MetabolicOptions(
@@ -343,6 +350,7 @@ def load_model(
         poly_fn_qpos_adr=to_warp_array(poly_fns_qpos_global_idx, dtype=int),
 
         dof_damping=to_warp_array(dof_damping, dtype=float),
+        dof_armature=make_zero(nv, dtype=float),  # user-modified later
         dof_stiffness=to_warp_array(dof_stiffness, dtype=float),
         qpos_spring_rest=to_warp_array(qpos_spring_rest, dtype=float),
 
@@ -375,18 +383,13 @@ def load_model(
 
         muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
-        muscle_poly_coeffs=to_warp_array([], dtype=float),  # TODO
-        muscle_poly_adr=to_warp_array([], dtype=int),
-        muscle_poly_order=to_warp_array([], dtype=int),
-        muscle_poly_qpos_adr=to_warp_array([], dtype=int),
-        muscle_poly_dof_adr=to_warp_array([], dtype=int),
-        muscle_dep_dof_num=to_warp_array([], dtype=int),
-        muscle_dep_dof_adr=to_warp_array([], dtype=int),
+
+        muscle_pt_group=to_warp_array(point_paths_group, dtype=int),
+        muscle_pt_group_tuple=tuple(point_paths_group),
+        muscle_fn_groups=function_paths_groups_warp,
 
         fn_path_term_coeffs=to_warp_array(fn_path_term_coeffs, dtype=float),
-        fn_path_term_exps=to_warp_array(fn_path_term_exps, dtype=PolyInts),
         fn_path_term_start=to_warp_array(fn_path_term_start, dtype=int),
-        fn_path_term_count=to_warp_array(fn_path_term_count, dtype=int),
         fn_path_qpos_adr=to_warp_array(fn_path_qpos_adr, dtype=PolyInts),
         fn_path_dimension=to_warp_array(fn_path_dimension, dtype=int),
         fn_path_order=to_warp_array(fn_path_order, dtype=int),
@@ -510,11 +513,14 @@ def load_model(
         body_zPlus=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_zTmp=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
-        subtree_com = make_zero((n_worlds, nb), dtype=wp.vec3),
-        subtree_mass = make_zero((n_worlds, nb), dtype=float),
+        subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
+        subtree_mass=make_zero((n_worlds, nb), dtype=float),
 
         geom_X=make_zero((n_worlds, ngeom), dtype=wp.transform),
         geom_cforce=make_zero((n_worlds, ngeom), dtype=float),
+        geom_self_cforce=make_zero((n_worlds, ngeom), dtype=float),
+        body_self_cforce=make_zero((n_worlds, nb), dtype=float),
+        joint_moments=make_zero((n_worlds, nv), dtype=float),
 
         vis_X=make_zero((n_worlds, nvis), dtype=wp.transform),
         vis_beam_pos=make_zero((n_worlds, n_beams, n_beam_visuals), dtype=wp.vec3),
@@ -535,6 +541,7 @@ def load_model(
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_moment_arm=make_zero((n_worlds, nmuscle, nq), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_actuation_passive=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_metabolic=make_zero((n_worlds, nmuscle), dtype=float),
 
         muscle_length_info=make_zero((n_worlds, nmuscle), dtype=MuscleLengthInfo),
@@ -549,11 +556,14 @@ def load_model(
         body_F_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
+        qfrc_muscle=make_zero((n_worlds, nq), dtype=float),
+        qfrc_muscle_passive=make_zero((n_worlds, nq), dtype=float),
+
         ufrc_applied=make_zero((n_worlds, nv), dtype=float),
         ufrc_spring=make_zero((n_worlds, nv), dtype=float),
         ufrc_damper=make_zero((n_worlds, nv), dtype=float),
-        qfrc_muscle=make_zero((n_worlds, nq), dtype=float),
         ufrc_muscle=make_zero((n_worlds, nv), dtype=float),
+        ufrc_muscle_passive=make_zero((n_worlds, nv), dtype=float),
         ufrc_actuator=make_zero((n_worlds, nv), dtype=float),
         ufrc_limit=make_zero((n_worlds, nv), dtype=float),
 
@@ -590,6 +600,7 @@ def load_model(
     return ModelLoadResult(
         model=m,
         data=d,
+        root_free=joint_helper.check_root_free(ordered_joints),
         body_id_lookup=body_ordering,
         qpos_id_lookup=qpos_ordering,
         dof_id_lookup=dof_ordering,
