@@ -433,9 +433,6 @@ class Model:
       nconstfn: number of constant functions
       npolyfn: number of polynomial functions
 
-      nm_pointpaths: number of muscles with point paths
-      nm_fnpaths: number of muscles with function-based paths
-
       opt: physics options
       muscle_metadata: muscle metadata                         (nmuscle,)
       muscle_data: same as above, but intended for future modification
@@ -525,7 +522,8 @@ class Model:
       muscle_pts_num: number of points in muscle's path        (nmuscle,)
 
      * muscle paths *
-      muscle_pt_to_mid: point-path to muscle id lookup         (npointpath)
+      muscle_pt_group: muscle ids for point paths
+      muscle_fn_groups: muscle ids for function paths, grouped by same (dim, order)
 
      * muscle function-based paths *
       fn_path_qpos_adr: qpos adr for each muscle fn path term  (nmuscle, PolyInt)
@@ -554,9 +552,6 @@ class Model:
     nlinearfn: int
     nconstfn: int
     npolyfn: int
-
-    nm_pointpaths: int
-    nm_fnpaths: int
 
     opt: Option
     muscle_metadata: array("nmuscle", MuscleMetadata)
@@ -641,7 +636,7 @@ class Model:
     muscle_pts_num: wp.array(dtype=int)
 
     # Muscle paths
-    muscle_pt_to_mid: array("npointpath", int)
+    muscle_pt_group: wp.array(dtype=int)
     muscle_fn_groups: tuple[wp.array(dtype=int), ...]
 
     # Polynomial/function paths

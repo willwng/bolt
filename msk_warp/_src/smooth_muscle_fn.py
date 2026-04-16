@@ -99,7 +99,7 @@ def _apply_muscle_frc_kernel(
 
 
 @event_scope
-def muscle_fn_path_standard(m: Model, d: Data):
+def muscle_fn_path(m: Model, d: Data):
     """ Computes the muscle path length and moment arms using a polynomial function approximation """
     for i in range(len(m.muscle_fn_groups)):
         fn_group = m.muscle_fn_groups[i]
@@ -114,13 +114,6 @@ def muscle_fn_path_standard(m: Model, d: Data):
             outputs=[d.muscle_length, d.muscle_moment_arm, d.muscle_velocity],
         )
     return
-
-
-@event_scope
-def muscle_fn_path(m: Model, d: Data):
-    """ Computes the muscle path length and moment arms using a polynomial function approximation """
-    if m.nm_fnpaths:
-        muscle_fn_path_standard(m, d)
 
 
 @event_scope

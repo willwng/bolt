@@ -238,8 +238,7 @@ def load_model(
     fn_path_dimension = function_based_path_helper.get_fn_path_dimension(converted_function_paths)
     fn_path_order = function_based_path_helper.get_fn_path_order(converted_function_paths)
     # Determine the path type for each muscle
-    point_paths_id, function_paths_groups = function_based_path_helper.path_type_to_muscle(converted_function_paths)
-    npointpaths, nfnpaths = len(point_paths_id), sum(len(f) for f in function_paths_groups)
+    point_paths_group, function_paths_groups = function_based_path_helper.path_type_to_muscle(converted_function_paths)
     function_paths_groups_warp = tuple([to_warp_array(group, dtype=int) for group in function_paths_groups])
 
     # Prepare contacts
@@ -306,9 +305,6 @@ def load_model(
         nlinearfn=nlinearfn,
         nconstfn=nconstfn,
         npolyfn=npolyfn,
-
-        nm_pointpaths=npointpaths,
-        nm_fnpaths=nfnpaths,
 
         opt=opt,
         muscle_metadata=mm,
@@ -388,7 +384,7 @@ def load_model(
         muscle_pts_num=to_warp_array(muscle_pts_num, dtype=int),
         muscle_pts_adr=to_warp_array(muscle_pts_adr, dtype=int),
 
-        muscle_pt_to_mid=to_warp_array(point_paths_id, dtype=int),
+        muscle_pt_group=to_warp_array(point_paths_group, dtype=int),
         muscle_fn_groups=function_paths_groups_warp,
 
         fn_path_term_coeffs=to_warp_array(fn_path_term_coeffs, dtype=float),
