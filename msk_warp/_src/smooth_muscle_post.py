@@ -23,7 +23,7 @@ def copy_ufrc_into_moment_arm(m: Model, d: Data, muscle_id: int, ufrc: wp.array2
             muscle_moment_arm_out: wp.array3d(dtype=float),
     ):
         worldid = wp.tid()
-        muscleid = mid,
+        muscleid = mid
 
         nv = wp.static(m.nv)
         ufrc_tile = wp.tile_load(ufrc_in[worldid], shape=nv)
