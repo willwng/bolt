@@ -526,7 +526,6 @@ class Model:
 
      * muscle paths *
       muscle_pt_to_mid: point-path to muscle id lookup         (npointpath)
-      muscle_fn_to_mid: function path to muscle id lookup      (nfnpath)
 
      * muscle function-based paths *
       fn_path_qpos_adr: qpos adr for each muscle fn path term  (nmuscle, PolyInt)
@@ -643,7 +642,7 @@ class Model:
 
     # Muscle paths
     muscle_pt_to_mid: array("npointpath", int)
-    muscle_fn_to_mid: array("nfnpaths", int)
+    muscle_fn_groups: tuple[wp.array(dtype=int), ...]
 
     # Polynomial/function paths
     fn_path_qpos_adr: array("nmuscle", PolyInts)

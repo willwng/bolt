@@ -15,7 +15,6 @@ wp.set_module_options({"enable_backward": False})
 @wp.kernel
 def _compute_path_kernel(
         # Model:
-        muscle_fn_to_mid: wp.array(dtype=int),
         fn_path_dimension: wp.array(dtype=int),
         fn_path_order: wp.array(dtype=int),
         fn_path_term_coeff: wp.array(dtype=float),
@@ -25,6 +24,8 @@ def _compute_path_kernel(
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         qdot_in: wp.array2d(dtype=float),
+        # In:
+        fn_group: wp.array(dtype=int),
         # Data out:
         muscle_length_out: wp.array2d(dtype=float),
         muscle_moment_arm_out: wp.array3d(dtype=float),
@@ -33,7 +34,7 @@ def _compute_path_kernel(
     worldid, nodeid = wp.tid()
     if integration_done_in[worldid]:
         return
-    muscle_id = muscle_fn_to_mid[nodeid]
+    muscle_id = fn_group[nodeid]
 
     # Fetch polynomial data: dimension, order, address into coeffs, and dependent dof addresses
     n_dof = fn_path_dimension[muscle_id]
@@ -100,16 +101,18 @@ def _apply_muscle_frc_kernel(
 @event_scope
 def muscle_fn_path_standard(m: Model, d: Data):
     """ Computes the muscle path length and moment arms using a polynomial function approximation """
-    wp.launch(
-        _compute_path_kernel,
-        dim=(d.nworld, m.nm_fnpaths),
-        inputs=[
-            m.muscle_fn_to_mid, m.fn_path_dimension, m.fn_path_order, m.fn_path_term_coeffs, m.fn_path_term_start,
-            m.fn_path_qpos_adr,
-            d.integration_done, d.qpos, d.qdot
-        ],
-        outputs=[d.muscle_length, d.muscle_moment_arm, d.muscle_velocity],
-    )
+    for i in range(len(m.muscle_fn_groups)):
+        fn_group = m.muscle_fn_groups[i]
+        wp.launch(
+            _compute_path_kernel,
+            dim=(d.nworld, fn_group.size),
+            inputs=[
+                m.fn_path_dimension, m.fn_path_order, m.fn_path_term_coeffs, m.fn_path_term_start, m.fn_path_qpos_adr,
+                d.integration_done, d.qpos, d.qdot,
+                fn_group
+            ],
+            outputs=[d.muscle_length, d.muscle_moment_arm, d.muscle_velocity],
+        )
     return
 
 

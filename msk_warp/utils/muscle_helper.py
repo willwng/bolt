@@ -1,6 +1,5 @@
 import opensim as osim
 import warp as wp
-import math
 
 from msk_warp import MuscleMetadata, MIN_NORM_FIBER_LENGTH, MAX_NORM_FIBER_LENGTH, MSK_SIG_REAL
 from msk_warp.utils.converted_objects import MuscleData, SiteData
