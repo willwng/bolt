@@ -97,7 +97,7 @@ class KinematicTree:
         # ordering = []
         # self._dfs(self.root, callback=lambda node: ordering.append(node))
 
-        # However, it might improve memory coherency to pack bodies in the same level together
+        # However, it might improve memory coalescing to pack bodies in the same level together
         body_tree_levels = self.create_body_tree(names_only=False)
         ordering = [node for level in body_tree_levels for node in level]
         return ordering

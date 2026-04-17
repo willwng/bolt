@@ -53,7 +53,9 @@ def main():
     # model_path = "data/osim/example_gait3d_gimbal.osim"
     # model_path = "data/osim/sphere.osim"
     # model_path = "data/osim/athlete3.osim"
-    model_path = "data/osim/athlete_fitted_paths.osim"
+    # model_path = "data/osim/athlete_fitted_paths.osim"
+    model_path = "data/osim/athlete10.osim"
+    # model_path = "data/osim/h2190.osim"
     # model_path = "data/osim/athlete_upper_right.osim"
     # model_path = "data/osim/athlete_upper.osim"
     # model_path = "data/osim/athlete_upper_right_only.osim"
@@ -61,7 +63,8 @@ def main():
     # model_path = "data/osim/athlete_notball.osim"
     # model_path = "data/osim/Scaled_FullBody_HamnerModel_Muscle_withContact.osim"
     # polynomial_data_path = "data/function_paths/athlete_lower_body_model_FunctionBasedPathSet.xml"
-    polynomial_data_path = None
+    # polynomial_data_path = None
+    polynomial_data_path = "data/function_paths/athlete10paths.xml"
     # polynomial_data_path = "data/function_paths/scaled_model_function.xml"
     # model_path = "data/osim/athlete2.osim"
     # model_path = "data/osim/simple.osim"
@@ -93,7 +96,8 @@ def main():
     qpos = wp.to_torch(d.qpos)
     ufrc = wp.to_torch(d.ufrc_total)
     qvel = wp.to_torch(d.qvel)
-    qpos[:, qpos_id("pelvis_ty")] = 1.05
+    if load_result.root_free:
+        qpos[:, qpos_id("pelvis_ty")] = 1.05
     # qpos[:, qpos_id("lumbar_extension")] = -0.2
     # qpos[:, qpos_id("thorax_extension")] = -0.2
     # qpos[:, qpos_id("cervical_extension")] = -0.2
@@ -115,7 +119,7 @@ def main():
     # a_excitations = msk_warp.actuator_excitations(d)
     # a_excitations[:] = 0.0
 
-    dt = 1.0 / 500.0
+    dt = 1.0 / 50.0
     # dt = 1.0 / 10000.0
     cuda_graphs = wp.get_device().is_cuda
     if not args.benchmark:
@@ -127,7 +131,7 @@ def main():
             draw_muscles=True,
             draw_body_mass=False,
             draw_beams=True,
-            draw_sites=True,
+            draw_sites=False,
         )
         if viewer.viewer_type == RendererType.TILED:
             viewer.setup_tiled_renderer(list(range(args.nworld)))
