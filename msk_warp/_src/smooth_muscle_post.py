@@ -2,8 +2,6 @@ import warp as wp
 
 from .types import Data
 from .types import Model
-from .types import MuscleMetadata
-from .consts import MSK_MINVAL
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
