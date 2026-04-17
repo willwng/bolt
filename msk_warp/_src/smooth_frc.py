@@ -164,6 +164,34 @@ def _calc_ufrc_from_qfrc(
     return
 
 
+@wp.kernel
+def _calc_qfrc_from_ufrc(
+        # Model:
+        mob_type: wp.array(dtype=int),
+        mob_qposadr: wp.array(dtype=int),
+        mob_dofadr: wp.array(dtype=int),
+        mob_dofnum: wp.array(dtype=int),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        qpos_in: wp.array2d(dtype=float),
+        ufrc_in: wp.array2d(dtype=float),
+        # Data out:
+        qfrc_out: wp.array2d(dtype=float),
+):
+    worldid, bodyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    mob_type_ = mob_type[bodyid]
+    qposadr = mob_qposadr[bodyid]
+    dofadr = mob_dofadr[bodyid]
+    dofnum = mob_dofnum[bodyid]
+    qpos = qpos_in[worldid]
+    ufrc = ufrc_in[worldid]
+    mobilizers.multiply_by_N_inv_transpose(mob_type_, qpos, ufrc, qposadr, dofadr, dofnum, qfrc_out[worldid])
+    return
+
+
 @event_scope
 def reset_forces(m: Model, d: Data):
     """ Compute all applied forces """
@@ -234,23 +262,31 @@ def damping(m: Model, d: Data):
 
 
 @event_scope
-def qfrc_to_ufrc(m: Model, d: Data, passive_only: bool = False):
+def qfrc_to_ufrc(m: Model, d: Data, qfrc_in: wp.array, ufrc_out: wp.array):
     """ Converts all forces in qpos space to u space """
-    def qfrc_to_ufrc_helper(qfrc_in, ufrc_out):
-        wp.launch(
-            _calc_ufrc_from_qfrc,
-            dim=(d.nworld, m.nbody),
-            inputs=[
-                m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
-                d.integration_done, d.qpos, qfrc_in
-            ],
-            outputs=[ufrc_out],
-        )
+    wp.launch(
+        _calc_ufrc_from_qfrc,
+        dim=(d.nworld, m.nbody),
+        inputs=[
+            m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
+            d.integration_done, d.qpos, qfrc_in
+        ],
+        outputs=[ufrc_out],
+    )
 
-    if passive_only:
-        qfrc_to_ufrc_helper(d.qfrc_muscle_passive, d.ufrc_muscle_passive)
-    else:
-        qfrc_to_ufrc_helper(d.qfrc_muscle, d.ufrc_muscle)
+
+@event_scope
+def ufrc_to_qfrc(m: Model, d: Data, ufrc_in: wp.array, qfrc_out: wp.array):
+    """ Converts all forces in u space to q space """
+    wp.launch(
+        _calc_qfrc_from_ufrc,
+        dim=(d.nworld, m.nbody),
+        inputs=[
+            m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
+            d.integration_done, d.qpos, ufrc_in
+        ],
+        outputs=[qfrc_out],
+    )
 
 
 @event_scope

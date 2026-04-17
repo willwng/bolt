@@ -447,6 +447,14 @@ def mul_body_xyz_N_inv(cosxy: wp.vec2, sinxy: wp.vec2, qdot: wp.vec3) -> wp.vec3
 
 
 @wp.func
+def mul_body_xyz_NInvT(cosxy: wp.vec2, sinxy: wp.vec2, v_P: wp.vec3) -> wp.vec3:
+    s0, c0 = sinxy[0], cosxy[0]
+    s1, c1 = sinxy[1], cosxy[1]
+    w0, w1, w2 = v_P[0], v_P[1], v_P[2]
+    return wp.vec3(w0, c0 * w1 + s0 * w2, s1 * w0 - s0 * c1 * w1 + c0 * c1 * w2)
+
+
+@wp.func
 def step_up(x: float) -> float:
     """
     Interpolate smoothly from 0 to 1 as the argument goes from 0

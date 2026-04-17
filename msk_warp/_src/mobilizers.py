@@ -613,6 +613,51 @@ def multiply_by_N_inv(
     return
 
 
+@wp.func
+def multiply_by_N_inv_transpose(
+        mobtype: int,
+        qpos: wp.array(dtype=float),
+        ufrc: wp.array(dtype=float),
+        qpos_adr: int,
+        dof_adr: int,
+        dof_num: int,
+        # Out
+        qfrc: wp.array(dtype=float),
+):
+    """ Maps from q_force to u_force (N^T q_force = u_force) """
+    if mobtype == MobilizerType.FREE:
+        rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
+        f_u_rot = wp.vec3(ufrc[dof_adr + 0], ufrc[dof_adr + 1], ufrc[dof_adr + 2])
+        f_q_rot = wp.transpose(math.calc_unnormalized_quaternion_N_inv(rot)) @ f_u_rot
+        qfrc[qpos_adr + 0] = f_q_rot[0]
+        qfrc[qpos_adr + 1] = f_q_rot[1]
+        qfrc[qpos_adr + 2] = f_q_rot[2]
+        qfrc[qpos_adr + 3] = f_q_rot[3]
+        qfrc[qpos_adr + 4] = ufrc[dof_adr + 3]
+        qfrc[qpos_adr + 5] = ufrc[dof_adr + 4]
+        qfrc[qpos_adr + 6] = ufrc[dof_adr + 5]
+    elif mobtype == MobilizerType.BALL:
+        rot = wp.quat(qpos[qpos_adr + 0], qpos[qpos_adr + 1], qpos[qpos_adr + 2], qpos[qpos_adr + 3])
+        f_u_rot = wp.vec3(ufrc[dof_adr + 0], ufrc[dof_adr + 1], ufrc[dof_adr + 2])
+        f_q_rot = wp.transpose(math.calc_unnormalized_quaternion_N_inv(rot)) @ f_u_rot
+        qfrc[qpos_adr + 0] = f_q_rot[0]
+        qfrc[qpos_adr + 1] = f_q_rot[1]
+        qfrc[qpos_adr + 2] = f_q_rot[2]
+        qfrc[qpos_adr + 3] = f_q_rot[3]
+    elif mobtype == MobilizerType.ELLIPSOID:
+        cosxy = wp.vec2(wp.cos(qpos[qpos_adr + 0]), wp.cos(qpos[qpos_adr + 1]))
+        sinxy = wp.vec2(wp.sin(qpos[qpos_adr + 0]), wp.sin(qpos[qpos_adr + 1]))
+        f_u_eul = wp.vec3(ufrc[dof_adr + 0], ufrc[dof_adr + 1], ufrc[dof_adr + 2])
+        f_q_eul = math.mul_body_xyz_NInvT(cosxy, sinxy, f_u_eul)
+        qfrc[qpos_adr + 0] = f_q_eul[0]
+        qfrc[qpos_adr + 1] = f_q_eul[1]
+        qfrc[qpos_adr + 2] = f_q_eul[2]
+    else:  # standard, N is the identity matrix
+        for i in range(dof_num):
+            qfrc[qpos_adr + i] = ufrc[dof_adr + i]
+    return
+
+
 @wp.kernel
 def multiply_N_inv_kernel(
         # Model
