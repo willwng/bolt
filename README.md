@@ -18,6 +18,7 @@ Exponential joint limits based on [Anderson and Pandy](https://pubmed.ncbi.nlm.n
 [Hunt-Crossley joint limits](https://simtk.org/api_docs/simbody/api_docs33/Simbody/html/classSimTK_1_1Force_1_1MobilityLinearStop.html), and
 [CoordinateLimitForce](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CoordinateLimitForce.html).
 - Symplectic Euler, RK4, adaptive symplectic Euler, and adaptive Runge-Kutta-Merson integrators.
+  - Adaptive integrators are error-controlled according to a user-specified accuracy setting
 
 We also include a basic [OpenGL renderer](msk_warp/render) (not tuned for performance) for debugging.
 
