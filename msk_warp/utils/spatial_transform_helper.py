@@ -56,7 +56,7 @@ def order_spatial_transforms(
         spatial_transforms: list[SpatialTransformData],
         joint_ordering: dict[str, int]
 ) -> list[SpatialTransformData]:
-    """ Re-orders the spatial transforms to match the order of the joints in the model. This is necessary since OpenSim does not require custom joints to be defined in any particular order, but we need to ensure the spatial transforms are ordered correctly for the warping process. """
+    """ Re-orders the spatial transforms to match the order of the joints in the model. """
     ordered_spatial_transforms = sorted(spatial_transforms, key=lambda spt: joint_ordering[spt.joint_name])
     return list(ordered_spatial_transforms)
 
