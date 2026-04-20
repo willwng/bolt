@@ -36,9 +36,7 @@ from .types import Data
 from .types import GeomType
 from .types import Model
 from .types import vec5
-from .warp_util import cache_kernel
 from .warp_util import event_scope
-from .warp_util import kernel as nested_kernel
 
 wp.set_module_options({"enable_backward": False})
 
@@ -1372,7 +1370,6 @@ def _check_primitive_collisions():
 assert _check_primitive_collisions(), "_PRIMITIVE_COLLISIONS is in invalid order"
 
 
-@cache_kernel
 def _create_narrowphase_kernel(primitive_collisions_types,
                                primitive_collisions_func):
     # AD: no unique here:
@@ -1382,7 +1379,7 @@ def _create_narrowphase_kernel(primitive_collisions_types,
     #   this is mostly problematic in cases like the UTs where we don't clear the kernel cache
     #   between different tests.
 
-    @nested_kernel(enable_backward=False)
+    @wp.kernel(module="unique", enable_backward=False)
     def _primitive_narrowphase(
             # Model:
             geom_type: wp.array(dtype=int),

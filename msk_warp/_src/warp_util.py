@@ -15,11 +15,8 @@
 
 import functools
 import inspect
-from typing import Callable, Optional
 
 import warp as wp
-from warp import Module
-from warp import get_module
 
 _STACK = None
 
@@ -118,105 +115,5 @@ def event_scope(fn, name: str = ""):
         sub_stack = _merge(prev_substack, sub_stack)
         _STACK[name] = (events, sub_stack)
         return res
-
-    return wrapper
-
-
-# @kernel decorator to automatically set up modules based on nested
-# function names
-def kernel(
-        f: Optional[Callable] = None,
-        *,
-        enable_backward: Optional[bool] = None,
-        module: Optional[Module] = None,
-):
-    """Decorator to register a Warp kernel from a Python function.
-
-    The function must be defined with type annotations for all arguments.
-    The function must not return anything.
-
-    Example::
-
-        @kernel
-        def my_kernel(a: wp.array(dtype=float), b: wp.array(dtype=float)):
-          tid = wp.tid()
-          b[tid] = a[tid] + 1.0
-
-
-        @kernel(enable_backward=False)
-        def my_kernel_no_backward(a: wp.array(dtype=float, ndim=2), x: float):
-          # the backward pass will not be generated
-          i, j = wp.tid()
-          a[i, j] = x
-
-
-        @kernel(module="unique")
-        def my_kernel_unique_module(a: wp.array(dtype=float), b: wp.array(dtype=float)):
-          # the kernel will be registered in new unique module created just for this
-          # kernel and its dependent functions and structs
-          tid = wp.tid()
-          b[tid] = a[tid] + 1.0
-
-
-        @kernel(enable_backward=False, module=None)
-        def my_kernel_with_args(a: wp.array(dtype=float), b: wp.array(dtype=float)):
-          # can now use arguments even when module=None
-          tid = wp.tid()
-          b[tid] = a[tid] + 1.0
-
-    Args:
-        f: The function to be registered as a kernel.
-        enable_backward: If False, the backward pass will not be generated.
-        module: The :class:`warp.context.Module` to which the kernel belongs. Alternatively,
-                if a string `"unique"` is provided, the kernel is assigned to a new module
-                named after the kernel name and hash. If None, the module is inferred from
-                the function's module.
-
-    Returns:
-        The registered kernel.
-    """
-
-    def decorator(func):
-        if module is None:
-            # create a module name based on the name of the nested function
-            # get the qualified name, e.g. "main.<locals>.nested_kernel"
-            qualname = func.__qualname__
-            parts = [part for part in qualname.split(".") if part != "<locals>"]
-            outer_functions = parts[:-1]
-            module_name = get_module(
-                ".".join([func.__module__] + outer_functions))
-        else:
-            module_name = module
-
-        return wp.kernel(func, enable_backward=enable_backward,
-                         module=module_name)
-
-    # Handle both @kernel and @kernel(...) usage patterns
-    if f is None:
-        # Called with arguments: @kernel(enable_backward=False)
-        return decorator
-    else:
-        # Called without arguments: @kernel
-        return decorator(f)
-
-
-_KERNEL_CACHE = {}
-
-
-def cache_kernel(func):
-    # caching kernels to avoid crashes in graph_conditional code
-    @functools.wraps(func)
-    def wrapper(*args):
-        def _hash_arg(a):
-            if hasattr(a, "size"):
-                return a.size
-            if isinstance(a, list):
-                return hash(tuple(a))
-            return hash(a)
-
-        key = tuple(_hash_arg(a) for a in args) + (hash(func.__name__),)
-        if key not in _KERNEL_CACHE:
-            _KERNEL_CACHE[key] = func(*args)
-        return _KERNEL_CACHE[key]
 
     return wrapper

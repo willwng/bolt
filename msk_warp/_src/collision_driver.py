@@ -20,9 +20,7 @@ from .collision_primitive import primitive_narrowphase
 from .consts import MSK_MAXVAL
 from .types import Data
 from .types import Model
-from .warp_util import cache_kernel
 from .warp_util import event_scope
-from .warp_util import kernel as nested_kernel
 
 wp.set_module_options({"enable_backward": False})
 
@@ -309,9 +307,8 @@ def _add_geom_pair(
     collision_worldid_out[pairid] = worldid
 
 
-@cache_kernel
 def _nxn_broadphase(broadphase_filter):
-    @nested_kernel(module="unique", enable_backward=False)
+    @wp.kernel(module="unique", enable_backward=False)
     def kernel(
             # Model:
             geom_type: wp.array(dtype=int),
