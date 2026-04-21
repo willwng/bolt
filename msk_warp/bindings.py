@@ -184,6 +184,10 @@ def set_contraction_type(m: Model, contraction_type: ContractionType):
     m.opt.contraction_type = contraction_type
 
 
+def set_use_linear_stop(m: Model, use_linear_stop: bool):
+    m.opt.use_linear_stop = use_linear_stop
+
+
 def steps_attempted(d: Data) -> torch.Tensor:
     return wp.to_torch(d.steps_attempted)
 

@@ -20,6 +20,8 @@ def _process_limit_forces(
         integration_done_in: wp.array(dtype=bool),
         qpos_in: wp.array2d(dtype=float),
         qvel_in: wp.array2d(dtype=float),
+        # In:
+        use_linear_stop: bool,
         # Data out:
         ufrc_limit_out: wp.array2d(dtype=float),
 ):
@@ -41,18 +43,27 @@ def _process_limit_forces(
     q = qpos_in[worldid, qpos_adr]
     qdot = qvel_in[worldid, dof_adr]
 
-    weight_up = math.step_function(q, q_up, q_up + transition, 0.0, 1.0)
-    weight_low = math.step_function(q, q_low - transition, q_low, 1.0, 0.0)
+    if use_linear_stop:
+        if q >= q_low and q <= q_up:
+            return
+        elif q > q_up:
+            force = wp.min(-upper_stiffness * (q - q_up) * (1.0 + damp * qdot), 0.0)
+        else:
+            force = wp.max(-lower_stiffness * (q - q_low) * (1.0 - damp * qdot), 0.0)
+    else:
+        weight_up = math.step_function(q, q_up, q_up + transition, 0.0, 1.0)
+        weight_low = math.step_function(q, q_low - transition, q_low, 1.0, 0.0)
 
-    # Scale to get the stiffness values
-    K_up = weight_up * upper_stiffness
-    K_low = weight_low * lower_stiffness
+        # Scale to get the stiffness values
+        K_up = weight_up * upper_stiffness
+        K_low = weight_low * lower_stiffness
 
-    f_up = -K_up * (q - q_up)
-    f_low = K_low * (q_low - q)
+        f_up = -K_up * (q - q_up)
+        f_low = K_low * (q_low - q)
 
-    f_damp = -damp * (weight_up + weight_low) * qdot
-    force = f_up + f_low + f_damp
+        f_damp = -damp * (weight_up + weight_low) * qdot
+        force = f_up + f_low + f_damp
+
     wp.atomic_add(ufrc_limit_out, worldid, dof_adr, force)
     return
 
@@ -154,7 +165,8 @@ def coordinate_limit_force(m: Model, d: Data):
         dim=(d.nworld, m.nlimitforce),
         inputs=[
             m.coordinate_limit_force,
-            d.integration_done, d.qpos, d.qvel
+            d.integration_done, d.qpos, d.qvel,
+            m.opt.use_linear_stop
         ],
         outputs=[d.ufrc_limit, ],
     )

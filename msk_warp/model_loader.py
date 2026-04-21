@@ -259,6 +259,8 @@ def load_model(
         contraction_type=ContractionType.DGF,
         integrator=integrator,
 
+        use_linear_stop=False,
+
         metabolic_options=MetabolicOptions(
             activation_maintenance_rate_on=True,
             shortening_rate_on=True,

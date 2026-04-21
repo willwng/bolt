@@ -250,6 +250,8 @@ class Option:
       contraction_type: muscle contraction dynamics type (ContractionType)
       integrator: integrator type (IntegratorType)
 
+      use_linear_stop: (debugging) use LinearStop instead of CoordinateLimitForce
+
       metabolic_options: options for muscle metabolic energy calculations (MetabolicOptions)
 
       safety: (variable-step integration) safety factor
@@ -275,6 +277,8 @@ class Option:
     activation_type: ActivationType
     contraction_type: ContractionType
     integrator: IntegratorType
+
+    use_linear_stop: bool
 
     metabolic_options: MetabolicOptions
 
