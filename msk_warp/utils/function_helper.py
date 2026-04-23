@@ -30,6 +30,7 @@ def convert_function(function: OSimType.Function) -> FunctionData:
         function = multiplier_function.getFunction()
         inner_function_data = convert_function(function)
         scaled_inner_function_data = inner_function_data.scale(scale)
+        return scaled_inner_function_data
     else:
         raise ValueError(f"Unsupported function type: {function_class}")
 
