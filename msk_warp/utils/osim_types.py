@@ -16,6 +16,7 @@ class OSimType:
     LinearFunction = osim.LinearFunction
     ConstantFunction = osim.Constant
     PolynomialFunction = osim.PolynomialFunction
+    MultiplierFunction = osim.MultiplierFunction
     MultivariatePolynomialFunction = osim.MultivariatePolynomialFunction
 
     Body = osim.simulation.Body

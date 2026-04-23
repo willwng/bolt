@@ -24,6 +24,12 @@ def convert_function(function: OSimType.Function) -> FunctionData:
         polynomial_function = OSimType.PolynomialFunction.safeDownCast(function)
         coefficients = extract_vector(polynomial_function.getCoefficients())
         return PolynomialFunctionData(coefficients=coefficients)
+    elif function_class == "MultiplierFunction":
+        multiplier_function = OSimType.MultiplierFunction.safeDownCast(function)
+        scale = multiplier_function.getScale()
+        function = multiplier_function.getFunction()
+        inner_function_data = convert_function(function)
+        scaled_inner_function_data = inner_function_data.scale(scale)
     else:
         raise ValueError(f"Unsupported function type: {function_class}")
 

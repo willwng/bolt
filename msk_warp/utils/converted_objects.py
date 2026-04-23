@@ -75,7 +75,8 @@ class GeomData:
 
 @dataclass
 class FunctionData:
-    pass
+    def scale(self, scale: float) -> "FunctionData":
+        raise NotImplementedError
 
 
 @dataclass
@@ -83,15 +84,24 @@ class LinearFunctionData(FunctionData):
     slope: float
     intercept: float
 
+    def scale(self, scale: float) -> "LinearFunctionData":
+        return LinearFunctionData(slope=self.slope * scale, intercept=self.intercept * scale)
+
 
 @dataclass
 class ConstantFunctionData(FunctionData):
     value: float
 
+    def scale(self, scale: float) -> "ConstantFunctionData":
+        return ConstantFunctionData(value=self.value * scale)
+
 
 @dataclass
 class PolynomialFunctionData(FunctionData):
-    coefficients: list[int]
+    coefficients: list[float]
+
+    def scale(self, scale: float) -> "PolynomialFunctionData":
+        return PolynomialFunctionData(coefficients=[c * scale for c in self.coefficients])
 
 
 @dataclass
