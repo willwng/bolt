@@ -27,8 +27,7 @@ def convert_function(function: OSimType.Function) -> FunctionData:
     elif function_class == "MultiplierFunction":
         multiplier_function = OSimType.MultiplierFunction.safeDownCast(function)
         scale = multiplier_function.getScale()
-        function = multiplier_function.getFunction()
-        inner_function_data = convert_function(function)
+        inner_function_data = convert_function(multiplier_function.getFunction())
         scaled_inner_function_data = inner_function_data.scale(scale)
         return scaled_inner_function_data
     else:
