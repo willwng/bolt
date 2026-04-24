@@ -160,6 +160,10 @@ def get_dof_num(m: Model, body_id: int) -> torch.Tensor:
     return jnt_dof_num[body_id]
 
 
+def qpos_spring_rest(m: Model) -> torch.Tensor:
+    return wp.to_torch(m.qpos_spring_rest)
+
+
 def muscle_metadata(m: Model) -> list[MuscleMetadata]:
     return m.muscle_data
 
