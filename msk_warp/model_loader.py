@@ -559,15 +559,17 @@ def load_model(
         body_F_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
         qfrc_muscle=make_zero((n_worlds, nq), dtype=float),
-        qfrc_muscle_passive=make_zero((n_worlds, nq), dtype=float),
 
         ufrc_applied=make_zero((n_worlds, nv), dtype=float),
         ufrc_spring=make_zero((n_worlds, nv), dtype=float),
         ufrc_damper=make_zero((n_worlds, nv), dtype=float),
         ufrc_muscle=make_zero((n_worlds, nv), dtype=float),
-        ufrc_muscle_passive=make_zero((n_worlds, nv), dtype=float),
         ufrc_actuator=make_zero((n_worlds, nv), dtype=float),
         ufrc_limit=make_zero((n_worlds, nv), dtype=float),
+
+        qfrc_muscle_passive=make_zero((n_worlds, nq), dtype=float),
+        qfrc_muscle_passive_breakdown=make_zero((n_worlds, nq, nmuscle), dtype=float),
+        ufrc_muscle_passive=make_zero((n_worlds, nv), dtype=float),
 
         ufrc_total=make_zero((n_worlds, nv), dtype=float),
 

@@ -354,6 +354,10 @@ def muscle_velocity_info_np(d: Data) -> np.ndarray:
     return d.muscle_velocity_info.numpy()
 
 
+def qfrc_muscle_passive_breakdown(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_muscle_passive_breakdown)
+
+
 def site_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.site_pos_G)
 

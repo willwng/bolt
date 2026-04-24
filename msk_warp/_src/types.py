@@ -758,14 +758,17 @@ class Data:
       body_F_drag: drag Cartesian force/torque on body            (nworld, nbody, 6)
       body_F: net Cartesian force/torque on body                  (nworld, nbody, 6)
       qfrc_muscle: muscle generalized force in qpos space         (nworld, nq)
-      qfrc_muscle_passive: only passive component of muscle force (nworld, nq)
       ufrc_spring: passive spring force                           (nworld, nv)
       ufrc_damper: passive damper force                           (nworld, nv)
       ufrc_muscle: muscle generalized force                       (nworld, nv)
-      ufrc_muscle_passive: only passive component of muscle force (nworld, nv)
       ufrc_actuator: actuator generalized force                   (nworld, nv)
       ufrc_limit: dof limit generalized force                     (nworld, nv)
       ufrc_total: net generalized force                           (nworld, nv)
+
+     * debugging/analytics only forces
+      qfrc_muscle_passive: only passive component of muscle force (nworld, nq)
+      qfrc_muscle_passive_breakdown: breakdown above per muscle   (nworld, nq, nmuscle)
+      ufrc_muscle_passive: only passive component of muscle force (nworld, nv)
 
      * user-facing forces *
       ufrc_applied: user-facing applied generalized force         (nworld, nv)
@@ -888,15 +891,17 @@ class Data:
     body_F: array("nworld", "nbody", wp.spatial_vector)
 
     qfrc_muscle: wp.array2d(dtype=float)
-    qfrc_muscle_passive: wp.array2d(dtype=float)
 
     ufrc_spring: wp.array2d(dtype=float)
     ufrc_damper: wp.array2d(dtype=float)
     ufrc_muscle: wp.array2d(dtype=float)
-    ufrc_muscle_passive: wp.array2d(dtype=float)
     ufrc_actuator: wp.array2d(dtype=float)
     ufrc_limit: wp.array2d(dtype=float)
     ufrc_total: wp.array2d(dtype=float)
+
+    qfrc_muscle_passive: wp.array2d(dtype=float)
+    qfrc_muscle_passive_breakdown: array("nworld", "nq", "nmuscle", float)
+    ufrc_muscle_passive: array("nworld", "nv", float)
 
     ufrc_applied: array("nworld", "nv", float)
     body_F_applied: array("nworld", "nbody", wp.spatial_vector)

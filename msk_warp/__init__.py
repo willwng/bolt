@@ -4,6 +4,7 @@ from ._src.step import increment_next_time as increment_next_time
 from ._src.step import set_next_time as set_next_time
 from ._src.step import step as step
 from ._src.forward import reset as reset
+from ._src.forward import fix_limits as fix_limits
 from ._src.forward import fk as fk
 from ._src.forward import post as post
 from ._src.forward import compute_muscle_moments as compute_muscle_moments

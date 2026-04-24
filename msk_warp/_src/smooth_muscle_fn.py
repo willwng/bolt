@@ -98,6 +98,35 @@ def _apply_muscle_frc_kernel(
     return
 
 
+@wp.kernel
+def _apply_muscle_frc_breakdown_kernel(
+        # Model:
+        fn_dimension: wp.array(dtype=int),
+        fn_qpos_adr: wp.array(dtype=PolyInts),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        muscle_actuation_in: wp.array2d(dtype=float),
+        muscle_moment_arm_in: wp.array3d(dtype=float),
+        # Data out:
+        qfrc_applied_out: wp.array3d(dtype=float),
+):
+    # Same as above but for breakdowns only
+    worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
+    actuation = muscle_actuation_in[worldid, muscle_id]
+    moment_arm = muscle_moment_arm_in[worldid, muscle_id]
+    dimension = fn_dimension[muscle_id]
+
+    for varid in range(wp.static(MAX_POLY_NUM_DOFS)):
+        if varid >= dimension:
+            break
+        qposadr = fn_qpos_adr[muscle_id][varid]
+        q_applied = actuation * moment_arm[qposadr]
+        qfrc_applied_out[worldid, qposadr, muscle_id] = q_applied
+    return
+
+
 @event_scope
 def muscle_fn_path(m: Model, d: Data):
     """ Computes the muscle path length and moment arms using a polynomial function approximation """
@@ -127,5 +156,19 @@ def apply_muscle_force_fn(m: Model, d: Data, passive_only: bool = False):
             inputs=[m.fn_path_dimension, m.fn_path_qpos_adr,
                     d.integration_done, actuation_in, d.muscle_moment_arm, ],
             outputs=[qfrc_out],
+        )
+    return
+
+
+@event_scope
+def apply_muscle_force_fn_passive_breakdown(m: Model, d: Data):
+    if m.nmuscle:
+        actuation_in = d.muscle_actuation_passive
+        wp.launch(
+            _apply_muscle_frc_breakdown_kernel,
+            dim=(d.nworld, m.nmuscle),
+            inputs=[m.fn_path_dimension, m.fn_path_qpos_adr,
+                    d.integration_done, actuation_in, d.muscle_moment_arm, ],
+            outputs=[d.qfrc_muscle_passive_breakdown],
         )
     return
