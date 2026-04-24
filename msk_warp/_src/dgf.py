@@ -1,7 +1,6 @@
 import warp as wp
 
 from . import consts
-from .types import vec6
 
 wp.set_module_options({"enable_backward": False})
 
@@ -33,8 +32,9 @@ def calc_gaussian_like_curve_der(
 @wp.func
 def calc_active_force_length_multiplier(
         norm_fiber_length: float,
+        active_force_width_scale: float,
 ) -> float:
-    scale = consts.ACTIVE_FORCE_WIDTH_SCALE
+    scale = active_force_width_scale
     x = (norm_fiber_length - 1.0) / scale + 1.0
     return calc_gaussian_like_curve(x, consts.DGF_B11, consts.DGF_B21,
                                     consts.DGF_B31, consts.DGF_B41) + \
@@ -47,8 +47,9 @@ def calc_active_force_length_multiplier(
 @wp.func
 def calc_active_force_length_multiplier_derivative(
         norm_fiber_length: float,
+        active_force_width_scale: float,
 ) -> float:
-    scale = consts.ACTIVE_FORCE_WIDTH_SCALE
+    scale = active_force_width_scale
     x = (norm_fiber_length - 1.0) / scale + 1.0
     return (1.0 / scale) * (
             calc_gaussian_like_curve_der(x, consts.DGF_B11, consts.DGF_B21,

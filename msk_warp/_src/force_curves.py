@@ -14,11 +14,13 @@ wp.set_module_options({"enable_backward": False})
 @wp.func
 def calc_active_fiber_force_length(
         norm_fiber_length: float,
+        active_force_width_scale: float,
         contraction_type: int,
 ) -> float:
     if contraction_type == ContractionType.DGF:
         return dgf.calc_active_force_length_multiplier(
             norm_fiber_length=norm_fiber_length,
+            active_force_width_scale=active_force_width_scale
         )
     elif contraction_type == ContractionType.MILLARD:
         return millard.calc_active_force_length_multiplier(
@@ -152,9 +154,14 @@ def calc_active_fiber_force(
         activation: float,
         norm_fiber_length: float,
         norm_fiber_velocity: float,
+        active_force_width_scale: float,
         contraction_type: int,
 ):
-    fl = calc_active_fiber_force_length(norm_fiber_length, contraction_type)
+    fl = calc_active_fiber_force_length(
+        norm_fiber_length=norm_fiber_length,
+        active_force_width_scale=active_force_width_scale,
+        contraction_type=contraction_type
+    )
     fv, _ = calc_active_fiber_force_velocity(norm_fiber_velocity, contraction_type)
     fiber_force = max_isometric_force * (activation * fl * fv)
     return fiber_force

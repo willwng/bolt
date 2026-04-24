@@ -55,6 +55,7 @@ def _calc_eq_residual(
         activation=activation,
         norm_fiber_length=norm_fiber_length,
         norm_fiber_velocity=norm_fiber_velocity,
+        active_force_width_scale=mm.active_force_width_scale,
         contraction_type=contraction_type,
     )
     passive_fiber_force = force_curves.calc_passive_fiber_force(
@@ -224,6 +225,7 @@ def _contraction_dynamics_fused_kernel(
     )
     fiber_active_force_length_multiplier = force_curves.calc_active_fiber_force_length(
         norm_fiber_length=norm_fiber_length,
+        active_force_width_scale=mm.active_force_width_scale,
         contraction_type=contraction_type
     )
     tendon_force_multiplier = force_curves.calc_tendon_force_length(

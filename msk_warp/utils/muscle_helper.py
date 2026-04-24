@@ -181,6 +181,7 @@ def create_muscle_metadata(
         muscle_meta.specific_tension = 0.5e6
         muscle_meta.density = 1059.7
         muscle_meta.slow_twitch_ratio = 0.5
+        muscle_meta.active_force_width_scale = 1.0
 
         # To be set during model initialization
         muscle_meta.min_norm_fiber_length = MIN_NORM_FIBER_LENGTH

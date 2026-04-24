@@ -327,6 +327,12 @@ class MuscleMetadata:
     fiber_damping: float
     v_max: float
 
+    min_norm_fiber_length: float
+    max_norm_fiber_length: float
+
+    # Active force-length curve
+    active_force_width_scale: float
+
     # Passive force-length curve
     strain_at_zero_force: float
     strain_at_one_norm_force: float
@@ -334,12 +340,10 @@ class MuscleMetadata:
     stiffness_at_one_norm_force: float
     curviness: float
 
+    # Activation dynamics
     activation_time_const: float
     deactivation_time_const: float
     activation_dynamics_smoothing: float
-
-    min_norm_fiber_length: float
-    max_norm_fiber_length: float
     min_activation: float
     max_activation: float
 
