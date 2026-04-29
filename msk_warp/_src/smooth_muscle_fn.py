@@ -161,14 +161,13 @@ def apply_muscle_force_fn(m: Model, d: Data, passive_only: bool = False):
 
 
 @event_scope
-def apply_muscle_force_fn_passive_breakdown(m: Model, d: Data):
+def apply_muscle_force_fn_breakdown(m: Model, d: Data, actuation: wp.array, qfrc_breakdown_out: wp.array):
     if m.nmuscle:
-        actuation_in = d.muscle_actuation_passive
         wp.launch(
             _apply_muscle_frc_breakdown_kernel,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.fn_path_dimension, m.fn_path_qpos_adr,
-                    d.integration_done, actuation_in, d.muscle_moment_arm, ],
-            outputs=[d.qfrc_muscle_passive_breakdown],
+                    d.integration_done, actuation, d.muscle_moment_arm, ],
+            outputs=[qfrc_breakdown_out],
         )
     return

@@ -358,6 +358,10 @@ def qfrc_muscle_passive_breakdown(d: Data) -> torch.Tensor:
     return wp.to_torch(d.qfrc_muscle_passive_breakdown)
 
 
+def qfrc_muscle_active_breakdown(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.qfrc_muscle_active_breakdown)
+
+
 def site_positions(d: Data) -> torch.Tensor:
     return wp.to_torch(d.site_pos_G)
 

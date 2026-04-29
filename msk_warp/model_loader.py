@@ -544,6 +544,7 @@ def load_model(
         muscle_moment_arm=make_zero((n_worlds, nmuscle, nq), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation_passive=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_actuation_active=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_metabolic=make_zero((n_worlds, nmuscle), dtype=float),
 
         muscle_length_info=make_zero((n_worlds, nmuscle), dtype=MuscleLengthInfo),
@@ -569,6 +570,7 @@ def load_model(
 
         qfrc_muscle_passive=make_zero((n_worlds, nq), dtype=float),
         qfrc_muscle_passive_breakdown=make_zero((n_worlds, nq, nmuscle), dtype=float),
+        qfrc_muscle_active_breakdown=make_zero((n_worlds, nq, nmuscle), dtype=float),
         ufrc_muscle_passive=make_zero((n_worlds, nv), dtype=float),
 
         ufrc_total=make_zero((n_worlds, nv), dtype=float),

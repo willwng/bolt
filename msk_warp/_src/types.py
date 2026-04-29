@@ -772,6 +772,7 @@ class Data:
      * debugging/analytics only forces
       qfrc_muscle_passive: only passive component of muscle force (nworld, nq)
       qfrc_muscle_passive_breakdown: breakdown above per muscle   (nworld, nq, nmuscle)
+      qfrc_muscle_active_breakdown: breakdown of active forces    (nworld, nq, nmuscle)
       ufrc_muscle_passive: only passive component of muscle force (nworld, nv)
 
      * user-facing forces *
@@ -851,7 +852,9 @@ class Data:
       muscle_dynamics_info: info for muscle force calculation     (nworld, nmuscle)
       muscle_norm_fiber_length: norm fiber lengths (obs only)     (nworld, nmuscle)
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
+     * analytics only
       muscle_actuation_passive: passive component of actuation    (nworld, nmuscle)
+      muscle_actuation_active: active component of actuation      (nworld, nmuscle)
       muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
 
 
@@ -905,6 +908,7 @@ class Data:
 
     qfrc_muscle_passive: wp.array2d(dtype=float)
     qfrc_muscle_passive_breakdown: array("nworld", "nq", "nmuscle", float)
+    qfrc_muscle_active_breakdown: array("nworld", "nq", "nmuscle", float)
     ufrc_muscle_passive: array("nworld", "nv", float)
 
     ufrc_applied: array("nworld", "nv", float)
@@ -977,6 +981,7 @@ class Data:
     muscle_norm_fiber_length: wp.array2d(dtype=float)
     muscle_actuation: wp.array2d(dtype=float)
     muscle_actuation_passive: wp.array2d(dtype=float)
+    muscle_actuation_active: wp.array2d(dtype=float)
     muscle_metabolic: wp.array2d(dtype=float)
 
     # Adaptive integrator fields
