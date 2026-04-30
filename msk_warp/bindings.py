@@ -1,13 +1,13 @@
 import numpy as np
-import warp as wp
 import torch
-import msk_warp
+import warp as wp
 
+import msk_warp
 import msk_warp.model_loader as model_loader
-from msk_warp import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata, MSK_SIG_REAL, \
-    MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH, MIN_NORM_FIBER_LENGTH
+from msk_warp import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.render.renderer import Renderer, RendererType
+from msk_warp.utils import muscle_helper
 
 
 def load_model(
@@ -31,29 +31,14 @@ def load_model(
     return load_result
 
 
-def adjust_min_norm_fiber_length(muscle: MuscleMetadata, contraction_dynamics: ContractionType):
-    # Compute pennation model's minimum fiber length
-    parallelogram_height = wp.sin(muscle.optimal_pennation_angle)
-    maximum_pennation_angle = wp.acos(0.1)
-    maximum_sin_pennation = wp.sin(maximum_pennation_angle)
-    if maximum_pennation_angle > MSK_SIG_REAL:
-        pennation_min_norm_fiber_length = parallelogram_height / maximum_sin_pennation
-    else:
-        pennation_min_norm_fiber_length = 0.01
-
-    # Compute active force-length's minimum fiber length
-    if contraction_dynamics == ContractionType.MILLARD:
-        active_curve_min_norm_fiber_length = MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH
-    else:
-        active_curve_min_norm_fiber_length = MIN_NORM_FIBER_LENGTH
-
-    muscle.min_norm_fiber_length = max(pennation_min_norm_fiber_length, active_curve_min_norm_fiber_length)
+def add_collider(m: Model):
+    model_loader.add_collider(m)
 
 
 def reinitialize_model(m: Model, d: Data, ):
     """ Re-initialize the model (i.e., if any parameters have changed). """
     for muscle in m.muscle_data:
-        adjust_min_norm_fiber_length(muscle, m.opt.contraction_type)
+        muscle_helper.adjust_min_norm_fiber_length(muscle, m.opt.contraction_type)
 
     # Update the warp array
     mm = wp.array(m.muscle_data, dtype=MuscleMetadata)
@@ -170,6 +155,10 @@ def muscle_metadata(m: Model) -> list[MuscleMetadata]:
 
 def gravity(m: Model) -> float:
     return m.opt.gravity
+
+
+def set_gravity(m: Model, new_gravity: float):
+    m.opt.gravity = new_gravity
 
 
 def geom_transforms(m: Model) -> torch.Tensor:
