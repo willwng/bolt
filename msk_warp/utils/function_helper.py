@@ -1,6 +1,6 @@
 import warp as wp
 from msk_warp.utils.converted_objects import FunctionData, LinearFunctionData, PolynomialFunctionData, \
-    ConstantFunctionData, TransformAxisData
+    ConstantFunctionData, SimmSplineData, TransformAxisData
 from msk_warp.utils.property_helper import extract_vector
 from msk_warp.utils.osim_types import OSimType
 from msk_warp.utils.python_util import exclusive_scan
@@ -24,6 +24,11 @@ def convert_function(function: OSimType.Function) -> FunctionData:
         polynomial_function = OSimType.PolynomialFunction.safeDownCast(function)
         coefficients = extract_vector(polynomial_function.getCoefficients())
         return PolynomialFunctionData(coefficients=coefficients)
+    elif function_class == "SimmSpline":
+        simm_spline_function = OSimType.SimmSpline.safeDownCast(function)
+        x = extract_vector(simm_spline_function.getX().getAsVector())
+        y = extract_vector(simm_spline_function.getY().getAsVector())
+        return SimmSplineData(x=x, y=y)
     elif function_class == "MultiplierFunction":
         multiplier_function = OSimType.MultiplierFunction.safeDownCast(function)
         scale = multiplier_function.getScale()
@@ -67,3 +72,53 @@ def get_poly_coeffs_num_adr(poly_fns: list[PolynomialFunctionData]) -> tuple[lis
     poly_coeffs_num = [len(fn.coefficients) for fn in poly_fns]
     poly_coeffs_adr = exclusive_scan(poly_coeffs_num)
     return poly_coeffs_num, poly_coeffs_adr
+
+
+def get_spline_xy_y2s(spline_fns: list) -> list[wp.vec3]:
+    """
+    Returns a flattened list of the (x, y, y2) triplets for simm spline functions,
+    where y2 is the precomputed second derivative for the Natural Cubic Spline.
+    """
+    flattened_xy_y2s = []
+
+    for fn in spline_fns:
+        n = len(fn.x)
+        y2 = [0.0] * n
+        if n > 2:
+            # Thomas algorithm for solving the tridiagonal system
+            c_prime = [0.0] * n
+            d_prime = [0.0] * n
+            # Forward elimination
+            for i in range(1, n - 1):
+                hx_prev = fn.x[i] - fn.x[i - 1]
+                hx_next = fn.x[i + 1] - fn.x[i]
+                a = hx_prev
+                b = 2.0 * (hx_prev + hx_next)
+                c = hx_next
+                dy_prev = (fn.y[i] - fn.y[i - 1]) / hx_prev
+                dy_next = (fn.y[i + 1] - fn.y[i]) / hx_next
+                d = 6.0 * (dy_next - dy_prev)
+
+                denom = b - a * c_prime[i - 1]
+                # prevent division by zero in case of degenerate identical x values
+                if denom == 0.0:
+                    denom = 1e-7
+                c_prime[i] = c / denom
+                d_prime[i] = (d - a * d_prime[i - 1]) / denom
+
+            # back substitution
+            # natural spline boundary condition: y2[n-1] is inherently 0.0
+            for i in range(n - 2, 0, -1):
+                y2[i] = d_prime[i] - c_prime[i] * y2[i + 1]
+
+        for x, y, y_sec in zip(fn.x, fn.y, y2):
+            flattened_xy_y2s.append(wp.vec3(x, y, y_sec))
+
+    return flattened_xy_y2s
+
+
+def get_spline_xys_num_adr(spline_fns: list[SimmSplineData]) -> tuple[list[int], list[int]]:
+    """ Returns the number of (x, y) pairs and the starting address for each simm spline function """
+    spline_xy_num = [len(fn.x) for fn in spline_fns]
+    spline_xy_adr = exclusive_scan(spline_xy_num)
+    return spline_xy_num, spline_xy_adr

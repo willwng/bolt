@@ -3,7 +3,8 @@ import warp as wp
 from .types import Data
 from .types import Model
 from .consts import (IDX_SCRATCH_ROT_F, IDX_SCRATCH_ROT_DF, IDX_SCRATCH_ROT_D2F,
-                     IDX_SCRATCH_TRANS_F, IDX_SCRATCH_TRANS_DF, IDX_SCRATCH_TRANS_D2F)
+                     IDX_SCRATCH_TRANS_F, IDX_SCRATCH_TRANS_DF, IDX_SCRATCH_TRANS_D2F,
+                     MSK_SIG_REAL)
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -94,6 +95,93 @@ def _eval_poly_fn(
 
 
 @wp.kernel
+def _eval_spline_fn(
+        # Model in:
+        spline_fn_adr: wp.array(dtype=int),
+        spline_fn_qpos_adr: wp.array(dtype=int),
+        spline_fn_xy_y2s: wp.array(dtype=wp.vec3),
+        spline_fn_xys_adr: wp.array(dtype=int),
+        spline_fn_xys_num: wp.array(dtype=int),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        qpos_in: wp.array2d(dtype=float),
+        # Data out:
+        cst_fn_output: wp.array2d(dtype=wp.vec3),
+):
+    worldid, polyid = wp.tid()
+    if integration_done_in[worldid]:
+        return
+
+    qposadr = spline_fn_qpos_adr[polyid]
+    functionid = spline_fn_adr[polyid]
+    q = qpos_in[worldid, qposadr]
+
+    # Number of points, address in flattened array
+    xys_num = spline_fn_xys_num[polyid]
+    adr = spline_fn_xys_adr[polyid]
+
+    pt_first = spline_fn_xy_y2s[adr]
+    pt_last = spline_fn_xy_y2s[adr + xys_num - 1]
+
+    # left linear extrapolation
+    if q <= pt_first[0]:
+        x0, y0, y2_0 = pt_first[0], pt_first[1], pt_first[2]
+        pt1 = spline_fn_xy_y2s[adr + 1]
+        x1, y1, y2_1 = pt1[0], pt1[1], pt1[2]
+        h = x1 - x0
+        df = float(0.0)
+        if h > MSK_SIG_REAL:
+            df = (y1 - y0) / h - (h / 6.0) * (2.0 * y2_0 + y2_1)
+        f = y0 + df * (q - x0)
+        cst_fn_output[worldid, functionid] = wp.vec3(f, df, 0.0)
+        return
+
+    # right linear extrapolation
+    if q >= pt_last[0]:
+        x1, y1, y2_1 = pt_last[0], pt_last[1], pt_last[2]
+        pt0 = spline_fn_xy_y2s[adr + xys_num - 2]
+        x0, y0, y2_0 = pt0[0], pt0[1], pt0[2]
+        h = x1 - x0
+        df = float(0.0)
+        if h > MSK_SIG_REAL:
+            df = (y1 - y0) / h + (h / 6.0) * (y2_0 + 2.0 * y2_1)
+        f = y1 + df * (q - x1)
+        cst_fn_output[worldid, functionid] = wp.vec3(f, df, 0.0)
+        return
+
+    # binary search for interval
+    low = int(0)
+    high = int(xys_num - 1)
+    while low < high - 1:
+        mid = low + (high - low) // 2
+        pt_mid = spline_fn_xy_y2s[adr + mid]
+        if pt_mid[0] <= q:
+            low = mid
+        else:
+            high = mid
+
+    pt0 = spline_fn_xy_y2s[adr + low]
+    pt1 = spline_fn_xy_y2s[adr + high]
+
+    x0, y0, y2_0 = pt0[0], pt0[1], pt0[2]
+    x1, y1, y2_1 = pt1[0], pt1[1], pt1[2]
+
+    h = x1 - x0
+    if h > MSK_SIG_REAL:
+        a = (x1 - q) / h
+        b = (q - x0) / h
+        f = a * y0 + b * y1 + ((h * h) / 6.0) * ((a * a * a - a) * y2_0 + (b * b * b - b) * y2_1)
+        df = (y1 - y0) / h - (h / 6.0) * ((3.0 * a * a - 1.0) * y2_0 - (3.0 * b * b - 1.0) * y2_1)
+        d2f = a * y2_0 + b * y2_1
+    else:
+        f = y0
+        df = 0.0
+        d2f = 0.0
+
+    cst_fn_output[worldid, functionid] = wp.vec3(f, df, d2f)
+
+
+@wp.kernel
 def _fetch_fn_into_cst(
         # Model in:
         custom_to_mob_id: wp.array(dtype=int),
@@ -166,6 +254,17 @@ def evaluate_cst_functions(m: Model, d: Data):
             dim=(d.nworld, m.npolyfn),
             inputs=[
                 m.poly_fn_adr, m.poly_fn_qpos_adr, m.poly_fn_coeff, m.poly_fn_coeff_adr, m.poly_fn_coeff_num,
+                d.integration_done, d.qpos,
+            ],
+            outputs=[d.cst_fn_output],
+        )
+
+    if m.nsplinefn:
+        wp.launch(
+            _eval_spline_fn,
+            dim=(d.nworld, m.nsplinefn),
+            inputs=[
+                m.spline_fn_adr, m.spline_fn_qpos_adr, m.spline_fn_xy_y2s, m.spline_fn_xys_adr, m.spline_fn_xys_num,
                 d.integration_done, d.qpos,
             ],
             outputs=[d.cst_fn_output],

@@ -440,6 +440,7 @@ class Model:
       nlinearfn: number of linear functions
       nconstfn: number of constant functions
       npolyfn: number of polynomial functions
+      nsplinefn: number of spline functions
 
       opt: physics options
       muscle_metadata: muscle metadata                         (nmuscle,)
@@ -472,12 +473,17 @@ class Model:
       poly_fn_coeff: polynomial coefficients                   (total number of coefficients)
       poly_fn_coeff_adr: starting adr in coeffs                (npolyfn,)
       poly_fn_coeff_num: num coefficients for each poly fn     (npolyfn,)
+      spline_fn_xy_y2s: (x, y, y'') for spline fn              (total number of (x, y) pairs)
+      spline_fn_xys_adr: starting adr in xys                   (nsplinefn,)
+      spline_fn_xys_num: num (x, y) pairs for each spline fn   (nsplinefn,)
       linear_fn_adr: "global" fn address for each linear fn    (nlinearfn,)
       const_fn_adr: "global" fn address for each const fn      (nconstfn,)
       poly_fn_adr: "global" fn address for each polynomial fn  (npolyfn,)
+      spline_fn_adr: "global" fn address for each spline fn    (nsplinefn,)
       linear_fn_qpos_adr: qpos address for linear fn input     (nlinearfn,)
       poly_fn_qpos_adr: qpos address for polynomial fn input   (npolyfn,)
-     
+      spline_fn_qpos_adr: qpos address for spline fn input     (nsplinefn,)
+
      * custom joints *
       mob_to_cst_id: map mobilizer idx -> custom joint idx     (nbody,)
       cst_to_mob_id: map custom joint idx -> mobilizer idx     (njnts_cst,)
@@ -561,6 +567,7 @@ class Model:
     nlinearfn: int
     nconstfn: int
     npolyfn: int
+    nsplinefn: int
 
     opt: Option
     muscle_metadata: array("nmuscle", MuscleMetadata)
@@ -599,11 +606,18 @@ class Model:
     poly_fn_coeff: array("total_coeff", float)
     poly_fn_coeff_adr: array("npolyfn", int)
     poly_fn_coeff_num: array("npolyfn", int)
+    spline_fn_xy_y2s: array("total_xys", wp.vec3)
+    spline_fn_xys_adr: array("nsplinefn", int)
+    spline_fn_xys_num: array("nsplinefn", int)
+
     linear_fn_adr: array("nlinearfn", int)
     const_fn_adr: array("nconstfn", int)
     poly_fn_adr: array("npolyfn", int)
+    spline_fn_adr: array("nsplinefn", int)
+
     linear_fn_qpos_adr: array("nlinearfn", int)
     poly_fn_qpos_adr: array("npolyfn", int)
+    spline_fn_qpos_adr: array("nsplinefn", int)
 
     dof_damping: array("nv", float)
     dof_armature: array("nv", float)

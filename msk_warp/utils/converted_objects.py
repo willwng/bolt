@@ -105,6 +105,15 @@ class PolynomialFunctionData(FunctionData):
 
 
 @dataclass
+class SimmSplineData(FunctionData):
+    x: list[float]
+    y: list[float]
+
+    def scale(self, scale: float) -> "SimmSplineData":
+        return SimmSplineData(x=self.x, y=[v * scale for v in self.y])
+
+
+@dataclass
 class TransformAxisData:
     coordinate: str
     axis: wp.vec3

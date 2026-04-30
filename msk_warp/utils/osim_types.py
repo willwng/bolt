@@ -17,6 +17,7 @@ class OSimType:
     ConstantFunction = osim.Constant
     PolynomialFunction = osim.PolynomialFunction
     MultiplierFunction = osim.MultiplierFunction
+    SimmSpline = osim.SimmSpline
     MultivariatePolynomialFunction = osim.MultivariatePolynomialFunction
 
     Body = osim.simulation.Body
@@ -28,7 +29,10 @@ class OSimType:
     ScholzPath = osim.Scholz2015GeometryPath
     GeometryPath = osim.GeometryPath
     FunctionBasedPath = osim.FunctionBasedPath
+
     PathPoint = osim.PathPoint
+    ConditionalPathPoint = osim.ConditionalPathPoint
+    MovingPathPoint = osim.MovingPathPoint
 
     Vector = osim.Vector
     Vec3 = osim.simbody.Vec3

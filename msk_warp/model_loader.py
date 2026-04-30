@@ -134,8 +134,9 @@ def load_model(
     linear_fns, linear_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=LinearFunctionData)
     const_fns, const_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=ConstantFunctionData)
     poly_fns, poly_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=PolynomialFunctionData)
-    nlinearfn, nconstfn, npolyfn = len(linear_fns), len(const_fns), len(poly_fns)
-    nfunctions = nlinearfn + nconstfn + npolyfn
+    spline_fns, spline_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=SimmSplineData)
+    nlinearfn, nconstfn, npolyfn, nspline = len(linear_fns), len(const_fns), len(poly_fns), len(spline_fns)
+    nfunctions = nlinearfn + nconstfn + npolyfn + nspline
     # Get all relative coordinate indices for each transform axis
     txfm_dofs = spatial_transform_helper.get_txfm_coordinate_names(ordered_transform_axes)
     txfm_qpos_relative_idx = apply_map_to_list(txfm_dofs, relative_dof_ordering)
@@ -143,6 +144,7 @@ def load_model(
     # Now, use gather to find the relative coordinate indices used for each function
     linear_fns_qpos_global_idx = gather(txfm_qpos_global_idx, linear_fns_idx)
     poly_fns_qpos_global_idx = gather(txfm_qpos_global_idx, poly_fns_idx)
+    spline_fns_qpos_global_idx = gather(txfm_qpos_global_idx, spline_fns_idx)
 
     nq = sum([joint.num_coordinates for joint in ordered_joints])
     nv = sum([joint.num_speeds for joint in ordered_joints])
@@ -203,6 +205,9 @@ def load_model(
     const_fn_vals = function_helper.get_const_fn_vals(const_fns)
     poly_coeffs = function_helper.get_flattened_poly_coeffs(poly_fns)
     poly_coeffs_num, poly_coeffs_adr = function_helper.get_poly_coeffs_num_adr(poly_fns)
+    spline_xy_y2s = function_helper.get_spline_xy_y2s(spline_fns)
+    spline_xys_num, spline_xys_adr = function_helper.get_spline_xys_num_adr(spline_fns)
+
 
     # Joint damping, spring, and linear stops (limits)
     # TODO: better separation between LinearSpring and SpringGeneralizedForce (i.e., if LinearSpring rest length != 0)
@@ -307,6 +312,7 @@ def load_model(
         nlinearfn=nlinearfn,
         nconstfn=nconstfn,
         npolyfn=npolyfn,
+        nsplinefn=nspline,
 
         opt=opt,
         muscle_metadata=mm,
@@ -345,11 +351,18 @@ def load_model(
         poly_fn_coeff=to_warp_array(poly_coeffs, dtype=float),
         poly_fn_coeff_adr=to_warp_array(poly_coeffs_adr, dtype=int),
         poly_fn_coeff_num=to_warp_array(poly_coeffs_num, dtype=int),
+        spline_fn_xy_y2s=to_warp_array(spline_xy_y2s, dtype=wp.vec3),
+        spline_fn_xys_adr=to_warp_array(spline_xys_adr, dtype=int),
+        spline_fn_xys_num=to_warp_array(spline_xys_num, dtype=int),
+
         linear_fn_adr=to_warp_array(linear_fns_idx, dtype=int),
         const_fn_adr=to_warp_array(const_fns_idx, dtype=int),
         poly_fn_adr=to_warp_array(poly_fns_idx, dtype=int),
+        spline_fn_adr=to_warp_array(spline_fns_idx, dtype=int),
+
         linear_fn_qpos_adr=to_warp_array(linear_fns_qpos_global_idx, dtype=int),
         poly_fn_qpos_adr=to_warp_array(poly_fns_qpos_global_idx, dtype=int),
+        spline_fn_qpos_adr=to_warp_array(spline_fns_qpos_global_idx, dtype=int),
 
         dof_damping=to_warp_array(dof_damping, dtype=float),
         dof_armature=make_zero(nv, dtype=float),  # user-modified later
