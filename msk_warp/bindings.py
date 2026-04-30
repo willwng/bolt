@@ -172,6 +172,10 @@ def gravity(m: Model) -> float:
     return m.opt.gravity
 
 
+def geom_transforms(m: Model) -> torch.Tensor:
+    return wp.to_torch(m.geom_X_loc)
+
+
 def set_implicit_damping(m: Model, enabled: bool):
     m.opt.implicit_damping = enabled
 
