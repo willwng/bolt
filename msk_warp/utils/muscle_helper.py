@@ -1,7 +1,8 @@
 import opensim as osim
 import warp as wp
 
-from msk_warp import MuscleMetadata, MIN_NORM_FIBER_LENGTH, MAX_NORM_FIBER_LENGTH, MSK_SIG_REAL
+from msk_warp import MAX_NORM_FIBER_LENGTH, ContractionType, MuscleMetadata, MSK_SIG_REAL, \
+    MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH, MIN_NORM_FIBER_LENGTH
 from msk_warp.utils.converted_objects import MuscleData, SiteData
 from msk_warp.utils.osim_types import OSimType
 from msk_warp.utils.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
@@ -198,3 +199,27 @@ def create_muscle_metadata(
 def get_muscle_ordering(muscles: list[MuscleData]) -> dict[str, int]:
     """ Returns a mapping from muscle name to its index in the list """
     return {muscle.name: i for i, muscle in enumerate(muscles)}
+
+
+def adjust_min_norm_fiber_length(muscle: MuscleMetadata, contraction_dynamics: ContractionType):
+    """
+    After initializing the muscles, the user may change the contraction type, this modifies the
+        minimum fiber length if necesary
+    """
+    # Compute pennation model's minimum fiber length
+    parallelogram_height = wp.sin(muscle.optimal_pennation_angle)
+    maximum_pennation_angle = wp.acos(0.1)
+    maximum_sin_pennation = wp.sin(maximum_pennation_angle)
+    if maximum_pennation_angle > MSK_SIG_REAL:
+        pennation_min_norm_fiber_length = parallelogram_height / maximum_sin_pennation
+    else:
+        pennation_min_norm_fiber_length = 0.01
+
+    # Compute active force-length's minimum fiber length
+    if contraction_dynamics == ContractionType.MILLARD:
+        active_curve_min_norm_fiber_length = MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH
+    else:
+        active_curve_min_norm_fiber_length = MIN_NORM_FIBER_LENGTH
+
+    muscle.min_norm_fiber_length = max(pennation_min_norm_fiber_length, active_curve_min_norm_fiber_length)
+    return

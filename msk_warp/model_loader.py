@@ -189,6 +189,9 @@ def load_model(
     geom_dissipation = geom_helper.get_geom_dissipation(converted_geoms)
     geom_transition_velocity = geom_helper.get_geom_transition_velocity(converted_geoms)
     geom_priority = geom_helper.get_geom_priority(converted_geoms)
+    # Broadphase registration
+    geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
+        geom_helper.prepare_contacts(geom_type, geom_body_id, body_parent_id, ngeom))
 
     # We need to reshape the transform data to be (num_custom_joints, 6)
     txfm_axes = spatial_transform_helper.get_txfm_axes(ordered_transform_axes)
@@ -246,9 +249,6 @@ def load_model(
     point_paths_group, function_paths_groups = function_based_path_helper.path_type_to_muscle(converted_function_paths)
     function_paths_groups_warp = tuple([to_warp_array(group, dtype=int) for group in function_paths_groups])
 
-    # Prepare contacts
-    geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
-        geom_helper.prepare_contacts(geom_type, geom_body_id, body_parent_id, ngeom))
     naconmax = max(512, n_worlds * 64)  # we're capping it at 64 contacts per world. TODO(check if this is reasonable)
 
     # --- Create Options ---
@@ -629,3 +629,39 @@ def load_model(
         collider_id_lookup=collider_ordering,
         mesh_load_results=visual_helper.create_mesh_load_results(converted_visuals),
     )
+
+
+def add_collider(m: Model):
+    ngeom = m.ngeom + 1
+    # Re-build the fields
+    geom_type = m.geom_type.list()
+    geom_body_id = m.geom_bodyid.list()
+    geom_transform = m.geom_X_loc.list()
+    geom_size = m.geom_size.list()
+    geom_friction = m.geom_friction.list()
+    geom_stiffness = m.geom_stiffness.list()
+    geom_dissipation = m.geom_dissipation.list()
+    geom_transition_velocity = m.geom_transition_velocity.list()
+    geom_priority = m.geom_priority.list()
+    geom_aabb = m.geom_aabb.list()
+    geom_rbound = m.geom_rbound.list()
+    body_parent_id = m.body_parentid.list()
+
+    # Re-register broadphase
+    geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
+        geom_helper.prepare_contacts(geom_type, geom_body_id, body_parent_id, ngeom))
+
+    # Set the fields again
+    m.ngeom = ngeom
+    m.geom_type = to_warp_array(geom_type, dtype=int)
+    m.geom_bodyid = to_warp_array(geom_body_id, dtype=int)
+    m.geom_X_loc = to_warp_array(geom_transform, dtype=wp.transform)
+    m.geom_size = to_warp_array(geom_size, dtype=wp.vec3)
+    m.geom_friction = to_warp_array(geom_friction, dtype=wp.vec3)
+    m.geom_stiffness = to_warp_array(geom_stiffness, dtype=float)
+    m.geom_dissipation = to_warp_array(geom_dissipation, dtype=float)
+    m.geom_transition_velocity = to_warp_array(geom_transition_velocity, dtype=float)
+    m.geom_priority = to_warp_array(geom_priority, dtype=int)
+    m.geom_aabb = to_warp_array(geom_aabb, dtype=wp.vec3)
+    m.geom_rbound = to_warp_array(geom_rbound, dtype=float)
+    return
