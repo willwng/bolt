@@ -244,7 +244,7 @@ def load_model(
     # Prepare contacts
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
         geom_helper.prepare_contacts(geom_type, geom_body_id, body_parent_id, ngeom))
-    naconmax = max(512, n_worlds * 32)  # we're capping it at 32 contacts per world. TODO(check if this is reasonable)
+    naconmax = max(512, n_worlds * 64)  # we're capping it at 64 contacts per world. TODO(check if this is reasonable)
 
     # --- Create Options ---
     opt = Option(
