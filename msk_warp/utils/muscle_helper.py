@@ -201,7 +201,7 @@ def get_muscle_ordering(muscles: list[MuscleData]) -> dict[str, int]:
     return {muscle.name: i for i, muscle in enumerate(muscles)}
 
 
-def adjust_min_norm_fiber_length(muscle: MuscleMetadata, contraction_dynamics: ContractionType):
+def adjust_norm_fiber_length_range(muscle: MuscleMetadata, contraction_dynamics: ContractionType):
     """
     After initializing the muscles, the user may change the contraction type, this modifies the
         minimum fiber length if necesary
@@ -218,6 +218,8 @@ def adjust_min_norm_fiber_length(muscle: MuscleMetadata, contraction_dynamics: C
     # Compute active force-length's minimum fiber length
     if contraction_dynamics == ContractionType.MILLARD:
         active_curve_min_norm_fiber_length = MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH
+    elif contraction_dynamics == ContractionType.MUJOCO:
+        active_curve_min_norm_fiber_length = 0.0  # no such thing as a min fiber length
     else:
         active_curve_min_norm_fiber_length = MIN_NORM_FIBER_LENGTH
 

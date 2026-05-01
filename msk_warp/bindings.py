@@ -38,7 +38,7 @@ def add_collider(m: Model):
 def reinitialize_model(m: Model, d: Data, ):
     """ Re-initialize the model (i.e., if any parameters have changed). """
     for muscle in m.muscle_data:
-        muscle_helper.adjust_min_norm_fiber_length(muscle, m.opt.contraction_type)
+        muscle_helper.adjust_norm_fiber_length_range(muscle, m.opt.contraction_type)
 
     # Update the warp array
     mm = wp.array(m.muscle_data, dtype=MuscleMetadata)

@@ -194,9 +194,11 @@ class ContractionType(enum.IntEnum):
     Attributes:
         DGF: DeGroote-Fregly muscle contraction dynamics
         MILLARD: Millard muscle contraction dynamics (splines)
+        MUJOCO: MuJoCo muscle model (fixed pennation angle and rigid tendon)
     """
     DGF = 1
     MILLARD = 2
+    MUJOCO = 3
 
 
 class IntegratorType(enum.IntEnum):

@@ -2,12 +2,12 @@ import warp as wp
 
 from . import dgf
 from . import millard
+from . import mujoco
 from . import consts
 from .types import ContractionType
 from .types import MuscleMetadata
 
 wp.set_module_options({"enable_backward": False})
-
 
 
 # --- FIBER FORCE MULTIPLIERS ---
@@ -24,6 +24,10 @@ def calc_active_fiber_force_length(
         )
     elif contraction_type == ContractionType.MILLARD:
         return millard.calc_active_force_length_multiplier(
+            norm_fiber_length=norm_fiber_length,
+        )
+    elif contraction_type == ContractionType.MUJOCO:
+        return mujoco.calc_active_force_length_multiplier(
             norm_fiber_length=norm_fiber_length,
         )
     assert False
@@ -47,6 +51,11 @@ def calc_active_fiber_force_velocity(
             norm_fiber_velocity=norm_fiber_velocity
         )
         return fv, fvDer
+    elif contraction_type == ContractionType.MUJOCO:
+        fv = mujoco.calc_force_velocity_multiplier(
+            norm_fiber_velocity=norm_fiber_velocity
+        )
+        return fv, 0.0  # rigid tendon, shouldn't need der to equilibrate
     assert False
 
 
@@ -95,6 +104,10 @@ def calc_passive_fiber_force_length(
             stiffness_at_low_force=mm.stiffness_at_low_force,
             stiffness_at_one_norm_force=mm.stiffness_at_one_norm_force,
             curviness=mm.curviness,
+        )
+    elif contraction_type == ContractionType.MUJOCO:
+        return mujoco.calc_passive_force_multiplier(
+            norm_fiber_length=norm_fiber_length
         )
     assert False
 
