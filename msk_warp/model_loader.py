@@ -211,7 +211,6 @@ def load_model(
     spline_xy_y2s = function_helper.get_spline_xy_y2s(spline_fns)
     spline_xys_num, spline_xys_adr = function_helper.get_spline_xys_num_adr(spline_fns)
 
-
     # Joint damping, spring, and linear stops (limits)
     # TODO: better separation between LinearSpring and SpringGeneralizedForce (i.e., if LinearSpring rest length != 0)
     dof_stiffness, dof_damping = coordinate_force_helper.get_dof_stiffness_damping(
@@ -628,26 +627,30 @@ def load_model(
         actuator_id_lookup=actuator_ordering,
         collider_id_lookup=collider_ordering,
         mesh_load_results=visual_helper.create_mesh_load_results(converted_visuals),
+        colliders=converted_geoms,
     )
 
 
-def add_collider(m: Model):
-    ngeom = m.ngeom + 1
-    # Re-build the fields
-    geom_type = m.geom_type.list()
-    geom_body_id = m.geom_bodyid.list()
-    geom_transform = m.geom_X_loc.list()
-    geom_size = m.geom_size.list()
-    geom_friction = m.geom_friction.list()
-    geom_stiffness = m.geom_stiffness.list()
-    geom_dissipation = m.geom_dissipation.list()
-    geom_transition_velocity = m.geom_transition_velocity.list()
-    geom_priority = m.geom_priority.list()
-    geom_aabb = m.geom_aabb.list()
-    geom_rbound = m.geom_rbound.list()
-    body_parent_id = m.body_parentid.list()
+def update_colliders(load_result: ModelLoadResult):
+    m, d = load_result.model, load_result.data
+    geom_data, body_id_lookup = load_result.colliders, load_result.body_id_lookup
 
-    # Re-register broadphase
+    ngeom = len(geom_data)
+    geom_type = geom_helper.get_geom_type(geom_data)
+    geom_body_names = geom_helper.get_geom_body_name(geom_data)
+    geom_body_id = apply_map_to_list(geom_body_names, body_id_lookup)
+    geom_size = geom_helper.get_geom_size(geom_data)
+    geom_transform = geom_helper.get_geom_transform(geom_data)
+    geom_aabb = geom_helper.get_geom_aabb(geom_data)
+    geom_rbound = geom_helper.get_geom_rbound(geom_data)
+    geom_friction = geom_helper.get_geom_friction(geom_data)
+    geom_stiffness = geom_helper.get_geom_stiffness(geom_data)
+    geom_dissipation = geom_helper.get_geom_dissipation(geom_data)
+    geom_transition_velocity = geom_helper.get_geom_transition_velocity(geom_data)
+    geom_priority = geom_helper.get_geom_priority(geom_data)
+
+    # Broadphase registration
+    body_parent_id = m.body_parentid.list()
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
         geom_helper.prepare_contacts(geom_type, geom_body_id, body_parent_id, ngeom))
 
@@ -664,4 +667,16 @@ def add_collider(m: Model):
     m.geom_priority = to_warp_array(geom_priority, dtype=int)
     m.geom_aabb = to_warp_array(geom_aabb, dtype=wp.vec3)
     m.geom_rbound = to_warp_array(geom_rbound, dtype=float)
+    m.geom_pair_type_count = tuple(geom_type_pair_count)
+    m.nxn_geom_pair_filtered = wp.array(nxn_geom_pair_filtered, dtype=wp.vec2i)
+    m.nxn_pairid_filtered = wp.array(nxn_pairid_filtered, dtype=wp.vec2i)
+
+    # Need to update the load result's collider lookup
+    load_result.collider_id_lookup = geom_helper.get_geom_ordering(geom_data)
+
+    # Update Data fields
+    n_worlds = d.nworld
+    d.geom_X = make_zero((n_worlds, ngeom), dtype=wp.transform)
+    d.geom_cforce = make_zero((n_worlds, ngeom), dtype=float)
+    d.geom_self_cforce = make_zero((n_worlds, ngeom), dtype=float)
     return

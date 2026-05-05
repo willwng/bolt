@@ -56,6 +56,15 @@ class SiteData:
 
 
 @dataclass
+class UserGeomData:
+    name: str
+    body_name: str
+    geom_type: GeomType
+    transform: wp.transform
+    size: wp.vec3
+
+
+@dataclass
 class GeomData:
     name: str
     body_name: str

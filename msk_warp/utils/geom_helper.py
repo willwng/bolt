@@ -3,7 +3,7 @@ import warp as wp
 import numpy as np
 
 from msk_warp import GeomType
-from msk_warp.utils.converted_objects import GeomData, AABB
+from msk_warp.utils.converted_objects import GeomData, AABB, UserGeomData
 from msk_warp.utils.osim_types import OSimType
 from msk_warp.utils.physical_frame_helper import get_body_name_of_frame, wp_transform_from_osim_transform
 from msk_warp.utils.property_helper import extract_vec3
@@ -44,9 +44,26 @@ def collect_geom_type_sizes(geom: osim.ContactGeometry) -> tuple[GeomType, wp.ve
             aabb = (wp.vec3(0.0), wp.vec3(radii[0] * 2, height + 2 * radius, radii[2] * 2))
             rbound = wp.sqrt(half_height ** 2 + radius ** 2)
             return geom_type, size, aabb, rbound
-
     else:
         raise NotImplementedError(f"Unsupported contact geometry: {geom_cls}")
+
+
+def collect_user_geom_aabb(geom: UserGeomData) -> tuple[AABB, float]:
+    geom_type = geom.geom_type
+    if geom_type == GeomType.SPHERE:
+        geom = osim.ContactSphere.safeDownCast(geom)
+        radius = geom.size[0]
+        aabb = (wp.vec3(0.0), wp.vec3(2.0 * radius, 2.0 * radius, 2.0 * radius))
+        rbound = radius
+        return aabb, rbound
+    elif geom_type == GeomType.CAPSULE:
+        radius, half_height = geom.size[0], geom.size[1]
+        height = 2.0 * half_height
+        aabb = (wp.vec3(0.0), wp.vec3(geom.size[0] * 2, height + 2 * radius, geom.size[2] * 2))
+        rbound = wp.sqrt(half_height ** 2 + radius ** 2)
+        return aabb, rbound
+    else:
+        raise NotImplementedError(f"Unsupported contact geometry: {geom_type}")
 
 
 def _compute_contact_geom_transform(geom: osim.ContactGeometry) -> wp.transform:
@@ -78,6 +95,26 @@ def convert_contact_geometry(geom: osim.ContactGeometry) -> GeomData:
         geom_type=geom_type,
         transform=transform,
         size=size,
+        aabb=aabb,
+        rbound=rbound,
+
+        # Defaults
+        friction=wp.vec3(0.8, 0.8, 0.0),
+        stiffness=(5e6 ** (2 / 3)),
+        dissipation=1.0,
+        transition_velocity=0.1,
+        priority=0
+    )
+
+
+def convert_user_contact_geometry(geom: UserGeomData) -> GeomData:
+    aabb, rbound = collect_user_geom_aabb(geom)
+    return GeomData(
+        name=geom.name,
+        body_name=geom.body_name,
+        geom_type=geom.geom_type,
+        transform=geom.transform,
+        size=geom.size,
         aabb=aabb,
         rbound=rbound,
 

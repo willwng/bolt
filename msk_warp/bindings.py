@@ -7,7 +7,8 @@ import msk_warp.model_loader as model_loader
 from msk_warp import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata
 from msk_warp.model_load_result import ModelLoadResult
 from msk_warp.render.renderer import Renderer, RendererType
-from msk_warp.utils import muscle_helper
+from msk_warp.utils import muscle_helper, geom_helper
+from msk_warp.utils.converted_objects import UserGeomData, GeomData
 
 
 def load_model(
@@ -31,8 +32,16 @@ def load_model(
     return load_result
 
 
-def add_collider(m: Model):
-    model_loader.add_collider(m)
+def convert_user_collider(user_geom: UserGeomData) -> GeomData:
+    return geom_helper.convert_user_contact_geometry(user_geom)
+
+
+def update_colliders(load_result: ModelLoadResult):
+    """ Update the colliders in the model (e.g., if any were added or parameters have changed). """
+    model_loader.update_colliders(
+        load_result=load_result,
+    )
+    return
 
 
 def reinitialize_model(m: Model, d: Data, ):
@@ -163,6 +172,10 @@ def set_gravity(m: Model, new_gravity: float):
 
 def geom_transforms(m: Model) -> torch.Tensor:
     return wp.to_torch(m.geom_X_loc)
+
+
+def geom_bodyid(m: Model) -> torch.Tensor:
+    return wp.to_torch(m.geom_bodyid)
 
 
 def set_implicit_damping(m: Model, enabled: bool):
