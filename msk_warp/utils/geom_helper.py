@@ -59,7 +59,7 @@ def collect_user_geom_aabb(geom: UserGeomData) -> tuple[AABB, float]:
     elif geom_type == GeomType.CAPSULE:
         radius, half_height = geom.size[0], geom.size[1]
         height = 2.0 * half_height
-        aabb = (wp.vec3(0.0), wp.vec3(geom.size[0] * 2, height + 2 * radius, geom.size[2] * 2))
+        aabb = (wp.vec3(0.0), wp.vec3(2.0 * radius, height + 2.0 * radius, 2.0 * radius))
         rbound = wp.sqrt(half_height ** 2 + radius ** 2)
         return aabb, rbound
     else:
