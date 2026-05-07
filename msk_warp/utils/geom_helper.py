@@ -117,13 +117,11 @@ def convert_user_contact_geometry(geom: UserGeomData) -> GeomData:
         size=geom.size,
         aabb=aabb,
         rbound=rbound,
-
-        # Defaults
-        friction=wp.vec3(0.8, 0.8, 0.0),
-        stiffness=(5e6 ** (2 / 3)),
-        dissipation=1.0,
-        transition_velocity=0.1,
-        priority=0
+        friction=geom.friction,
+        stiffness=geom.stiffness,
+        dissipation=geom.dissipation,
+        transition_velocity=geom.transition_velocity,
+        priority=geom.priority,
     )
 
 

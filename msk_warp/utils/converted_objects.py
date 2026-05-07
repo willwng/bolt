@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from dataclasses import fields
+from dataclasses import fields, field
 
 import warp as wp
 from msk_warp import MobilizerType, GeomType, PolyInts
@@ -62,6 +62,13 @@ class UserGeomData:
     geom_type: GeomType
     transform: wp.transform
     size: wp.vec3
+
+    # Defaults
+    friction: wp.vec3 = field(default_factory=lambda: wp.vec3(0.8, 0.8, 0.0))
+    stiffness: float = (5e6 ** (2 / 3))
+    dissipation: float = 1.0
+    transition_velocity: float = 0.1
+    priority: int = 0
 
 
 @dataclass
