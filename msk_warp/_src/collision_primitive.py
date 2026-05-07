@@ -596,10 +596,8 @@ def sphere_capsule_wrapper(
 ):
     """Calculates one contact between a sphere and a capsule."""
     # capsule axis
-    axis = wp.vec3(cap.rot[0, 2], cap.rot[1, 2], cap.rot[2, 2])
-
-    dist, pos, normal = sphere_capsule(sphere.pos, sphere.size[0], cap.pos,
-                                       axis, cap.size[0], cap.size[1])
+    capsule_axis = wp.vec3(cap.rot[0, 2], cap.rot[1, 2], cap.rot[2, 2])
+    dist, pos, normal = sphere_capsule(sphere.pos, sphere.size[0], cap.pos, capsule_axis, cap.size[0], cap.size[1])
     curvature = wp.sqrt(sphere.size[0] * cap.size[0])
 
     write_contact(
