@@ -178,7 +178,7 @@ def _obb_filter(
         xmat1: wp.mat33,
         xmat2: wp.mat33,
 ) -> bool:
-    """Oriented bounding boxes collision (see Gottschalk et al.), see mj_collideOBB."""
+    """Oriented bounding boxes collision (see Gottschalk et al.)"""
     xcenter = mat23()
     normal = mat63()
     proj = wp.vec2()
