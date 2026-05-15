@@ -2,7 +2,7 @@ Bolt - GPU-accelerated Musculoskeletal Simulations
 ============================
 GPU-accelerated physics simulations for articulated rigid bodies with muscle actuators, designed for many-world parallel simulations. Inspired by [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) and [OpenSim](https://github.com/opensim-org/opensim-core).
 <div float="center">
-  <img src="assets/screenshot.png" />
+  <img src="assets/screenshot.png"  alt="bolt screenshot"/>
 </div>
 
 **Current features include:**
@@ -23,9 +23,24 @@ Exponential joint limits based on [Anderson and Pandy](https://pubmed.ncbi.nlm.n
 We also include a basic [OpenGL renderer](bolt/render) (not tuned for performance) for debugging.
 
 
-## Setup
+## Installation
+To install Bolt, you'll need to install OpenSim first. We recommend setting up a conda environment first
+### 1. Conda Environment Setup
 ```bash
-pip install warp-lang
+conda create -n bolt python=3.11
+conda activate bolt
+```
+
+### 2. Install OpenSim
+This section is under construction.
+
+### 3. Install Bolt
+```bash
+conda create -n bolt python=3.11
+conda activate bolt
+
+cd bolt
+pip install -r requirements.txt
 pip install -e .
 ```
 
