@@ -1,4 +1,4 @@
-MSK Warp - GPU-accelerated Musculoskeletal Simulations
+Bolt - GPU-accelerated Musculoskeletal Simulations
 ============================
 GPU-accelerated physics simulations for articulated rigid bodies with muscle actuators, designed for many-world parallel simulations. Inspired by [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) and [OpenSim](https://github.com/opensim-org/opensim-core).
 <div float="center">
@@ -20,7 +20,7 @@ Exponential joint limits based on [Anderson and Pandy](https://pubmed.ncbi.nlm.n
 - Symplectic Euler, RK4, adaptive symplectic Euler, and adaptive Runge-Kutta-Merson integrators.
   - Adaptive integrators are error-controlled according to a user-specified accuracy setting
 
-We also include a basic [OpenGL renderer](msk_warp/render) (not tuned for performance) for debugging.
+We also include a basic [OpenGL renderer](bolt/render) (not tuned for performance) for debugging.
 
 
 ## Setup
@@ -33,7 +33,7 @@ pip install -e .
 ## Example
 The following command will launch a simple renderer with a full-body muscle model.
 ```bash
-python -m msk_warp.test
+python -m bolt.test
 ```
 Command line:
 - `--nsteps`    - number of simulation steps to run

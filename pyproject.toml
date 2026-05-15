@@ -3,9 +3,9 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "msk_warp"
+name = "bolt"
 version = "0.0.1"
-description = "MusculoSkeletal Warp"
+description = "Bolt: Musculoskeletal Simulation"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 requires-python = ">=3.9"
@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-mskwarp-test = "msk_warp.test:main"
+bolt-test = "bolt.test:main"
 
 [tool.setuptools.packages.find]
-include = ["msk_warp*"]
+include = ["bolt*"]
