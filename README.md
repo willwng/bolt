@@ -1,4 +1,4 @@
-Bolt - GPU-accelerated Musculoskeletal Simulations
+Bolt: GPU-accelerated Musculoskeletal Simulator
 ============================
 GPU-accelerated physics simulations for articulated rigid bodies with muscle actuators, designed for many-world parallel simulations. Inspired by [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) and [OpenSim](https://github.com/opensim-org/opensim-core).
 <div float="center">
