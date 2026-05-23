@@ -1,5 +1,5 @@
 import warp as wp
-import bolt.utils.physical_frame_helper as physical_frame_helper
+import bolt.load_utils.physical_frame_helper as physical_frame_helper
 from bolt import MobilizerType
 from .converted_objects import JointData, GROUND, GROUND_PARENT, NO_DOF
 from .osim_types import OSimType

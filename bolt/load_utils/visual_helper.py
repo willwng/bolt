@@ -2,10 +2,10 @@ import opensim as osim
 import warp as wp
 from bolt import MeshLoadResult
 
-from bolt.utils.converted_objects import VisualData
-from bolt.utils.physical_frame_helper import get_body_name_of_frame, extract_frame_transform_from_base_frame
-from bolt.utils.property_helper import extract_vec3
-from bolt.utils.osim_types import OSimType
+from bolt.load_utils.converted_objects import VisualData
+from bolt.load_utils.physical_frame_helper import get_body_name_of_frame, extract_frame_transform_from_base_frame
+from bolt.load_utils.property_helper import extract_vec3
+from bolt.load_utils.osim_types import OSimType
 
 
 def convert_visuals(model: OSimType.Model) -> list[VisualData]:

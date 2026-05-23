@@ -6,12 +6,14 @@ import bolt
 from bolt.benchmark.benchmark import benchmark
 
 arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument("--model", type=str, required=True)
+arg_parser.add_argument("--muscle-functions", type=str)
+arg_parser.add_argument("--nworld", type=int, default=1)
+arg_parser.add_argument("--nstep", type=int, default=1000)
 arg_parser.add_argument("--recompile", action="store_true")
 arg_parser.add_argument("--debug", action="store_true")
 arg_parser.add_argument("--benchmark", action="store_true")
 arg_parser.add_argument("--tree", action="store_true")
-arg_parser.add_argument("--nworld", type=int, default=1)
-arg_parser.add_argument("--nstep", type=int, default=1000)
 args = arg_parser.parse_args()
 
 
@@ -40,14 +42,12 @@ def main():
         # wp.config.verbose_warnings = True
 
     # Load the OpenSim model and muscle function paths
-    model_path = "data/models/example_model.osim"
-    muscle_fn_path = "data/models/example_model_fn.xml"
     load_result = bolt.load_model(
-        model_path,
+        model_path=args.model,
         n_worlds=args.nworld,
         integrator=bolt.IntegratorType.EULER_ADAPTIVE,
         requires_visuals=True,
-        muscle_fn_path=muscle_fn_path,
+        muscle_fn_path=args.muscle_functions,  # may be None
         render_kinematic_tree=args.tree,
     )
     m, d = load_result.model, load_result.data
@@ -62,6 +62,7 @@ def main():
     if load_result.root_free:
         qpos[:, qpos_id("pelvis_ty")] = 1.05
 
+    # Reset sim
     d.world_reset.fill_(True)
     bolt.reset(m, d)
 
@@ -81,11 +82,13 @@ def main():
         if viewer.viewer_type == bolt.RendererType.TILED:
             viewer.setup_tiled_renderer(list(range(args.nworld)))
 
+        # Step graph capture
         if cuda_graphs:
             with wp.ScopedCapture() as capture:
                 bolt.step(m, d)
             graph = capture.graph
 
+        # Simulation loop
         for i in range(args.nstep):
             bolt.increment_next_time(m, d, dt)
             if cuda_graphs:

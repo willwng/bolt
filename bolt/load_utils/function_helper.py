@@ -1,9 +1,9 @@
 import warp as wp
-from bolt.utils.converted_objects import FunctionData, LinearFunctionData, PolynomialFunctionData, \
+from bolt.load_utils.converted_objects import FunctionData, LinearFunctionData, PolynomialFunctionData, \
     ConstantFunctionData, SimmSplineData, TransformAxisData
-from bolt.utils.property_helper import extract_vector
-from bolt.utils.osim_types import OSimType
-from bolt.utils.python_util import exclusive_scan
+from bolt.load_utils.property_helper import extract_vector
+from bolt.load_utils.osim_types import OSimType
+from bolt.load_utils.python_util import exclusive_scan
 from typing import Type, TypeVar
 
 T = TypeVar("T")

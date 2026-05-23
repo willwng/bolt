@@ -46,8 +46,8 @@ from ._src.consts import MAX_POLY_ORDER
 from ._src.consts import BOLT_SIG_REAL
 from ._src.polynomial_evaluator import SUPPORTED_DIM_ORDER
 from .render.renderer import RendererType as RendererType
-from .utils.converted_objects import UserGeomData as UserGeomData
-from .utils.converted_objects import GROUND as GROUND
-from .utils.converted_objects import GROUND_COLLIDER as GROUND_COLLIDER
+from .load_utils.converted_objects import UserGeomData as UserGeomData
+from .load_utils.converted_objects import GROUND as GROUND
+from .load_utils.converted_objects import GROUND_COLLIDER as GROUND_COLLIDER
 
 from .bindings import *

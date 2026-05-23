@@ -1,8 +1,8 @@
 import opensim as osim
 
 from bolt import ActuatorMetadata
-from bolt.utils.converted_objects import ActivationCoordinateActuatorData
-from bolt.utils.osim_types import OSimType
+from bolt.load_utils.converted_objects import ActivationCoordinateActuatorData
+from bolt.load_utils.osim_types import OSimType
 
 
 def convert_activation_actuators(model: OSimType.Model) -> list[ActivationCoordinateActuatorData]:

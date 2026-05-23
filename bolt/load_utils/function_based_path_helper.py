@@ -2,11 +2,11 @@ import opensim as osim
 
 from math import comb
 from bolt import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, SUPPORTED_DIM_ORDER, PolyInts
-from bolt.utils.osim_types import OSimType
-from bolt.utils.converted_objects import MuscleFunctionPathData, USE_POINT_PATH, PADDED_DOF
-from bolt.utils.muscle_helper import get_muscles
-from bolt.utils.python_util import remove_slash_prefix, pad_list, exclusive_scan
-from bolt.utils.property_helper import extract_vector
+from bolt.load_utils.osim_types import OSimType
+from bolt.load_utils.converted_objects import MuscleFunctionPathData, USE_POINT_PATH, PADDED_DOF
+from bolt.load_utils.muscle_helper import get_muscles
+from bolt.load_utils.python_util import remove_slash_prefix, pad_list, exclusive_scan
+from bolt.load_utils.property_helper import extract_vector
 
 
 def parse_function_based_paths(

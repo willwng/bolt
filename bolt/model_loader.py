@@ -7,7 +7,7 @@ from bolt import Model, Data, IntegratorType, Option, ActivationType, Contractio
     MuscleLengthInfo, FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, \
     SwingTwistLimit, CoordinateLimitForce, ExponentialContact, vec5
 from bolt.model_load_result import ModelLoadResult
-from bolt.utils import *
+from bolt.load_utils import *
 
 
 def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:

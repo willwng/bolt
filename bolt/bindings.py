@@ -7,8 +7,8 @@ import bolt.model_loader as model_loader
 from bolt import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata
 from bolt.model_load_result import ModelLoadResult
 from bolt.render.renderer import Renderer, RendererType
-from bolt.utils import muscle_helper, geom_helper
-from bolt.utils.converted_objects import UserGeomData, GeomData
+from bolt.load_utils import muscle_helper, geom_helper
+from bolt.load_utils.converted_objects import UserGeomData, GeomData
 
 
 def load_model(

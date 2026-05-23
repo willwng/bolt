@@ -1,5 +1,5 @@
 from bolt import Model, Data, MeshLoadResult
-from bolt.utils.converted_objects import GeomData
+from bolt.load_utils.converted_objects import GeomData
 from dataclasses import dataclass
 
 

@@ -2,8 +2,8 @@ import warp as wp
 import numpy as np
 
 from bolt import CoordinateLimitForce
-from bolt.utils.converted_objects import SpringGeneralizedForceData, CoordinateLimitForceData
-from bolt.utils.osim_types import OSimType
+from bolt.load_utils.converted_objects import SpringGeneralizedForceData, CoordinateLimitForceData
+from bolt.load_utils.osim_types import OSimType
 
 
 def convert_spring_generalized_force(model: OSimType.Model) -> list[SpringGeneralizedForceData]:

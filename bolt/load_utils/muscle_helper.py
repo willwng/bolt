@@ -3,10 +3,10 @@ import warp as wp
 
 from bolt import MAX_NORM_FIBER_LENGTH, ContractionType, MuscleMetadata, BOLT_SIG_REAL, \
     MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH, MIN_NORM_FIBER_LENGTH
-from bolt.utils.converted_objects import MuscleData, SiteData
-from bolt.utils.osim_types import OSimType
-from bolt.utils.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
-from bolt.utils.property_helper import extract_vec3
+from bolt.load_utils.converted_objects import MuscleData, SiteData
+from bolt.load_utils.osim_types import OSimType
+from bolt.load_utils.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
+from bolt.load_utils.property_helper import extract_vec3
 
 
 def convert_path_point(point: OSimType.PathPoint) -> SiteData:
