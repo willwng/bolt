@@ -48,11 +48,14 @@ pip install -e .
 ## Example
 The following command will launch a simple renderer with a full-body muscle model.
 ```bash
-python -m bolt.test
+python -m bolt.test --model data/models/example_model.osim --nstep 1000 --nworld 1
 ```
 Command line:
+- `--model`     - path of OpenSim model to load
+- `--muscle-functions` - path of muscle's fitted function-based paths
 - `--nsteps`    - number of simulation steps to run
 - `--nworlds`   - number of parallel simulations
+- `--tree`      - whether to create a Graphviz of the model's kinematic tree
 - `--recompile` - forces recompilation of the warp kernels
 - `--debug`     - enables debug mode
 - `--benchmark` - (GPU only) tests simulator speed
