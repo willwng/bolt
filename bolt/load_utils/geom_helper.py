@@ -2,7 +2,7 @@ import opensim as osim
 import warp as wp
 import numpy as np
 
-from bolt import GeomType
+from bolt.types_consts import GeomType
 from bolt.load_utils.converted_objects import GeomData, AABB, UserGeomData
 from bolt.load_utils.osim_types import OSimType
 from bolt.load_utils.physical_frame_helper import get_body_name_of_frame, wp_transform_from_osim_transform

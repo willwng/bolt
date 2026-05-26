@@ -1,6 +1,6 @@
 import warp as wp
 
-from bolt import ExponentialContact
+from bolt.types_consts import ExponentialContact
 from bolt.load_utils.converted_objects import ExponentialContactForce, SiteData
 from bolt.load_utils.osim_types import OSimType
 from bolt.load_utils.physical_frame_helper import wp_transform_from_osim_transform

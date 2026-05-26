@@ -1,6 +1,4 @@
-import opensim as osim
-
-from bolt import ActuatorMetadata
+from bolt.types_consts import ActuatorMetadata
 from bolt.load_utils.converted_objects import ActivationCoordinateActuatorData
 from bolt.load_utils.osim_types import OSimType
 

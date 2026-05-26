@@ -1,10 +1,12 @@
 import numpy as np
+import os
+from pathlib import Path
 import torch
 import warp as wp
 
 import bolt
 import bolt.model_loader as model_loader
-from bolt import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata
+from bolt.types_consts import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata
 from bolt.model_load_result import ModelLoadResult
 from bolt.render.renderer import Renderer, RendererType
 from bolt.load_utils import muscle_helper, geom_helper
@@ -83,6 +85,17 @@ def create_renderer(
     )
     viewer.load_meshes(load_result.mesh_load_results)
     return viewer
+
+
+def get_geometry_dir():
+    bolt_path = Path(__file__).resolve().parent.parent
+    geometry_path = bolt_path.joinpath("data", "geometry")
+    return geometry_path
+
+
+def get_visual_path(visual: str):
+    visual_path = os.path.join(get_geometry_dir(), visual)
+    return visual_path
 
 
 # --- Model Fields ---

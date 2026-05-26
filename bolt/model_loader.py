@@ -2,10 +2,10 @@ import os
 
 import opensim as osim
 
-from bolt import Model, Data, IntegratorType, Option, ActivationType, ContractionType, MetabolicOptions, \
+from bolt.types_consts import Model, Data, IntegratorType, Option, ActivationType, ContractionType, MetabolicOptions, \
     MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, \
     MuscleLengthInfo, FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, \
-    SwingTwistLimit, CoordinateLimitForce, ExponentialContact, vec5
+    SwingTwistLimit, CoordinateLimitForce, ExponentialContact, vec5, PolyInts
 from bolt.model_load_result import ModelLoadResult
 from bolt.load_utils import *
 

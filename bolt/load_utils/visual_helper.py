@@ -1,6 +1,6 @@
 import opensim as osim
 import warp as wp
-from bolt import MeshLoadResult
+from bolt.types_consts import MeshLoadResult
 
 from bolt.load_utils.converted_objects import VisualData
 from bolt.load_utils.physical_frame_helper import get_body_name_of_frame, extract_frame_transform_from_base_frame

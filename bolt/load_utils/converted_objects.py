@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from dataclasses import fields, field
 
 import warp as wp
-from bolt import MobilizerType, GeomType, PolyInts
+from bolt.types_consts import GeomType, MobilizerType
 
 GROUND_PARENT = "N/A"
 GROUND = "ground"
@@ -284,17 +284,3 @@ GROUND_COLLIDER = GeomData(
     transition_velocity=0.1,
     priority=0
 )
-
-
-def dataclass_list_transpose(data_list: list[dataclass], cls: type) -> dict[str, list]:
-    """
-    Convert a list of dataclass instances into a dict where each attribute becomes a list of that attribute.
-    Though handy, I prefer not to use this since it results in code that doesn't update with refactoring property names
-    """
-    result = {f.name: [] for f in fields(cls)}
-
-    for obj in data_list:
-        for f in fields(cls):
-            result[f.name].append(getattr(obj, f.name))
-
-    return result

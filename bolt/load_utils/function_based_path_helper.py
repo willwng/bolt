@@ -1,7 +1,7 @@
 import opensim as osim
 
 from math import comb
-from bolt import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, SUPPORTED_DIM_ORDER, PolyInts
+from bolt.types_consts import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, SUPPORTED_DIM_ORDER, PolyInts
 from bolt.load_utils.osim_types import OSimType
 from bolt.load_utils.converted_objects import MuscleFunctionPathData, USE_POINT_PATH, PADDED_DOF
 from bolt.load_utils.muscle_helper import get_muscles

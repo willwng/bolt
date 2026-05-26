@@ -1,4 +1,4 @@
-from bolt import Model, Data, MeshLoadResult
+from bolt.types_consts import Model, Data, MeshLoadResult
 from bolt.load_utils.converted_objects import GeomData
 from dataclasses import dataclass
 

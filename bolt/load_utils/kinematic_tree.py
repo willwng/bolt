@@ -1,5 +1,4 @@
-from .converted_objects import JointData, BodyData
-from bolt.load_utils.converted_objects import GROUND_BODY
+from .converted_objects import JointData, BodyData, GROUND_BODY
 
 
 class KinematicTreeNode:

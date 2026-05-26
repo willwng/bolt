@@ -1,7 +1,7 @@
 import opensim as osim
 import warp as wp
 
-from bolt import MAX_NORM_FIBER_LENGTH, ContractionType, MuscleMetadata, BOLT_SIG_REAL, \
+from bolt.types_consts import MAX_NORM_FIBER_LENGTH, ContractionType, MuscleMetadata, BOLT_SIG_REAL, \
     MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH, MIN_NORM_FIBER_LENGTH
 from bolt.load_utils.converted_objects import MuscleData, SiteData
 from bolt.load_utils.osim_types import OSimType

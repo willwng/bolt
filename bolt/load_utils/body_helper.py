@@ -1,6 +1,6 @@
 import numpy as np
 import warp as wp
-from .converted_objects import BodyData, GROUND
+from .converted_objects import BodyData
 from .osim_types import OSimType
 from .property_helper import extract_vec3
 

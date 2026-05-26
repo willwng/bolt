@@ -1,4 +1,3 @@
-import opensim as osim
 import warp as wp
 
 from bolt.load_utils.converted_objects import SpatialTransformData, TransformAxisData, NO_DOF

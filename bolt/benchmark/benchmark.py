@@ -22,8 +22,8 @@ import numpy as np
 import warp as wp
 
 from bolt._src import warp_util
-from bolt._src.types import Data
-from bolt._src.types import Model
+from bolt.types_consts import Data
+from bolt.types_consts import Model
 
 
 def _sum(stack1, stack2):
