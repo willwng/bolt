@@ -20,3 +20,4 @@ from .load_utils.converted_objects import GROUND as GROUND
 from .load_utils.converted_objects import GROUND_COLLIDER as GROUND_COLLIDER
 
 from .bindings import *
+from .paths import *

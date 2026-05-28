@@ -1,13 +1,14 @@
-import os
+from typing import Optional
 
 import opensim as osim
 
+from bolt.load_utils import *
+from bolt.model_load_result import ModelLoadResult
+from bolt.paths import get_geometry_dir
 from bolt.types_consts import Model, Data, IntegratorType, Option, ActivationType, ContractionType, MetabolicOptions, \
     MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, \
     MuscleLengthInfo, FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, \
     SwingTwistLimit, CoordinateLimitForce, ExponentialContact, vec5, PolyInts
-from bolt.model_load_result import ModelLoadResult
-from bolt.load_utils import *
 
 
 def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:
@@ -26,14 +27,12 @@ def load_model(
         n_worlds: int,
         integrator: IntegratorType,
         requires_visuals: bool,
-        muscle_fn_path: str,
+        muscle_fn_path: Optional[str],
         render_kinematic_tree: bool,
 ) -> ModelLoadResult:
     # All the mesh files for visuals should be located here
-    file_path = os.path.dirname(os.path.realpath(__file__))
-    geom_path = os.path.join(file_path, "../data/geometry")
-    osim.ModelVisualizer.addDirToGeometrySearchPaths(geom_path)
-    # Use OpenSim parser
+    osim.ModelVisualizer.addDirToGeometrySearchPaths(get_geometry_dir())
+    # Run OpenSim parser
     model = osim.Model(model_path)
     model.initSystem()
 
@@ -212,7 +211,6 @@ def load_model(
     spline_xys_num, spline_xys_adr = function_helper.get_spline_xys_num_adr(spline_fns)
 
     # Joint damping, spring, and linear stops (limits)
-    # TODO: better separation between LinearSpring and SpringGeneralizedForce (i.e., if LinearSpring rest length != 0)
     dof_stiffness, dof_damping = coordinate_force_helper.get_dof_stiffness_damping(
         converted_spring_gen_force, dof_ordering)
     qpos_spring_rest = coordinate_force_helper.get_qpos_spring_rest(qpos_ordering)

@@ -1,16 +1,18 @@
-import numpy as np
 import os
 from pathlib import Path
+from typing import Optional
+
+import numpy as np
 import torch
 import warp as wp
 
 import bolt
 import bolt.model_loader as model_loader
-from bolt.types_consts import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata
-from bolt.model_load_result import ModelLoadResult
-from bolt.render.renderer import Renderer, RendererType
 from bolt.load_utils import muscle_helper, geom_helper
 from bolt.load_utils.converted_objects import UserGeomData, GeomData
+from bolt.model_load_result import ModelLoadResult
+from bolt.render.renderer import Renderer, RendererType
+from bolt.types_consts import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata
 
 
 def load_model(
@@ -18,7 +20,7 @@ def load_model(
         n_worlds: int,
         integrator: IntegratorType,
         requires_visuals: bool,
-        muscle_fn_path: str = None,
+        muscle_fn_path: Optional[str] = None,
         render_kinematic_tree: bool = False,
 ) -> ModelLoadResult:
     load_result = model_loader.load_model(
