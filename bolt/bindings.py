@@ -177,6 +177,18 @@ def muscle_metadata(m: Model) -> list[MuscleMetadata]:
     return m.muscle_data
 
 
+def muscle_metadata_np(m: Model) -> np.ndarray:
+    return m.muscle_metadata.numpy()
+
+
+def muscle_max_isometric_forces(m: Model) -> torch.Tensor:
+    muscle_isometric_forces = []
+    for mm in m.muscle_data:
+        muscle_isometric_forces.append(mm.max_isometric_force)
+    muscle_isometric_forces = torch.tensor(muscle_isometric_forces, device=torch.device(wp.get_device().alias))
+    return muscle_isometric_forces
+
+
 def gravity(m: Model) -> float:
     return m.opt.gravity
 
@@ -361,10 +373,6 @@ def muscle_powers(d: Data) -> torch.Tensor:
 
 def muscle_moment_arms(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_moment_arm)
-
-
-def muscle_metadata_np(m: Model) -> np.ndarray:
-    return m.muscle_metadata.numpy()
 
 
 def muscle_length_info_np(d: Data) -> np.ndarray:
