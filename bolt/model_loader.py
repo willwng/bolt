@@ -553,6 +553,9 @@ def load_model(
         muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_moment_arm=make_zero((n_worlds, nmuscle, nq), dtype=float),
         muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
+
+        muscle_active_length_multiplier=make_zero((n_worlds, nmuscle), dtype=float),
+        muscle_active_velocity_multiplier=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation_passive=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation_active=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_metabolic=make_zero((n_worlds, nmuscle), dtype=float),

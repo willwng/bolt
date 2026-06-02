@@ -393,6 +393,8 @@ def _set_state(
         # Data out:
         mstate_dot_out: wp.array2d(dtype=float),
         muscle_actuation_out: wp.array2d(dtype=float),
+        muscle_active_length_multiplier_out: wp.array2d(dtype=float),
+        muscle_active_velocity_multiplier_out: wp.array2d(dtype=float),
         muscle_actuation_active_out: wp.array2d(dtype=float),
         muscle_actuation_passive_out: wp.array2d(dtype=float),
         muscle_norm_fiber_length_out: wp.array2d(dtype=float),
@@ -407,11 +409,6 @@ def _set_state(
 
     # Actuation
     muscle_actuation_out[worldid, muscle_id] = mdi.tendon_force
-    # muscle_actuation_passive_out[worldid, muscle_id] = mdi.passive_fiber_force
-    muscle_actuation_passive_out[
-        worldid, muscle_id] = mm.max_isometric_force * mli.fiber_passive_force_length_multiplier
-    muscle_actuation_active_out[
-        worldid, muscle_id] = mdi.active_fiber_force
 
     # State derivative
     if mm.ignore_tendon_compliance:
@@ -421,6 +418,15 @@ def _set_state(
 
     # Fiber length (for output/observation purposes, not used for dynamics)
     muscle_norm_fiber_length_out[worldid, muscle_id] = mli.norm_fiber_length
+
+    # Remaining analytics/observations
+    muscle_active_length_multiplier_out[worldid, muscle_id] = mli.fiber_active_force_length_multiplier
+    muscle_active_velocity_multiplier_out[worldid, muscle_id] = fvi.fiber_force_velocity_multiplier
+    # muscle_actuation_passive_out[worldid, muscle_id] = mdi.passive_fiber_force
+    muscle_actuation_passive_out[
+        worldid, muscle_id] = mm.max_isometric_force * mli.fiber_passive_force_length_multiplier
+    muscle_actuation_active_out[
+        worldid, muscle_id] = mdi.active_fiber_force
     return
 
 
@@ -474,7 +480,9 @@ def contraction_dynamics(m: Model, d: Data):
             d.integration_done, d.muscle_length_info, d.muscle_velocity_info, d.muscle_dynamics_info
         ],
         outputs=[
-            d.m_state_dot, d.muscle_actuation, d.muscle_actuation_active, d.muscle_actuation_passive,
+            d.m_state_dot, d.muscle_actuation,
+            d.muscle_active_length_multiplier, d.muscle_active_velocity_multiplier,
+            d.muscle_actuation_active, d.muscle_actuation_passive,
             d.muscle_norm_fiber_length
         ],
     )

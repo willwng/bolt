@@ -869,6 +869,8 @@ class Data:
       muscle_norm_fiber_length: norm fiber lengths (obs only)     (nworld, nmuscle)
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
      * analytics only
+      muscle_active_length_multiplier: active length mult         (nworld, nmuscle)
+      muscle_active_velocity_multiplier: active velocity mult     (nworld, nmuscle)
       muscle_actuation_passive: passive component of actuation    (nworld, nmuscle)
       muscle_actuation_active: active component of actuation      (nworld, nmuscle)
       muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
@@ -996,6 +998,9 @@ class Data:
     muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
     muscle_norm_fiber_length: wp.array2d(dtype=float)
     muscle_actuation: wp.array2d(dtype=float)
+
+    muscle_active_length_multiplier: wp.array2d(dtype=float)
+    muscle_active_velocity_multiplier: wp.array2d(dtype=float)
     muscle_actuation_passive: wp.array2d(dtype=float)
     muscle_actuation_active: wp.array2d(dtype=float)
     muscle_metabolic: wp.array2d(dtype=float)

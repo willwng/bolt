@@ -375,6 +375,14 @@ def muscle_moment_arms(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_moment_arm)
 
 
+def muscle_active_length_multiplier(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.muscle_active_length_multiplier)
+
+
+def muscle_active_velocity_multiplier(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.muscle_active_velocity_multiplier)
+
+
 def muscle_length_info_np(d: Data) -> np.ndarray:
     return d.muscle_length_info.numpy()
 
