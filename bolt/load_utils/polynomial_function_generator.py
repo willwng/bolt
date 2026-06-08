@@ -82,12 +82,20 @@ def collect_necessary_dim_order(file):
 
 
 def main():
-    dim_order0 = collect_necessary_dim_order("athlete10paths.xml")
-    dim_order1 = collect_necessary_dim_order("athlete9paths.xml")
-    dim_order2 = collect_necessary_dim_order("athlete8paths.xml")
-    dim_order3 = collect_necessary_dim_order("regression_model_fixed_fn.xml")
-    dim_order = dim_order0 | dim_order1 | dim_order2 | dim_order3
-    dim_order = list(sorted(list(dim_order)))
+    dim_order = [
+        (1, 2), (1, 3), (1, 4),
+        (2, 3), (2, 4), (2, 5), (2, 6), (2, 8),
+        (3, 2), (3, 3), (3, 4),
+        (3, 9),
+        (4, 3), (4, 4),
+        (5, 4),
+        (6, 4),
+        (7, 4),
+        (8, 4),
+        (9, 4),
+        (12, 4),
+    ]
+
     functions = {}
 
     # Generate the functions
