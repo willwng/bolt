@@ -17,7 +17,8 @@ def calc_active_fiber_force_length(
         active_force_width_scale: float,
         contraction_type: int,
 ) -> float:
-    if contraction_type == ContractionType.DGF:
+    if (contraction_type == ContractionType.DGF or
+            contraction_type == ContractionType.DGF_MILLARD_PASSIVE):
         return dgf.calc_active_force_length_multiplier(
             norm_fiber_length=norm_fiber_length,
             active_force_width_scale=active_force_width_scale
@@ -38,7 +39,8 @@ def calc_active_fiber_force_velocity(
         norm_fiber_velocity: float,
         contraction_type: int,
 ) -> tuple[float, float]:
-    if contraction_type == ContractionType.DGF:
+    if (contraction_type == ContractionType.DGF or
+            contraction_type == ContractionType.DGF_MILLARD_PASSIVE):
         fv = dgf.calc_force_velocity_multiplier(
             norm_fiber_velocity=norm_fiber_velocity
         )
@@ -64,7 +66,8 @@ def calc_active_fiber_force_velocity_inverse(
         force_velocity_mult: float,
         contraction_type: int,
 ) -> float:
-    if contraction_type == ContractionType.DGF:
+    if (contraction_type == ContractionType.DGF or
+            contraction_type == ContractionType.DGF_MILLARD_PASSIVE):
         return dgf.calc_force_velocity_inverse_curve(
             force_velocity_mult=force_velocity_mult
         )
@@ -82,21 +85,13 @@ def calc_passive_fiber_force_length(
         contraction_type: int,
 ) -> float:
     if contraction_type == ContractionType.DGF:
-        # # fixme. we're using the millard passive curve for now for its tunability
-        # return millard.calc_passive_force_multiplier(
-        #     norm_fiber_length=norm_fiber_length,
-        #     strain_at_zero_force=mm.strain_at_zero_force,
-        #     strain_at_one_norm_force=mm.strain_at_one_norm_force,
-        #     stiffness_at_low_force=mm.stiffness_at_low_force,
-        #     stiffness_at_one_norm_force=mm.stiffness_at_one_norm_force,
-        #     curviness=mm.curviness,
-        # )
         return dgf.calc_passive_force_multiplier(
             norm_fiber_length=norm_fiber_length,
             min_norm_fiber_length=mm.min_norm_fiber_length,
             passive_fiber_strain_at_one_norm_force=mm.strain_at_one_norm_force
         )
-    elif contraction_type == ContractionType.MILLARD:
+    elif (contraction_type == ContractionType.MILLARD or
+          contraction_type == ContractionType.DGF_MILLARD_PASSIVE):
         return millard.calc_passive_force_multiplier(
             norm_fiber_length=norm_fiber_length,
             strain_at_zero_force=mm.strain_at_zero_force,
@@ -118,7 +113,8 @@ def calc_tendon_force_length(
         norm_tendon_length: float,
         contraction_type: int,
 ) -> float:
-    if contraction_type == ContractionType.DGF:
+    if (contraction_type == ContractionType.DGF or
+            contraction_type == ContractionType.DGF_MILLARD_PASSIVE):
         return dgf.calc_tendon_force_multiplier(
             norm_tendon_length=norm_tendon_length,
             clamped=True
@@ -135,7 +131,8 @@ def calc_tendon_force_inverse(
         norm_tendon_force: float,
         contraction_type: int,
 ):
-    if contraction_type == ContractionType.DGF:
+    if (contraction_type == ContractionType.DGF or
+            contraction_type == ContractionType.DGF_MILLARD_PASSIVE):
         return dgf.calc_tendon_force_length_inverse(
             norm_tendon_force=norm_tendon_force
         )
@@ -152,7 +149,8 @@ def calc_tendon_force_inverse_derivative(
         norm_tendon_length: float,
         contraction_type: int,
 ):
-    if contraction_type == ContractionType.DGF:
+    if (contraction_type == ContractionType.DGF or
+            contraction_type == ContractionType.DGF_MILLARD_PASSIVE):
         return dgf.calc_tendon_force_length_inverse_curve_derivative(0.0, norm_tendon_length)
     elif contraction_type == ContractionType.MILLARD:
         return 0.0
