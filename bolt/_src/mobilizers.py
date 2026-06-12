@@ -95,7 +95,7 @@ def calcX_FM(
         r = math.quat_from_xyz(qpos[qadr + 0], qpos[qadr + 1], qpos[qadr + 2])
         # Ellipsoid translation: the z axis of body is assumed to be normal to the joint ellipsoid
         semi = extra_info
-        n = wp.quat_rotate(r, wp.vec(0.0, 0.0, 1.0))
+        n = wp.quat_rotate(r, wp.vec3(0.0, 0.0, 1.0))
         p = wp.vec3(semi.x * n.x, semi.y * n.y, semi.z * n.z)
 
         mob_scratch_out[0] = n
