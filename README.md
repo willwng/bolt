@@ -32,7 +32,21 @@ conda activate bolt
 ```
 
 ### 2. Install OpenSim
-This section is under construction.
+#### 2.1. Create the `config.yaml` file
+Create a file named `config.yaml` in the root directory of the repository with the field `python_root_dir`, 
+which is a full path to a Python installation directory.
+
+Here is an example:
+```
+python_root_dir: '/opt/anaconda3/envs/bolt'
+```
+#### 2.2. Build OpenSim
+Run the following command from the root directory to build OpenSim and install it into your conda environment.
+```
+python install_opensim.py
+```
+
+On Linux, you may have to add `dependencies/opensim/opensim_dependencies_install/simbody/lib` to your `LD_LIBRARY_PATH`
 
 ### 3. Install Bolt
 ```bash
