@@ -4,3 +4,4 @@ torchvision
 scipy
 pyvista
 pyglet
+tqdm
