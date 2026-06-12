@@ -3,6 +3,10 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# OpenSim
+/dependencies/opensim
+opensim.log
+
 # C extensions
 *.so
 
