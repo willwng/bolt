@@ -393,6 +393,7 @@ def _set_state(
         # Data out:
         mstate_dot_out: wp.array2d(dtype=float),
         muscle_actuation_out: wp.array2d(dtype=float),
+        muscle_passive_length_multiplier_out: wp.array2d(dtype=float),
         muscle_active_length_multiplier_out: wp.array2d(dtype=float),
         muscle_active_velocity_multiplier_out: wp.array2d(dtype=float),
         muscle_actuation_active_out: wp.array2d(dtype=float),
@@ -420,6 +421,7 @@ def _set_state(
     muscle_norm_fiber_length_out[worldid, muscle_id] = mli.norm_fiber_length
 
     # Remaining analytics/observations
+    muscle_passive_length_multiplier_out[worldid, muscle_id] = mli.fiber_passive_force_length_multiplier
     muscle_active_length_multiplier_out[worldid, muscle_id] = mli.fiber_active_force_length_multiplier
     muscle_active_velocity_multiplier_out[worldid, muscle_id] = fvi.fiber_force_velocity_multiplier
     # muscle_actuation_passive_out[worldid, muscle_id] = mdi.passive_fiber_force
@@ -481,6 +483,7 @@ def contraction_dynamics(m: Model, d: Data):
         ],
         outputs=[
             d.m_state_dot, d.muscle_actuation,
+            d.muscle_passive_length_multiplier,
             d.muscle_active_length_multiplier, d.muscle_active_velocity_multiplier,
             d.muscle_actuation_active, d.muscle_actuation_passive,
             d.muscle_norm_fiber_length

@@ -375,6 +375,10 @@ def muscle_moment_arms(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_moment_arm)
 
 
+def muscle_passive_length_multiplier(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.muscle_passive_length_multiplier)
+
+
 def muscle_active_length_multiplier(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_active_length_multiplier)
 
