@@ -2,20 +2,6 @@ import numpy as np
 import warp as wp
 
 
-def exclusive_scan(v, mark_empty: bool):
-    result = [0] * (len(v) + 1)
-    for i in range(1, len(result)):
-        result[i] = result[i - 1] + v[i - 1]
-    # Remove the last element to return the exclusive scan
-    result = result[:-1]
-
-    if mark_empty:
-        for i in range(len(v)):
-            if v[i] == 0:
-                result[i] = -1
-
-    return result
-
 def check_zero(arr: wp.array):
     # if any the dimensions are zero, replace with a 1
     shape = list(arr.shape)
