@@ -7,6 +7,7 @@ GPU-accelerated physics simulations for articulated rigid bodies with muscle act
 
 **Current features include:**
 - Articulated body motion computations performed in generalized coordinates, including [OpenSim CustomJoint](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CustomJoint.html) logic.
+  - Implements Featherstone's Articulated Body Algortithm for computing forward dynamics in O(n) time.
 - Stateful elastic tendon dynamics and muscle activation dynamics
   - Force-curves based on either [Millard et al.](https://doi.org/10.1115/1.4023390) or [De Groote et al.](https://pubmed.ncbi.nlm.nih.gov/27001399/)
   - Includes option to use rigid tendons per muscle
