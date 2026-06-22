@@ -16,7 +16,7 @@
 
 import warp as wp
 
-from .collision_primitive import primitive_narrowphase
+from .collision_primitive import narrowphase
 from .consts import BOLT_MAXVAL
 from .types import Data
 from .types import Model
@@ -354,7 +354,7 @@ def _nxn_broadphase(broadphase_filter):
 
 
 @event_scope
-def nxn_broadphase(m: Model, d: Data):
+def broadphase(m: Model, d: Data):
     """Runs broadphase collision detection using a brute-force N-squared approach.
 
     This function iterates through a pre-filtered list of all possible geometry pairs and
@@ -390,35 +390,14 @@ def nxn_broadphase(m: Model, d: Data):
     )
 
 
-def _narrowphase(m, d):
-    primitive_narrowphase(m, d)
-
-
 @event_scope
 def collision(m: Model, d: Data):
-    """Runs the full collision detection pipeline.
-
-    This function orchestrates the broadphase and narrowphase collision detection stages. It
-    first identifies potential collision pairs using a broadphase algorithm (either N-squared
-    or Sweep-and-Prune, based on `m.opt.broadphase`). Then, for each potential pair, it
-    performs narrowphase collision detection to compute detailed contact information like
-    distance, position, and frame.
-
-    The results are used to populate the `d.contact` array, and the total number of contacts
-    is stored in `d.nacon`.  If `d.nacon` is larger than `d.naconmax` then an overflow has
-    occurred and the remaining contacts will be skipped.  If this happens, raise the `nconmax`
-    parameter in `io.make_data` or `io.put_data`.
-
-    This function will do nothing except zero out arrays if collision detection is disabled
-    via `m.opt.disableflags` or if `d.nacon` is 0.
-    """
+    """Runs the full collision detection pipeline. """
     # zero contact and collision counters
     wp.launch(_zero_nacon_ncollision, dim=1, outputs=[d.nacon, d.ncollision])
 
     if d.naconmax == 0:
         return
 
-    # if m.opt.broadphase == BroadphaseType.NXN:
-    nxn_broadphase(m, d)
-
-    _narrowphase(m, d)
+    broadphase(m, d)
+    narrowphase(m, d)

@@ -1485,7 +1485,7 @@ def _primitive_narrowphase_builder(m: Model):
 
 
 @event_scope
-def primitive_narrowphase(m: Model, d: Data):
+def narrowphase(m: Model, d: Data):
     """Runs collision detection on primitive geom pairs discovered during broadphase.
 
     This function processes collision pairs involving primitive shapes that were

@@ -2,6 +2,7 @@
 MAX_POLY_NUM_DOFS = 12  # Maximum number of DOFs a function can support
 MAX_POLY_ORDER = 10  # Maximum polynomial order
 
+# Numerical constants
 BOLT_MINVAL = 1e-15
 BOLT_MAXVAL = 10000000000.0
 BOLT_SIG_REAL = 1e-6
@@ -20,31 +21,6 @@ A_Af = 0.50641133
 A_rho = 1.20474061
 A_AFK = 0.5 * A_rho * A_Af * A_Cd
 
-# DeGroote-Fregly muscle constants
-DGF_B11 = 0.8150671134243542
-DGF_B21 = 1.055033428970575
-DGF_B31 = 0.162384573599574
-DGF_B41 = 0.063303448465465
-DGF_B12 = 0.433004984392647
-DGF_B22 = 0.716775413397760
-DGF_B32 = -0.029947116970696
-DGF_B42 = 0.200356847296188
-DGF_B13 = 0.1
-DGF_B23 = 1.0
-DGF_B33 = 0.353553390593274
-DGF_B43 = 0.0
-# Tendon force-length curve
-DGF_C1 = 0.200
-DGF_C2 = 1.0
-DGF_C3 = 0.200
-# Muscle force-velocity curve
-DGF_D1 = -0.3211346127989808
-DGF_D2 = -8.149
-DGF_D3 = -0.374
-DGF_D4 = 0.8825327733249912
-# Muscle passive force-length curve
-DGF_KPE = 4.0
-
 # These are overridden for each muscle depending on max pennation angles
 MIN_NORM_FIBER_LENGTH = 0.2
 MAX_NORM_FIBER_LENGTH = 1.8
@@ -55,7 +31,5 @@ M_MAX_NORM_TENDON_FORCE = 5.0
 M_MIN_PENNATION_ANGLE = 0.0
 M_MAX_PENNATION_ANGLE = 1.47062891
 
-TENDON_STRAIN_AT_ONE_NORM_FORCE = 0.049
-
-# MILLARD: move to metadata at some point
+# MILLARD only: minimum active fiber length
 MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH = 0.4441
