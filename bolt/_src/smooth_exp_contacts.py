@@ -15,6 +15,7 @@ def _reset_exp_contact_state(
         # Model:
         exp_contact: wp.array(dtype=ExponentialContact),
         # Data in:
+        world_reset_in: wp.array(dtype=bool),
         integration_done_in: wp.array(dtype=bool),
         site_pos_G_in: wp.array2d(dtype=wp.vec3),
         # Data out:
@@ -24,17 +25,19 @@ def _reset_exp_contact_state(
     if integration_done_in[worldid]:
         return
 
-    contact = exp_contact[conid]
-    siteid = contact.siteid
-    X_GP = contact.contact_plane_transform
+    if world_reset_in[worldid]:
+        contact = exp_contact[conid]
+        siteid = contact.siteid
+        X_GP = contact.contact_plane_transform
 
-    # Reset anchor point
-    p_G = site_pos_G_in[worldid, siteid]
-    p_P = wp.transform_point(wp.transform_inverse(X_GP), p_G)
-    p_P.z = 0.0  # Project onto contact plane
-    p0 = p_P
-    exp_contact_state_out[worldid, conid] = wp.vec4(1.0, p0.x, p0.y, p0.z)
+        # Reset anchor point
+        p_G = site_pos_G_in[worldid, siteid]
+        p_P = wp.transform_point(wp.transform_inverse(X_GP), p_G)
+        p_P.z = 0.0  # Project onto contact plane
+        p0 = p_P
+        exp_contact_state_out[worldid, conid] = wp.vec4(1.0, p0.x, p0.y, p0.z)
     return
+
 
 
 @wp.kernel
@@ -180,7 +183,7 @@ def reset_exp_contact_state(m: Model, d: Data):
         wp.launch(
             _reset_exp_contact_state,
             dim=(d.nworld, m.nexpcontact),
-            inputs=[m.exp_contact, d.integration_done, d.site_pos_G],
+            inputs=[m.exp_contact, d.world_reset, d.integration_done, d.site_pos_G],
             outputs=[d.exp_contact_state]
         )
     return
