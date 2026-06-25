@@ -419,7 +419,7 @@ def load_model(
             m_state=make_zero((n_worlds, nmuscle), dtype=float),
             m_act=make_zero((n_worlds, nmuscle), dtype=float),
             a_act=make_zero((n_worlds, nactuator), dtype=float),
-            exp_contact_state=make_zero((n_worlds, nexpcontact), dtype=wp.vec4),
+            exp_contact_state=make_zero((n_worlds, nexpcontact), dtype=wp.vec3),
         ) for _ in range(n_int_states)
     ]
 
@@ -430,7 +430,7 @@ def load_model(
             m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
             m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
             a_act_dot=make_zero((n_worlds, nactuator), dtype=float),
-            exp_contact_state_dot=make_zero((n_worlds, nexpcontact), dtype=wp.vec4),
+            exp_contact_state_dot=make_zero((n_worlds, nexpcontact), dtype=wp.vec3),
         ) for _ in range(n_int_dot_states)
     ]
 
@@ -486,7 +486,7 @@ def load_model(
         m_act=make_zero((n_worlds, nmuscle), dtype=float),
         a_act=make_full(0.5, (n_worlds, nactuator), dtype=float),
         m_state=make_zero((n_worlds, nmuscle), dtype=float),
-        exp_contact_state=make_zero((n_worlds, nexpcontact), dtype=wp.vec4),
+        exp_contact_state=make_zero((n_worlds, nexpcontact), dtype=wp.vec3),
 
         grf=make_zero((n_worlds,), dtype=wp.vec3),
 
@@ -497,7 +497,7 @@ def load_model(
         m_excitations=make_full(0.5, (n_worlds, nmuscle), dtype=float),
         a_excitations=make_full(0.5, (n_worlds, nactuator), dtype=float),
         m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
-        exp_contact_state_dot=make_zero((n_worlds, nexpcontact), dtype=wp.vec4),
+        exp_contact_state_dot=make_zero((n_worlds, nexpcontact), dtype=wp.vec3),
 
         cst_fn_output=make_zero((n_worlds, nfunctions), dtype=wp.vec3),
 

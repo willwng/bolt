@@ -148,6 +148,7 @@ def _next_actuator_activation(
         worldid, actuator_id] * step_size
     act_out[worldid, actuator_id] = (
         wp.clamp(act, am.min_activation, am.max_activation))
+    return
 
 
 @wp.kernel
@@ -156,12 +157,12 @@ def _next_exp_contact_state(
         exp_contact: wp.array(dtype=ExponentialContact),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        exp_contact_state_dot_in: wp.array2d(dtype=wp.vec4),
+        exp_contact_state_dot_in: wp.array2d(dtype=wp.vec3),
         actual_step_size_in: wp.array(dtype=float),
         # In:
         scale: float,
         # Data out:
-        exp_contact_state_out: wp.array2d(dtype=wp.vec4),
+        exp_contact_state_out: wp.array2d(dtype=wp.vec3),
 ):
     worldid, conid = wp.tid()
     if integration_done_in[worldid]:
@@ -174,7 +175,7 @@ def _next_exp_contact_state(
     # State_dot holds wp.length(p0_delta), p0.x, p0.y, p0.z
     state_dot = exp_contact_state_dot_in[worldid, conid]
     p0_delta_length = state_dot[0]
-    p0 = wp.vec3(state_dot[1], state_dot[2], state_dot[3])
+    p0 = wp.vec2(state_dot[1], state_dot[2])
 
     # Compute new sliding state (K)
     K = 1.0
@@ -184,8 +185,8 @@ def _next_exp_contact_state(
         K = math.step_up(wp.clamp(speed_frac, 0.0, 1.0))
 
     # Update state
-    exp_contact_state_out[worldid, conid] = wp.vec4(K, p0.x, p0.y, p0.z)
-
+    exp_contact_state_out[worldid, conid] = wp.vec3(K, p0.x, p0.y)
+    return
 
 
 @wp.kernel

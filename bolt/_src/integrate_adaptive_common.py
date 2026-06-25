@@ -452,7 +452,7 @@ def save_state(
         m_state_dest: wp.array2d(dtype=float),
         m_act_dest: wp.array2d(dtype=float),
         a_act_dest: wp.array2d(dtype=float),
-        exp_contact_state_dest: wp.array2d(dtype=wp.vec4),
+        exp_contact_state_dest: wp.array2d(dtype=wp.vec3),
 ):
     wp.copy(time_dest, d.time)
     wp.copy(qpos_dest, d.qpos)
@@ -553,7 +553,7 @@ def restore_state(
         m_state_src: wp.array2d,
         m_act_src: wp.array2d,
         a_act_src: wp.array2d,
-        exp_contact_state_src: wp.array2d(dtype=wp.vec4),
+        exp_contact_state_src: wp.array2d(dtype=wp.vec3),
         only_on_reject: bool
 ):
     @wp.kernel
@@ -567,7 +567,7 @@ def restore_state(
             m_state_in: wp.array2d(dtype=float),
             m_act_in: wp.array2d(dtype=float),
             a_act_in: wp.array2d(dtype=float),
-            exp_contact_state_in: wp.array2d(dtype=wp.vec4),
+            exp_contact_state_in: wp.array2d(dtype=wp.vec3),
             # Data out:
             time_out: wp.array(dtype=float),
             qpos_out: wp.array2d(dtype=float),
@@ -575,7 +575,7 @@ def restore_state(
             m_state_out: wp.array2d(dtype=float),
             m_act_out: wp.array2d(dtype=float),
             a_act_out: wp.array2d(dtype=float),
-            exp_contact_state_out: wp.array2d(dtype=wp.vec4),
+            exp_contact_state_out: wp.array2d(dtype=wp.vec3),
     ):
         worldid = wp.tid()
         if step_accepted_in[worldid] or done_integrating_in[worldid]:

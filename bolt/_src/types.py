@@ -716,7 +716,7 @@ class IntegratorStateScratch:
     m_state: wp.array2d(dtype=float)
     m_act: wp.array2d(dtype=float)
     a_act: wp.array2d(dtype=float)
-    exp_contact_state: wp.array2d(dtype=wp.vec4)
+    exp_contact_state: wp.array2d(dtype=wp.vec3)
 
 
 @dataclass
@@ -726,7 +726,7 @@ class IntegratorDotScratch:
     m_state_dot: wp.array2d(dtype=float)
     m_act_dot: wp.array2d(dtype=float)
     a_act_dot: wp.array2d(dtype=float)
-    exp_contact_state_dot: wp.array2d(dtype=wp.vec4)
+    exp_contact_state_dot: wp.array2d(dtype=wp.vec3)
 
 
 @dataclass
@@ -900,7 +900,7 @@ class Data:
     m_state: array("nworld", "nmuscle", float)
     m_act: array("nworld", "nmuscle", float)
     a_act: array("nworld", "nactuator", float)
-    exp_contact_state: array("nworld", "nexpcontact", wp.vec4)
+    exp_contact_state: array("nworld", "nexpcontact", wp.vec3)
 
     m_excitations: array("nworld", "nmuscle", float)
     a_excitations: array("nworld", "nactuator", float)
@@ -910,7 +910,7 @@ class Data:
     m_state_dot: array("nworld", "nmuscle", float)
     m_act_dot: array("nworld", "nmuscle", float)
     a_act_dot: array("nworld", "nactuator", float)
-    exp_contact_state_dot: array("nworld", "nexpcontact", wp.vec4)
+    exp_contact_state_dot: array("nworld", "nexpcontact", wp.vec3)
 
     body_F_gravity: array("nworld", "nbody", wp.spatial_vector)
     body_F_contact: array("nworld", "nbody", wp.spatial_vector)
