@@ -7,7 +7,7 @@ GPU-accelerated physics simulations for articulated rigid bodies with muscle act
 
 **Current features include:**
 - Articulated body motion computations performed in generalized coordinates, including [OpenSim CustomJoint](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CustomJoint.html) logic.
-  - Implements Featherstone's Articulated Body Algorithm for computing forward dynamics in O(n) time.
+  - Implements Featherstone's Articulated Body Algortithm for computing forward dynamics in O(n) time.
 - Stateful elastic tendon dynamics and muscle activation dynamics
   - Force-curves based on either [Millard et al.](https://doi.org/10.1115/1.4023390) or [De Groote et al.](https://pubmed.ncbi.nlm.nih.gov/27001399/)
   - Includes option to use rigid tendons per muscle
@@ -28,8 +28,9 @@ We also include a basic [OpenGL renderer](bolt/render) (not tuned for performanc
 To install Bolt, you'll need to install OpenSim first. We recommend setting up a conda environment first
 ### 1. Conda Environment Setup
 ```bash
-conda create -n bolt python=3.11
-conda activate bolt
+cd bolt
+conda create -n ENV_NAME python=3.11
+conda activate ENV_NAME
 ```
 
 ### 2. Install OpenSim
@@ -39,7 +40,7 @@ which is a full path to a Python installation directory.
 
 Here is an example:
 ```
-python_root_dir: '/opt/anaconda3/envs/bolt'
+echo "python_root_dir: '/opt/anaconda3/envs/ENV_NAME'" > config.yaml
 ```
 #### 2.2. Build OpenSim
 Run the following command from the root directory to build OpenSim and install it into your conda environment.
@@ -51,10 +52,6 @@ On Linux, you may have to add `dependencies/opensim/opensim_dependencies_install
 
 ### 3. Install Bolt
 ```bash
-conda create -n bolt python=3.11
-conda activate bolt
-
-cd bolt
 pip install -r requirements.txt
 pip install -e .
 ```
@@ -76,5 +73,5 @@ Command line:
 - `--benchmark` - (GPU only) tests simulator speed
 
 **Note: The first time running the simulator will take a while to 
-compile the warp kernels (10+ minutes).
-Subsequent runs will use cached kernels.**
+compile the warp kernels (especially the polynomial muscle paths).
+Subsequent runs will use cached kernels and are much faster.**
