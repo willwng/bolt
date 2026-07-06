@@ -198,12 +198,9 @@ def _process_contacts_exp(
     # --- Calculate Force ---
     f_P = wp.vec3(fric_P.x, fric_P.y, fz)
     f_G = wp.quat_rotate(R_GP, f_P)
-
     # Apply force to body
     X_GB = mob_X_GB_in[worldid, bodyid]
-    wp.atomic_add(body_F_contact_out[worldid], bodyid,
-                  math.apply_force_to_body_point(X_GB, station_B, f_G))
-
+    wp.atomic_add(body_F_contact_out[worldid], bodyid, math.apply_force_to_body_point(X_GB, station_B, f_G))
     # Update GRF
     wp.atomic_add(grf_out, worldid, f_G)
 
