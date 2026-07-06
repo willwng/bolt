@@ -768,8 +768,7 @@ class Data:
       a_act_dot: time-derivative of actuator activation           (nworld, nactuator)
       exp_contact_state_dot: derivative info of exp contact state (nworld, nexpcontact, 4)
 
-     *
-        simulator forces.
+     * simulator forces
         body_F_ are Cartesian forces applied to bodies.
         ufrc_ are generalized forces (in generalized speed space)
         qfrc_ are generalized forces (in generalized position space, need to be converted)

@@ -10,6 +10,7 @@ arg_parser.add_argument("--model", type=str, required=True)
 arg_parser.add_argument("--muscle-functions", type=str)
 arg_parser.add_argument("--nworld", type=int, default=1)
 arg_parser.add_argument("--nstep", type=int, default=1000)
+arg_parser.add_argument("--accuracy", type=float, default=0.1)
 arg_parser.add_argument("--recompile", action="store_true")
 arg_parser.add_argument("--debug", action="store_true")
 arg_parser.add_argument("--benchmark", action="store_true")
@@ -52,7 +53,7 @@ def main():
     )
     m, d = load_result.model, load_result.data
     m.opt.use_inf_norm = False
-    m.opt.accuracy = 1.0
+    m.opt.accuracy = args.accuracy
 
     # Set initial joint positions here
     def qpos_id(name):
