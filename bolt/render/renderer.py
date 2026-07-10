@@ -120,6 +120,7 @@ class Renderer:
         self.ellipsoid_mesh = create_ellipsoid_mesh(1.0, 1.0, 1.0)
 
         self.num_instances_per_world = number_instances_per_world
+        self.num_global_instances = 1
 
     def load_meshes(self, mesh_loads: list[types.MeshLoadResult]):
         for mesh_load in mesh_loads:
@@ -134,12 +135,23 @@ class Renderer:
     ):
         assert self.viewer_type == RendererType.TILED
         num_tiles = len(worlds)
+        global_instances = list(range(self.num_global_instances))
         instance_ids = []
-        for i in range(num_tiles):
-            world_instances = list(range(
-                i * self.num_instances_per_world,
-                (i + 1) * self.num_instances_per_world))
+        for world_id in worlds:
+            offset = self.num_global_instances + world_id * self.num_instances_per_world
+            world_instances = global_instances + list(range(
+                offset,
+                offset + self.num_instances_per_world))
             instance_ids.append(world_instances)
+
+        # warp's OpenGLRenderer arranges tiles in a ceil(sqrt(n)) x
+        # ceil(n / ncols) grid when no explicit layout is given. That grid
+        # can have more cells than tiles (e.g. 17 -> 5x4 = 20), and its
+        # render loop indexes self._tile_instances by grid cell, so we must
+        # pad with empty tiles to match or it raises IndexError.
+        tile_ncols = int(np.ceil(np.sqrt(num_tiles)))
+        tile_nrows = int(np.ceil(num_tiles / float(tile_ncols)))
+        instance_ids.extend([] for _ in range(tile_ncols * tile_nrows - num_tiles))
 
         self.renderer.setup_tiled_rendering(instances=instance_ids)
         self.worlds = worlds
@@ -156,10 +168,7 @@ class Renderer:
 
     def render(self, m: types.Model, d: types.Data):
         def render_body(wid: int = 0):
-            obj_id = wid * self.num_instances_per_world
-
-            # Ground
-            self.renderer.render_ground()
+            obj_id = self.num_global_instances + wid * self.num_instances_per_world
 
             # Sites
             if self.draw_sites:
@@ -298,11 +307,13 @@ class Renderer:
         if self.viewer_type == RendererType.OPENGL:
             time = self.renderer.clock_time
             self.renderer.begin_frame(time)
+            self.renderer.render_ground()
             render_body()
             self.renderer.end_frame()
         elif self.viewer_type == RendererType.TILED:
             time = self.renderer.clock_time
             self.renderer.begin_frame(time)
+            self.renderer.render_ground()
             for world_id in self.worlds:
                 render_body(world_id)
             self.renderer.end_frame()
@@ -310,6 +321,7 @@ class Renderer:
             sim_time = d.time.numpy()[0]
             with wp.ScopedTimer("render"):
                 self.renderer.begin_frame(sim_time)
+                self.renderer.render_ground()
                 render_body()
                 self.renderer.end_frame()
         elif self.viewer_type == RendererType.NONE:
