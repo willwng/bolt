@@ -1,0 +1,24 @@
+<svg width="100%" viewBox="0 0 640 190" role="img" style="" xmlns="http://www.w3.org/2000/svg">
+    <title style="fill:rgb(0, 0, 0);stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+        Bolt logo with larger bolt inside smaller ring
+    </title>
+    <desc style="fill:rgb(0, 0, 0);stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+        The horizontal Bolt logo layout preserved, with a larger tilted bolt icon inside the smaller periwinkle ring,
+        black wordmark to the right.
+    </desc>
+    <circle cx="95" cy="95" r="70" fill="none" stroke="#7D97CE" stroke-width="10"
+            style="fill:none;stroke:rgb(125, 151, 206);color:rgb(11, 11, 11);stroke-width:10px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+    <g transform="translate(95 95) scale(0.95) translate(-51 -90)"
+       style="fill:rgb(0, 0, 0);stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+        <g transform="rotate(12 51 90)"
+           style="fill:rgb(0, 0, 0);stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+            <path d="M62 8 L2 96 L40 96 L26 172 L100 76 L58 76 Z" fill="#7D97CE" stroke="#111111" stroke-width="3"
+                  stroke-linejoin="round"
+                  style="fill:rgb(125, 151, 206);stroke:rgb(17, 17, 17);color:rgb(11, 11, 11);stroke-width:3px;stroke-linecap:butt;stroke-linejoin:round;opacity:1;font-family:&quot;Anthropic Sans&quot;, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+        </g>
+    </g>
+    <text x="210" y="132" font-family="Arial, Helvetica, sans-serif" font-size="118" font-weight="700" fill="#111111"
+          style="fill:rgb(17, 17, 17);stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:Arial, Helvetica, sans-serif;font-size:118px;font-weight:700;text-anchor:start;dominant-baseline:auto">
+        Bolt
+    </text>
+</svg>
