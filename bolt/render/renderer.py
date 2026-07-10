@@ -108,11 +108,15 @@ class Renderer:
         if self.draw_colliders:
             number_instances_per_world += m.ngeom
         if self.draw_muscles:
-            number_instances_per_world += m.nmuscle
+            # Each muscle is drawn as a chain of capsules, one per segment
+            # between consecutive via points.
+            number_instances_per_world += int(np.sum(np.maximum(self.muscle_num_pts - 1, 0)))
         if self.draw_body_mass:
             number_instances_per_world += m.nbody
         if self.draw_beams:
-            number_instances_per_world += m.nbeams
+            # Each beam is drawn as a chain of capsules between its fixed
+            # number of visual points.
+            number_instances_per_world += m.nbeams * max(m.nbeams - 1, 0) # fixme
         if self.draw_sites:
             number_instances_per_world += m.nsite
 
@@ -160,6 +164,31 @@ class Renderer:
         rot_input = R.from_quat(quat)
         rot_result = rot_input * self.rot_convert
         return rot_result.as_quat(scalar_first=False)
+
+    @staticmethod
+    def capsule_from_segment(p0, p1) -> tuple:
+        """Returns (pos, rot, half_height) for an up_axis=1 capsule spanning p0 -> p1."""
+        p0 = np.asarray(p0, dtype=np.float64)
+        p1 = np.asarray(p1, dtype=np.float64)
+        pos = (p0 + p1) * 0.5
+        seg = p1 - p0
+        length = np.linalg.norm(seg)
+        if length < 1e-8:
+            return pos, (0.0, 0.0, 0.0, 1.0), 0.0
+
+        direction = seg / length
+        y_axis = np.array([0.0, 1.0, 0.0])
+        dot = np.clip(np.dot(y_axis, direction), -1.0, 1.0)
+        if dot > 1.0 - 1e-8:
+            rot = (0.0, 0.0, 0.0, 1.0)
+        elif dot < -1.0 + 1e-8:
+            rot = (1.0, 0.0, 0.0, 0.0)
+        else:
+            axis = np.cross(y_axis, direction)
+            axis /= np.linalg.norm(axis)
+            angle = np.arccos(dot)
+            rot = tuple(R.from_rotvec(axis * angle).as_quat())
+        return pos, rot, length * 0.5
 
     @staticmethod
     def activation_to_color(act: float) -> tuple:
@@ -269,16 +298,21 @@ class Renderer:
                     start_idx = self.muscle_pts_adr[i]
                     end_idx = start_idx + self.muscle_num_pts[i]
                     pt_inds = range(start_idx, end_idx)
-                    # Line segment connecting active points
+                    # Chain of capsules connecting active points
                     pts_xloc = site_xpos[pt_inds]
                     color = self.activation_to_color(muscle_activations[i])
-                    self.renderer.render_line_strip(
-                        f"muscle_{obj_id}",
-                        pts_xloc,
-                        color=color,
-                        radius=radius,
-                    )
-                    obj_id += 1
+                    for j in range(len(pts_xloc) - 1):
+                        pos, rot, half_height = self.capsule_from_segment(pts_xloc[j], pts_xloc[j + 1])
+                        self.renderer.render_capsule(
+                            f"muscle_{obj_id}",
+                            pos,
+                            rot,
+                            radius=radius,
+                            half_height=half_height,
+                            up_axis=1,
+                            color=color,
+                        )
+                        obj_id += 1
 
             if self.draw_body_mass:
                 body_com = d.body_COM_G.numpy()[wid]
@@ -295,13 +329,18 @@ class Renderer:
             if self.draw_beams:
                 for i in range(m.nbeams):
                     beam_points = d.vis_beam_pos.numpy()[wid, i]
-                    self.renderer.render_line_strip(
-                        f"beam_{obj_id}",
-                        beam_points,
-                        color=self.colors["beam"],
-                        radius=self.beam_radius,
-                    )
-                    obj_id += 1
+                    for j in range(len(beam_points) - 1):
+                        pos, rot, half_height = self.capsule_from_segment(beam_points[j], beam_points[j + 1])
+                        self.renderer.render_capsule(
+                            f"beam_{obj_id}",
+                            pos,
+                            rot,
+                            radius=self.beam_radius,
+                            half_height=half_height,
+                            up_axis=1,
+                            color=self.colors["beam"],
+                        )
+                        obj_id += 1
 
         # Render based on viewer type
         if self.viewer_type == RendererType.OPENGL:
