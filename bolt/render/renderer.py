@@ -107,21 +107,22 @@ class Renderer:
             number_instances_per_world += m.nvis
         if self.draw_colliders:
             number_instances_per_world += m.ngeom
-        if self.draw_muscles:
-            # Each muscle is drawn as a chain of capsules, one per segment
-            # between consecutive via points.
-            number_instances_per_world += int(np.sum(np.maximum(self.muscle_num_pts - 1, 0)))
         if self.draw_body_mass:
             number_instances_per_world += m.nbody
-        if self.draw_beams:
-            # Each beam is drawn as a chain of capsules between its fixed
-            # number of visual points.
-            number_instances_per_world += m.nbeams * max(m.nbeams - 1, 0) # fixme
         if self.draw_sites:
             number_instances_per_world += m.nsite
+        # Muscles and beams are drawn with render_line_strip, which goes
+        # through a separate per-name ShapeInstancer path in the underlying
+        # renderer that never registers into the per-tile instance table.
+        # They must NOT be counted here, or setup_tiled_renderer hands the
+        # tiled renderer instance ids that were never registered, which
+        # raises KeyError.
 
-        # Required for rendering ellipsoids since they aren't built in to the renderer
-        self.ellipsoid_mesh = create_ellipsoid_mesh(1.0, 1.0, 1.0)
+        # Required for rendering ellipsoids since they aren't built in to the renderer.
+        # Cached as numpy once since this geometry is static.
+        ellipsoid_mesh = create_ellipsoid_mesh(1.0, 1.0, 1.0)
+        self.ellipsoid_points = ellipsoid_mesh.points.numpy()
+        self.ellipsoid_indices = ellipsoid_mesh.indices.numpy()
 
         self.num_instances_per_world = number_instances_per_world
         self.num_global_instances = 1
@@ -129,7 +130,8 @@ class Renderer:
     def load_meshes(self, mesh_loads: list[types.MeshLoadResult]):
         for mesh_load in mesh_loads:
             geom_mesh = load_mesh(mesh_load.file)
-            self.meshes.append(geom_mesh)
+            # Cached as numpy once since this geometry is static.
+            self.meshes.append((geom_mesh.points.numpy(), geom_mesh.indices.numpy()))
             self.mesh_scales.append(mesh_load.scale)
         return
 
@@ -166,42 +168,25 @@ class Renderer:
         return rot_result.as_quat(scalar_first=False)
 
     @staticmethod
-    def capsule_from_segment(p0, p1) -> tuple:
-        """Returns (pos, rot, half_height) for an up_axis=1 capsule spanning p0 -> p1."""
-        p0 = np.asarray(p0, dtype=np.float64)
-        p1 = np.asarray(p1, dtype=np.float64)
-        pos = (p0 + p1) * 0.5
-        seg = p1 - p0
-        length = np.linalg.norm(seg)
-        if length < 1e-8:
-            return pos, (0.0, 0.0, 0.0, 1.0), 0.0
-
-        direction = seg / length
-        y_axis = np.array([0.0, 1.0, 0.0])
-        dot = np.clip(np.dot(y_axis, direction), -1.0, 1.0)
-        if dot > 1.0 - 1e-8:
-            rot = (0.0, 0.0, 0.0, 1.0)
-        elif dot < -1.0 + 1e-8:
-            rot = (1.0, 0.0, 0.0, 0.0)
-        else:
-            axis = np.cross(y_axis, direction)
-            axis /= np.linalg.norm(axis)
-            angle = np.arccos(dot)
-            rot = tuple(R.from_rotvec(axis * angle).as_quat())
-        return pos, rot, length * 0.5
-
-    @staticmethod
     def activation_to_color(act: float) -> tuple:
         # Map activation [0, 1] to color from blue to red
         return act, 0.0, 1.0 - act
 
     def render(self, m: types.Model, d: types.Data):
+        # Each call copies the full (all-world) array from device to host
+        site_pos_all = d.site_pos_G.numpy() if (self.draw_sites or self.draw_muscles) else None
+        geom_X_all = d.geom_X.numpy() if self.draw_colliders else None
+        vis_X_all = d.vis_X.numpy() if self.draw_visuals else None
+        muscle_act_all = d.m_act.numpy() if self.draw_muscles else None
+        body_com_all = d.body_COM_G.numpy() if self.draw_body_mass else None
+        vis_beam_pos_all = d.vis_beam_pos.numpy() if self.draw_beams else None
+
         def render_body(wid: int = 0):
             obj_id = self.num_global_instances + wid * self.num_instances_per_world
 
             # Sites
             if self.draw_sites:
-                site_pos = d.site_pos_G.numpy()[wid]
+                site_pos = site_pos_all[wid]
                 for i in range(m.nsite):
                     if self.site_start_muscle <= i < self.site_start_exp:
                         color = self.colors["muscle_site"]
@@ -224,7 +209,7 @@ class Renderer:
 
             # Colliders
             if self.draw_colliders:
-                geom_X = d.geom_X.numpy()[wid]
+                geom_X = geom_X_all[wid]
 
                 for i in range(m.ngeom):
                     pos, rot = geom_X[i, :3], geom_X[i, 3:]
@@ -256,8 +241,8 @@ class Renderer:
                         rx, ry, rz = self.geom_sizes[i]
                         self.renderer.render_mesh(
                             name=f"ellipsoid_{obj_id}",
-                            points=self.ellipsoid_mesh.points.numpy(),
-                            indices=self.ellipsoid_mesh.indices.numpy(),
+                            points=self.ellipsoid_points,
+                            indices=self.ellipsoid_indices,
                             pos=pos,
                             rot=rot,
                             scale=(rx, ry, rz),
@@ -267,15 +252,15 @@ class Renderer:
 
             # Visuals
             if self.draw_visuals:
-                vis_X = d.vis_X.numpy()[wid]
+                vis_X = vis_X_all[wid]
                 for i in range(m.nvis):
-                    mesh = self.meshes[i]
+                    mesh_points, mesh_indices = self.meshes[i]
                     scale = self.mesh_scales[i]
                     pos, rot = vis_X[i, :3], vis_X[i, 3:]
                     self.renderer.render_mesh(
                         name=f"visual_{obj_id}",
-                        points=mesh.points.numpy(),
-                        indices=mesh.indices.numpy(),
+                        points=mesh_points,
+                        indices=mesh_indices,
                         pos=pos,
                         rot=rot,
                         scale=scale,
@@ -286,8 +271,8 @@ class Renderer:
             # Muscles
             if self.draw_muscles:
                 num_muscles = m.nmuscle
-                site_xpos = d.site_pos_G.numpy()[wid]
-                muscle_activations = d.m_act.numpy()[wid]
+                site_xpos = site_pos_all[wid]
+                muscle_activations = muscle_act_all[wid]
 
                 for i in range(num_muscles):
                     # Muscle radius
@@ -298,24 +283,19 @@ class Renderer:
                     start_idx = self.muscle_pts_adr[i]
                     end_idx = start_idx + self.muscle_num_pts[i]
                     pt_inds = range(start_idx, end_idx)
-                    # Chain of capsules connecting active points
+                    # Line segment connecting active points
                     pts_xloc = site_xpos[pt_inds]
                     color = self.activation_to_color(muscle_activations[i])
-                    for j in range(len(pts_xloc) - 1):
-                        pos, rot, half_height = self.capsule_from_segment(pts_xloc[j], pts_xloc[j + 1])
-                        self.renderer.render_capsule(
-                            f"muscle_{obj_id}",
-                            pos,
-                            rot,
-                            radius=radius,
-                            half_height=half_height,
-                            up_axis=1,
-                            color=color,
-                        )
-                        obj_id += 1
+                    self.renderer.render_line_strip(
+                        f"muscle_{obj_id}",
+                        pts_xloc,
+                        color=color,
+                        radius=radius,
+                    )
+                    obj_id += 1
 
             if self.draw_body_mass:
-                body_com = d.body_COM_G.numpy()[wid]
+                body_com = body_com_all[wid]
                 for i in range(m.nbody):
                     self.renderer.render_sphere(
                         f"mass_{obj_id}",
@@ -328,19 +308,14 @@ class Renderer:
 
             if self.draw_beams:
                 for i in range(m.nbeams):
-                    beam_points = d.vis_beam_pos.numpy()[wid, i]
-                    for j in range(len(beam_points) - 1):
-                        pos, rot, half_height = self.capsule_from_segment(beam_points[j], beam_points[j + 1])
-                        self.renderer.render_capsule(
-                            f"beam_{obj_id}",
-                            pos,
-                            rot,
-                            radius=self.beam_radius,
-                            half_height=half_height,
-                            up_axis=1,
-                            color=self.colors["beam"],
-                        )
-                        obj_id += 1
+                    beam_points = vis_beam_pos_all[wid, i]
+                    self.renderer.render_line_strip(
+                        f"beam_{obj_id}",
+                        beam_points,
+                        color=self.colors["beam"],
+                        radius=self.beam_radius,
+                    )
+                    obj_id += 1
 
         # Render based on viewer type
         if self.viewer_type == RendererType.OPENGL:
