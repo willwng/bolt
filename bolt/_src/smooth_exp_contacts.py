@@ -30,8 +30,10 @@ def _reset_exp_contact_state(
         siteid = contact.siteid
         X_GP = contact.contact_plane_transform
 
-        # Reset anchor point
-        p_P = wp.transform_point(wp.transform_inverse(X_GP), site_pos_G_in[worldid, siteid])
+        # Position of station in ground
+        p_G = site_pos_G_in[worldid, siteid]
+        # Transform into contact plane frame
+        p_P = wp.transform_point(wp.transform_inverse(X_GP), p_G)
         exp_contact_state_out[worldid, conid] = wp.vec3(1.0, p_P.x, p_P.y)
     return
 

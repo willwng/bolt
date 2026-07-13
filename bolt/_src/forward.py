@@ -57,7 +57,6 @@ def realize_position(m: Model, d: Data, run_reset: bool = False):
 
     # finally, reset any contact state if requested
     if run_reset:
-        # smooth_exp_contacts.reset_exp_contact_state(m, d)
         smooth_exp_contacts.reset_exp_contact_state(m, d)
     return
 
@@ -81,7 +80,7 @@ def realize_velocity(m: Model, d: Data):
 
 
 @event_scope
-def realize_articulated_body(m: Model, d: Data):
+def realize_articulated_body_inertia(m: Model, d: Data):
     smooth_inert.initialize_articulated_body_inertia(m, d)
     smooth_inert.accumulate_articulated_body_inertia(m, d)
     smooth_inert.articulated_body_velocity(m, d)
@@ -154,7 +153,7 @@ def fwd(m: Model, d: Data):
     reset_forces(m, d)
     realize_position(m, d, run_reset=False)
     realize_velocity(m, d)
-    realize_articulated_body(m, d)
+    realize_articulated_body_inertia(m, d)
     realize_muscles(m, d, run_reset=False)
     realize_actuators(m, d, run_reset=False)
     realize_forces(m, d)
@@ -171,7 +170,7 @@ def reset(m: Model, d: Data):
     reset_forces(m, d)
     realize_position(m, d, run_reset=True)
     realize_velocity(m, d)
-    realize_articulated_body(m, d)
+    realize_articulated_body_inertia(m, d)
     realize_muscles(m, d, run_reset=True)
     realize_actuators(m, d, run_reset=True)
     realize_forces(m, d)
