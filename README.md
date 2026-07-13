@@ -11,15 +11,15 @@ GPU-accelerated physics simulations for articulated rigid bodies with muscle act
 - **Articulated body motion computations performed in generalized coordinates, including [OpenSim CustomJoint](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CustomJoint.html) logic**
   - Implements Featherstone's Articulated Body Algortithm for O(n) forward dynamics
 - **Compliant/elastic tendon dynamics**
-  - Force-curves based on either [Millard et al.](https://doi.org/10.1115/1.4023390) or [De Groote et al.](https://pubmed.ncbi.nlm.nih.gov/27001399/)
-  - Includes option to use rigid tendons per muscle
+  - Implements [Millard et al.](https://doi.org/10.1115/1.4023390) (spline-based) or [De Groote et al.](https://pubmed.ncbi.nlm.nih.gov/27001399/) (polynomial) characteristic curves
+  - Option to assume rigid tendons per each muscle
 - **Muscle excitation/activation dynamics**
-  - Using Degroote et al. and Millard et al. formulations
+  - Supports [Millard et al.](https://doi.org/10.1115/1.4023390) and [De Groote et al.](https://pubmed.ncbi.nlm.nih.gov/27001399/) activation dynamics
 - **Force-based constraints**
   - Contacts: [Hunt-Crossley](https://simtk.org/api_docs/molmodel/api_docs22/Simbody/html/classSimTK_1_1HuntCrossleyForce.html) and [ExponentialContactForces](https://github.com/opensim-org/opensim-core/blob/main/OpenSim/Simulation/Model/ExponentialContactForce.h)
   - Joint limits: [MobilityLinearStop](https://simtk.org/api_docs/simbody/api_docs33/Simbody/html/classSimTK_1_1Force_1_1MobilityLinearStop.html) and [CoordinateLimitForce](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CoordinateLimitForce.html)
 - **Geometry-based and polynomial/function-based muscle paths**
-  - Optimized kernels for polynomial evaluations
+  - Optimized kernels for polynomial evaluations within function-based paths
 - **Several integrators, including error-controlled adaptive integrators**
   - Symplectic Euler and RK4 
   - Adaptive symplectic Euler and Runge-Kutta-Merson
@@ -76,5 +76,5 @@ Command line:
 - `--benchmark` - (GPU only) tests simulator speed
 
 **Note: The first time running the simulator will take a while to 
-compile the warp kernels (especially the polynomial muscle paths).
+compile the warp kernels (especially the function-based muscle paths code).
 Subsequent runs will use cached kernels and are much faster.**
