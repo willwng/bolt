@@ -233,6 +233,10 @@ def set_integrator_accuracy(m: Model, accuracy: float):
     m.opt.accuracy = accuracy
 
 
+def set_integrator_min_step_size(m: Model, min_step_size: float):
+    m.opt.min_step_size = min_step_size
+
+
 def set_integrator_use_inf_norm(m: Model, use_inf_norm: bool):
     m.opt.use_inf_norm = use_inf_norm
 
