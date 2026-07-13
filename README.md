@@ -2,7 +2,9 @@
 <img src="assets/logo.svg" width="500"><br>GPU-accelerated Musculoskeletal Simulator
 </h2>
 
-GPU-accelerated physics simulations for articulated rigid bodies with muscle actuators, designed for many-world (1k+ worlds) parallel simulations. Inspired by [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) and [OpenSim](https://github.com/opensim-org/opensim-core).
+GPU-accelerated, high-fidelity musculoskeletal simulator designed for massively parallel (1k+) environments 
+and predictive simulation at hundreds-to-thousands times real-time speed.
+Inspired by [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) and [OpenSim](https://github.com/opensim-org/opensim-core).
 <div float="center">
   <img src="assets/screenshot.png" alt="bolt screenshot"/>
 </div>
