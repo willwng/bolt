@@ -7,6 +7,7 @@ from ._src.forward import reset as reset
 from ._src.forward import realize_position as fk
 from ._src.forward_post import compute_muscle_passive_forces as compute_muscle_passive_forces
 from ._src.forward_post import compute_muscle_force_breakdown as compute_muscle_force_breakdown
+from ._src.forward_post import map_dq_to_u as map_dq_to_u
 from ._src.forward_post import compute_muscle_moments as compute_muscle_moments
 from ._src.forward_post import compute_net_joint_moments as compute_net_joint_moments
 

@@ -5,6 +5,7 @@ from . import smooth_mobilizer_post
 from . import smooth_muscle_fn
 from . import smooth_muscle_post
 from . import smooth_muscle_pt
+from . import mobilizers
 from .types import Data
 from .types import Model
 from .warp_util import event_scope
@@ -60,3 +61,15 @@ def compute_muscle_force_breakdown(m: Model, d: Data):
     smooth_muscle_fn.apply_muscle_force_fn_breakdown(
         m, d, d.muscle_actuation_active, d.qfrc_muscle_active_breakdown
     )
+
+
+@event_scope
+def map_dq_to_u(m: Model, d: Data, dq: wp.array2d(dtype=float)):
+    u_out = wp.zeros((d.nworld, m.nv), dtype=wp.float32)
+    wp.launch(
+        kernel=mobilizers.multiply_N_inv_kernel,
+        dim=(d.nworld, m.nbody),
+        inputs=[m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum, d.qpos, dq, ],
+        outputs=[u_out, ],
+    )
+    return wp.to_torch(u_out)
