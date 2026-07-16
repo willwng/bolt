@@ -138,6 +138,7 @@ def _process_contacts_exp(
     kv_fric = contact.friction_viscosity
     mus = contact.initial_mu_static
     muk = contact.initial_mu_kinetic
+    margin = contact.margin
     siteid = contact.siteid
     bodyid = contact.bodyid
     station_B = contact.station_B
@@ -154,7 +155,7 @@ def _process_contacts_exp(
     # Transform into contact plane frame
     p_P = wp.transform_point(wp.transform_inverse(X_GP), p_G)
     # Resolve into normal (z) and tangential (xy) components
-    pz = p_P.z
+    pz = p_P.z - margin
     pxy = wp.vec2(p_P.x, p_P.y)
 
     # --- Realize velocity ---

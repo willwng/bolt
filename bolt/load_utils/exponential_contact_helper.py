@@ -79,6 +79,7 @@ def create_exp_contact_data(
         contact.settle_velocity = data.settle_velocity
         contact.initial_mu_static = data.initial_mu_static
         contact.initial_mu_kinetic = data.initial_mu_kinetic
+        contact.margin = data.margin
 
         contact.siteid = site_start_exp + i
         contact.bodyid = body_ordering[data.station.body_name]

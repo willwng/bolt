@@ -204,6 +204,10 @@ class ExponentialContactForce:
 
     station: SiteData
 
+    # Radius of the sphere used for sphere-vs-plane contact
+    # margin=0 recovers the original point-vs-plane behavior.
+    margin: float = 0.02  # TODO expose this
+
 
 @dataclass
 class MuscleData:
