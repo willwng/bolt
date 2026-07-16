@@ -159,6 +159,7 @@ class ExponentialContact:
     settle_velocity: float
     initial_mu_static: float
     initial_mu_kinetic: float
+    margin: float
 
     siteid: int
     bodyid: int
@@ -446,6 +447,15 @@ class Model:
       npolyfn: number of polynomial functions
       nsplinefn: number of spline functions
 
+      nsite_muscle: number of sites for muscles
+      nsite_contact: number of sites for contacts
+      nsite_marker: number of sites for markers
+      nsite_rem: number of remaining sites
+      site_adr_muscle: starting index of sites for muscles
+      site_adr_contact: starting index of sites for contacts
+      site_adr_marker: starting index of sites for markers
+      site_adr_rem: starting index of remaining sites
+
       opt: physics options
       muscle_metadata: muscle metadata                         (nmuscle,)
       muscle_data: same as above, but intended for future modification
@@ -572,6 +582,15 @@ class Model:
     nconstfn: int
     npolyfn: int
     nsplinefn: int
+
+    nsite_muscle: int
+    nsite_contact: int
+    nsite_marker: int
+    nsite_rem: int
+    site_adr_muscle: int
+    site_adr_contact: int
+    site_adr_marker: int
+    site_adr_rem: int
 
     opt: Option
     muscle_metadata: array("nmuscle", MuscleMetadata)
@@ -843,6 +862,11 @@ class Data:
       vis_X: Cartesian visual transform                           (nworld, nvis, transform)
       vis_beam_pos: position of beam visuals                      (nworld, nbeams, nbeam_visuals, 3)
 
+     * Attached body sites *
+      site_rel_pos_B: site position relative to body              (nworld, nsite, 3)
+      site_pos_G: site position measured in ground                (nworld, nsite, 3)
+      site_vel_G: site velocity measured in ground                (nworld, nsite, 3)
+
      * contacts *
       collision_pair: pair of geoms in contact                    (nacon, 2)
       collision_pairid: pair of geom ids in contact               (nacon, 2)
@@ -854,11 +878,6 @@ class Data:
      * muscle paths
       muscle_length: muscle lengths                               (nworld, nmuscle)
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
-
-     * point-path based muscle paths
-      site_rel_pos_B: site position relative to body              (nworld, nsite, 3)
-      site_pos_G: site position measured in ground                (nworld, nsite, 3)
-      site_vel_G: site velocity measured in ground                (nworld, nsite, 3)
 
      * function-based muscle paths
       muscle_moment_arm: moment arm of muscle r = dL/dq           (nworld, nmuscle, nq)

@@ -7,6 +7,7 @@ import bolt.load_utils.visual_helper as visual_helper
 import bolt.load_utils.muscle_helper as muscle_helper
 import bolt.load_utils.coordinate_force_helper as coordinate_force_helper
 import bolt.load_utils.site_helper as site_helper
+import bolt.load_utils.marker_helper as marker_helper
 import bolt.load_utils.function_based_path_helper as function_based_path_helper
 import bolt.load_utils.actuator_helper as actuator_helper
 import bolt.load_utils.swing_twist_helper as swing_twist_helper

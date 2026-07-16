@@ -55,9 +55,13 @@ def load_model(
     # Gather all sites
     sites_mus = muscle_helper.flatten_sites(converted_muscles)
     sites_exp = exponential_contact_helper.flatten_sites(converted_exp_contacts)
+    sites_marker = marker_helper.convert_markers(model)
     sites_rem = site_helper.convert_sites(model)
-    converted_sites = sites_mus + sites_exp + sites_rem
-    site_start_muscle, site_start_contact, site_start_rem = 0, len(sites_mus), len(sites_mus) + len(sites_exp)
+    converted_sites = sites_mus + sites_exp + sites_marker + sites_rem
+    site_start_muscle = 0
+    site_start_contact = site_start_muscle + len(sites_mus)
+    site_start_marker = site_start_contact + len(sites_exp)
+    site_start_rem = site_start_marker + len(sites_marker)
 
     # Function-based paths
     if muscle_fn_path is not None:
@@ -222,7 +226,10 @@ def load_model(
 
     # Exponential contact
     exp_contact_data = exponential_contact_helper.create_exp_contact_data(
-        converted_exp_contacts, site_start_contact, body_ordering)
+        exp_contact_data=converted_exp_contacts,
+        site_start_exp=site_start_contact,
+        body_ordering=body_ordering
+    )
 
     # Actuators
     actuator_data = actuator_helper.create_actuator_metadata(converted_activation_actuators, dof_ordering)
@@ -310,6 +317,16 @@ def load_model(
         nconstfn=nconstfn,
         npolyfn=npolyfn,
         nsplinefn=nspline,
+
+        nsite_muscle=len(sites_mus),
+        nsite_contact=len(sites_exp),
+        nsite_marker=len(sites_marker),
+        nsite_rem=len(sites_rem),
+
+        site_adr_muscle=site_start_muscle,
+        site_adr_contact=site_start_contact,
+        site_adr_marker=site_start_marker,
+        site_adr_rem=site_start_rem,
 
         opt=opt,
         muscle_metadata=mm,

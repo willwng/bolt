@@ -40,6 +40,7 @@ class OSimType:
     Transform = osim.simbody.Transform
 
     Mesh = osim.Mesh
+    Marker = osim.Marker
     Station = osim.Station
 
     ContactGeometry = osim.ContactGeometry

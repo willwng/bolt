@@ -86,9 +86,10 @@ class Renderer:
         self.joint_parent_id = m.body_parentid.numpy()
         self.beam_radius = 0.01
 
-        self.site_start_muscle = 0
-        self.site_start_exp = self.muscle_num_pts.sum()
-        self.site_start_rem = self.site_start_exp + m.nexpcontact
+        self.site_muscle_range = (m.site_adr_muscle, m.site_adr_muscle + m.nsite_muscle)
+        self.site_contact_range = (m.site_adr_contact, m.site_adr_contact + m.nsite_contact)
+        self.site_marker_range = (m.site_adr_marker, m.site_adr_marker + m.nsite_marker)
+        self.site_rem_range = (m.site_adr_rem, m.site_adr_rem + m.nsite_rem)
 
         # Default colors
         self.colors = {
@@ -99,6 +100,7 @@ class Renderer:
             "beam": (0.82, 0.78, 0.74),
             "muscle_site": (1.0, 0.0, 1.0),
             "exp_contact_site": (0.7, 0.5, 0.5),
+            "marker_site": (0.0, 0.0, 1.0),
             "site": (0.5, 0.5, 0.5),
         }
 
@@ -188,12 +190,15 @@ class Renderer:
             if self.draw_sites:
                 site_pos = site_pos_all[wid]
                 for i in range(m.nsite):
-                    if self.site_start_muscle <= i < self.site_start_exp:
+                    if self.site_muscle_range[0] <= i < self.site_muscle_range[1]:
                         color = self.colors["muscle_site"]
                         radius = 0.005
-                    elif self.site_start_exp <= i < self.site_start_rem:
+                    elif self.site_contact_range[0] <= i < self.site_contact_range[1]:
                         color = self.colors["exp_contact_site"]
                         radius = 0.01
+                    elif self.site_marker_range[0] <= i < self.site_marker_range[1]:
+                        color = self.colors["marker_site"]
+                        radius = 0.02
                     else:
                         color = self.colors["site"]
                         radius = 0.01

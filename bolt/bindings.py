@@ -173,6 +173,10 @@ def qpos_spring_rest(m: Model) -> torch.Tensor:
     return wp.to_torch(m.qpos_spring_rest)
 
 
+def get_site_marker_slice(m: Model) -> slice:
+    return slice(m.site_adr_marker, m.site_adr_marker + m.nsite_marker)
+
+
 def muscle_metadata(m: Model) -> list[MuscleMetadata]:
     return m.muscle_data
 

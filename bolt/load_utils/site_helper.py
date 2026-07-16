@@ -25,7 +25,6 @@ def convert_sites(model: OSimType.Model) -> list[SiteData]:
     """ Returns the all the converted sites in the model """
     site_data = []
 
-    # Check for contact geometry within <components> element
     body_list = model.getBodyList()
     for body in body_list:
         components = body.getComponentsList()
