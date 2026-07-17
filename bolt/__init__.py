@@ -1,7 +1,6 @@
 """Public API for Bolt"""
 
 from ._src.step import increment_next_time as increment_next_time
-from ._src.step import set_next_time as set_next_time
 from ._src.step import step as step
 from ._src.forward import reset as reset
 from ._src.forward import realize_position as fk

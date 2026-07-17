@@ -51,20 +51,11 @@ def step(m: Model, d: Data):
         raise RuntimeError("Unknown integrator type")
 
 
-def set_next_time(m: Model, d: Data, next_time: torch.Tensor):
-    wp.copy(d.next_time, wp.from_torch(next_time))
-
-
 def increment_next_time(m: Model, d: Data, dt: float):
+    """ Updates d.next_time to d.time + dt """
     wp.launch(
         _increment_next_time,
         dim=d.nworld,
         inputs=[d.time, dt],
         outputs=[d.next_time],
     )
-
-
-def increment_next_time_tensor(m: Model, d: Data, dt: torch.Tensor):
-    curr_time = wp.to_torch(d.time)
-    dt = dt.to(curr_time.device)
-    wp.copy(d.next_time, wp.from_torch(curr_time + dt))
