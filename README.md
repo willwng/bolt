@@ -1,5 +1,6 @@
 <h2>
-<img src="assets/logo.svg" width="500"><br>GPU-accelerated Musculoskeletal Simulator
+    <img src="assets/logo.svg" width="500">
+    <br>GPU-accelerated Musculoskeletal Simulator
 </h2>
 
 GPU-accelerated, high-fidelity musculoskeletal simulator designed for massively parallel (1k+) environments 
@@ -30,32 +31,17 @@ We also include a basic [OpenGL renderer](bolt/render) (not tuned for performanc
 
 
 ## Installation
-To install Bolt, you'll need to install OpenSim first. We recommend setting up a conda environment first
+To install Bolt, you'll need to install OpenSim first (required for model parsing). 
+Setting up a conda environment first is recommended.
 ### 1. Conda Environment Setup
 ```bash
 cd bolt
 conda create -n ENV_NAME python=3.11
 conda activate ENV_NAME
+conda install opensim-org::opensim
 ```
 
-### 2. Install OpenSim
-#### 2.1. Create the `config.yaml` file
-Create a file named `config.yaml` in the root directory of the repository with the field `python_root_dir`, 
-which is a full path to a Python installation directory.
-
-Here is an example:
-```
-echo "python_root_dir: '/opt/anaconda3/envs/ENV_NAME'" > config.yaml
-```
-#### 2.2. Build OpenSim
-Run the following command from the root directory to build OpenSim and install it into your conda environment.
-```
-python install_opensim.py
-```
-
-On Linux, you may have to add `dependencies/opensim/opensim_dependencies_install/simbody/lib` to your `LD_LIBRARY_PATH`
-
-### 3. Install Bolt
+### 2. Install Requirements + Bolt
 ```bash
 pip install -r requirements.txt
 pip install -e .
