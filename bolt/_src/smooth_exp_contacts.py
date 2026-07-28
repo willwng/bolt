@@ -54,7 +54,7 @@ def compute_normal_force(
         fz = wp.clamp(fz_elas + fz_damp, 0.0, max_normal_force)
     else:
         # TODO: do not hard-code this, or make a separate contact class
-        k, c = 0.5 * (5e6 ** (2.0 / 3.0)), kv_norm
+        k, c = 0.5 * (1e6 ** (2.0 / 3.0)), kv_norm
         cf, bd, radius = 1e-5, 300.0, 0.02
 
         indentation, v_n = -pz, -vz
