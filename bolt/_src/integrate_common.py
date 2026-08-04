@@ -6,7 +6,7 @@ from .types import ActuatorMetadata
 from .types import Data
 from .types import Model
 from .types import MuscleMetadata
-from .types import ExponentialContact
+from .types import StatefulContact
 from .consts import BOLT_SIG_REAL
 from .warp_util import event_scope
 
@@ -152,28 +152,28 @@ def _next_actuator_activation(
 
 
 @wp.kernel
-def _next_exp_contact_state(
+def _next_stl_contact_state(
         # Model:
-        exp_contact: wp.array(dtype=ExponentialContact),
+        stl_contact: wp.array(dtype=StatefulContact),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        exp_contact_state_dot_in: wp.array2d(dtype=wp.vec3),
+        stl_contact_state_dot_in: wp.array2d(dtype=wp.vec3),
         actual_step_size_in: wp.array(dtype=float),
         # In:
         scale: float,
         # Data out:
-        exp_contact_state_out: wp.array2d(dtype=wp.vec3),
+        stl_contact_state_out: wp.array2d(dtype=wp.vec3),
 ):
     worldid, conid = wp.tid()
     if integration_done_in[worldid]:
         return
     step_size = actual_step_size_in[worldid] * scale
 
-    contact = exp_contact[conid]
+    contact = stl_contact[conid]
     settle_velocity = contact.settle_velocity
 
-    # State_dot holds wp.length(p0_delta), p0.x, p0.y, p0.z
-    state_dot = exp_contact_state_dot_in[worldid, conid]
+    # State_dot holds wp.length(p0_delta), p0.x, p0.y
+    state_dot = stl_contact_state_dot_in[worldid, conid]
     p0_delta_length = state_dot[0]
     p0 = wp.vec2(state_dot[1], state_dot[2])
 
@@ -185,7 +185,7 @@ def _next_exp_contact_state(
         K = math.step_up(wp.clamp(speed_frac, 0.0, 1.0))
 
     # Update state
-    exp_contact_state_out[worldid, conid] = wp.vec3(K, p0.x, p0.y)
+    stl_contact_state_out[worldid, conid] = wp.vec3(K, p0.x, p0.y)
     return
 
 
@@ -253,12 +253,12 @@ def advance(
             outputs=[d.a_act],
         )
 
-    if m.nexpcontact:
+    if m.nstlcontact:
         wp.launch(
-            _next_exp_contact_state,
-            dim=(d.nworld, m.nexpcontact),
-            inputs=[m.exp_contact, d.integration_done, d.exp_contact_state_dot, d.actual_step_size, scale],
-            outputs=[d.exp_contact_state],
+            _next_stl_contact_state,
+            dim=(d.nworld, m.nstlcontact),
+            inputs=[m.stl_contact, d.integration_done, d.stl_contact_state_dot, d.actual_step_size, scale],
+            outputs=[d.stl_contact_state],
         )
 
     if symplectic:

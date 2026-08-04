@@ -452,7 +452,7 @@ def save_state(
         m_state_dest: wp.array2d(dtype=float),
         m_act_dest: wp.array2d(dtype=float),
         a_act_dest: wp.array2d(dtype=float),
-        exp_contact_state_dest: wp.array2d(dtype=wp.vec3),
+        stl_contact_state_dest: wp.array2d(dtype=wp.vec3),
 ):
     wp.copy(time_dest, d.time)
     wp.copy(qpos_dest, d.qpos)
@@ -462,8 +462,8 @@ def save_state(
         wp.copy(m_state_dest, d.m_state)
     if m.nactuator:
         wp.copy(a_act_dest, d.a_act)
-    if m.nexpcontact:
-        wp.copy(exp_contact_state_dest, d.exp_contact_state)
+    if m.nstlcontact:
+        wp.copy(stl_contact_state_dest, d.stl_contact_state)
 
 
 @event_scope
@@ -553,7 +553,7 @@ def restore_state(
         m_state_src: wp.array2d,
         m_act_src: wp.array2d,
         a_act_src: wp.array2d,
-        exp_contact_state_src: wp.array2d(dtype=wp.vec3),
+        stl_contact_state_src: wp.array2d(dtype=wp.vec3),
         only_on_reject: bool
 ):
     @wp.kernel
@@ -567,7 +567,7 @@ def restore_state(
             m_state_in: wp.array2d(dtype=float),
             m_act_in: wp.array2d(dtype=float),
             a_act_in: wp.array2d(dtype=float),
-            exp_contact_state_in: wp.array2d(dtype=wp.vec3),
+            stl_contact_state_in: wp.array2d(dtype=wp.vec3),
             # Data out:
             time_out: wp.array(dtype=float),
             qpos_out: wp.array2d(dtype=float),
@@ -575,13 +575,13 @@ def restore_state(
             m_state_out: wp.array2d(dtype=float),
             m_act_out: wp.array2d(dtype=float),
             a_act_out: wp.array2d(dtype=float),
-            exp_contact_state_out: wp.array2d(dtype=wp.vec3),
+            stl_contact_state_out: wp.array2d(dtype=wp.vec3),
     ):
         worldid = wp.tid()
         if step_accepted_in[worldid] or done_integrating_in[worldid]:
             return
         nq, nv, nm, na = wp.static(m.nq), wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
-        nexp = wp.static(m.nexpcontact)
+        nstl = wp.static(m.nstlcontact)
         time_out[worldid] = time_in[worldid]
 
         wp.tile_store(qpos_out[worldid], wp.tile_load(qpos_in[worldid], shape=(nq,)))
@@ -591,16 +591,16 @@ def restore_state(
             wp.tile_store(m_act_out[worldid], wp.tile_load(m_act_in[worldid], shape=(nm,)))
         if na:
             wp.tile_store(a_act_out[worldid], wp.tile_load(a_act_in[worldid], shape=(na,)))
-        if nexp:
-            wp.tile_store(exp_contact_state_out[worldid], wp.tile_load(exp_contact_state_in[worldid], shape=(nexp,)))
+        if nstl:
+            wp.tile_store(stl_contact_state_out[worldid], wp.tile_load(stl_contact_state_in[worldid], shape=(nstl,)))
 
     if only_on_reject:
         wp.launch_tiled(
             restore_state_conditional,
             dim=d.nworld,
             inputs=[d.integration_done, d.step_accepted,
-                    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, exp_contact_state_src],
-            outputs=[d.time, d.qpos, d.qvel, d.m_state, d.m_act, d.a_act, d.exp_contact_state],
+                    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, stl_contact_state_src],
+            outputs=[d.time, d.qpos, d.qvel, d.m_state, d.m_act, d.a_act, d.stl_contact_state],
             block_dim=m.block_dim.restore_state,
         )
     else:  # everyone gets restored!
@@ -612,8 +612,8 @@ def restore_state(
             wp.copy(d.m_state, m_state_src)
         if m.nactuator:
             wp.copy(d.a_act, a_act_src)
-        if m.nexpcontact:
-            wp.copy(d.exp_contact_state, exp_contact_state_src)
+        if m.nstlcontact:
+            wp.copy(d.stl_contact_state, stl_contact_state_src)
 
 
 @event_scope
@@ -683,7 +683,7 @@ def add_to_state_dot(
 def get_state_at_idx(d: Data, idx: int):
     scratch = d.integrator_scratch[idx]
     return (scratch.time, scratch.qpos, scratch.qvel, scratch.m_state,
-            scratch.m_act, scratch.a_act, scratch.exp_contact_state)
+            scratch.m_act, scratch.a_act, scratch.stl_contact_state)
 
 
 def get_state_dot_at_idx(d: Data, idx: int):
@@ -692,9 +692,9 @@ def get_state_dot_at_idx(d: Data, idx: int):
 
 
 def save_state_idx(m: Model, d: Data, save_idx: int, ):
-    time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest, exp_contact_state_dest = (
+    time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest, stl_contact_state_dest = (
         get_state_at_idx(d, save_idx))
-    save_state(m, d, time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest, exp_contact_state_dest)
+    save_state(m, d, time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest, stl_contact_state_dest)
 
 
 def save_state_dot_idx(m: Model, d: Data, save_idx: int, ):
@@ -703,9 +703,9 @@ def save_state_dot_idx(m: Model, d: Data, save_idx: int, ):
 
 
 def restore_state_idx(m: Model, d: Data, restore_idx: int, only_on_reject: bool):
-    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, exp_contact_state_src \
+    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, stl_contact_state_src \
         = get_state_at_idx(d, restore_idx)
-    restore_state(m, d, time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, exp_contact_state_src,
+    restore_state(m, d, time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, stl_contact_state_src,
                   only_on_reject=only_on_reject)
 
 
