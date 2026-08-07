@@ -10,8 +10,6 @@ def convert_swing_twist_limits(model_path: str) -> list[SwingTwistLimitData]:
     """ Extracts swing twist limit data from the BoltOnlySet in the OpenSim model XML. """
     swing_twist_data = []
     bolt_only_objects = extract_bolt_only_objects(model_path)
-    if bolt_only_objects is None:
-        return swing_twist_data
 
     for obj in bolt_only_objects:
         if obj.tag == "SwingTwistLimit":

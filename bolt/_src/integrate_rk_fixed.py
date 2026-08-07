@@ -137,11 +137,11 @@ def _rk_perturb_state(
             outputs=[d.a_act],
         )
 
-    if m.nexpcontact:
+    if m.nstlcontact:
         wp.launch(
-            integrate_common._next_exp_contact_state,
-            dim=(d.nworld, m.nexpcontact),
-            inputs=[m.exp_contact, d.integration_done, d.exp_contact_state_dot, d.actual_step_size, scale],
+            integrate_common._next_stl_contact_state,
+            dim=(d.nworld, m.nstlcontact),
+            inputs=[m.stl_contact, d.integration_done, d.exp_contact_state_dot, d.actual_step_size, scale],
             outputs=[d.exp_contact_state],
         )
 

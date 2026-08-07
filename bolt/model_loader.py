@@ -6,16 +6,14 @@ from bolt.load_utils import *
 from bolt.model_load_result import ModelLoadResult
 from bolt.paths import get_geometry_dir
 from bolt.types_consts import Model, Data, IntegratorType, Option, ActivationType, ContractionType, MetabolicOptions, \
-    MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, IntegratorMidpointScratch, \
-    MuscleLengthInfo, FiberVelocityInfo, MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, \
-    SwingTwistLimit, CoordinateLimitForce, ExponentialContact, vec5, PolyInts
+    MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, MuscleLengthInfo, FiberVelocityInfo, \
+    MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
+    CoordinateLimitForce, StatefulContact, vec5, PolyInts
 
 
 def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:
     """ Returns number of additional copies of state and state_dot required for integration """
     if integrator == IntegratorType.EULER_ADAPTIVE:
-        return 2, 1
-    elif integrator == IntegratorType.EULER_MIDPOINT_ADAPTIVE:
         return 2, 1
     elif integrator == IntegratorType.RK_MERSON_ADAPTIVE:
         return 2, 5
@@ -44,7 +42,7 @@ def load_model(
     converted_bodies = [GROUND_BODY] + [body_helper.convert_body(body) for body in model.getBodyList()]
     converted_joints = [GROUND_JOINT] + [joint_helper.convert_joint(joint) for joint in model.getJointList()]
     converted_geoms = [GROUND_COLLIDER] + geom_helper.convert_geoms(model, include_body_components=False)
-    converted_exp_contacts = exponential_contact_helper.convert_exponential_contacts(model)
+    converted_stl_contacts = stateful_contact_helper.convert_stateful_contacts(model, model_path)
     converted_visuals = visual_helper.convert_visuals(model) if requires_visuals else []
     converted_spatial_transforms = spatial_transform_helper.convert_spatial_transforms(model)
     converted_spring_gen_force = coordinate_force_helper.convert_spring_generalized_force(model)
@@ -54,13 +52,13 @@ def load_model(
     converted_muscles = muscle_helper.convert_muscles(model)
     # Gather all sites
     sites_mus = muscle_helper.flatten_sites(converted_muscles)
-    sites_exp = exponential_contact_helper.flatten_sites(converted_exp_contacts)
+    sites_stl_contact = stateful_contact_helper.flatten_sites(converted_stl_contacts)
     sites_marker = marker_helper.convert_markers(model)
     sites_rem = site_helper.convert_sites(model)
-    converted_sites = sites_mus + sites_exp + sites_marker + sites_rem
+    converted_sites = sites_mus + sites_stl_contact + sites_marker + sites_rem
     site_start_muscle = 0
     site_start_contact = site_start_muscle + len(sites_mus)
-    site_start_marker = site_start_contact + len(sites_exp)
+    site_start_marker = site_start_contact + len(sites_stl_contact)
     site_start_rem = site_start_marker + len(sites_marker)
 
     # Function-based paths
@@ -153,7 +151,7 @@ def load_model(
     nv = sum([joint.num_speeds for joint in ordered_joints])
     nb = len(ordered_bodies)
     ngeom = len(converted_geoms)
-    nexpcontact = len(converted_exp_contacts)
+    nstlcontact = len(converted_stl_contacts)
     nvis = len(converted_visuals)
     nsite = len(converted_sites)
     nlimitforce = len(converted_limit_forces)
@@ -224,10 +222,10 @@ def load_model(
     swing_twist_limits = swing_twist_helper.create_swing_twist_data(
         converted_swing_twists, joint_ordering, mob_qpos_adr, mob_dof_adr)
 
-    # Exponential contact
-    exp_contact_data = exponential_contact_helper.create_exp_contact_data(
-        exp_contact_data=converted_exp_contacts,
-        site_start_exp=site_start_contact,
+    # Stateful contacts
+    stateful_contact_data = stateful_contact_helper.create_stateful_contact_data(
+        stateful_contact_data=converted_stl_contacts,
+        site_start_stl=site_start_contact,
         body_ordering=body_ordering
     )
 
@@ -306,7 +304,7 @@ def load_model(
         njnts_cst=n_custom_jnts,
         nbeams=n_beams,
         ngeom=ngeom,
-        nexpcontact=nexpcontact,
+        nstlcontact=nstlcontact,
         nvis=nvis,
         nsite=nsite,
         nlimitforce=nlimitforce,
@@ -319,7 +317,7 @@ def load_model(
         nsplinefn=nspline,
 
         nsite_muscle=len(sites_mus),
-        nsite_contact=len(sites_exp),
+        nsite_contact=len(sites_stl_contact),
         nsite_marker=len(sites_marker),
         nsite_rem=len(sites_rem),
 
@@ -398,7 +396,7 @@ def load_model(
         geom_aabb=to_warp_array(geom_aabb, dtype=wp.vec3),
         geom_rbound=to_warp_array(geom_rbound, dtype=float),
 
-        exp_contact=wp.array(exp_contact_data, dtype=ExponentialContact),
+        stl_contact=wp.array(stateful_contact_data, dtype=StatefulContact),
 
         geom_pair_type_count=tuple(geom_type_pair_count),
         nxn_geom_pair_filtered=wp.array(nxn_geom_pair_filtered, dtype=wp.vec2i),
@@ -436,7 +434,7 @@ def load_model(
             m_state=make_zero((n_worlds, nmuscle), dtype=float),
             m_act=make_zero((n_worlds, nmuscle), dtype=float),
             a_act=make_zero((n_worlds, nactuator), dtype=float),
-            exp_contact_state=make_zero((n_worlds, nexpcontact), dtype=wp.vec3),
+            stl_contact_state=make_zero((n_worlds, nstlcontact), dtype=wp.vec3),
         ) for _ in range(n_int_states)
     ]
 
@@ -447,7 +445,7 @@ def load_model(
             m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
             m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
             a_act_dot=make_zero((n_worlds, nactuator), dtype=float),
-            exp_contact_state_dot=make_zero((n_worlds, nexpcontact), dtype=wp.vec3),
+            stl_contact_state_dot=make_zero((n_worlds, nstlcontact), dtype=wp.vec3),
         ) for _ in range(n_int_dot_states)
     ]
 
@@ -464,12 +462,6 @@ def load_model(
 
         nworld=n_worlds,
         naconmax=naconmax,
-
-        # mid point integrators
-        integrator_midpoint_scratch=IntegratorMidpointScratch(
-            qvel=make_zero((n_worlds, nv), dtype=float),
-            qacc=make_zero((n_worlds, nv), dtype=float)
-        ),
 
         # for adaptive integrators
         integrator_scratch=integrator_scratch,
@@ -503,7 +495,7 @@ def load_model(
         m_act=make_zero((n_worlds, nmuscle), dtype=float),
         a_act=make_full(0.5, (n_worlds, nactuator), dtype=float),
         m_state=make_zero((n_worlds, nmuscle), dtype=float),
-        exp_contact_state=make_zero((n_worlds, nexpcontact), dtype=wp.vec3),
+        stl_contact_state=make_zero((n_worlds, nstlcontact), dtype=wp.vec3),
 
         grf=make_zero((n_worlds,), dtype=wp.vec3),
 
@@ -514,7 +506,7 @@ def load_model(
         m_excitations=make_full(0.5, (n_worlds, nmuscle), dtype=float),
         a_excitations=make_full(0.5, (n_worlds, nactuator), dtype=float),
         m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
-        exp_contact_state_dot=make_zero((n_worlds, nexpcontact), dtype=wp.vec3),
+        stl_contact_state_dot=make_zero((n_worlds, nstlcontact), dtype=wp.vec3),
 
         cst_fn_output=make_zero((n_worlds, nfunctions), dtype=wp.vec3),
 

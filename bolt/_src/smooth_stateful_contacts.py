@@ -3,7 +3,7 @@ import warp as wp
 from . import math
 from .types import Data
 from .types import Model
-from .types import ExponentialContact
+from .types import StatefulContact
 from .consts import BOLT_SIG_REAL
 from .warp_util import event_scope
 
@@ -11,22 +11,22 @@ wp.set_module_options({"enable_backward": False})
 
 
 @wp.kernel
-def _reset_exp_contact_state(
+def _reset_stl_contact_state(
         # Model:
-        exp_contact: wp.array(dtype=ExponentialContact),
+        stl_contact: wp.array(dtype=StatefulContact),
         # Data in:
         world_reset_in: wp.array(dtype=bool),
         integration_done_in: wp.array(dtype=bool),
         site_pos_G_in: wp.array2d(dtype=wp.vec3),
         # Data out:
-        exp_contact_state_out: wp.array2d(dtype=wp.vec3)
+        stl_contact_state_out: wp.array2d(dtype=wp.vec3)
 ):
     worldid, conid = wp.tid()
     if integration_done_in[worldid]:
         return
 
     if world_reset_in[worldid]:
-        contact = exp_contact[conid]
+        contact = stl_contact[conid]
         siteid = contact.siteid
         X_GP = contact.contact_plane_transform
 
@@ -34,7 +34,7 @@ def _reset_exp_contact_state(
         p_G = site_pos_G_in[worldid, siteid]
         # Transform into contact plane frame
         p_P = wp.transform_point(wp.transform_inverse(X_GP), p_G)
-        exp_contact_state_out[worldid, conid] = wp.vec3(1.0, p_P.x, p_P.y)
+        stl_contact_state_out[worldid, conid] = wp.vec3(1.0, p_P.x, p_P.y)
     return
 
 
@@ -53,10 +53,11 @@ def compute_normal_force(
         fz_damp = -kv_norm * vz * fz_elas
         fz = wp.clamp(fz_elas + fz_damp, 0.0, max_normal_force)
     else:
-        # TODO: do not hard-code this, or make a separate contact class
-        k, c = 0.5 * (1e6 ** (2.0 / 3.0)), kv_norm
-        cf, bd, radius = 1e-5, 300.0, 0.02
+        # Fixme: this is a strange conversion, consider making a separate obj
+        k, c = 0.5 * (max_normal_force ** (2.0 / 3.0)), kv_norm
+        radius = shape_params[0]
 
+        cf, bd, bv = 1e-5, 300.0, 50.0  # hard-coded constants for smoothing
         indentation, v_n = -pz, -vz
         fh_pos = (4.0 / 3.0) * k * wp.sqrt(radius * k) * wp.pow(
             wp.sqrt(indentation * indentation + cf), 3. / 2.)
@@ -79,49 +80,43 @@ def compute_friction(
         kp_fric: float,
         kv_fric: float,
 ) -> tuple[wp.vec2, wp.vec2]:
-    # Friction limit is too small
-    if fxy_limit < BOLT_SIG_REAL:
-        fric_P, fric_damp_P, fric_elas_P = wp.vec2(0.0), wp.vec2(0.0), wp.vec2(0.0)
-        p0 = pxy
-    # Friction limit is large enough for meaningful calculations
-    else:
-        # Model 1: Pure damping (when sliding = 1.0)
-        fxy_limit_sqr = fxy_limit * fxy_limit
-        fric_damp_mod1_P, fric_damp_mod2_P = -kv_fric * vxy, -kv_fric * vxy
-        if wp.length_sq(fric_damp_mod1_P) > fxy_limit_sqr:
-            fric_damp_mod1_P = fxy_limit * wp.normalize(fric_damp_mod1_P)
+    # Model 1: Pure damping (when sliding = 1.0)
+    fxy_limit_sqr = fxy_limit * fxy_limit
+    fric_damp_mod1_P, fric_damp_mod2_P = -kv_fric * vxy, -kv_fric * vxy
+    if wp.length_sq(fric_damp_mod1_P) > fxy_limit_sqr:
+        fric_damp_mod1_P = fxy_limit * wp.normalize(fric_damp_mod1_P)
 
-        # Model 2: Damped Linear Spring
-        fric_elas_mod2_P = -kp_fric * (pxy - p0)
-        fric_mod2_P = fric_elas_mod2_P + fric_damp_mod2_P
-        fxy_mod2_sqr = wp.length_sq(fric_mod2_P)
-        if fxy_mod2_sqr > fxy_limit_sqr:
-            scale = fxy_limit / wp.sqrt(fxy_mod2_sqr)
-            fric_elas_mod2_P = fric_elas_mod2_P * scale
-            fric_damp_mod2_P = fric_damp_mod2_P * scale
+    # Model 2: Damped Linear Spring
+    fric_elas_mod2_P = -kp_fric * (pxy - p0)
+    fric_mod2_P = fric_elas_mod2_P + fric_damp_mod2_P
+    fxy_mod2_sqr = wp.length_sq(fric_mod2_P)
+    if fxy_mod2_sqr > fxy_limit_sqr:
+        scale = fxy_limit / wp.sqrt(fxy_mod2_sqr)
+        fric_elas_mod2_P = fric_elas_mod2_P * scale
+        fric_damp_mod2_P = fric_damp_mod2_P * scale
 
-        # Blend model 1 and 2 according to K
-        fric_elas_P = fric_elas_mod2_P * (1.0 - K)
-        fric_damp_P = fric_damp_mod2_P + (fric_damp_mod1_P - fric_damp_mod2_P) * K
-        fric_P = fric_elas_P + fric_damp_P
+    # Blend model 1 and 2 according to K
+    fric_elas_P = fric_elas_mod2_P * (1.0 - K)
+    fric_damp_P = fric_damp_mod2_P + (fric_damp_mod1_P - fric_damp_mod2_P) * K
+    fric_P = fric_elas_P + fric_damp_P
 
-        # Ensure p0 is consistent with the elastic component
-        p0 = pxy + fric_elas_P / kp_fric
+    # Ensure p0 is consistent with the elastic component
+    p0 = pxy + fric_elas_P / kp_fric
     return fric_P, p0
 
 
 @wp.kernel
-def _process_contacts_exp(
+def _process_contacts(
         # Model:
-        exp_contact: wp.array(dtype=ExponentialContact),
+        stl_contact: wp.array(dtype=StatefulContact),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         site_pos_G_in: wp.array2d(dtype=wp.vec3),
         site_vel_G_in: wp.array2d(dtype=wp.vec3),
         mob_X_GB_in: wp.array2d(dtype=wp.transform),
-        exp_contact_state_in: wp.array2d(dtype=wp.vec3),
+        stl_contact_state_in: wp.array2d(dtype=wp.vec3),
         # Data out:
-        exp_contact_state_dot_out: wp.array2d(dtype=wp.vec3),
+        stl_contact_state_dot_out: wp.array2d(dtype=wp.vec3),
         body_F_contact_out: wp.array2d(dtype=wp.spatial_vector),
         grf_out: wp.array(dtype=wp.vec3)
 ):
@@ -130,7 +125,7 @@ def _process_contacts_exp(
         return
 
     # Retrieve parameters
-    contact = exp_contact[conid]
+    contact = stl_contact[conid]
     shape_params = contact.shape_parameters
     kv_norm = contact.normal_viscosity
     max_normal_force = contact.max_normal_force
@@ -142,8 +137,9 @@ def _process_contacts_exp(
     siteid = contact.siteid
     bodyid = contact.bodyid
     station_B = contact.station_B
+    use_exp_force = contact.use_exp_force
 
-    state_in = exp_contact_state_in[worldid, conid]
+    state_in = stl_contact_state_in[worldid, conid]
 
     # Transform of contact plane
     X_GP = contact.contact_plane_transform
@@ -171,7 +167,7 @@ def _process_contacts_exp(
     fz = compute_normal_force(
         pz=pz, vz=vz, shape_params=shape_params,
         kv_norm=kv_norm, max_normal_force=max_normal_force,
-        use_exp_force=False
+        use_exp_force=use_exp_force,
     )
 
     # Get the Sliding state (K) and anchor point (p0) from state
@@ -184,19 +180,18 @@ def _process_contacts_exp(
     mu = mus - K * (mus - muk)
     fxy_limit = mu * fz
 
-    # Friction force, new anchor point
-    fric_P, p0 = compute_friction(
-        p0=p0, pxy=pxy, vxy=vxy,
-        fxy_limit=fxy_limit, K=K,
-        kp_fric=kp_fric, kv_fric=kv_fric,
-    )
-
     # Store information needed for updating state
-    if fxy_limit > BOLT_SIG_REAL:
-        p0_delta = p0 - p0_last
+    if fxy_limit < BOLT_SIG_REAL:
+        fric_P = wp.vec2(0.0)
+        p0 = pxy
     else:
-        p0_delta = wp.vec2(0.0)
-    exp_contact_state_dot_out[worldid, conid] = wp.vec3(wp.length(p0_delta), p0.x, p0.y)
+        # Friction force, new anchor point
+        fric_P, p0 = compute_friction(
+            p0=p0, pxy=pxy, vxy=vxy,
+            fxy_limit=fxy_limit, K=K,
+            kp_fric=kp_fric, kv_fric=kv_fric,
+        )
+    stl_contact_state_dot_out[worldid, conid] = wp.vec3(wp.length(p0 - p0_last), p0.x, p0.y)
 
     # --- Calculate Force ---
     f_P = wp.vec3(fric_P.x, fric_P.y, fz)
@@ -209,27 +204,27 @@ def _process_contacts_exp(
 
 
 @event_scope
-def reset_exp_contact_state(m: Model, d: Data):
-    if m.nexpcontact:
+def reset_contact_state(m: Model, d: Data):
+    if m.nstlcontact:
         wp.launch(
-            _reset_exp_contact_state,
-            dim=(d.nworld, m.nexpcontact),
-            inputs=[m.exp_contact, d.world_reset, d.integration_done, d.site_pos_G],
-            outputs=[d.exp_contact_state]
+            _reset_stl_contact_state,
+            dim=(d.nworld, m.nstlcontact),
+            inputs=[m.stl_contact, d.world_reset, d.integration_done, d.site_pos_G],
+            outputs=[d.stl_contact_state]
         )
     return
 
 
 @event_scope
-def contact_forces_exp(m: Model, d: Data):
-    if m.nexpcontact:
+def contact_forces(m: Model, d: Data):
+    if m.nstlcontact:
         wp.launch(
-            _process_contacts_exp,
-            dim=(d.nworld, m.nexpcontact),
+            _process_contacts,
+            dim=(d.nworld, m.nstlcontact),
             inputs=[
-                m.exp_contact,
-                d.integration_done, d.site_pos_G, d.site_vel_G, d.mob_X_GB, d.exp_contact_state
+                m.stl_contact,
+                d.integration_done, d.site_pos_G, d.site_vel_G, d.mob_X_GB, d.stl_contact_state,
             ],
-            outputs=[d.exp_contact_state_dot, d.body_F_contact, d.grf]
+            outputs=[d.stl_contact_state_dot, d.body_F_contact, d.grf]
         )
     return
