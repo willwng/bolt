@@ -3,7 +3,7 @@ import argparse
 import warp as wp
 
 import bolt
-from bolt.benchmark.benchmark import benchmark
+from bolt.benchmark.benchmark import benchmark, print_trace
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("--model", type=str, required=True)
@@ -18,29 +18,12 @@ arg_parser.add_argument("--tree", action="store_true")
 args = arg_parser.parse_args()
 
 
-def _print_trace(trace, indent, steps):
-    if indent == 0:
-        print("\nEvent trace:\n")
-    for k, v in trace.items():
-        times, sub_trace = v
-        if len(times) == 1:
-            print("  " * indent + f"{k}: {1e6 * times[0] / steps:.2f}")
-        else:
-            print("  " * indent + f"{k}: [ ", end="")
-            for i in range(len(times)):
-                print(f"{1e6 * times[i] / steps:.2f}", end="")
-                print(", " if i < len(times) - 1 else " ", end="")
-            print("]")
-        _print_trace(sub_trace, indent + 1, steps)
-
-
 def main():
     if args.recompile:
         wp.clear_kernel_cache()
     if args.debug:
         wp.config.mode = "debug"
-        # wp.config.verbose = True
-        # wp.config.verbose_warnings = True
+    use_cuda_graphs = wp.get_device().is_cuda
 
     # Load the OpenSim model and muscle function paths
     load_result = bolt.load_model(
@@ -68,8 +51,7 @@ def main():
     bolt.reset(m, d)
 
     dt = 1.0 / 100.0
-    cuda_graphs = wp.get_device().is_cuda
-    if not args.benchmark:
+    if not args.benchmark:  # Live OpenGL render
         viewer = bolt.create_renderer(
             load_result=load_result,
             renderer_type=bolt.RendererType.OPENGL,
@@ -84,7 +66,7 @@ def main():
             viewer.setup_tiled_renderer(list(range(args.nworld)))
 
         # Step graph capture
-        if cuda_graphs:
+        if use_cuda_graphs:
             with wp.ScopedCapture() as capture:
                 bolt.step(m, d)
             graph = capture.graph
@@ -92,7 +74,7 @@ def main():
         # Simulation loop
         for i in range(args.nstep):
             bolt.increment_next_time(m, d, dt)
-            if cuda_graphs:
+            if use_cuda_graphs:
                 wp.capture_launch(graph)
             else:
                 bolt.step(m, d)
@@ -122,8 +104,7 @@ def main():
         Total realtime factor: {steps * dt / run_time:,.2f} x
         Total time per step: {1e9 * run_time / steps:.2f} ns
         Total converged worlds: {nsuccess} / {d.nworld}""")
-
-        _print_trace(trace, 0, steps)
+        print_trace(trace, 0, steps)
 
 
 if __name__ == "__main__":

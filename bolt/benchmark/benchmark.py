@@ -101,3 +101,19 @@ def benchmark(
         run_duration = np.sum(time_vec)
 
     return jit_duration, run_duration, trace, nacon, nsuccess
+
+
+def print_trace(trace, indent, steps):
+    if indent == 0:
+        print("\nEvent trace:\n")
+    for k, v in trace.items():
+        times, sub_trace = v
+        if len(times) == 1:
+            print("  " * indent + f"{k}: {1e6 * times[0] / steps:.2f}")
+        else:
+            print("  " * indent + f"{k}: [ ", end="")
+            for i in range(len(times)):
+                print(f"{1e6 * times[i] / steps:.2f}", end="")
+                print(", " if i < len(times) - 1 else " ", end="")
+            print("]")
+        print_trace(sub_trace, indent + 1, steps)
