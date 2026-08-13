@@ -189,8 +189,9 @@ class ActivationCoordinateActuatorData:
 
 
 @dataclass
-class ExponentialContactForce:
+class StatefulContactForce:
     name: str
+    use_exp_force: bool # True: Exponential force, False: Smoothed Hunt-Crossley
 
     contact_plane_transform: wp.transform
     exponential_shape_parameters: wp.vec3
@@ -206,7 +207,7 @@ class ExponentialContactForce:
 
     # Radius of the sphere used for sphere-vs-plane contact
     # margin=0 recovers the original point-vs-plane behavior.
-    margin: float = 0.02  # TODO expose this
+    margin: float
 
 
 @dataclass

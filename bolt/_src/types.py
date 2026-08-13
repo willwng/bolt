@@ -149,7 +149,7 @@ class SwingTwistLimit:
 
 
 @wp.struct
-class ExponentialContact:
+class StatefulContact:
     contact_plane_transform: wp.transform
     shape_parameters: wp.vec3
     normal_viscosity: float
@@ -160,6 +160,7 @@ class ExponentialContact:
     initial_mu_static: float
     initial_mu_kinetic: float
     margin: float
+    use_exp_force: bool
 
     siteid: int
     bodyid: int
@@ -208,18 +209,14 @@ class IntegratorType(enum.IntEnum):
     """ Integrator type.
     Attributes:
         EULER_FIXED: Fixed-step Euler (semi-implicit)
-        EULER_MIDPOINT_FIXED: Fixed-step Midpoint Euler method
         RK4_FIXED: Fixed-step 4th-order Runge-Kutta
         EULER_ADAPTIVE: Adaptive-step Euler
-        EULER_MIDPOINT_ADAPTIVE: Adaptive-step Midpoint Euler method
         RK_MERSON_ADAPTIVE: Adaptive-step 4th-order Runge-Kutta-Merson
     """
     EULER_FIXED = 1
-    EULER_MIDPOINT_FIXED = 2
-    RK4_FIXED = 3
-    EULER_ADAPTIVE = 4
-    EULER_MIDPOINT_ADAPTIVE = 5
-    RK_MERSON_ADAPTIVE = 6
+    RK4_FIXED = 2
+    EULER_ADAPTIVE = 3
+    RK_MERSON_ADAPTIVE = 4
 
 
 @dataclass
@@ -435,7 +432,7 @@ class Model:
       njnts_cst: number of custom joints
       nbeams: number of beam joints
       ngeom: number of collision geometry
-      nexpcontact: number of exponential contact forces
+      nstlcontact: number of stateful contact forces
       nvis: number of visual geometry
       nsite: number of sites
       nlimitforce: number of (CoordinateLimitForce) limits
@@ -530,7 +527,7 @@ class Model:
       geom_aabb: axis-aligned bounding box (center, size)      (ngeom, 2, 3)
       geom_rbound: bounding sphere radius                      (ngeom,)
 
-      exp_contact: exponential contact force parameters        (nexpcontact, ExponentialContact)
+      stl_contact: exponential contact force parameters        (nexpcontact, ExponentialContact)
 
      * colliders *
       geom_pair_type_count: count of max number of each potential collision
@@ -571,7 +568,7 @@ class Model:
     njnts_cst: int
     nbeams: int
     ngeom: int
-    nexpcontact: int
+    nstlcontact: int
     nvis: int
     nsite: int
     nlimitforce: int
@@ -663,7 +660,7 @@ class Model:
     geom_aabb: array("ngeom", 2, wp.vec3)
     geom_rbound: array("ngeom", float)
 
-    exp_contact: array("nexpcontact", ExponentialContact)
+    stl_contact: array("nstlcontact", StatefulContact)
 
     geom_pair_type_count: tuple[int, ...]
     nxn_geom_pair_filtered: array("<=ngeom*(ngeom-1)/2", wp.vec2i)
@@ -735,7 +732,7 @@ class IntegratorStateScratch:
     m_state: wp.array2d(dtype=float)
     m_act: wp.array2d(dtype=float)
     a_act: wp.array2d(dtype=float)
-    exp_contact_state: wp.array2d(dtype=wp.vec3)
+    stl_contact_state: wp.array2d(dtype=wp.vec3)
 
 
 @dataclass
@@ -745,13 +742,7 @@ class IntegratorDotScratch:
     m_state_dot: wp.array2d(dtype=float)
     m_act_dot: wp.array2d(dtype=float)
     a_act_dot: wp.array2d(dtype=float)
-    exp_contact_state_dot: wp.array2d(dtype=wp.vec3)
-
-
-@dataclass
-class IntegratorMidpointScratch:
-    qvel: wp.array2d(dtype=float)
-    qacc: wp.array2d(dtype=float)
+    stl_contact_state_dot: wp.array2d(dtype=wp.vec3)
 
 
 @dataclass
@@ -773,7 +764,7 @@ class Data:
       m_state: muscle state variable                              (nworld, nmuscles)
       m_act: muscle activation                                    (nworld, nmuscles)
       a_act: actuator activation                                  (nworld, nactuator)
-      exp_contact_state: state variable for exponential contact   (nworld, nexpcontact, 4)
+      stl_contact_state: state variable for stateful contact      (nworld, nstlcontact, 4)
 
      * current controls *
       m_excitations: muscle excitations                           (nworld, nmuscles)
@@ -785,7 +776,7 @@ class Data:
       m_state_dot: time-derivative of muscle state variable       (nworld, nmuscles)
       m_act_dot: time-derivative of actuator activation           (nworld, na)
       a_act_dot: time-derivative of actuator activation           (nworld, nactuator)
-      exp_contact_state_dot: derivative info of exp contact state (nworld, nexpcontact, 4)
+      stl_contact_state_dot: derivative info of contact state     (nworld, nstlcontact, 4)
 
      * simulator forces
         body_F_ are Cartesian forces applied to bodies.
@@ -918,7 +909,7 @@ class Data:
     m_state: array("nworld", "nmuscle", float)
     m_act: array("nworld", "nmuscle", float)
     a_act: array("nworld", "nactuator", float)
-    exp_contact_state: array("nworld", "nexpcontact", wp.vec3)
+    stl_contact_state: array("nworld", "nstlcontact", wp.vec3)
 
     m_excitations: array("nworld", "nmuscle", float)
     a_excitations: array("nworld", "nactuator", float)
@@ -928,7 +919,7 @@ class Data:
     m_state_dot: array("nworld", "nmuscle", float)
     m_act_dot: array("nworld", "nmuscle", float)
     a_act_dot: array("nworld", "nactuator", float)
-    exp_contact_state_dot: array("nworld", "nexpcontact", wp.vec3)
+    stl_contact_state_dot: array("nworld", "nstlcontact", wp.vec3)
 
     body_F_gravity: array("nworld", "nbody", wp.spatial_vector)
     body_F_contact: array("nworld", "nbody", wp.spatial_vector)
@@ -1048,9 +1039,6 @@ class Data:
     z_err: wp.array(dtype=float)
     error: wp.array(dtype=float)
     steps_attempted: wp.array(dtype=int)
-
-    # Midpoint integrator scratch
-    integrator_midpoint_scratch: IntegratorMidpointScratch
 
     # Stored state for adaptive time-stepper
     integrator_scratch: list[IntegratorStateScratch]

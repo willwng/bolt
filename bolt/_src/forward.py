@@ -4,7 +4,7 @@ from . import collision_driver
 from . import smooth_acc
 from . import smooth_actuator
 from . import smooth_custom
-from . import smooth_exp_contacts
+from . import smooth_stateful_contacts
 from . import smooth_frc
 from . import smooth_hunt_crossley
 from . import smooth_inert
@@ -57,7 +57,7 @@ def realize_position(m: Model, d: Data, run_reset: bool = False):
 
     # finally, reset any contact state if requested
     if run_reset:
-        smooth_exp_contacts.reset_exp_contact_state(m, d)
+        smooth_stateful_contacts.reset_contact_state(m, d)
     return
 
 
@@ -129,7 +129,7 @@ def realize_forces(m: Model, d: Data):
     smooth_frc.damping(m, d)
     # contacts
     smooth_hunt_crossley.contact_forces_hc(m, d)
-    smooth_exp_contacts.contact_forces_exp(m, d)
+    smooth_stateful_contacts.contact_forces(m, d)
     # limits
     smooth_limits.coordinate_limit_force(m, d)
     smooth_limits.swing_twist_limit_force(m, d)
