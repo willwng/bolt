@@ -3,7 +3,7 @@
     <br>GPU-accelerated Musculoskeletal Simulator
 </h2>
 
-GPU-accelerated, high-fidelity musculoskeletal simulator designed for massively parallel (1k+) environments 
+[Bolt](https://bolt-simulator.github.io) is a GPU-accelerated, high-fidelity musculoskeletal simulator designed for massively parallel (1k+) environments 
 and predictive simulation at hundreds-to-thousands times real-time speed.
 Inspired by [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) and [OpenSim](https://github.com/opensim-org/opensim-core).
 <div float="center">
