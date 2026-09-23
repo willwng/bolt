@@ -1,8 +1,9 @@
 import warp as wp
 
+from bolt.types import Data
+from bolt.types import Model
+
 from ..pipeline import forward
-from ..types import Data
-from ..types import Model
 from ..warp_util import event_scope
 from . import common
 

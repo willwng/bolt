@@ -1,5 +1,8 @@
 import warp as wp
 
+from bolt.types import Data
+from bolt.types import Model
+
 from ..contact import collision_driver
 from ..contact import hunt_crossley
 from ..contact import stateful_contacts
@@ -16,8 +19,6 @@ from ..muscle import activation
 from ..muscle import contraction
 from ..muscle import function_path
 from ..muscle import point_path
-from ..types import Data
-from ..types import Model
 from ..warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})

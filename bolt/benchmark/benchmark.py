@@ -21,9 +21,9 @@ from tqdm import tqdm
 import numpy as np
 import warp as wp
 
-from bolt._src import warp_util
-from bolt.types_consts import Data
-from bolt.types_consts import Model
+import bolt
+from bolt.types import Data
+from bolt.types import Model
 
 
 def _sum(stack1, stack2):
@@ -68,7 +68,7 @@ def benchmark(
     trace = {}
     nacon, nefc = [], []
 
-    with warp_util.EventTracer(enabled=event_trace) as tracer:
+    with bolt.EventTracer(enabled=event_trace) as tracer:
         # capture the whole function as a CUDA graph
         jit_beg = time.perf_counter()
         with wp.ScopedCapture() as capture:

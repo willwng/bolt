@@ -4,12 +4,12 @@ import warp as wp
 from bolt.loader.array_util import allocate_from_annotations
 from bolt.loader.array_util import dataclass_sizes
 from bolt.loader.array_util import make_zero
-from bolt.types_consts import Contact
-from bolt.types_consts import Data
-from bolt.types_consts import IntegratorDotScratch
-from bolt.types_consts import IntegratorStateScratch
-from bolt.types_consts import IntegratorType
-from bolt.types_consts import Model
+from bolt.types import Contact
+from bolt.types import Data
+from bolt.types import IntegratorDotScratch
+from bolt.types import IntegratorStateScratch
+from bolt.types import IntegratorType
+from bolt.types import Model
 
 
 def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:

@@ -5,7 +5,7 @@ import warp as wp
 import warp.render
 from scipy.spatial.transform import Rotation as R
 
-from bolt._src import types
+from bolt import types
 from .mesh import load_mesh
 from .ellipsoid import create_ellipsoid_mesh
 

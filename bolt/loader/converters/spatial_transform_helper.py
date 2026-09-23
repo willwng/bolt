@@ -75,11 +75,3 @@ def get_flattened_transform_axes(spatial_transforms: list[SpatialTransformData])
     return flattened_axes
 
 
-def get_txfm_coordinate_names(transform_axes: list[TransformAxisData]) -> list[str]:
-    """ Returns a list of the coordinate names for each transform axis """
-    return [txfm.coordinate for txfm in transform_axes]
-
-
-def get_txfm_axes(transform_axes: list[TransformAxisData]) -> list[wp.vec3]:
-    """ Returns a list of the axis for each transform axis """
-    return [txfm.axis for txfm in transform_axes]

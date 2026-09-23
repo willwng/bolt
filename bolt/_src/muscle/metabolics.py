@@ -6,12 +6,13 @@ from dataclasses import dataclass
 
 import warp as wp
 
-from ..types import Data
-from ..types import FiberVelocityInfo
-from ..types import Model
-from ..types import MuscleDynamicsInfo
-from ..types import MuscleLengthInfo
-from ..types import MuscleMetadata
+from bolt.types import Data
+from bolt.types import FiberVelocityInfo
+from bolt.types import Model
+from bolt.types import MuscleDynamicsInfo
+from bolt.types import MuscleLengthInfo
+from bolt.types import MuscleMetadata
+
 from ..warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})

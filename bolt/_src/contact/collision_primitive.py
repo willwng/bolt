@@ -18,12 +18,13 @@ from typing import Tuple
 
 import warp as wp
 
+from bolt.types import Data
+from bolt.types import GeomType
+from bolt.types import Model
+from bolt.types import vec5
+
 from ..math import make_frame
 from ..math import upper_trid_index
-from ..types import Data
-from ..types import GeomType
-from ..types import Model
-from ..types import vec5
 from ..warp_util import event_scope
 from .collision_primitive_core import capsule_capsule
 from .collision_primitive_core import plane_capsule

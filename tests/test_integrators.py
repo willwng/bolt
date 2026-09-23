@@ -12,7 +12,7 @@ import pytest
 from scipy.integrate import solve_ivp
 
 import bolt
-from bolt.types_consts import ActivationType
+from bolt.types import ActivationType
 from models import MODEL_NAMES, STANDING_PELVIS_HEIGHT, model_path
 from tolerances import INTEGRATOR_ACTIVATION, INTEGRATOR_QPOS, INTEGRATOR_QVEL
 

@@ -1,7 +1,8 @@
 import opensim as osim
 
 from math import comb
-from bolt.types_consts import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER, SUPPORTED_DIM_ORDER, PolyInts
+from bolt.consts import MAX_POLY_NUM_DOFS, MAX_POLY_ORDER
+from bolt.types import PolyInts
 from bolt.loader.converters.osim_types import OSimType
 from bolt.loader.converters.converted_objects import MuscleFunctionPathData, USE_POINT_PATH, PADDED_DOF
 from bolt.loader.converters.muscle_helper import get_muscles
@@ -52,8 +53,7 @@ def parse_function_based_paths(
             raise ValueError(f"Polynomial dimension {dimension} is greater than max supported {MAX_POLY_NUM_DOFS}")
         if order > MAX_POLY_ORDER:
             raise ValueError(f"Polynomial order {order} is greater than max supported {MAX_POLY_ORDER}")
-        if (dimension, order) not in SUPPORTED_DIM_ORDER:
-            raise ValueError(f"dimension {dimension} and order {order} are not supported. Please generate new funcs")
+        # (dimension, order) pairs without a generated evaluator are rejected when the path kernels are built
 
         # Pad everything to the max dimension and order
         coordinates = pad_list(coordinates, target_length=MAX_POLY_NUM_DOFS, pad_value=PADDED_DOF)
@@ -135,10 +135,3 @@ def get_fn_term_adr(
     return term_fn_adr
 
 
-def get_fn_path_dimension(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
-    """ Gets the dimension of each muscle function path """
-    return [muscle_path.dimension for muscle_path in muscle_function_paths]
-
-
-def get_fn_path_order(muscle_function_paths: list[MuscleFunctionPathData]) -> list[int]:
-    return [muscle_path.order for muscle_path in muscle_function_paths]

@@ -3,7 +3,7 @@ import warp as wp
 from bolt.loader.converters.converted_objects import SwingTwistLimitData
 from bolt.loader.converters.xml_helper import extract_bolt_only_objects, extract_float_from_element, \
     extract_string_from_element
-from bolt.types_consts import SwingTwistLimit
+from bolt.types import SwingTwistLimit
 
 
 def convert_swing_twist_limits(model_path: str) -> list[SwingTwistLimitData]:

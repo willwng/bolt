@@ -1,6 +1,6 @@
 import warp as wp
 import bolt.loader.converters.physical_frame_helper as physical_frame_helper
-from bolt.types_consts import MobilizerType
+from bolt.types import MobilizerType
 from .converted_objects import JointData, GROUND, GROUND_PARENT, NO_DOF
 from .osim_types import OSimType
 from .physical_frame_helper import extract_frame_transform_from_base_frame
@@ -221,21 +221,3 @@ def check_root_free(joints: list[JointData]) -> bool:
     return False
 
 
-def get_mob_type(joints: list[JointData]) -> list[MobilizerType]:
-    return [joint.mob_type for joint in joints]
-
-
-def get_mob_dofnum(joints: list[JointData]) -> list[int]:
-    return [joint.num_speeds for joint in joints]
-
-
-def get_mob_X_PF(joints: list[JointData]) -> list[wp.transform]:
-    return [joint.transform_PF for joint in joints]
-
-
-def get_mob_X_MB(joints: list[JointData]) -> list[wp.transform]:
-    return [joint.transform_MB for joint in joints]
-
-
-def get_mob_extra_info(joints: list[JointData]) -> list[wp.vec3]:
-    return [joint.extra_info for joint in joints]

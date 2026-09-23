@@ -1,18 +1,12 @@
-import os
 import numpy as np
 import warp as wp
 import pyvista as pv
 
+from bolt.paths import get_visual_path
+
 
 def load_mesh(mesh_file: str):
-    file_path = os.path.join(
-        os.path.dirname(__file__),
-        "..",
-        "..",
-        "data",
-        "geometry",
-        mesh_file
-    )
+    file_path = get_visual_path(mesh_file)
 
      # Load mesh
     if file_path.endswith(".vtp"):

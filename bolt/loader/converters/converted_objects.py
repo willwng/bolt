@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from dataclasses import field
 
 import warp as wp
-from bolt.types_consts import GeomType, MobilizerType
+from bolt.types import GeomType, MobilizerType
 
 GROUND_PARENT = "N/A"
 GROUND = "ground"

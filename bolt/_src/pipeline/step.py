@@ -1,12 +1,13 @@
 import warp as wp
 
+from bolt.types import Data
+from bolt.types import IntegratorType
+from bolt.types import Model
+
 from ..integrate import euler_adaptive
 from ..integrate import euler_fixed
 from ..integrate import rk_adaptive
 from ..integrate import rk_fixed
-from ..types import Data
-from ..types import IntegratorType
-from ..types import Model
 from ..warp_util import event_scope
 from . import forward
 

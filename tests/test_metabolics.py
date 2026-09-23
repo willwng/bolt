@@ -16,7 +16,7 @@ import warp as wp
 import opensim_oracle
 from bolt._src.muscle.metabolics import MetabolicOptions, compute_muscle_metabolics, \
     default_metabolic_muscle_parameters
-from bolt._src.types import FiberVelocityInfo, MuscleDynamicsInfo, MuscleLengthInfo
+from bolt.types import FiberVelocityInfo, MuscleDynamicsInfo, MuscleLengthInfo
 from conftest import N_STATES
 from models import MODEL_NAMES, model_path
 from tolerances import METABOLIC_POWER_ATOL, METABOLIC_POWER_RTOL

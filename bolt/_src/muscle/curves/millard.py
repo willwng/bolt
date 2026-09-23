@@ -1,8 +1,8 @@
 """ Millard force curves """
 import warp as wp
 
-from ... import consts
-from ...types import vec6
+from bolt import consts
+from bolt.types import vec6
 
 wp.set_module_options({"enable_backward": False})
 

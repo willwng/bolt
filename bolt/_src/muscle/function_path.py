@@ -2,12 +2,13 @@ import functools
 
 import warp as wp
 
-from ..consts import MAX_POLY_NUM_DOFS
-from ..types import Data
-from ..types import Model
-from ..types import PolyInts
-from ..types import PolyPowCache
-from ..types import PolyVec
+from bolt.consts import MAX_POLY_NUM_DOFS
+from bolt.types import Data
+from bolt.types import Model
+from bolt.types import PolyInts
+from bolt.types import PolyPowCache
+from bolt.types import PolyVec
+
 from ..warp_util import event_scope
 from . import polynomial_evaluator
 
@@ -19,6 +20,9 @@ def _compute_path_kernel(dimension: int, order: int):
     """
     Computes length, moment arms and velocity for function-path muscles whose polynomial has this (dimension, order)
     """
+    if (dimension, order) not in polynomial_evaluator.EVALUATORS:
+        raise ValueError(f"Function-based paths with dimension {dimension} and order {order} are not supported. "
+                         f"Add it to generate_polynomial_evaluator.py and regenerate")
     evaluate_polynomial = polynomial_evaluator.EVALUATORS[(dimension, order)]
 
     @wp.kernel(module="unique")

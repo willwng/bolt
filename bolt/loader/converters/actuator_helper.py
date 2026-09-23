@@ -1,4 +1,4 @@
-from bolt.types_consts import ActuatorMetadata
+from bolt.types import ActuatorMetadata
 from bolt.loader.converters.converted_objects import ActivationCoordinateActuatorData
 from bolt.loader.converters.osim_types import OSimType
 

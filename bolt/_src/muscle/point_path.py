@@ -1,8 +1,9 @@
 import warp as wp
 
-from ..consts import BOLT_MINVAL
-from ..types import Data
-from ..types import Model
+from bolt.consts import BOLT_MINVAL
+from bolt.types import Data
+from bolt.types import Model
+
 from ..warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})

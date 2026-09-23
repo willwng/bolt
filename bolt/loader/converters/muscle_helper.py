@@ -3,8 +3,14 @@ import warnings
 import opensim as osim
 import warp as wp
 
-from bolt.types_consts import MAX_NORM_FIBER_LENGTH, ContractionType, MuscleMetadata, BOLT_SIG_REAL, \
-    MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH, MIN_NORM_FIBER_LENGTH, M_MAX_PENNATION_ANGLE
+from bolt.consts import (
+    MAX_NORM_FIBER_LENGTH,
+    BOLT_SIG_REAL,
+    MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH,
+    MIN_NORM_FIBER_LENGTH,
+    M_MAX_PENNATION_ANGLE,
+)
+from bolt.types import ContractionType, MuscleMetadata
 from bolt.loader.converters.converted_objects import MuscleData, SiteData
 from bolt.loader.converters.osim_types import OSimType
 from bolt.loader.converters.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame

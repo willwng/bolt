@@ -5,7 +5,7 @@ from bolt.loader.converters.converted_objects import StatefulContactForce, SiteD
 from bolt.loader.converters.osim_types import OSimType
 from bolt.loader.converters.physical_frame_helper import wp_transform_from_osim_transform
 from bolt.loader.converters.xml_helper import extract_bolt_only_objects, extract_float_from_element
-from bolt.types_consts import StatefulContact
+from bolt.types import StatefulContact
 
 
 def _dummy_parse_station(xml_item) -> SiteData:

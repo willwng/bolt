@@ -54,11 +54,6 @@ def get_linear_fn_mb(linear_fns: list[LinearFunctionData]) -> list[wp.vec2]:
     return [wp.vec2(fn.slope, fn.intercept) for fn in linear_fns]
 
 
-def get_const_fn_vals(const_fns: list[ConstantFunctionData]) -> list[float]:
-    """ Returns a contiguous list of the values for constant functions """
-    return [fn.value for fn in const_fns]
-
-
 def get_flattened_poly_coeffs(poly_fns: list[PolynomialFunctionData]) -> list[float]:
     """ Returns a flattened list of the coefficients for polynomial functions. The coefficients are flattened in order, meaning all coefficients for the first function come first, followed by all coefficients for the second function, and so on. """
     flattened_coeffs = []

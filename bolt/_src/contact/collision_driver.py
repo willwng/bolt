@@ -16,9 +16,10 @@
 
 import warp as wp
 
-from ..consts import BOLT_MAXVAL
-from ..types import Data
-from ..types import Model
+from bolt.consts import BOLT_MAXVAL
+from bolt.types import Data
+from bolt.types import Model
+
 from ..warp_util import event_scope
 from .collision_primitive import narrowphase
 

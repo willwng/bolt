@@ -1,11 +1,12 @@
 import warp as wp
 
+from bolt.consts import BOLT_MINVAL
+from bolt.types import Data
+from bolt.types import IntegratorStateScratch
+from bolt.types import Model
+
 from .. import math
-from ..consts import BOLT_MINVAL
 from ..kinematics import mobilizers
-from ..types import Data
-from ..types import IntegratorStateScratch
-from ..types import Model
 from ..warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})

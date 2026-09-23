@@ -9,9 +9,9 @@ from bolt.loader.converters import visual_helper
 from bolt.loader.converters.converted_objects import GeomData
 from bolt.loader.model_parser import ParsedModel
 from bolt.loader.model_topology import ModelTopology
-from bolt.types_consts import Data
-from bolt.types_consts import MeshLoadResult
-from bolt.types_consts import Model
+from bolt.types import Data
+from bolt.types import MeshLoadResult
+from bolt.types import Model
 
 
 @dataclass

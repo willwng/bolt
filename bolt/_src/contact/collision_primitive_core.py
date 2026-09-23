@@ -19,7 +19,7 @@ from typing import Tuple
 
 import warp as wp
 
-from ..consts import BOLT_MINVAL
+from bolt.consts import BOLT_MINVAL
 
 wp.set_module_options({"enable_backward": False})
 

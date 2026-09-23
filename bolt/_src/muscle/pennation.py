@@ -1,6 +1,6 @@
 import warp as wp
 
-from .. import consts
+from bolt import consts
 
 wp.set_module_options({"enable_backward": False})
 

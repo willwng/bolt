@@ -34,9 +34,3 @@ def convert_sites(model: OSimType.Model) -> list[SiteData]:
     return site_data
 
 
-def get_site_body_name(site_data_list: list[SiteData]) -> list[str]:
-    return [site_data.body_name for site_data in site_data_list]
-
-
-def get_site_offset(site_data_list: list[SiteData]) -> list[wp.vec3]:
-    return [site_data.offset for site_data in site_data_list]

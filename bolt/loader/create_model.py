@@ -6,18 +6,15 @@ from bolt.loader.array_util import make_zero
 from bolt.loader.array_util import new_unset_class
 from bolt.loader.array_util import to_warp_array
 from bolt.loader.converters import actuator_helper
-from bolt.loader.converters import body_helper
 from bolt.loader.converters import coordinate_force_helper
 from bolt.loader.converters import function_based_path_helper
 from bolt.loader.converters import function_helper
 from bolt.loader.converters import geom_helper
 from bolt.loader.converters import joint_helper
 from bolt.loader.converters import muscle_helper
-from bolt.loader.converters import site_helper
 from bolt.loader.converters import spatial_transform_helper
 from bolt.loader.converters import stateful_contact_helper
 from bolt.loader.converters import swing_twist_helper
-from bolt.loader.converters import visual_helper
 from bolt.loader.converters.converted_objects import ConstantFunctionData
 from bolt.loader.converters.converted_objects import GeomData
 from bolt.loader.converters.converted_objects import LinearFunctionData
@@ -29,19 +26,19 @@ from bolt.loader.converters.python_util import exclusive_scan
 from bolt.loader.converters.python_util import gather
 from bolt.loader.model_topology import ModelTopology
 from bolt.loader.model_parser import ParsedModel
-from bolt.types_consts import ActivationType
-from bolt.types_consts import ActuatorMetadata
-from bolt.types_consts import ContractionType
-from bolt.types_consts import CoordinateLimitForce
-from bolt.types_consts import IntegratorType
-from bolt.types_consts import MobilizerType
-from bolt.types_consts import Model
-from bolt.types_consts import MuscleMetadata
-from bolt.types_consts import Option
-from bolt.types_consts import PolyInts
-from bolt.types_consts import StatefulContact
-from bolt.types_consts import SwingTwistLimit
-from bolt.types_consts import TileBlockDim
+from bolt.types import ActivationType
+from bolt.types import ActuatorMetadata
+from bolt.types import ContractionType
+from bolt.types import CoordinateLimitForce
+from bolt.types import IntegratorType
+from bolt.types import MobilizerType
+from bolt.types import Model
+from bolt.types import MuscleMetadata
+from bolt.types import Option
+from bolt.types import PolyInts
+from bolt.types import StatefulContact
+from bolt.types import SwingTwistLimit
+from bolt.types import TileBlockDim
 
 
 def create_model(
@@ -74,9 +71,9 @@ def create_model(
 def pack_bodies(m: Model, topology: ModelTopology):
     bodies = topology.bodies
     m.nbody = len(bodies)
-    m.body_mass = to_warp_array(body_helper.get_body_masses(bodies), dtype=float)
-    m.body_mass_center = to_warp_array(body_helper.get_body_center(bodies), dtype=wp.vec3)
-    m.body_unit_inertia_OB_B = to_warp_array(body_helper.get_body_unit_inertia_OB_B(bodies), dtype=wp.mat33)
+    m.body_mass = to_warp_array([body.mass for body in bodies], dtype=float)
+    m.body_mass_center = to_warp_array([body.mass_center for body in bodies], dtype=wp.vec3)
+    m.body_unit_inertia_OB_B = to_warp_array([body.unit_inertia_OB_B for body in bodies], dtype=wp.mat33)
     m.body_parentid = to_warp_array(topology.body_parent_id, dtype=int)
     m.body_tree = tuple([to_warp_array(level, dtype=int) for level in topology.body_tree])
     m.body_children = to_warp_array(topology.body_children, dtype=int)
@@ -90,13 +87,13 @@ def pack_joints(m: Model, topology: ModelTopology):
     m.nq = sum([joint.num_coordinates for joint in joints])
     m.nv = sum([joint.num_speeds for joint in joints])
 
-    m.mob_type = to_warp_array(joint_helper.get_mob_type(joints), dtype=int)
+    m.mob_type = to_warp_array([joint.mob_type for joint in joints], dtype=int)
     m.mob_qposadr = to_warp_array(topology.mob_qpos_adr, dtype=int)
     m.mob_dofadr = to_warp_array(topology.mob_dof_adr, dtype=int)
-    m.mob_dofnum = to_warp_array(joint_helper.get_mob_dofnum(joints), dtype=int)
-    m.mob_X_PF = to_warp_array(joint_helper.get_mob_X_PF(joints), dtype=wp.transform)
-    m.mob_X_MB = to_warp_array(joint_helper.get_mob_X_MB(joints), dtype=wp.transform)
-    m.mob_extra_info = to_warp_array(joint_helper.get_mob_extra_info(joints), dtype=wp.vec3)
+    m.mob_dofnum = to_warp_array([joint.num_speeds for joint in joints], dtype=int)
+    m.mob_X_PF = to_warp_array([joint.transform_PF for joint in joints], dtype=wp.transform)
+    m.mob_X_MB = to_warp_array([joint.transform_MB for joint in joints], dtype=wp.transform)
+    m.mob_extra_info = to_warp_array([joint.extra_info for joint in joints], dtype=wp.vec3)
 
     # Index of mobilizer -> index of custom joint (-1 if not custom)
     mob_to_cst_idx, cst_to_mob_idx = joint_helper.compute_mobilizer_index_of_type(joints, MobilizerType.CUSTOM)
@@ -118,12 +115,12 @@ def pack_custom_joints(m: Model, parsed: ParsedModel, topology: ModelTopology):
     # Spatial transforms: flatten all the axes
     ordered_transform_axes = spatial_transform_helper.get_flattened_transform_axes(ordered_spatial_transforms)
     # Get all relative coordinate indices for each transform axis
-    txfm_dofs = spatial_transform_helper.get_txfm_coordinate_names(ordered_transform_axes)
+    txfm_dofs = [axis.coordinate for axis in ordered_transform_axes]
     txfm_qpos_relative_idx = apply_map_to_list(txfm_dofs, topology.relative_dof_ordering)
     txfm_qpos_global_idx = apply_map_to_list(txfm_dofs, topology.qpos_ordering)
 
     # We need to reshape the transform data to be (num_custom_joints, 6)
-    txfm_axes = spatial_transform_helper.get_txfm_axes(ordered_transform_axes)
+    txfm_axes = [axis.axis for axis in ordered_transform_axes]
     cst_txfm_axes = create_nested_list(txfm_axes, num_per_sublist=6)
     cst_txfm_dof = create_nested_list(txfm_qpos_relative_idx, num_per_sublist=6)
     # If these lists are empty, we should fill them with dummy data so that the shape is correct
@@ -149,7 +146,7 @@ def pack_custom_joints(m: Model, parsed: ParsedModel, topology: ModelTopology):
     poly_coeffs_num, poly_coeffs_adr = function_helper.get_poly_coeffs_num_adr(poly_fns)
     spline_xys_num, spline_xys_adr = function_helper.get_spline_xys_num_adr(spline_fns)
     m.linear_fn_mb = to_warp_array(function_helper.get_linear_fn_mb(linear_fns), dtype=wp.vec2)
-    m.const_fn_c = to_warp_array(function_helper.get_const_fn_vals(const_fns), dtype=float)
+    m.const_fn_c = to_warp_array([fn.value for fn in const_fns], dtype=float)
     m.poly_fn_coeff = to_warp_array(function_helper.get_flattened_poly_coeffs(poly_fns), dtype=float)
     m.poly_fn_coeff_adr = to_warp_array(poly_coeffs_adr, dtype=int)
     m.poly_fn_coeff_num = to_warp_array(poly_coeffs_num, dtype=int)
@@ -194,20 +191,20 @@ def pack_coordinate_forces(m: Model, parsed: ParsedModel, topology: ModelTopolog
 
 def pack_geoms(m: Model, geoms: list[GeomData], body_ordering: dict[str, int], body_parent_id: list[int]):
     """ Collider (geom) fields, including broadphase pair registration. Also used to update colliders later """
-    geom_type = geom_helper.get_geom_type(geoms)
-    geom_body_id = apply_map_to_list(geom_helper.get_geom_body_name(geoms), body_ordering)
+    geom_type = [geom.geom_type for geom in geoms]
+    geom_body_id = apply_map_to_list([geom.body_name for geom in geoms], body_ordering)
     m.ngeom = len(geoms)
     m.geom_type = to_warp_array(geom_type, dtype=int)
     m.geom_bodyid = to_warp_array(geom_body_id, dtype=int)
-    m.geom_X_loc = to_warp_array(geom_helper.get_geom_transform(geoms), dtype=wp.transform)
-    m.geom_size = to_warp_array(geom_helper.get_geom_size(geoms), dtype=wp.vec3)
-    m.geom_friction = to_warp_array(geom_helper.get_geom_friction(geoms), dtype=wp.vec3)
-    m.geom_stiffness = to_warp_array(geom_helper.get_geom_stiffness(geoms), dtype=float)
-    m.geom_dissipation = to_warp_array(geom_helper.get_geom_dissipation(geoms), dtype=float)
-    m.geom_transition_velocity = to_warp_array(geom_helper.get_geom_transition_velocity(geoms), dtype=float)
-    m.geom_priority = to_warp_array(geom_helper.get_geom_priority(geoms), dtype=int)
-    m.geom_aabb = to_warp_array(geom_helper.get_geom_aabb(geoms), dtype=wp.vec3)
-    m.geom_rbound = to_warp_array(geom_helper.get_geom_rbound(geoms), dtype=float)
+    m.geom_X_loc = to_warp_array([geom.transform for geom in geoms], dtype=wp.transform)
+    m.geom_size = to_warp_array([geom.size for geom in geoms], dtype=wp.vec3)
+    m.geom_friction = to_warp_array([geom.friction for geom in geoms], dtype=wp.vec3)
+    m.geom_stiffness = to_warp_array([geom.stiffness for geom in geoms], dtype=float)
+    m.geom_dissipation = to_warp_array([geom.dissipation for geom in geoms], dtype=float)
+    m.geom_transition_velocity = to_warp_array([geom.transition_velocity for geom in geoms], dtype=float)
+    m.geom_priority = to_warp_array([geom.priority for geom in geoms], dtype=int)
+    m.geom_aabb = to_warp_array([geom.aabb for geom in geoms], dtype=wp.vec3)
+    m.geom_rbound = to_warp_array([geom.rbound for geom in geoms], dtype=float)
 
     # Broadphase registration
     geom_type_pair_count, nxn_geom_pair_filtered, nxn_pairid_filtered = (
@@ -231,8 +228,8 @@ def pack_sites_and_contacts(m: Model, parsed: ParsedModel, topology: ModelTopolo
     m.site_adr_marker = parsed.site_adr_marker
     m.site_adr_rem = parsed.site_adr_rem
     m.site_bodyid = to_warp_array(
-        apply_map_to_list(site_helper.get_site_body_name(sites), topology.body_ordering), dtype=int)
-    m.site_offset = to_warp_array(site_helper.get_site_offset(sites), dtype=wp.vec3)
+        apply_map_to_list([site.body_name for site in sites], topology.body_ordering), dtype=int)
+    m.site_offset = to_warp_array([site.offset for site in sites], dtype=wp.vec3)
 
     stateful_contact_data = stateful_contact_helper.create_stateful_contact_data(
         stateful_contact_data=parsed.stl_contacts,
@@ -248,8 +245,8 @@ def pack_visuals(m: Model, parsed: ParsedModel, topology: ModelTopology):
     visuals = parsed.visuals
     m.nvis = len(visuals)
     m.vis_bodyid = to_warp_array(
-        apply_map_to_list(visual_helper.get_vis_body_name(visuals), topology.body_ordering), dtype=int)
-    m.vis_X_loc = to_warp_array(visual_helper.get_vis_transform(visuals), dtype=wp.transform)
+        apply_map_to_list([vis.body_name for vis in visuals], topology.body_ordering), dtype=int)
+    m.vis_X_loc = to_warp_array([vis.transform for vis in visuals], dtype=wp.transform)
 
 
 def pack_muscles(m: Model, parsed: ParsedModel, topology: ModelTopology):
@@ -283,8 +280,8 @@ def pack_muscles(m: Model, parsed: ParsedModel, topology: ModelTopology):
     m.fn_path_term_start = to_warp_array(fn_path_term_start, dtype=int)
     m.fn_path_qpos_adr = to_warp_array(
         function_based_path_helper.get_fn_term_adr(function_paths, topology.qpos_ordering), dtype=PolyInts)
-    m.fn_path_dimension = to_warp_array(function_based_path_helper.get_fn_path_dimension(function_paths), dtype=int)
-    m.fn_path_order = to_warp_array(function_based_path_helper.get_fn_path_order(function_paths), dtype=int)
+    m.fn_path_dimension = to_warp_array([path.dimension for path in function_paths], dtype=int)
+    m.fn_path_order = to_warp_array([path.order for path in function_paths], dtype=int)
     return
 
 

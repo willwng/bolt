@@ -9,9 +9,9 @@ import pytest
 import warp as wp
 
 import bolt
-from bolt._src.types import array as types_array
+from bolt.types import array as types_array
 from bolt.loader.array_util import allocate_from_annotations
-from bolt.types_consts import GeomType
+from bolt.types import GeomType
 from models import FN_PATH_FILE, FN_PATH_MODEL, MODEL_NAMES, model_path
 
 

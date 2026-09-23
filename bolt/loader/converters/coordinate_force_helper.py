@@ -1,7 +1,7 @@
 import warp as wp
 import numpy as np
 
-from bolt.types_consts import CoordinateLimitForce
+from bolt.types import CoordinateLimitForce
 from bolt.loader.converters.converted_objects import SpringGeneralizedForceData, CoordinateLimitForceData
 from bolt.loader.converters.osim_types import OSimType
 

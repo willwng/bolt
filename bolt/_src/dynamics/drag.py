@@ -6,9 +6,10 @@ Not part of the forward pipeline; call drag_forces explicitly.
 """
 import warp as wp
 
+from bolt.types import Data
+from bolt.types import Model
+
 from .. import math
-from ..types import Data
-from ..types import Model
 from ..warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})

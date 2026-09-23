@@ -15,8 +15,8 @@ from bolt.loader.model_parser import parse_osim_model
 from bolt.loader.model_load_result import ModelLoadResult
 from bolt.loader.model_load_result import make_load_result
 from bolt.loader.model_topology import build_topology
-from bolt.types_consts import Data
-from bolt.types_consts import IntegratorType
+from bolt.types import Data
+from bolt.types import IntegratorType
 
 
 def load_model(

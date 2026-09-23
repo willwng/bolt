@@ -2,7 +2,7 @@ import opensim as osim
 import warp as wp
 import numpy as np
 
-from bolt.types_consts import GeomType
+from bolt.types import GeomType
 from bolt.loader.converters.converted_objects import GeomData, AABB, UserGeomData
 from bolt.loader.converters.osim_types import OSimType
 from bolt.loader.converters.physical_frame_helper import get_body_name_of_frame, wp_transform_from_osim_transform
@@ -194,45 +194,3 @@ def get_geom_ordering(geom_data_list: list[GeomData]) -> dict[str, int]:
     return {geom_data.name: i for i, geom_data in enumerate(geom_data_list)}
 
 
-def get_geom_body_name(geom_data_list: list[GeomData]) -> list[str]:
-    return [geom_data.body_name for geom_data in geom_data_list]
-
-
-def get_geom_type(geom_data_list: list[GeomData]) -> list[GeomType]:
-    return [geom_data.geom_type for geom_data in geom_data_list]
-
-
-def get_geom_size(geom_data_list: list[GeomData]) -> list[wp.vec3]:
-    return [geom_data.size for geom_data in geom_data_list]
-
-
-def get_geom_transform(geom_data_list: list[GeomData]) -> list[wp.transform]:
-    return [geom_data.transform for geom_data in geom_data_list]
-
-
-def get_geom_aabb(geom_data_list: list[GeomData]) -> list[AABB]:
-    return [geom_data.aabb for geom_data in geom_data_list]
-
-
-def get_geom_rbound(geom_data_list: list[GeomData]) -> list[float]:
-    return [geom_data.rbound for geom_data in geom_data_list]
-
-
-def get_geom_friction(geom_data_list: list[GeomData]) -> list[wp.vec3]:
-    return [geom_data.friction for geom_data in geom_data_list]
-
-
-def get_geom_stiffness(geom_data_list: list[GeomData]) -> list[float]:
-    return [geom_data.stiffness for geom_data in geom_data_list]
-
-
-def get_geom_dissipation(geom_data_list: list[GeomData]) -> list[float]:
-    return [geom_data.dissipation for geom_data in geom_data_list]
-
-
-def get_geom_transition_velocity(geom_data_list: list[GeomData]) -> list[float]:
-    return [geom_data.transition_velocity for geom_data in geom_data_list]
-
-
-def get_geom_priority(geom_data_list: list[GeomData]) -> list[int]:
-    return [geom_data.priority for geom_data in geom_data_list]

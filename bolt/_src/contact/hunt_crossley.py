@@ -1,10 +1,11 @@
 import warp as wp
 
+from bolt.consts import BOLT_MINVAL
+from bolt.types import Data
+from bolt.types import Model
+from bolt.types import vec5
+
 from .. import math
-from ..consts import BOLT_MINVAL
-from ..types import Data
-from ..types import Model
-from ..types import vec5
 from ..warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})

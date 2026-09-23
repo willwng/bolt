@@ -1,12 +1,13 @@
 import warp as wp
 
+from bolt.types import Data
+from bolt.types import Model
+
 from ..dynamics import forces
 from ..dynamics import operators
 from ..kinematics import mobilizers
 from ..muscle import function_path
 from ..muscle import point_path
-from ..types import Data
-from ..types import Model
 from ..warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})

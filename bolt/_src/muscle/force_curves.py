@@ -1,9 +1,10 @@
 """ Unifies the various force-curve options """
 import warp as wp
 
-from .. import consts
-from ..types import ContractionType
-from ..types import MuscleMetadata
+from bolt import consts
+from bolt.types import ContractionType
+from bolt.types import MuscleMetadata
+
 from .curves import dgf
 from .curves import millard
 from .curves import mujoco

@@ -1,7 +1,7 @@
 import warp as wp
 
-from . import types
-from .consts import MAX_POLY_NUM_DOFS
+from bolt import types
+from bolt.consts import MAX_POLY_NUM_DOFS
 
 
 @wp.func

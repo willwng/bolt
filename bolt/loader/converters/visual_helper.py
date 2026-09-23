@@ -1,5 +1,4 @@
-import warp as wp
-from bolt.types_consts import MeshLoadResult
+from bolt.types import MeshLoadResult
 
 from bolt.loader.converters.converted_objects import VisualData
 from bolt.loader.converters.physical_frame_helper import get_body_name_of_frame, extract_frame_transform_from_base_frame
@@ -56,9 +55,3 @@ def create_mesh_load_results(visual_data_list: list[VisualData]) -> list[MeshLoa
     return mesh_load_results
 
 
-def get_vis_body_name(visual_data_list: list[VisualData]) -> list[str]:
-    return [visual.body_name for visual in visual_data_list]
-
-
-def get_vis_transform(visual_data_list: list[VisualData]) -> list[wp.transform]:
-    return [visual.transform for visual in visual_data_list]

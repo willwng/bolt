@@ -1,10 +1,11 @@
 import warp as wp
 
+from bolt.consts import BOLT_SIG_REAL
+from bolt.types import Data
+from bolt.types import Model
+from bolt.types import StatefulContact
+
 from .. import math
-from ..consts import BOLT_SIG_REAL
-from ..types import Data
-from ..types import Model
-from ..types import StatefulContact
 from ..warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})

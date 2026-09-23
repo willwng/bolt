@@ -1,8 +1,9 @@
 import warp as wp
 
-from ..types import CoordinateLimitForce
-from ..types import Data
-from ..types import Model
+from bolt.types import CoordinateLimitForce
+from bolt.types import Data
+from bolt.types import Model
+
 from ..warp_util import event_scope
 from . import mobilizers
 

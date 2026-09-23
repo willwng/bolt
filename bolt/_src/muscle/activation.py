@@ -1,9 +1,10 @@
 import warp as wp
 
-from ..types import ActivationType
-from ..types import Data
-from ..types import Model
-from ..types import MuscleMetadata
+from bolt.types import ActivationType
+from bolt.types import Data
+from bolt.types import Model
+from bolt.types import MuscleMetadata
+
 from ..warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
