@@ -18,6 +18,8 @@ def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:
         return 2, 1
     elif integrator == IntegratorType.RK_MERSON_ADAPTIVE:
         return 2, 5
+    elif integrator == IntegratorType.RK4_FIXED:
+        return 1, 1  # y_0 and the weighted sum of the stage derivatives
     return 0, 0
 
 

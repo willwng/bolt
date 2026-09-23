@@ -1,11 +1,13 @@
+import functools
+
 import warp as wp
 
 from bolt.consts import BOLT_MINVAL
 from bolt.types import Data
-from bolt.types import IntegratorStateScratch
 from bolt.types import Model
 
 from .. import math
+from ..pipeline import forward
 from ..kinematics import mobilizers
 from ..warp_util import event_scope
 
@@ -62,16 +64,20 @@ def choose_target_time(m: Model, d: Data):
     )
 
 
-def adjust_err_scales(m: Model, d: Data):
-    @wp.func
-    def calc_relative_scaling(abs_v: float, w: float) -> float:
-        """
-        Choose the current value as its scale when it is large enough,
-        otherwise use absolute scale
-        """
-        return (1.0 / abs_v) if abs_v * w > 1.0 else w
+@wp.func
+def _calc_relative_scaling(abs_v: float, w: float) -> float:
+    """
+    Choose the current value as its scale when it is large enough,
+    otherwise use absolute scale
+    """
+    return (1.0 / abs_v) if abs_v * w > 1.0 else w
 
-    @wp.kernel
+
+@functools.cache
+def _err_scale_kernels(nv: int, nm: int, na: int):
+    """ Kernels updating the error scales; tile shapes must be compile-time constants, hence one pair per size """
+
+    @wp.kernel(module="unique")
     def adjust_qvel_scales(
             # Model:
             qvel_weights: wp.array(dtype=float),
@@ -81,16 +87,15 @@ def adjust_err_scales(m: Model, d: Data):
             qvel_scales_out: wp.array2d(dtype=float),
     ):
         worldid = wp.tid()
-        nv = wp.static(m.nv)
         qvel_tile = wp.tile_load(qvel_in[worldid], shape=nv)
         qvel_weight_tile = wp.tile_load(qvel_weights, shape=nv)
 
         qvel_abs_tile = wp.tile_map(wp.abs, qvel_tile)
-        qvel_scale_tile = wp.tile_map(calc_relative_scaling, qvel_abs_tile, qvel_weight_tile)
+        qvel_scale_tile = wp.tile_map(_calc_relative_scaling, qvel_abs_tile, qvel_weight_tile)
         wp.tile_store(qvel_scales_out[worldid], qvel_scale_tile)
         return
 
-    @wp.kernel
+    @wp.kernel(module="unique")
     def adjust_z_scales(
             # Model:
             z_weights: wp.array(dtype=float),
@@ -102,29 +107,34 @@ def adjust_err_scales(m: Model, d: Data):
             z_scales_out: wp.array2d(dtype=float),
     ):
         worldid = wp.tid()
-        nm, na = wp.static(m.nmuscle), wp.static(m.nactuator)
-        if nm:
+        if wp.static(nm):
             # muscle state
             m_state_tile = wp.tile_load(m_state_in[worldid], shape=nm)
             m_state_weight_tile = wp.tile_load(z_weights, shape=nm, offset=0)
             m_state_abs_tile = wp.tile_map(wp.abs, m_state_tile)
-            m_state_scale_tile = wp.tile_map(calc_relative_scaling, m_state_abs_tile, m_state_weight_tile)
+            m_state_scale_tile = wp.tile_map(_calc_relative_scaling, m_state_abs_tile, m_state_weight_tile)
             wp.tile_store(z_scales_out[worldid], m_state_scale_tile, offset=(0,))
             # muscle activation
             m_act_tile = wp.tile_load(m_act_in[worldid], shape=nm)
             m_act_weight_tile = wp.tile_load(z_weights, shape=nm, offset=nm)
             m_act_abs_tile = wp.tile_map(wp.abs, m_act_tile)
-            m_act_scale_tile = wp.tile_map(calc_relative_scaling, m_act_abs_tile, m_act_weight_tile)
+            m_act_scale_tile = wp.tile_map(_calc_relative_scaling, m_act_abs_tile, m_act_weight_tile)
             wp.tile_store(z_scales_out[worldid], m_act_scale_tile, offset=nm)
-        if na:
+        if wp.static(na):
             # actuator activation
             a_act_tile = wp.tile_load(a_act_in[worldid], shape=na)
             a_act_weight_tile = wp.tile_load(z_weights, shape=na, offset=nm + nm)
             a_act_abs_tile = wp.tile_map(wp.abs, a_act_tile)
-            a_act_scale_tile = wp.tile_map(calc_relative_scaling, a_act_abs_tile, a_act_weight_tile)
+            a_act_scale_tile = wp.tile_map(_calc_relative_scaling, a_act_abs_tile, a_act_weight_tile)
             wp.tile_store(z_scales_out[worldid], a_act_scale_tile, offset=nm + nm)
         return
 
+    return adjust_qvel_scales, adjust_z_scales
+
+
+@event_scope
+def adjust_err_scales(m: Model, d: Data):
+    adjust_qvel_scales, adjust_z_scales = _err_scale_kernels(m.nv, m.nmuscle, m.nactuator)
     wp.launch_tiled(
         adjust_qvel_scales,
         dim=d.nworld,
@@ -173,10 +183,11 @@ def check_done_integrating(m: Model, d: Data):
     )
 
 
-def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: float = 1.0):
-    """ Computes error of current state with given state. Stores error in d.error. """
+@functools.cache
+def _error_kernels(nq: int, nv: int, nm: int, na: int, nz: int, use_inf_norm: bool):
+    """ Kernels computing the state error; tile shapes must be compile-time constants, hence one set per size """
 
-    @wp.kernel
+    @wp.kernel(module="unique")
     def compute_diffs(
             # Data in:
             qpos_in: wp.array2d(dtype=float),
@@ -190,13 +201,14 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
             m_state_store_in: wp.array2d(dtype=float),
             m_act_store_in: wp.array2d(dtype=float),
             a_act_store_in: wp.array2d(dtype=float),
+            # In:
+            scale: float,
             # Out:
             qpos_diff_out: wp.array2d(dtype=float),
             qvel_diff_out: wp.array2d(dtype=float),
             z_diff_out: wp.array2d(dtype=float),
     ):
         worldid = wp.tid()
-        nq, nv, nm, na = wp.static(m.nq), wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
 
         # q_curr - q_stored
         qpos_tile = wp.tile_load(qpos_in[worldid], nq)
@@ -209,7 +221,7 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
         qvel_s_tile = wp.tile_load(qvel_store_in[worldid], nv)
         qvel_diff_tile = scale * wp.tile_map(wp.sub, qvel_tile, qvel_s_tile)
         wp.tile_store(qvel_diff_out[worldid], qvel_diff_tile)
-        if nm:
+        if wp.static(nm):
             # m_state_curr - m_state_stored
             m_state_tile = wp.tile_load(m_state_in[worldid], nm)
             m_state_s_tile = wp.tile_load(m_state_store_in[worldid], nm)
@@ -220,7 +232,7 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
             m_act_s_tile = wp.tile_load(m_act_store_in[worldid], nm)
             m_act_diff_tile = scale * wp.tile_map(wp.sub, m_act_tile, m_act_s_tile)
             wp.tile_store(z_diff_out[worldid], m_act_diff_tile, offset=(nm,))
-        if na:
+        if wp.static(na):
             # a_act_curr - a_act_stored
             a_act_tile = wp.tile_load(a_act_in[worldid], na)
             a_act_s_tile = wp.tile_load(a_act_store_in[worldid], na)
@@ -228,7 +240,7 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
             wp.tile_store(z_diff_out[worldid], a_act_diff_tile, offset=(nm + nm,))
         return
 
-    @wp.kernel
+    @wp.kernel(module="unique")
     def compute_qpos_error(
             # Data in:
             qpos_diff_in: wp.array2d(dtype=float),
@@ -236,9 +248,8 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
             qpos_error_out: wp.array(dtype=float),
     ):
         worldid = wp.tid()
-        nq = wp.static(m.nq)
         qpos_diff_tile = wp.tile_load(qpos_diff_in[worldid], nq)
-        if wp.static(m.opt.use_inf_norm):
+        if wp.static(use_inf_norm):
             qpos_scaled_diff_abs = wp.tile_map(wp.abs, qpos_diff_tile)
             q_err = wp.tile_max(qpos_scaled_diff_abs)[0]
         else:
@@ -247,7 +258,7 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
         qpos_error_out[worldid] = q_err
         return
 
-    @wp.kernel
+    @wp.kernel(module="unique")
     def compute_qvel_error(
             # Data in:
             qvel_diff_in: wp.array2d(dtype=float),
@@ -256,13 +267,12 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
             qvel_error_out: wp.array(dtype=float),
     ):
         worldid = wp.tid()
-        nv = wp.static(m.nv)
         # Multiply qvel_diff by scales
         qvel_diff_tile = wp.tile_load(qvel_diff_in[worldid], nv)
         qvel_scales_tile = wp.tile_load(qvel_scales_in[worldid], nv)
         qvel_scaled_diff_tile = wp.tile_map(wp.mul, qvel_diff_tile, qvel_scales_tile)
         # inf-norm or L2 norm error
-        if wp.static(m.opt.use_inf_norm):
+        if wp.static(use_inf_norm):
             qvel_scaled_diff_abs = wp.tile_map(wp.abs, qvel_scaled_diff_tile)
             qv_err = wp.tile_max(qvel_scaled_diff_abs)[0]
         else:
@@ -271,7 +281,7 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
         qvel_error_out[worldid] = qv_err
         return
 
-    @wp.kernel
+    @wp.kernel(module="unique")
     def compute_z_error(
             # Data in:
             z_diff_in: wp.array2d(dtype=float),
@@ -280,14 +290,13 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
             z_error_out: wp.array(dtype=float),
     ):
         worldid = wp.tid()
-        nz = wp.static(m.nz)
-        if nz:
-            # Multiply qvel_diff by scales
+        if wp.static(nz):
+            # Multiply z_diff by scales
             z_diff_tile = wp.tile_load(z_diff_in[worldid], nz)
             z_scales_tile = wp.tile_load(z_scales_in[worldid], nz)
             z_scaled_diff_tile = wp.tile_map(wp.mul, z_diff_tile, z_scales_tile)
             # Error
-            if wp.static(m.opt.use_inf_norm):
+            if wp.static(use_inf_norm):
                 z_diff_abs = wp.tile_map(wp.abs, z_scaled_diff_tile)
                 z_err = wp.tile_max(z_diff_abs)[0]
             else:
@@ -296,32 +305,43 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
             z_error_out[worldid] = z_err
         return
 
-    @wp.kernel
-    def aggregate_errors(
-            # Data in:
-            integration_done: wp.array(dtype=bool),
-            qpos_error_in: wp.array(dtype=float),
-            qvel_error_in: wp.array(dtype=float),
-            z_error_in: wp.array(dtype=float),
-            # Out:
-            error_out: wp.array(dtype=float),
-    ):
-        worldid = wp.tid()
-        if integration_done[worldid]:
-            error_out[worldid] = 0.0
-            return
-        error = qpos_error_in[worldid]
-        error = math.max_err(error, qvel_error_in[worldid])
-        error = math.max_err(error, z_error_in[worldid])
-        error_out[worldid] = error
-        return
+    return compute_diffs, compute_qpos_error, compute_qvel_error, compute_z_error
 
+
+@wp.kernel
+def _aggregate_errors(
+        # Data in:
+        integration_done: wp.array(dtype=bool),
+        qpos_error_in: wp.array(dtype=float),
+        qvel_error_in: wp.array(dtype=float),
+        z_error_in: wp.array(dtype=float),
+        # Out:
+        error_out: wp.array(dtype=float),
+):
+    worldid = wp.tid()
+    if integration_done[worldid]:
+        error_out[worldid] = 0.0
+        return
+    error = qpos_error_in[worldid]
+    error = math.max_err(error, qvel_error_in[worldid])
+    error = math.max_err(error, z_error_in[worldid])
+    error_out[worldid] = error
+    return
+
+
+@event_scope
+def compute_error(m: Model, d: Data, idx: int, scale: float = 1.0):
+    """ Computes error of current state against integrator_scratch[idx]. Stores error in d.error. """
+    scratch = d.integrator_scratch[idx]
+    compute_diffs, compute_qpos_error, compute_qvel_error, compute_z_error = _error_kernels(
+        m.nq, m.nv, m.nmuscle, m.nactuator, m.nz, m.opt.use_inf_norm)
     wp.launch_tiled(
         compute_diffs,
         dim=d.nworld,
         inputs=[
             d.qpos, d.qvel, d.m_state, d.m_act, d.a_act,
             scratch.qpos, scratch.qvel, scratch.m_state, scratch.m_act, scratch.a_act,
+            scale,
         ],
         outputs=[d.qpos_diff, d.qvel_diff, d.z_diff, ],
         block_dim=m.block_dim.error_step,
@@ -351,7 +371,7 @@ def compute_error(m: Model, d: Data, scratch: IntegratorStateScratch, scale: flo
         block_dim=m.block_dim.error_step,
     )
     wp.launch(
-        aggregate_errors,
+        _aggregate_errors,
         dim=d.nworld,
         inputs=[d.integration_done, d.qpos_err, d.qvel_err, d.z_err],
         outputs=[d.error],
@@ -444,120 +464,41 @@ def adjust_step_size(m: Model, d: Data, err_order: float):
     )
 
 
+# --- Saving/restoring the state and its derivative in the integrator scratch space ---
 @event_scope
-def save_state(
-        m: Model, d: Data,
-        time_dest: wp.array(dtype=float),
-        qpos_dest: wp.array2d(dtype=float),
-        qvel_dest: wp.array2d(dtype=float),
-        m_state_dest: wp.array2d(dtype=float),
-        m_act_dest: wp.array2d(dtype=float),
-        a_act_dest: wp.array2d(dtype=float),
-        stl_contact_state_dest: wp.array2d(dtype=wp.vec3),
-):
-    wp.copy(time_dest, d.time)
-    wp.copy(qpos_dest, d.qpos)
-    wp.copy(qvel_dest, d.qvel)
+def save_state(m: Model, d: Data, idx: int):
+    """ Copies the state into integrator_scratch[idx] """
+    dest = d.integrator_scratch[idx]
+    wp.copy(dest.time, d.time)
+    wp.copy(dest.qpos, d.qpos)
+    wp.copy(dest.qvel, d.qvel)
     if m.nmuscle:
-        wp.copy(m_act_dest, d.m_act)
-        wp.copy(m_state_dest, d.m_state)
+        wp.copy(dest.m_act, d.m_act)
+        wp.copy(dest.m_state, d.m_state)
     if m.nactuator:
-        wp.copy(a_act_dest, d.a_act)
+        wp.copy(dest.a_act, d.a_act)
     if m.nstlcontact:
-        wp.copy(stl_contact_state_dest, d.stl_contact_state)
+        wp.copy(dest.stl_contact_state, d.stl_contact_state)
 
 
 @event_scope
-def save_state_dot(
-        m: Model, d: Data,
-        qvel_dest: wp.array2d(dtype=float),
-        qacc_dest: wp.array2d(dtype=float),
-        m_state_dot_dest: wp.array2d(dtype=float),
-        m_act_dot_dest: wp.array2d(dtype=float),
-        a_act_dot_dest: wp.array2d(dtype=float)
-):
-    wp.copy(qvel_dest, d.qvel)
-    wp.copy(qacc_dest, d.qacc)
+def save_state_dot(m: Model, d: Data, idx: int):
+    """ Copies the state derivative into integrator_dot_scratch[idx] """
+    dest = d.integrator_dot_scratch[idx]
+    wp.copy(dest.qvel, d.qvel)
+    wp.copy(dest.qacc, d.qacc)
     if m.nmuscle:
-        wp.copy(m_state_dot_dest, d.m_state_dot)
-        wp.copy(m_act_dot_dest, d.m_act_dot)
+        wp.copy(dest.m_state_dot, d.m_state_dot)
+        wp.copy(dest.m_act_dot, d.m_act_dot)
     if m.nactuator:
-        wp.copy(a_act_dot_dest, d.a_act_dot)
+        wp.copy(dest.a_act_dot, d.a_act_dot)
 
 
-@event_scope
-def restore_state_dot(
-        m: Model, d: Data,
-        qvel_src: wp.array2d(dtype=float),
-        qacc_src: wp.array2d(dtype=float),
-        m_state_dot_src: wp.array2d(dtype=float),
-        m_act_dot_src: wp.array2d(dtype=float),
-        a_act_dot_src: wp.array2d(dtype=float),
-        only_on_reject: bool
-):
-    @wp.kernel
-    def restore_state_dot_conditional(
-            # Data in
-            done_integrating_in: wp.array(dtype=bool),
-            step_accepted_in: wp.array(dtype=bool),
-            qvel_in: wp.array2d(dtype=float),
-            qacc_in: wp.array2d(dtype=float),
-            m_state_dot_in: wp.array2d(dtype=float),
-            m_act_dot_in: wp.array2d(dtype=float),
-            a_act_dot_in: wp.array2d(dtype=float),
-            # Data out:
-            qvel_out: wp.array2d(dtype=float),
-            qacc_out: wp.array2d(dtype=float),
-            m_state_dot_out: wp.array2d(dtype=float),
-            m_act_dot_out: wp.array2d(dtype=float),
-            a_act_dot_out: wp.array2d(dtype=float),
-    ):
-        worldid = wp.tid()
-        if step_accepted_in[worldid] or done_integrating_in[worldid]:
-            return
-        nv, nm, na = wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
-        wp.tile_store(qvel_out[worldid], wp.tile_load(qvel_in[worldid], shape=(nv,)))
-        wp.tile_store(qacc_out[worldid], wp.tile_load(qacc_in[worldid], shape=(nv,)))
-        if nm:
-            wp.tile_store(m_state_dot_out[worldid], wp.tile_load(m_state_dot_in[worldid], shape=(nm,)))
-            wp.tile_store(m_act_dot_out[worldid], wp.tile_load(m_act_dot_in[worldid], shape=(nm,)))
-        if na:
-            wp.tile_store(a_act_dot_out[worldid], wp.tile_load(a_act_dot_in[worldid], shape=(na,)))
-        return
+@functools.cache
+def _restore_state_kernel(nq: int, nv: int, nm: int, na: int, nstl: int):
+    """ Restores the state for worlds whose step was rejected (tile shapes must be compile-time constants) """
 
-    if only_on_reject:
-        wp.launch_tiled(
-            restore_state_dot_conditional,
-            dim=d.nworld,
-            inputs=[d.integration_done, d.step_accepted,
-                    qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src],
-            outputs=[d.qvel, d.qacc, d.m_state_dot, d.m_act_dot, d.a_act_dot],
-            block_dim=m.block_dim.restore_state,
-        )
-    else:
-        wp.copy(d.qvel, qvel_src)
-        wp.copy(d.qacc, qacc_src)
-        if m.nmuscle:
-            wp.copy(d.m_state_dot, m_state_dot_src)
-            wp.copy(d.m_act_dot, m_act_dot_src)
-        if m.nactuator:
-            wp.copy(d.a_act_dot, a_act_dot_src)
-
-
-@event_scope
-def restore_state(
-        m: Model,
-        d: Data,
-        time_src: wp.array,
-        qpos_src: wp.array2d,
-        qvel_src: wp.array2d,
-        m_state_src: wp.array2d,
-        m_act_src: wp.array2d,
-        a_act_src: wp.array2d,
-        stl_contact_state_src: wp.array2d(dtype=wp.vec3),
-        only_on_reject: bool
-):
-    @wp.kernel
+    @wp.kernel(module="unique")
     def restore_state_conditional(
             # Data in
             done_integrating_in: wp.array(dtype=bool),
@@ -581,56 +522,56 @@ def restore_state(
         worldid = wp.tid()
         if step_accepted_in[worldid] or done_integrating_in[worldid]:
             return
-        nq, nv, nm, na = wp.static(m.nq), wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
-        nstl = wp.static(m.nstlcontact)
         time_out[worldid] = time_in[worldid]
 
         wp.tile_store(qpos_out[worldid], wp.tile_load(qpos_in[worldid], shape=(nq,)))
         wp.tile_store(qvel_out[worldid], wp.tile_load(qvel_in[worldid], shape=(nv,)))
-        if nm:
+        if wp.static(nm):
             wp.tile_store(m_state_out[worldid], wp.tile_load(m_state_in[worldid], shape=(nm,)))
             wp.tile_store(m_act_out[worldid], wp.tile_load(m_act_in[worldid], shape=(nm,)))
-        if na:
+        if wp.static(na):
             wp.tile_store(a_act_out[worldid], wp.tile_load(a_act_in[worldid], shape=(na,)))
-        if nstl:
+        if wp.static(nstl):
             wp.tile_store(stl_contact_state_out[worldid], wp.tile_load(stl_contact_state_in[worldid], shape=(nstl,)))
 
+    return restore_state_conditional
+
+
+@event_scope
+def restore_state(m: Model, d: Data, idx: int, only_on_reject: bool):
+    """ Restores the state from integrator_scratch[idx], for every world or only those whose step was rejected """
+    src = d.integrator_scratch[idx]
     if only_on_reject:
         wp.launch_tiled(
-            restore_state_conditional,
+            _restore_state_kernel(m.nq, m.nv, m.nmuscle, m.nactuator, m.nstlcontact),
             dim=d.nworld,
             inputs=[d.integration_done, d.step_accepted,
-                    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, stl_contact_state_src],
+                    src.time, src.qpos, src.qvel, src.m_state, src.m_act, src.a_act, src.stl_contact_state],
             outputs=[d.time, d.qpos, d.qvel, d.m_state, d.m_act, d.a_act, d.stl_contact_state],
             block_dim=m.block_dim.restore_state,
         )
     else:  # everyone gets restored!
-        wp.copy(d.time, time_src)
-        wp.copy(d.qpos, qpos_src)
-        wp.copy(d.qvel, qvel_src)
+        wp.copy(d.time, src.time)
+        wp.copy(d.qpos, src.qpos)
+        wp.copy(d.qvel, src.qvel)
         if m.nmuscle:
-            wp.copy(d.m_act, m_act_src)
-            wp.copy(d.m_state, m_state_src)
+            wp.copy(d.m_act, src.m_act)
+            wp.copy(d.m_state, src.m_state)
         if m.nactuator:
-            wp.copy(d.a_act, a_act_src)
+            wp.copy(d.a_act, src.a_act)
         if m.nstlcontact:
-            wp.copy(d.stl_contact_state, stl_contact_state_src)
+            wp.copy(d.stl_contact_state, src.stl_contact_state)
 
 
-@event_scope
-def add_to_state_dot(
-        m: Model, d: Data,
-        scale: float,
-        qvel_add: wp.array2d,
-        qacc_add: wp.array2d,
-        m_state_dot_add: wp.array2d,
-        m_act_dot_add: wp.array2d,
-        a_act_dot_add: wp.array2d,
-):
-    @wp.kernel
-    def _add_to_state_dot(
+@functools.cache
+def _restore_state_dot_kernel(nv: int, nm: int, na: int):
+    """ Restores the state derivative for worlds whose step was rejected """
+
+    @wp.kernel(module="unique")
+    def restore_state_dot_conditional(
             # Data in
             done_integrating_in: wp.array(dtype=bool),
+            step_accepted_in: wp.array(dtype=bool),
             qvel_in: wp.array2d(dtype=float),
             qacc_in: wp.array2d(dtype=float),
             m_state_dot_in: wp.array2d(dtype=float),
@@ -644,9 +585,68 @@ def add_to_state_dot(
             a_act_dot_out: wp.array2d(dtype=float),
     ):
         worldid = wp.tid()
+        if step_accepted_in[worldid] or done_integrating_in[worldid]:
+            return
+        wp.tile_store(qvel_out[worldid], wp.tile_load(qvel_in[worldid], shape=(nv,)))
+        wp.tile_store(qacc_out[worldid], wp.tile_load(qacc_in[worldid], shape=(nv,)))
+        if wp.static(nm):
+            wp.tile_store(m_state_dot_out[worldid], wp.tile_load(m_state_dot_in[worldid], shape=(nm,)))
+            wp.tile_store(m_act_dot_out[worldid], wp.tile_load(m_act_dot_in[worldid], shape=(nm,)))
+        if wp.static(na):
+            wp.tile_store(a_act_dot_out[worldid], wp.tile_load(a_act_dot_in[worldid], shape=(na,)))
+        return
+
+    return restore_state_dot_conditional
+
+
+@event_scope
+def restore_state_dot(m: Model, d: Data, idx: int, only_on_reject: bool):
+    """ Restores the state derivative from integrator_dot_scratch[idx] (all worlds, or only rejected steps) """
+    src = d.integrator_dot_scratch[idx]
+    if only_on_reject:
+        wp.launch_tiled(
+            _restore_state_dot_kernel(m.nv, m.nmuscle, m.nactuator),
+            dim=d.nworld,
+            inputs=[d.integration_done, d.step_accepted,
+                    src.qvel, src.qacc, src.m_state_dot, src.m_act_dot, src.a_act_dot],
+            outputs=[d.qvel, d.qacc, d.m_state_dot, d.m_act_dot, d.a_act_dot],
+            block_dim=m.block_dim.restore_state,
+        )
+    else:
+        wp.copy(d.qvel, src.qvel)
+        wp.copy(d.qacc, src.qacc)
+        if m.nmuscle:
+            wp.copy(d.m_state_dot, src.m_state_dot)
+            wp.copy(d.m_act_dot, src.m_act_dot)
+        if m.nactuator:
+            wp.copy(d.a_act_dot, src.a_act_dot)
+
+
+@functools.cache
+def _add_to_state_dot_kernel(nv: int, nm: int, na: int):
+    """ Adds a scaled state derivative to the current one (qvel goes into qvel_buffer) """
+
+    @wp.kernel(module="unique")
+    def add_to_state_dot_kernel(
+            # Data in
+            done_integrating_in: wp.array(dtype=bool),
+            qvel_in: wp.array2d(dtype=float),
+            qacc_in: wp.array2d(dtype=float),
+            m_state_dot_in: wp.array2d(dtype=float),
+            m_act_dot_in: wp.array2d(dtype=float),
+            a_act_dot_in: wp.array2d(dtype=float),
+            # In:
+            scale: float,
+            # Data out:
+            qvel_out: wp.array2d(dtype=float),
+            qacc_out: wp.array2d(dtype=float),
+            m_state_dot_out: wp.array2d(dtype=float),
+            m_act_dot_out: wp.array2d(dtype=float),
+            a_act_dot_out: wp.array2d(dtype=float),
+    ):
+        worldid = wp.tid()
         if done_integrating_in[worldid]:
             return
-        nv, nm, na = wp.static(m.nv), wp.static(m.nmuscle), wp.static(m.nactuator)
 
         qv_og = wp.tile_load(qvel_out[worldid], shape=(nv,))
         qv_add = scale * wp.tile_load(qvel_in[worldid], shape=(nv,))
@@ -656,7 +656,7 @@ def add_to_state_dot(
         qacc_add_scaled = scale * wp.tile_load(qacc_in[worldid], shape=(nv,))
         wp.tile_store(qacc_out[worldid], wp.tile_map(wp.add, qacc_og, qacc_add_scaled))
 
-        if nm:
+        if wp.static(nm):
             ms_dot_og = wp.tile_load(m_state_dot_out[worldid], shape=(nm,))
             ms_dot_add_scaled = scale * wp.tile_load(m_state_dot_in[worldid], shape=(nm,))
             wp.tile_store(m_state_dot_out[worldid], wp.tile_map(wp.add, ms_dot_og, ms_dot_add_scaled))
@@ -665,57 +665,42 @@ def add_to_state_dot(
             ma_dot_add_scaled = scale * wp.tile_load(m_act_dot_in[worldid], shape=(nm,))
             wp.tile_store(m_act_dot_out[worldid], wp.tile_map(wp.add, ma_dot_og, ma_dot_add_scaled))
 
-        if na:
+        if wp.static(na):
             aa_dot_og = wp.tile_load(a_act_dot_out[worldid], shape=(na,))
             aa_dot_add_scaled = scale * wp.tile_load(a_act_dot_in[worldid], shape=(na,))
             wp.tile_store(a_act_dot_out[worldid], wp.tile_map(wp.add, aa_dot_og, aa_dot_add_scaled))
         return
 
+    return add_to_state_dot_kernel
+
+
+@event_scope
+def add_to_state_dot(m: Model, d: Data, scale: float, idx: int):
+    """ Adds scale * integrator_dot_scratch[idx] to the current state derivative (qvel into d.qvel_buffer) """
+    src = d.integrator_dot_scratch[idx]
     wp.launch_tiled(
-        _add_to_state_dot,
+        _add_to_state_dot_kernel(m.nv, m.nmuscle, m.nactuator),
         dim=d.nworld,
-        inputs=[d.integration_done, qvel_add, qacc_add, m_state_dot_add, m_act_dot_add, a_act_dot_add],
+        inputs=[d.integration_done, src.qvel, src.qacc, src.m_state_dot, src.m_act_dot, src.a_act_dot, scale],
         outputs=[d.qvel_buffer, d.qacc, d.m_state_dot, d.m_act_dot, d.a_act_dot],
         block_dim=m.block_dim.restore_state,
     )
-    return
 
 
-def get_state_at_idx(d: Data, idx: int):
-    scratch = d.integrator_scratch[idx]
-    return (scratch.time, scratch.qpos, scratch.qvel, scratch.m_state,
-            scratch.m_act, scratch.a_act, scratch.stl_contact_state)
+def integrate_adaptive(m: Model, d: Data, attempt_step):
+    """ Steps from d.time to d.next_time """
+    d.integration_done.zero_()
+    d.steps_attempted.zero_()
 
+    # take adaptive steps until target time is reached
+    d.nintegrating.fill_(d.nworld)
+    wp.capture_while(
+        d.nintegrating,
+        while_body=attempt_step,
+        m=m,
+        d=d,
+    )
 
-def get_state_dot_at_idx(d: Data, idx: int):
-    scratch = d.integrator_dot_scratch[idx]
-    return scratch.qvel, scratch.qacc, scratch.m_state_dot, scratch.m_act_dot, scratch.a_act_dot
-
-
-def save_state_idx(m: Model, d: Data, save_idx: int, ):
-    time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest, stl_contact_state_dest = (
-        get_state_at_idx(d, save_idx))
-    save_state(m, d, time_dest, qpos_dest, qvel_dest, m_state_dest, m_act_dest, a_act_dest, stl_contact_state_dest)
-
-
-def save_state_dot_idx(m: Model, d: Data, save_idx: int, ):
-    qvel_dest, qacc_dest, m_state_dot_dest, m_act_dot_dest, a_act_dot_dest = get_state_dot_at_idx(d, save_idx)
-    save_state_dot(m, d, qvel_dest, qacc_dest, m_state_dot_dest, m_act_dot_dest, a_act_dot_dest)
-
-
-def restore_state_idx(m: Model, d: Data, restore_idx: int, only_on_reject: bool):
-    time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, stl_contact_state_src \
-        = get_state_at_idx(d, restore_idx)
-    restore_state(m, d, time_src, qpos_src, qvel_src, m_state_src, m_act_src, a_act_src, stl_contact_state_src,
-                  only_on_reject=only_on_reject)
-
-
-def restore_state_dot_idx(m: Model, d: Data, restore_idx: int, only_on_reject: bool):
-    qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src = get_state_dot_at_idx(d, restore_idx)
-    restore_state_dot(m, d, qvel_src, qacc_src, m_state_dot_src, m_act_dot_src, a_act_dot_src,
-                      only_on_reject=only_on_reject)
-
-
-def add_to_state_dot_from_idx(m: Model, d: Data, scale: float, add_idx: int):
-    qvel_add, qacc_add, m_state_dot_add, m_act_dot_add, a_act_dot_add = get_state_dot_at_idx(d, add_idx)
-    add_to_state_dot(m, d, scale, qvel_add, qacc_add, m_state_dot_add, m_act_dot_add, a_act_dot_add)
+    # One more forward pass to realize state
+    d.integration_done.zero_()
+    forward.fwd(m, d)

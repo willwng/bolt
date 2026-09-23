@@ -1,6 +1,8 @@
 import warp as wp
 
 from bolt.types import Data
+from bolt.types import IntegratorDotScratch
+from bolt.types import IntegratorStateScratch
 from bolt.types import Model
 
 from ..pipeline import forward
@@ -55,22 +57,13 @@ def _rk_accumulate_actuator(
     a_act_dot_out[worldid, actuator_id] += scale * a_act_dot_in[worldid, actuator_id]
 
 
-def _rk_accumulate(
-        m: Model,
-        d: Data,
-        scale: float,
-        qvel_rk: wp.array2d(dtype=float),
-        qacc_rk: wp.array2d(dtype=float),
-        m_act_dot_rk: wp.array2d(dtype=float),
-        m_state_dot_rk: wp.array2d(dtype=float),
-        a_act_dot_rk: wp.array2d(dtype=float),
-):
-    """Computes one term of 1/6 k_1 + 1/3 k_2 + 1/3 k_3 + 1/6 k_4."""
+def _rk_accumulate(m: Model, d: Data, scale: float, rk: IntegratorDotScratch):
+    """Computes one term of 1/6 k_1 + 1/3 k_2 + 1/3 k_3 + 1/6 k_4, accumulated into rk."""
     wp.launch(
         _rk_accumulate_velocity_acceleration,
         dim=(d.nworld, m.nv),
         inputs=[d.qvel, d.qacc, scale],
-        outputs=[qvel_rk, qacc_rk],
+        outputs=[rk.qvel, rk.qacc],
     )
 
     if m.nmuscle:
@@ -78,27 +71,20 @@ def _rk_accumulate(
             _rk_accumulate_muscle,
             dim=(d.nworld, m.nmuscle),
             inputs=[d.m_act_dot, d.m_state_dot, scale],
-            outputs=[m_act_dot_rk, m_state_dot_rk],
+            outputs=[rk.m_act_dot, rk.m_state_dot],
         )
     if m.nactuator:
         wp.launch(
             _rk_accumulate_actuator,
             dim=(d.nworld, m.nactuator),
             inputs=[d.a_act_dot, scale],
-            outputs=[a_act_dot_rk],
+            outputs=[rk.a_act_dot],
         )
 
 
-def _rk_perturb_state(
-        m: Model,
-        d: Data,
-        scale: float,
-        qpos_t0: wp.array2d(dtype=float),
-        qvel_t0: wp.array2d(dtype=float),
-        m_act_t0: wp.array2d(dtype=float),
-        m_state_t0: wp.array2d(dtype=float),
-        a_act_t0: wp.array2d(dtype=float)
-):
+def _rk_perturb_state(m: Model, d: Data, scale: float, t0: IntegratorStateScratch):
+    """ Sets the state to y_0 + scale * h * (current derivative) """
+    qpos_t0, qvel_t0, m_act_t0, m_state_t0, a_act_t0 = t0.qpos, t0.qvel, t0.m_act, t0.m_state, t0.a_act
     # position
     wp.launch(
         common._next_position,
@@ -154,49 +140,44 @@ def rungekutta4(m: Model, d: Data):
     A = [0.5, 0.5, 1.0]
     B = [1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0, 1.0 / 6.0]
 
-    # Initial state y_0 and derivative accumulators y'_rk
-    qpos_t0 = wp.clone(d.qpos)
-    qvel_t0 = wp.clone(d.qvel)
-    qvel_rk = wp.zeros((d.nworld, m.nv), dtype=float)
-    qacc_rk = wp.zeros((d.nworld, m.nv), dtype=float)
+    # Initial state y_0 and derivative accumulators y'_rk (preallocated integrator scratch)
+    t0, rk = d.integrator_scratch[0], d.integrator_dot_scratch[0]
+    wp.copy(t0.qpos, d.qpos)
+    wp.copy(t0.qvel, d.qvel)
+    rk.qvel.zero_()
+    rk.qacc.zero_()
     if m.nmuscle:
-        m_act_t0 = wp.clone(d.m_act)
-        m_state_t0 = wp.clone(d.m_state)
-        m_act_dot_rk = wp.zeros((d.nworld, m.nmuscle), dtype=float)
-        m_state_dot_rk = wp.zeros((d.nworld, m.nmuscle), dtype=float)
-    else:
-        m_act_t0, m_state_t0 = None, None
-        m_act_dot_rk, m_state_dot_rk = None, None
+        wp.copy(t0.m_act, d.m_act)
+        wp.copy(t0.m_state, d.m_state)
+        rk.m_act_dot.zero_()
+        rk.m_state_dot.zero_()
     if m.nactuator:
-        a_act_t0 = wp.clone(d.a_act)
-        a_act_dot_rk = wp.zeros((d.nworld, m.nactuator), dtype=float)
-    else:
-        a_act_t0 = None
-        a_act_dot_rk = None
+        wp.copy(t0.a_act, d.a_act)
+        rk.a_act_dot.zero_()
 
     # Compute 1/6 k_1
-    _rk_accumulate(m, d, B[0], qvel_rk, qacc_rk, m_act_dot_rk, m_state_dot_rk, a_act_dot_rk)
+    _rk_accumulate(m, d, B[0], rk)
     # Compute k_2, k_3, k_4
     for i in range(3):
         a, b = float(A[i]), B[i + 1]
         # Realize state, compute next derivative
-        _rk_perturb_state(m, d, a, qpos_t0, qvel_t0, m_act_t0, m_state_t0, a_act_t0)
+        _rk_perturb_state(m, d, a, t0)
         forward.fwd(m, d)
-        _rk_accumulate(m, d, b, qvel_rk, qacc_rk, m_act_dot_rk, m_state_dot_rk, a_act_dot_rk)
+        _rk_accumulate(m, d, b, rk)
 
     # Restore initial state, set accumulated derivatives
-    wp.copy(d.qpos, qpos_t0)
-    wp.copy(d.qvel, qvel_t0)
+    wp.copy(d.qpos, t0.qpos)
+    wp.copy(d.qvel, t0.qvel)
     if m.nmuscle:
-        wp.copy(d.m_act, m_act_t0)
-        wp.copy(d.m_act_dot, m_act_dot_rk)
-        wp.copy(d.m_state, m_state_t0)
-        wp.copy(d.m_state_dot, m_state_dot_rk)
+        wp.copy(d.m_act, t0.m_act)
+        wp.copy(d.m_act_dot, rk.m_act_dot)
+        wp.copy(d.m_state, t0.m_state)
+        wp.copy(d.m_state_dot, rk.m_state_dot)
     if m.nactuator:
-        wp.copy(d.a_act, a_act_t0)
-        wp.copy(d.a_act_dot, a_act_dot_rk)
-    common.advance(m, d, qacc_rk, qvel_rk, scale=1.0, time_scale=1.0, symplectic=False)
-    wp.copy(d.qacc, qacc_rk)  # copy acceleration for post-step analysis
+        wp.copy(d.a_act, t0.a_act)
+        wp.copy(d.a_act_dot, rk.a_act_dot)
+    common.advance(m, d, rk.qacc, rk.qvel, scale=1.0, time_scale=1.0, symplectic=False)
+    wp.copy(d.qacc, rk.qacc)  # copy acceleration for post-step analysis
     return
 
 
