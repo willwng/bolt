@@ -26,23 +26,20 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            pyproject.toml
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           # CPU-only torch (the default Linux wheel pulls in CUDA)
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -r requirements.txt opensim==4.6
           pip install -e ".[test]"
 
       # Compiling the Warp kernels dominates a cold run, so reuse the kernel cache across runs
       - uses: actions/cache@v4
         with:
           path: ${{ env.WARP_CACHE_PATH }}
-          key: warp-${{ runner.os }}-${{ hashFiles('bolt/**/*.py', 'requirements.txt') }}
+          key: warp-${{ runner.os }}-${{ hashFiles('bolt/**/*.py', 'pyproject.toml') }}
           restore-keys: warp-${{ runner.os }}-
 
       - name: Run tests

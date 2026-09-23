@@ -1,6 +1,0 @@
-warp-lang
-torch
-scipy
-pyvista
-pyglet
-tqdm

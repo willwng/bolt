@@ -41,24 +41,20 @@ which can be fitted to OpenSim models with wrapping surfaces.
 Bolt accelerates the evaluation of these function-based paths.
 
 ## Installation
-To install Bolt, you'll need to install OpenSim first (required for model parsing). 
-Setting up a conda environment first is recommended.
-### 1. Conda Environment Setup
+To install Bolt, you'll need have a version a Python that supports OpenSim wheels (e.g., Python 3.11).
+Setting up a conda environment is recommended.
 ```bash
-cd bolt
-conda create -n ENV_NAME python=3.11
-conda activate ENV_NAME
-conda install opensim-org::opensim
+conda create -n bolt-env python=3.13
+conda activate bolt-env
 ```
 
-### 2. Install Requirements + Bolt
-```bash
-pip install -r requirements.txt
+And then install Bolt with its requirements:
+```
+cd bolt
 pip install -e .
 ```
 
-
-### 3. Run Tests (optional)
+### Run Tests (optional)
 The tests validate Bolt against OpenSim (forward kinematics, forward dynamics, and muscle paths)
 over batches of random states, one per Bolt world.
 ```bash
