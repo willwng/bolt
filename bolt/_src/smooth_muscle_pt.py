@@ -2,7 +2,6 @@ import warp as wp
 
 from .types import Data
 from .types import Model
-from .types import MuscleMetadata
 from .consts import BOLT_MINVAL
 from .warp_util import event_scope
 

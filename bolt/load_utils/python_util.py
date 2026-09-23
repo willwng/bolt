@@ -9,11 +9,6 @@ def string_list_to_ordering(l: list[str]) -> dict[str, int]:
     return {v: i for i, v in enumerate(l)}
 
 
-def reorder_list_for_ordering(l: list[str], ordering: dict[str, int]) -> list[int]:
-    """ Returns the indices of the list l in the order specified by ordering """
-    return [ordering[v] for v in l]
-
-
 def apply_map_to_list(l: list[T], mapping: dict[T, V]) -> list[V]:
     """ Applies a mapping to a list """
     return [mapping[v] for v in l]

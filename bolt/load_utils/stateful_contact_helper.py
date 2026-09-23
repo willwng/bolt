@@ -20,14 +20,13 @@ def _dummy_parse_station(xml_item) -> SiteData:
     )
 
 
-def _exp_parse_station(model: OSimType.Model, exp_contact_force: OSimType.ExponentialContactForce):
-    """ Binding is broken, so we just look at the raw xml. fixme: please remove me as soon as the api is fixed """
-    model_xml_path = model.getDocumentFileName()
-    tree = ET.parse(model_xml_path)
-    root = tree.getroot()
-    for exp_contact_force_xml in root.iter("ExponentialContactForce"):
-        if exp_contact_force_xml.attrib["name"] == exp_contact_force.getName():
-            return _dummy_parse_station(exp_contact_force_xml)
+def _exp_parse_stations(model_path: str) -> dict:
+    """
+    Name -> station for each ExponentialContactForce.
+    Binding is broken, so we just look at the raw xml. fixme: please remove me as soon as the api is fixed
+    """
+    root = ET.parse(model_path).getroot()
+    return {xml.attrib["name"]: _dummy_parse_station(xml) for xml in root.iter("ExponentialContactForce")}
 
 
 def convert_stateful_contacts(
@@ -39,14 +38,17 @@ def convert_stateful_contacts(
 
     force_set = model.getForceSet()
     exp_contact_forces = filter(lambda f: f.getConcreteClassName() == "ExponentialContactForce", force_set)
+    exp_stations = None
     for exp_contact_force in exp_contact_forces:
         exp_contact_force = OSimType.ExponentialContactForce.safeDownCast(exp_contact_force)
 
-        # raw_station = exp_contact_force.getStation()
-        station = _exp_parse_station(model, exp_contact_force)
+        if exp_stations is None:
+            exp_stations = _exp_parse_stations(model_path)
+        if exp_contact_force.getName() not in exp_stations:
+            raise ValueError(f"Could not find the station of ExponentialContactForce {exp_contact_force.getName()}")
+        station = exp_stations[exp_contact_force.getName()]
 
         shape_params = wp.vec3(*exp_contact_force.getExponentialShapeParameters().to_numpy())
-        contact_plane_transform = wp_transform_from_osim_transform(exp_contact_force.getContactPlaneTransform())
 
         exp_contact_force_data.append(
             StatefulContactForce(

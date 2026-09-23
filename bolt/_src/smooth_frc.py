@@ -119,7 +119,6 @@ def _body_frc_accumulate(
         body_F_gravity_in: wp.array2d(dtype=wp.spatial_vector),
         body_F_contact_in: wp.array2d(dtype=wp.spatial_vector),
         body_F_muscle_in: wp.array2d(dtype=wp.spatial_vector),
-        body_F_drag_in: wp.array2d(dtype=wp.spatial_vector),
         body_F_applied: wp.array2d(dtype=wp.spatial_vector),
         # Data out:
         body_F_out: wp.array2d(dtype=wp.spatial_vector)
@@ -131,7 +130,6 @@ def _body_frc_accumulate(
             body_F_gravity_in[worldid, bodyid] +
             body_F_contact_in[worldid, bodyid] +
             body_F_muscle_in[worldid, bodyid] +
-            body_F_drag_in[worldid, bodyid] +
             body_F_applied[worldid, bodyid]
     )
 
@@ -197,7 +195,6 @@ def reset_forces(m: Model, d: Data):
     """ Compute all applied forces """
     d.body_F_gravity.zero_()
     d.body_F_contact.zero_()
-    d.body_F_drag.zero_()
     d.body_F_muscle.zero_()
 
     d.ufrc_spring.zero_()
@@ -295,8 +292,7 @@ def accumulate_forces(m: Model, d: Data):
     wp.launch(
         _body_frc_accumulate,
         dim=(d.nworld, m.nbody),
-        inputs=[d.integration_done, d.body_F_gravity, d.body_F_contact, d.body_F_muscle, d.body_F_drag,
-                d.body_F_applied],
+        inputs=[d.integration_done, d.body_F_gravity, d.body_F_contact, d.body_F_muscle, d.body_F_applied],
         outputs=[d.body_F]
     )
 

@@ -51,7 +51,6 @@ def collect_geom_type_sizes(geom: osim.ContactGeometry) -> tuple[GeomType, wp.ve
 def collect_user_geom_aabb(geom: UserGeomData) -> tuple[AABB, float]:
     geom_type = geom.geom_type
     if geom_type == GeomType.SPHERE:
-        geom = osim.ContactSphere.safeDownCast(geom)
         radius = geom.size[0]
         aabb = (wp.vec3(0.0), wp.vec3(2.0 * radius, 2.0 * radius, 2.0 * radius))
         rbound = radius

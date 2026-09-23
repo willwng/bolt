@@ -13,7 +13,7 @@ def model_path(name: str) -> str:
 
 
 # Models exercised by the kinematics/dynamics tests
-MODEL_NAMES = ["example_model"]
+MODEL_NAMES = ["example_model", "example_model2"]
 
 # Model + fitted function-based paths
 FN_PATH_MODEL = "example_model"

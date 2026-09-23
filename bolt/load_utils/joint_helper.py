@@ -131,19 +131,6 @@ def compute_qpos_dof_adr(joints: list[JointData]) -> tuple[list[int], list[int]]
     return qpos_adr, dof_adr
 
 
-def compute_qpos_dof_lookups(joints: list[JointData]) -> tuple[dict[str, int], dict[str, int]]:
-    """ Computes the lookup for coordinate_name -> address in qpos, address in qvel """
-    qpos_adr, dof_adr = [], []
-    curr_qpos, curr_dof = 0, 0
-    for joint in joints:
-        qpos_adr.append(curr_qpos)
-        dof_adr.append(curr_dof)
-
-        curr_qpos += joint.num_coordinates
-        curr_dof += joint.num_speeds
-    return qpos_adr, dof_adr
-
-
 def compute_num_joints_of_type(joints: list[JointData], mob_type: MobilizerType) -> int:
     """ Computes the number of joints with the specified mobilizer in the model """
     return len(list(filter(lambda joint: joint.mob_type == mob_type, joints)))

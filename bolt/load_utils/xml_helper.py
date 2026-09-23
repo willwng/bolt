@@ -23,8 +23,3 @@ def extract_float_from_element(element: ET.Element, field_name: str) -> float:
     return float(extract_string_from_element(element, field_name))
 
 
-def extract_vec3_from_element(element: ET.Element, field_name: str) -> tuple[float, float, float]:
-    field = element.find(field_name)
-    vec3_str = field.text
-    vec3_values = vec3_str.split()
-    return float(vec3_values[0]), float(vec3_values[1]), float(vec3_values[2])

@@ -201,3 +201,80 @@ def muscle_paths(model: osim.Model, state: osim.State, q, u, moment_arm_coords=N
         for n, coords in moment_arm_coords.items()
     }
     return paths, moment_arms
+
+
+def body_com_kinematics(model: osim.Model, state: osim.State, q, u, body_names) -> dict:
+    """ Per body name: (center-of-mass offset from the body origin, center-of-mass velocity), in ground """
+    set_state(model, state, q, u)
+    model.realizeVelocity(state)
+    out = {}
+    for name in body_names:
+        body = model.getBodySet().get(name)
+        com_B = body.getMassCenter()
+        offset_G = body.expressVectorInGround(state, com_B).to_numpy()
+        velocity_G = body.findStationVelocityInGround(state, com_B).to_numpy()
+        out[name] = (offset_G, velocity_G)
+    return out
+
+
+def umberger_probe_model(model_path: str, options: dict, specific_tension: float, density: float,
+                         slow_twitch_ratio: float):
+    """
+    Loads the model with an Umberger2010MuscleMetabolicsProbe on every muscle (basal rate off, per-muscle outputs).
+    options: probe property name -> value. Returns (model, state, probe).
+    """
+    model = osim.Model(model_path)
+    probe = osim.Umberger2010MuscleMetabolicsProbe()
+    probe.setName("oracle_metabolics")
+    for name, value in options.items():
+        getattr(probe, f"set_{name}")(value)
+    probe.set_basal_rate_on(False)
+    probe.set_report_total_metabolics_only(False)
+    for name in _muscles(model):
+        probe.addMuscle(name, slow_twitch_ratio)
+    model.addProbe(probe)
+    model.initSystem()  # the per-muscle setters need the probe connected
+    for name in _muscles(model):
+        probe.setSpecificTension(name, specific_tension)
+        probe.setDensity(name, density)
+    state = model.initSystem()
+    return model, state, probe
+
+
+def umberger_metabolics(model: osim.Model, state: osim.State, probe, q, u, activations: dict, excitations: dict):
+    """
+    Sets the state (coordinates, muscle activations with equilibrated fibers, excitations) and returns
+    (per-muscle metabolic power from the probe, per-muscle probe inputs).
+    """
+    set_state(model, state, q, u)
+    muscles = _muscles(model)
+    for name, muscle in muscles.items():
+        muscle.setActivation(state, float(activations[name]))
+    model.equilibrateMuscles(state)
+
+    model.realizeVelocity(state)
+    controls = model.updControls(state)
+    for name, muscle in muscles.items():
+        muscle.setControls(osim.Vector(1, float(excitations[name])), controls)
+    model.setControls(state, controls)
+    model.realizeDynamics(state)
+
+    labels = probe.getProbeOutputLabels()
+    labels = [labels.get(i) for i in range(labels.getSize())]
+    values = probe.getProbeOutputs(state).to_numpy()
+    power = {label.replace("oracle_metabolics_", ""): v for label, v in zip(labels, values)}
+    inputs = {
+        name: dict(
+            activation=muscle.getActivation(state),
+            excitation=muscle.getExcitation(state),
+            norm_fiber_length=muscle.getNormalizedFiberLength(state),
+            fiber_velocity=muscle.getFiberVelocity(state),
+            active_fiber_force=muscle.getActiveFiberForce(state),
+            active_force_length_multiplier=muscle.getActiveForceLengthMultiplier(state),
+            optimal_fiber_length=muscle.getOptimalFiberLength(),
+            max_isometric_force=muscle.getMaxIsometricForce(),
+            max_contraction_velocity=muscle.getMaxContractionVelocity(),
+        )
+        for name, muscle in muscles.items()
+    }
+    return power, inputs

@@ -213,10 +213,6 @@ def set_implicit_damping(m: Model, enabled: bool):
     m.opt.implicit_damping = enabled
 
 
-def set_drag_enabled(m: Model, enabled: bool):
-    m.opt.enable_drag = enabled
-
-
 def set_activation_type(m: Model, activation_type: ActivationType):
     m.opt.activation_type = activation_type
 
@@ -314,10 +310,6 @@ def body_force_muscle(d: Data) -> torch.Tensor:
     return wp.to_torch(d.body_F_muscle)
 
 
-def body_force_drag(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.body_F_drag)
-
-
 def ufrc_spring(d: Data) -> torch.Tensor:
     return wp.to_torch(d.ufrc_spring)
 
@@ -373,10 +365,6 @@ def muscle_fiber_lengths(d: Data) -> torch.Tensor:
 
 def muscle_fiber_velocities(d: Data) -> torch.Tensor:
     return wp.to_torch(d.m_state_dot)
-
-
-def muscle_powers(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.muscle_metabolic)
 
 
 def muscle_moment_arms(d: Data) -> torch.Tensor:

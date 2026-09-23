@@ -1,4 +1,3 @@
-import warp as wp
 
 from bolt.load_utils.converted_objects import SiteData
 from bolt.load_utils.osim_types import OSimType

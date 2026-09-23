@@ -159,14 +159,6 @@ def load_mat66(src: wp.array(dtype=wp.spatial_vector), adr: int, dofnum: int) ->
 
 
 @wp.func
-def print_mat33(M: wp.mat33):
-    for i in range(3):
-        for j in range(3):
-            wp.printf("%f ", M[i, j])
-        wp.printf("\n")
-
-
-@wp.func
 def invert_upper_left(D: wp.spatial_matrix, dofnum: int) -> wp.spatial_matrix:
     """ D is a 6x6 matrix but only the top-left dofnum x dofnum block is actually used """
     ret = wp.spatial_matrix(0.0)
@@ -507,35 +499,3 @@ def mul_but_i(v: types.PolyVec, i: int) -> float:
     return result
 
 
-@wp.func
-def poly_vec_from_eval(poly_eval: types.PolyEval) -> types.PolyVec:
-    """Converts a types.PolyEval to a types.PolyVec by taking the derivative components."""
-    ret = types.PolyVec(0.0)
-    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
-        ret[i] = poly_eval[i + 1]
-    return ret
-
-
-@wp.func
-def evaluate_term_and_deriv(
-        coeff: float,
-        exp: types.PolyInts,
-        q: types.PolyVec,
-) -> types.PolyEval:
-    ret = types.PolyEval(0.0)
-
-    # Compute term, cache powers
-    term = float(coeff)
-    cache = types.PolyVec(0.0)
-    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
-        p = fast_pow_pos(q[i], exp[i])
-        cache[i] = p
-        term *= p
-    ret[0] = term
-
-    # Compute derivatives
-    for i in range(wp.static(MAX_POLY_NUM_DOFS)):
-        if exp[i] > 0:
-            ret[i + 1] = coeff * float(exp[i]) * fast_pow_pos(q[i], exp[i] - 1) * mul_but_i(cache, i)
-
-    return ret

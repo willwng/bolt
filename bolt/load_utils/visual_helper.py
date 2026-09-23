@@ -1,4 +1,3 @@
-import opensim as osim
 import warp as wp
 from bolt.types_consts import MeshLoadResult
 

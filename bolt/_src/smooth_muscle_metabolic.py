@@ -1,25 +1,65 @@
+"""
+Muscle metabolic power following OpenSim's Umberger2010MuscleMetabolicsProbe (Umberger et al., 2003; 2010).
+The basal heat rate is not included.
+"""
+from dataclasses import dataclass
+
 import warp as wp
 
-from . import dgf
 from .types import Data
-from .types import Model
-from .types import ResidualResult
-from .types import MuscleMetadata
-from .types import MuscleLengthInfo
 from .types import FiberVelocityInfo
+from .types import Model
 from .types import MuscleDynamicsInfo
-from .consts import M_MIN_NORM_TENDON_FORCE
-from .consts import M_MAX_NORM_TENDON_FORCE
+from .types import MuscleLengthInfo
+from .types import MuscleMetadata
 from .warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
+
+
+@dataclass
+class MetabolicOptions:
+    """ Mirrors the Umberger2010MuscleMetabolicsProbe properties (defaults match OpenSim) """
+    activation_maintenance_rate_on: bool = True
+    shortening_rate_on: bool = True
+    mechanical_work_rate_on: bool = True
+    enforce_minimum_heat_rate: bool = True
+    aerobic_factor: float = 1.5
+    muscle_effort_scaling_factor: float = 1.0
+    use_bhargava_recruitment: bool = True
+    include_negative_mechanical_work: bool = True
+    forbid_negative_total_power: bool = True
+
+
+@wp.struct
+class MetabolicMuscleParameters:
+    specific_tension: float  # N/m^2
+    density: float  # kg/m^3
+    slow_twitch_ratio: float  # ratio of slow-twitch fibers
+
+
+def default_metabolic_muscle_parameters(nmuscle: int) -> wp.array:
+    """ OpenSim's default parameters for every muscle """
+    params = MetabolicMuscleParameters()
+    params.specific_tension = 0.25e6
+    params.density = 1059.7
+    params.slow_twitch_ratio = 0.5
+    return wp.array([params] * nmuscle, dtype=MetabolicMuscleParameters)
 
 
 @wp.kernel
 def _metabolics_kernel(
         # Model:
         muscle_metadata: wp.array(dtype=MuscleMetadata),
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        m_act_in: wp.array2d(dtype=float),
+        m_excitations_in: wp.array2d(dtype=float),
+        muscle_length_info_in: wp.array2d(dtype=MuscleLengthInfo),
+        muscle_velocity_info_in: wp.array2d(dtype=FiberVelocityInfo),
+        muscle_dynamics_info_in: wp.array2d(dtype=MuscleDynamicsInfo),
         # In:
+        metabolic_params: wp.array(dtype=MetabolicMuscleParameters),
         activation_maintenance_rate_on: bool,
         shortening_rate_on: bool,
         mechanical_work_rate_on: bool,
@@ -29,100 +69,89 @@ def _metabolics_kernel(
         use_bhargava_recruitment: bool,
         include_negative_mechanical_work: bool,
         forbid_negative_total_power: bool,
-        # Data in:
-        m_activation_in: wp.array2d(dtype=float),
-        m_excitation_in: wp.array2d(dtype=float),
-        muscle_length_info_in: wp.array2d(dtype=MuscleLengthInfo),
-        fiber_velocity_info_in: wp.array2d(dtype=FiberVelocityInfo),
-        muscle_dynamics_info_in: wp.array2d(dtype=MuscleDynamicsInfo),
-        # Data out:
+        # Out:
         muscle_metabolic_out: wp.array2d(dtype=float),
 ):
-    """ Computes muscle activation, shortening, mechanical heat rate. Does not compute basal heat rate """
+    """ Metabolic power (W) of each muscle: activation/maintenance and shortening heat, and mechanical work """
     worldid, muscle_id = wp.tid()
+    if integration_done_in[worldid]:
+        return
     mm = muscle_metadata[muscle_id]
+    mp = metabolic_params[muscle_id]
     mli = muscle_length_info_in[worldid, muscle_id]
-    fvi = fiber_velocity_info_in[worldid, muscle_id]
+    fvi = muscle_velocity_info_in[worldid, muscle_id]
     mdi = muscle_dynamics_info_in[worldid, muscle_id]
 
-    # Get some muscle properties
-    muscle_mass = (mm.max_isometric_force / mm.specific_tension) * mm.density * mm.optimal_fiber_length
-    slow_twitch_ratio = mm.slow_twitch_ratio
-    max_shortening_velocity = mm.v_max
-    activation = muscle_effort_scaling_factor * m_activation_in[worldid, muscle_id]
-    excitation = muscle_effort_scaling_factor * m_excitation_in[worldid, muscle_id]
-    fiber_force_active = muscle_effort_scaling_factor * mdi.active_fiber_force
-    fiber_force_active = wp.max(fiber_force_active, 0.0)  # should not be happening, but just in case
+    muscle_mass = (mm.max_isometric_force / mp.specific_tension) * mp.density * mm.optimal_fiber_length
+    activation = muscle_effort_scaling_factor * m_act_in[worldid, muscle_id]
+    excitation = muscle_effort_scaling_factor * m_excitations_in[worldid, muscle_id]
+    fiber_force_active = wp.max(muscle_effort_scaling_factor * mdi.active_fiber_force, 0.0)
     fiber_length_normalized = mli.norm_fiber_length
     fiber_velocity = fvi.fiber_velocity
     fiber_velocity_normalized = fiber_velocity / mm.optimal_fiber_length
     F_iso = mli.fiber_active_force_length_multiplier
 
-    # Set activation dependence scaling parameter: A
-    if excitation > activation:
-        A = excitation
-    else:
+    # Activation dependence scaling parameter
+    A = excitation
+    if excitation <= activation:
         A = (excitation + activation) / 2.0
 
+    slow_twitch_ratio = mp.slow_twitch_ratio
     if use_bhargava_recruitment:
         u_slow = slow_twitch_ratio * wp.sin(0.5 * wp.pi * excitation)
-        u_fast = (1.0 - slow_twitch_ratio) * (1.0 - wp.cos(0.5 * wp.pi * excitation))
-        slow_twitch_ratio = 1.0 if excitation == 0.0 else u_slow / (u_slow + u_fast)
+        # 1 - cos(pi/2 * e), written as 2 sin^2(pi/4 * e) to avoid float32 cancellation at small excitations
+        u_fast = (1.0 - slow_twitch_ratio) * 2.0 * wp.pow(wp.sin(0.25 * wp.pi * excitation), 2.0)
+        slow_twitch_ratio = wp.where(excitation == 0.0, 1.0, u_slow / (u_slow + u_fast))
 
+    # Activation and maintenance heat rate (W/kg)
+    AM_dot = float(0.0)
     if forbid_negative_total_power or activation_maintenance_rate_on:
         unscaled_AM_dot = 128.0 * (1.0 - slow_twitch_ratio) + 25.0
-
         if fiber_length_normalized <= 1.0:
             AM_dot = aerobic_factor * wp.pow(A, 0.6) * unscaled_AM_dot
         else:
-            AM_dot = wp.pow(A, 0.6) * ((0.4 * unscaled_AM_dot) + (0.6 * unscaled_AM_dot * F_iso))
+            AM_dot = aerobic_factor * wp.pow(A, 0.6) * (0.4 * unscaled_AM_dot + 0.6 * unscaled_AM_dot * F_iso)
 
-    # Shortening Heart Rate
+    # Shortening heat rate (W/kg)
+    S_dot = float(0.0)
     if forbid_negative_total_power or shortening_rate_on:
-        v_max_fast_twitch = max_shortening_velocity
-        v_max_slow_twitch = max_shortening_velocity / 2.5
-        alpha_shortening_fast_twitch = 153.0 / v_max_fast_twitch;
-        alpha_shortening_slow_twitch = 100.0 / v_max_slow_twitch;
+        v_max_fast_twitch = mm.v_max
+        v_max_slow_twitch = mm.v_max / 2.5
+        alpha_shortening_fast_twitch = 153.0 / v_max_fast_twitch
+        alpha_shortening_slow_twitch = 100.0 / v_max_slow_twitch
 
-        if fiber_length_normalized <= 0.0:  # Concentric contraction, Vm < 0
+        if fiber_velocity_normalized <= 0.0:  # concentric contraction
             max_shortening_rate = 100.0
-            tmp_slow_twitch = -alpha_shortening_slow_twitch * fiber_length_normalized
-            # Apply upper limit to unscaled slow twitch shortening rate
-            tmp_slow_twitch = wp.min(tmp_slow_twitch, max_shortening_rate)
+            tmp_slow_twitch = wp.min(-alpha_shortening_slow_twitch * fiber_velocity_normalized, max_shortening_rate)
+            tmp_fast_twitch = alpha_shortening_fast_twitch * fiber_velocity_normalized * (1.0 - slow_twitch_ratio)
+            unscaled_S_dot = tmp_slow_twitch * slow_twitch_ratio - tmp_fast_twitch
+            S_dot = aerobic_factor * wp.pow(A, 2.0) * unscaled_S_dot
+        else:  # eccentric contraction
+            alpha_lengthening = wp.where(include_negative_mechanical_work, 4.0, 0.3)
+            unscaled_S_dot = alpha_lengthening * alpha_shortening_slow_twitch * fiber_velocity_normalized
+            S_dot = aerobic_factor * A * unscaled_S_dot
 
-            tmp_fast_twitch = alpha_shortening_fast_twitch * fiber_length_normalized * (1.0 - slow_twitch_ratio)
-            unscaled_Sdot = (tmp_slow_twitch * slow_twitch_ratio) - tmp_fast_twitch
-            S_dot = aerobic_factor * wp.pow(A, 2.0) * unscaled_Sdot
-        else:  # Eccentric contraction, Vm >= 0
-            unscaled_Sdot = ((4.0 if include_negative_mechanical_work else 0.3) *
-                             alpha_shortening_slow_twitch * fiber_length_normalized)
-            S_dot = aerobic_factor * A * unscaled_Sdot
-
-        # Fiber length dependence on scaled shortening heat rate
         if fiber_length_normalized > 1.0:
             S_dot *= F_iso
 
-    # Mechanical Work Rate
+    # Mechanical work rate (W/kg)
+    W_dot = float(0.0)
     if forbid_negative_total_power or mechanical_work_rate_on:
         if include_negative_mechanical_work or fiber_velocity <= 0.0:
             W_dot = -fiber_force_active * fiber_velocity
-        else:
-            W_dot = 0.0
-
         W_dot /= muscle_mass
 
-    # If necessary, increase the shortening heat rate so total power is non-negative
+    # Increase the shortening heat rate so the total power is non-negative
     if forbid_negative_total_power:
-        E_dot_Wkg_before_clamp = AM_dot + S_dot + W_dot
-        if E_dot_Wkg_before_clamp < 0.0:
-            S_dot -= E_dot_Wkg_before_clamp
+        E_dot_before_clamp = AM_dot + S_dot + W_dot
+        if E_dot_before_clamp < 0.0:
+            S_dot -= E_dot_before_clamp
 
-    # Check from Umberger, total heat rate cannot fall below 1.0 W/kg
+    # The total heat rate cannot fall below 1.0 W/kg
     total_heat_rate = AM_dot + S_dot
     if enforce_minimum_heat_rate and total_heat_rate < 1.0 and activation_maintenance_rate_on and shortening_rate_on:
         total_heat_rate = 1.0
 
-    # Total Metabolic Energy Rate
     E_dot = float(0.0)
     if activation_maintenance_rate_on and shortening_rate_on:
         E_dot += total_heat_rate
@@ -131,35 +160,39 @@ def _metabolics_kernel(
             E_dot += AM_dot
         if shortening_rate_on:
             E_dot += S_dot
-
     if mechanical_work_rate_on:
         E_dot += W_dot
-    E_dot *= muscle_mass
-    muscle_metabolic_out[worldid, muscle_id] = E_dot
-    return
+    muscle_metabolic_out[worldid, muscle_id] = E_dot * muscle_mass
 
 
 @event_scope
-def compute_muscle_metabolics(m: Model, d: Data):
-    """ Muscle dynamics """
+def compute_muscle_metabolics(
+        m: Model,
+        d: Data,
+        metabolic_params: wp.array,
+        options: MetabolicOptions,
+        muscle_metabolic_out: wp.array2d,
+):
+    """ Writes the metabolic power (W) of each muscle to muscle_metabolic_out """
     if not m.nmuscle:
         return
-
-    mo = m.opt.metabolic_options
     wp.launch(
         _metabolics_kernel,
         dim=(d.nworld, m.nmuscle),
-        inputs=[m.muscle_metadata,
-                mo.activation_maintenance_rate_on,
-                mo.shortening_rate_on,
-                mo.mechanical_work_rate_on,
-                mo.enforce_minimum_heat_rate,
-                mo.aerobic_factor,
-                mo.muscle_effort_scaling_factor,
-                mo.use_bhargava_recruitment,
-                mo.include_negative_mechanical_work,
-                mo.forbid_negative_total_power,
-                d.m_act, d.m_excitations,
-                d.muscle_length_info, d.muscle_velocity_info, d.muscle_dynamics_info],
-        outputs=[d.muscle_metabolic],
+        inputs=[
+            m.muscle_metadata,
+            d.integration_done, d.m_act, d.m_excitations,
+            d.muscle_length_info, d.muscle_velocity_info, d.muscle_dynamics_info,
+            metabolic_params,
+            options.activation_maintenance_rate_on,
+            options.shortening_rate_on,
+            options.mechanical_work_rate_on,
+            options.enforce_minimum_heat_rate,
+            options.aerobic_factor,
+            options.muscle_effort_scaling_factor,
+            options.use_bhargava_recruitment,
+            options.include_negative_mechanical_work,
+            options.forbid_negative_total_power,
+        ],
+        outputs=[muscle_metabolic_out],
     )

@@ -15,12 +15,6 @@ IDX_SCRATCH_TRANS_F = 3
 IDX_SCRATCH_TRANS_DF = 4
 IDX_SCRATCH_TRANS_D2F = 5
 
-# Air drag
-A_Cd = 0.9
-A_Af = 0.50641133
-A_rho = 1.20474061
-A_AFK = 0.5 * A_rho * A_Af * A_Cd
-
 # These are overridden for each muscle depending on max pennation angles
 MIN_NORM_FIBER_LENGTH = 0.2
 MAX_NORM_FIBER_LENGTH = 1.8

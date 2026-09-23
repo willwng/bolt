@@ -1,8 +1,10 @@
+import warnings
+
 import opensim as osim
 import warp as wp
 
 from bolt.types_consts import MAX_NORM_FIBER_LENGTH, ContractionType, MuscleMetadata, BOLT_SIG_REAL, \
-    MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH, MIN_NORM_FIBER_LENGTH
+    MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH, MIN_NORM_FIBER_LENGTH, M_MAX_PENNATION_ANGLE
 from bolt.load_utils.converted_objects import MuscleData, SiteData
 from bolt.load_utils.osim_types import OSimType
 from bolt.load_utils.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
@@ -47,8 +49,9 @@ def collect_geometry_path_points(muscle_path: OSimType.GeometryPath) -> list[Sit
             path_points.append(convert_path_point(path_point))
         elif cond_point := OSimType.ConditionalPathPoint.safeDownCast(point):
             path_points.append(convert_path_point(cond_point))
-        # elif mov_point := OSimType.MovingPathPoint.safeDownCast(point):
-        #     path_points.append(convert_path_point(mov_point))
+        else:
+            warnings.warn(f"Ignoring unsupported path point {point.getName()} ({point.getConcreteClassName()}) "
+                          f"in {muscle_path.getAbsolutePathString()}")
     return path_points
 
 
@@ -69,7 +72,7 @@ def convert_path(muscle_path: OSimType.Path) -> list[SiteData]:
         return collect_geometry_path_points(muscle_path)
     elif muscle_path.getConcreteClassName() == "FunctionBasedPath":
         muscle_path = OSimType.FunctionBasedPath.safeDownCast(muscle_path)
-        raise ValueError(f"Use the inputted polynomial path. TODO: support this better")
+        raise ValueError("Use the inputted polynomial path. TODO: support this better")
     else:
         raise ValueError(f"Unsupported muscle path type: {muscle_path.getConcreteClassName()}")
 
@@ -183,9 +186,6 @@ def create_muscle_metadata(
         muscle_meta.activation_time_const = 0.010
         muscle_meta.deactivation_time_const = 0.040
         muscle_meta.activation_dynamics_smoothing = 10.0
-        muscle_meta.specific_tension = 0.5e6
-        muscle_meta.density = 1059.7
-        muscle_meta.slow_twitch_ratio = 0.5
         muscle_meta.active_force_width_scale = 1.0
 
         # To be set during model initialization
@@ -208,9 +208,8 @@ def adjust_norm_fiber_length_range(muscle: MuscleMetadata, contraction_dynamics:
     """
     # Compute pennation model's minimum fiber length
     parallelogram_height = wp.sin(muscle.optimal_pennation_angle)
-    maximum_pennation_angle = wp.acos(0.1)
-    maximum_sin_pennation = wp.sin(maximum_pennation_angle)
-    if maximum_pennation_angle > BOLT_SIG_REAL:
+    maximum_sin_pennation = wp.sin(M_MAX_PENNATION_ANGLE)
+    if maximum_sin_pennation > BOLT_SIG_REAL:
         pennation_min_norm_fiber_length = parallelogram_height / maximum_sin_pennation
     else:
         pennation_min_norm_fiber_length = 0.01

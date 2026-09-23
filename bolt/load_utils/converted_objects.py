@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from dataclasses import fields, field
+from dataclasses import field
 
 import warp as wp
 from bolt.types_consts import GeomType, MobilizerType

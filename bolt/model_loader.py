@@ -5,7 +5,7 @@ import opensim as osim
 from bolt.load_utils import *
 from bolt.model_load_result import ModelLoadResult
 from bolt.paths import get_geometry_dir
-from bolt.types_consts import Model, Data, IntegratorType, Option, ActivationType, ContractionType, MetabolicOptions, \
+from bolt.types_consts import Model, Data, IntegratorType, Option, ActivationType, ContractionType, \
     MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, MuscleLengthInfo, FiberVelocityInfo, \
     MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
     CoordinateLimitForce, StatefulContact, vec5, PolyInts
@@ -258,7 +258,6 @@ def load_model(
         gravity=wp.vec3(model.getGravity().to_numpy()),
         explicit_gravity=True,
         implicit_damping=True,
-        enable_drag=True,
         visuals=requires_visuals,
         nbeam_visuals=n_beam_visuals,
 
@@ -267,18 +266,6 @@ def load_model(
         integrator=integrator,
 
         use_linear_stop=False,
-
-        metabolic_options=MetabolicOptions(
-            activation_maintenance_rate_on=True,
-            shortening_rate_on=True,
-            mechanical_work_rate_on=True,
-            enforce_minimum_heat_rate=True,
-            aerobic_factor=1.0,
-            muscle_effort_scaling_factor=1.0,
-            use_bhargava_recruitment=True,
-            include_negative_mechanical_work=True,
-            forbid_negative_total_power=True,
-        ),
 
         safety=0.9,
         min_shrink=0.1,
@@ -568,7 +555,6 @@ def load_model(
         muscle_active_velocity_multiplier=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation_passive=make_zero((n_worlds, nmuscle), dtype=float),
         muscle_actuation_active=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_metabolic=make_zero((n_worlds, nmuscle), dtype=float),
 
         muscle_length_info=make_zero((n_worlds, nmuscle), dtype=MuscleLengthInfo),
         muscle_velocity_info=make_zero((n_worlds, nmuscle), dtype=FiberVelocityInfo),
@@ -579,7 +565,6 @@ def load_model(
         body_F_gravity=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_F_drag=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
         body_F_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
 
         qfrc_muscle=make_zero((n_worlds, nq), dtype=float),
