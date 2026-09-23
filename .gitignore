@@ -455,3 +455,5 @@ cython_debug/
 .DS_Store
 .AppleDouble
 .LSOverride
+# Warp kernel cache (CI)
+.warp_cache/
