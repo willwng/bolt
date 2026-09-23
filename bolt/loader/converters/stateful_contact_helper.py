@@ -1,10 +1,10 @@
 import warp as wp
 import xml.etree.ElementTree as ET
 
-from bolt.load_utils.converted_objects import StatefulContactForce, SiteData
-from bolt.load_utils.osim_types import OSimType
-from bolt.load_utils.physical_frame_helper import wp_transform_from_osim_transform
-from bolt.load_utils.xml_helper import extract_bolt_only_objects, extract_float_from_element
+from bolt.loader.converters.converted_objects import StatefulContactForce, SiteData
+from bolt.loader.converters.osim_types import OSimType
+from bolt.loader.converters.physical_frame_helper import wp_transform_from_osim_transform
+from bolt.loader.converters.xml_helper import extract_bolt_only_objects, extract_float_from_element
 from bolt.types_consts import StatefulContact
 
 

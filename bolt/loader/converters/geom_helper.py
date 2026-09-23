@@ -3,10 +3,10 @@ import warp as wp
 import numpy as np
 
 from bolt.types_consts import GeomType
-from bolt.load_utils.converted_objects import GeomData, AABB, UserGeomData
-from bolt.load_utils.osim_types import OSimType
-from bolt.load_utils.physical_frame_helper import get_body_name_of_frame, wp_transform_from_osim_transform
-from bolt.load_utils.property_helper import extract_vec3
+from bolt.loader.converters.converted_objects import GeomData, AABB, UserGeomData
+from bolt.loader.converters.osim_types import OSimType
+from bolt.loader.converters.physical_frame_helper import get_body_name_of_frame, wp_transform_from_osim_transform
+from bolt.loader.converters.property_helper import extract_vec3
 
 
 def collect_geom_type_sizes(geom: osim.ContactGeometry) -> tuple[GeomType, wp.vec3, AABB, float]:

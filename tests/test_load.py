@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import dataclasses
 
+import numpy as np
 import pytest
 import warp as wp
 
 import bolt
 from bolt._src.types import array as types_array
-from bolt.load_utils.warp_util import allocate_from_annotations
+from bolt.loader.array_util import allocate_from_annotations
 from bolt.types_consts import GeomType
 from models import FN_PATH_FILE, FN_PATH_MODEL, MODEL_NAMES, model_path
 
@@ -107,7 +108,7 @@ def _check(obj, m, d):
             except KeyError as e:
                 problems.append(f"{path}: {e.args[0]}")
                 continue
-            # the loader allocates at least 1 along every axis (load_utils.warp_util.check_zero)
+            # the loader allocates at least 1 along every axis (loader.arrays.check_zero)
             if exact is not None and actual != exact and not (exact == 0 and actual == 1):
                 problems.append(f"{path}: axis {axis} is {actual}, annotation {dim!r} = {exact}")
             if bound is not None and actual > max(bound, 1):
@@ -148,3 +149,25 @@ def test_allocate_from_annotations():
 def test_allocate_from_annotations_errors(values, message):
     with pytest.raises(TypeError, match=message):
         allocate_from_annotations(_Example, {"nworld": 2, "n": 3}, **values)
+
+
+# --- update_colliders ---
+def test_update_colliders_adds_user_collider():
+    lr = bolt.load_model(model_path=model_path(MODEL_NAMES[0]), n_worlds=2, integrator=bolt.IntegratorType.EULER_FIXED,
+                         requires_visuals=False)
+    m, d = lr.model, lr.data
+    ngeom = m.ngeom
+    lr.colliders.append(bolt.convert_user_collider(bolt.UserGeomData(
+        name="user_ball", body_name="hand_r", geom_type=GeomType.SPHERE,
+        transform=wp.transform_identity(), size=wp.vec3(0.05, 0.05, 0.05))))
+    bolt.update_colliders(lr)
+
+    assert m.ngeom == ngeom + 1
+    assert lr.collider_id_lookup["user_ball"] == ngeom
+    assert not _check(m, m, d) and not _check(d, m, d)  # geom arrays were resized consistently
+
+    d.world_reset.fill_(True)
+    bolt.reset(m, d)
+    bolt.increment_next_time(m, d, 1e-3)
+    bolt.step(m, d)
+    assert np.isfinite(d.qpos.numpy()).all()
