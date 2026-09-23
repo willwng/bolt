@@ -58,6 +58,15 @@ pip install -e .
 ```
 
 
+### 3. Run Tests (optional)
+The tests validate Bolt against OpenSim (forward kinematics, forward dynamics, and muscle paths)
+over batches of random states, one per Bolt world.
+```bash
+pip install -e ".[test]"
+pytest
+```
+
+
 ## Example
 The following command will launch a simple renderer with a full-body muscle model.
 ```bash

@@ -255,7 +255,7 @@ def load_model(
 
     # --- Create Options ---
     opt = Option(
-        gravity=-9.80665,
+        gravity=wp.vec3(model.getGravity().to_numpy()),
         explicit_gravity=True,
         implicit_damping=True,
         enable_drag=True,

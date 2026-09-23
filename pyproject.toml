@@ -15,3 +15,11 @@ bolt-test = "bolt.test:main"
 
 [tool.setuptools.packages.find]
 include = ["bolt*"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

@@ -13,14 +13,14 @@ def _acc_world(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         # In:
-        gravity: float,
+        gravity: wp.vec3,
         # Data out:
         body_A_GB_out: wp.array2d(dtype=wp.spatial_vector),
 ):
     worldid = wp.tid()
     if integration_done_in[worldid]:
         return
-    body_A_GB_out[worldid, 0] = wp.spatial_vector(wp.vec3(0.0), wp.vec3(0.0, -gravity, 0.0))
+    body_A_GB_out[worldid, 0] = wp.spatial_vector(wp.vec3(0.0), -gravity)
     return
 
 
