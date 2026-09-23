@@ -100,7 +100,9 @@ def realize_muscles(m: Model, d: Data, run_reset: bool):
     function_path.muscle_fn_path(m, d)
     point_path.muscle_point_path(m, d)
 
-    # Activation dynamics
+    # Activation dynamics, starting from a valid activation if reset
+    if run_reset:
+        activation.clamp_activation_on_reset(m, d)
     activation.activation_dynamics(m, d)
 
     # Contraction dynamics, equilibrate if reset
