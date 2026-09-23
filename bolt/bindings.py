@@ -7,10 +7,10 @@ import torch
 import warp as wp
 
 import bolt
-import bolt.model_loader as model_loader
-from bolt.load_utils import muscle_helper, geom_helper
-from bolt.load_utils.converted_objects import UserGeomData, GeomData
-from bolt.model_load_result import ModelLoadResult
+from bolt.loader import model_loader
+from bolt.loader.converters import muscle_helper, geom_helper
+from bolt.loader.converters.converted_objects import UserGeomData, GeomData
+from bolt.loader.model_load_result import ModelLoadResult
 from bolt.render.renderer import Renderer, RendererType
 from bolt.types_consts import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata
 

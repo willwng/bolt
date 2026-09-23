@@ -14,9 +14,9 @@ from .types_consts import *
 
 from .render.renderer import RendererType as RendererType
 
-from .load_utils.converted_objects import UserGeomData as UserGeomData
-from .load_utils.converted_objects import GROUND as GROUND
-from .load_utils.converted_objects import GROUND_COLLIDER as GROUND_COLLIDER
+from .loader.converters.converted_objects import UserGeomData as UserGeomData
+from .loader.converters.converted_objects import GROUND as GROUND
+from .loader.converters.converted_objects import GROUND_COLLIDER as GROUND_COLLIDER
 
 from .bindings import *
 from .paths import *

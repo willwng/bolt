@@ -1,10 +1,10 @@
 import warp as wp
 
-from bolt.load_utils.converted_objects import SpatialTransformData, TransformAxisData, NO_DOF
-from bolt.load_utils.joint_helper import is_free_joint
-from bolt.load_utils.function_helper import convert_function
-from bolt.load_utils.property_helper import extract_vec3, extract_property_string_list
-from bolt.load_utils.osim_types import OSimType
+from bolt.loader.converters.converted_objects import SpatialTransformData, TransformAxisData, NO_DOF
+from bolt.loader.converters.joint_helper import is_free_joint
+from bolt.loader.converters.function_helper import convert_function
+from bolt.loader.converters.property_helper import extract_vec3, extract_property_string_list
+from bolt.loader.converters.osim_types import OSimType
 
 
 def convert_transform_axis(txfm: OSimType.TransformAxis) -> TransformAxisData:

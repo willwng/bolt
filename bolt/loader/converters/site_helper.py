@@ -1,9 +1,9 @@
 import warp as wp
 
-from bolt.load_utils.converted_objects import SiteData
-from bolt.load_utils.osim_types import OSimType
-from bolt.load_utils.property_helper import extract_vec3
-from bolt.load_utils.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
+from bolt.loader.converters.converted_objects import SiteData
+from bolt.loader.converters.osim_types import OSimType
+from bolt.loader.converters.property_helper import extract_vec3
+from bolt.loader.converters.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
 
 
 def convert_station(station: OSimType.Station) -> SiteData:

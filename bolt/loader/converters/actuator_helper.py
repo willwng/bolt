@@ -1,6 +1,6 @@
 from bolt.types_consts import ActuatorMetadata
-from bolt.load_utils.converted_objects import ActivationCoordinateActuatorData
-from bolt.load_utils.osim_types import OSimType
+from bolt.loader.converters.converted_objects import ActivationCoordinateActuatorData
+from bolt.loader.converters.osim_types import OSimType
 
 
 def convert_activation_actuators(model: OSimType.Model) -> list[ActivationCoordinateActuatorData]:

@@ -56,6 +56,12 @@ def _annotated_shape(cls, field: dataclasses.Field, sizes: dict[str, int]) -> tu
     return tuple(resolved)
 
 
+def allocate_field(cls, name: str, sizes: dict[str, int]) -> wp.array:
+    """ Allocates zeros for field `name` of dataclass cls, with the shape of its types.array(...) annotation """
+    field = next(f for f in dataclasses.fields(cls) if f.name == name)
+    return make_zero(_annotated_shape(cls, field, sizes), dtype=field.type.dtype)
+
+
 def allocate_from_annotations(cls, sizes: dict[str, int], **values):
     """
     Constructs the dataclass cls; fields must have a array(...) annotation whose dims resolve from sizes
@@ -67,5 +73,19 @@ def allocate_from_annotations(cls, sizes: dict[str, int], **values):
     kwargs = dict(values)
     for f in dataclasses.fields(cls):
         if f.name not in kwargs:
-            kwargs[f.name] = make_zero(_annotated_shape(cls, f, sizes), dtype=f.type.dtype)
+            kwargs[f.name] = allocate_field(cls, f.name, sizes)
     return cls(**kwargs)
+
+
+def new_unset_class(cls):
+    """ An instance of dataclass cls with no fields set yet (see assert_all_fields_set) """
+    return object.__new__(cls)
+
+
+def assert_all_fields_set(obj):
+    """ Checks that every field of dataclass instance obj was set, and nothing that isn't a field """
+    names = {f.name for f in dataclasses.fields(obj)}
+    missing = sorted(names - set(vars(obj)))
+    unknown = sorted(set(vars(obj)) - names)
+    if missing or unknown:
+        raise TypeError(f"{type(obj).__name__}: missing fields {missing}, unknown fields {unknown}")

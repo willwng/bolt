@@ -1,7 +1,7 @@
 
-from bolt.load_utils.converted_objects import SiteData
-from bolt.load_utils.osim_types import OSimType
-from bolt.load_utils.site_helper import convert_station
+from bolt.loader.converters.converted_objects import SiteData
+from bolt.loader.converters.osim_types import OSimType
+from bolt.loader.converters.site_helper import convert_station
 
 
 def convert_markers(model: OSimType.Model) -> list[SiteData]:
