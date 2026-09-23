@@ -1,14 +1,14 @@
 """Public API for Bolt"""
 
-from ._src.step import increment_next_time as increment_next_time
-from ._src.step import step as step
-from ._src.forward import reset as reset
-from ._src.forward import realize_position as fk
-from ._src.forward_post import compute_muscle_passive_forces as compute_muscle_passive_forces
-from ._src.forward_post import compute_muscle_force_breakdown as compute_muscle_force_breakdown
-from ._src.forward_post import map_dq_to_u as map_dq_to_u
-from ._src.forward_post import compute_muscle_moments as compute_muscle_moments
-from ._src.forward_post import compute_net_joint_moments as compute_net_joint_moments
+from ._src.pipeline.step import increment_next_time as increment_next_time
+from ._src.pipeline.step import step as step
+from ._src.pipeline.forward import reset as reset
+from ._src.pipeline.forward import realize_position as fk
+from ._src.pipeline.post import compute_muscle_passive_forces as compute_muscle_passive_forces
+from ._src.pipeline.post import compute_muscle_force_breakdown as compute_muscle_force_breakdown
+from ._src.pipeline.post import map_dq_to_u as map_dq_to_u
+from ._src.pipeline.post import compute_muscle_moments as compute_muscle_moments
+from ._src.pipeline.post import compute_net_joint_moments as compute_net_joint_moments
 
 from .types_consts import *
 

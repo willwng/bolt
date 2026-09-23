@@ -7,7 +7,7 @@ import pytest
 from scipy.spatial.transform import Rotation
 
 import opensim_oracle
-from bolt._src import forward
+from bolt._src.pipeline import forward
 from conftest import N_STATES
 from models import MODEL_NAMES, model_path
 from tolerances import POSITION_M, ROTATION, VELOCITY

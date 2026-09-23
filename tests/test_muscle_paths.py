@@ -5,7 +5,9 @@ from __future__ import annotations
 import pytest
 
 import opensim_oracle
-from bolt._src import forward, smooth_muscle_fn, smooth_muscle_pt
+from bolt._src.pipeline import forward
+from bolt._src.muscle import function_path
+from bolt._src.muscle import point_path
 from conftest import N_STATES
 from models import FN_PATH_FILE, FN_PATH_MODEL, MODEL_NAMES, model_path
 from tolerances import MUSCLE_LENGTH_M, MUSCLE_MOMENT_ARM_M, MUSCLE_SPEED_MS
@@ -15,8 +17,8 @@ def _realize_paths(case, q, u):
     case.set_states(q, u)
     forward.realize_position(case.m, case.d)
     forward.realize_velocity(case.m, case.d)
-    smooth_muscle_pt.muscle_point_path(case.m, case.d)
-    smooth_muscle_fn.muscle_fn_path(case.m, case.d)
+    point_path.muscle_point_path(case.m, case.d)
+    function_path.muscle_fn_path(case.m, case.d)
     return case.d.muscle_length.numpy(), case.d.muscle_velocity.numpy()
 
 
