@@ -1,7 +1,13 @@
+"""
+Generates polynomial_evaluator.py: straight-line Warp functions evaluating each supported
+(dimension, order) multivariate polynomial and its gradient
+
+Run with: python -m bolt.tools.generate_polynomial_evaluator
+"""
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-OUTPUT_FILE = Path(__file__).resolve().parents[1] / "bolt" / "_src" / "muscle" / "polynomial_evaluator.py"
+OUTPUT_FILE = Path(__file__).resolve().parents[1] / "_src" / "muscle" / "polynomial_evaluator.py"
 
 
 def polynomial_exponents(dimension: int, max_order: int):
@@ -36,7 +42,7 @@ def generate_poly_evaluator(n_dof: int, order: int) -> tuple[str, str]:
         c_str = f"coefficients[start_idx + {coeff_idx}]"
         lines.append(f"    # Coefficient {coeff_idx}: Exponents {powers}")
 
-        # 1. Function Evaluation (Skip terms where power is 0)
+        # Function Evaluation (Skip terms where power is 0)
         term_factors = [c_str]
         for dof, p in enumerate(powers):
             if p > 0:
@@ -44,7 +50,7 @@ def generate_poly_evaluator(n_dof: int, order: int) -> tuple[str, str]:
 
         lines.append(f"    length += {' * '.join(term_factors)}")
 
-        # 2. Partial Derivatives (dL/dq)
+        # Partial Derivatives (dL/dq)
         for dof, p in enumerate(powers):
             if p > 0:
                 # Derivative of q^p is p * q^(p-1)
