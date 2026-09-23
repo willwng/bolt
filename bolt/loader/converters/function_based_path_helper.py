@@ -72,10 +72,12 @@ def parse_function_based_paths(
 
 def path_type_to_muscle(
         muscle_function_paths: list[MuscleFunctionPathData]
-) -> tuple[list[int], tuple[tuple[int]]]:
+) -> tuple[list[int], tuple[tuple[int]], tuple[tuple[int, int]]]:
     """
     Get mapping from (point | function) id to muscle id
-    This function decides what type of path each muscle should use
+    This function decides what type of path each muscle should use.
+    Returns the point-path muscles, the function-path muscles grouped by (dimension, order), and each group's
+    (dimension, order)
     """
     # We're going to group up the function paths so that the same (dim, order) are evaluated togeter
     point_paths = []
@@ -90,7 +92,7 @@ def path_type_to_muscle(
                 function_paths[key] = []
             function_paths[key].append(i)
 
-    return point_paths, tuple(function_paths.values())
+    return point_paths, tuple(function_paths.values()), tuple(function_paths.keys())
 
 
 def get_fn_path_term_coeffs(muscle_function_paths: list[MuscleFunctionPathData]) -> list[float]:

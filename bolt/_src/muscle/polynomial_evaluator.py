@@ -43689,90 +43689,44 @@ def evaluate_polynomial_dimension12_order4(
 
     return length, df_dq
 
-@wp.func
-def evaluate_polynomial(
-    coefficients: wp.array(dtype=float),
-    q_pows: types.PolyPowCache,
-    start_idx: int,
-    order: int,
-    dimension: int,
-) -> tuple[float, types.PolyVec]:
-	if dimension == 1 and order == 2:
-		return evaluate_polynomial_dimension1_order2(coefficients, q_pows, start_idx)
-	elif dimension == 1 and order == 3:
-		return evaluate_polynomial_dimension1_order3(coefficients, q_pows, start_idx)
-	elif dimension == 1 and order == 4:
-		return evaluate_polynomial_dimension1_order4(coefficients, q_pows, start_idx)
-	elif dimension == 1 and order == 5:
-		return evaluate_polynomial_dimension1_order5(coefficients, q_pows, start_idx)
-	elif dimension == 1 and order == 6:
-		return evaluate_polynomial_dimension1_order6(coefficients, q_pows, start_idx)
-	elif dimension == 1 and order == 7:
-		return evaluate_polynomial_dimension1_order7(coefficients, q_pows, start_idx)
-	elif dimension == 1 and order == 8:
-		return evaluate_polynomial_dimension1_order8(coefficients, q_pows, start_idx)
-	elif dimension == 1 and order == 9:
-		return evaluate_polynomial_dimension1_order9(coefficients, q_pows, start_idx)
-	elif dimension == 2 and order == 2:
-		return evaluate_polynomial_dimension2_order2(coefficients, q_pows, start_idx)
-	elif dimension == 2 and order == 3:
-		return evaluate_polynomial_dimension2_order3(coefficients, q_pows, start_idx)
-	elif dimension == 2 and order == 4:
-		return evaluate_polynomial_dimension2_order4(coefficients, q_pows, start_idx)
-	elif dimension == 2 and order == 5:
-		return evaluate_polynomial_dimension2_order5(coefficients, q_pows, start_idx)
-	elif dimension == 2 and order == 6:
-		return evaluate_polynomial_dimension2_order6(coefficients, q_pows, start_idx)
-	elif dimension == 2 and order == 7:
-		return evaluate_polynomial_dimension2_order7(coefficients, q_pows, start_idx)
-	elif dimension == 2 and order == 8:
-		return evaluate_polynomial_dimension2_order8(coefficients, q_pows, start_idx)
-	elif dimension == 2 and order == 9:
-		return evaluate_polynomial_dimension2_order9(coefficients, q_pows, start_idx)
-	elif dimension == 3 and order == 2:
-		return evaluate_polynomial_dimension3_order2(coefficients, q_pows, start_idx)
-	elif dimension == 3 and order == 3:
-		return evaluate_polynomial_dimension3_order3(coefficients, q_pows, start_idx)
-	elif dimension == 3 and order == 4:
-		return evaluate_polynomial_dimension3_order4(coefficients, q_pows, start_idx)
-	elif dimension == 3 and order == 5:
-		return evaluate_polynomial_dimension3_order5(coefficients, q_pows, start_idx)
-	elif dimension == 3 and order == 6:
-		return evaluate_polynomial_dimension3_order6(coefficients, q_pows, start_idx)
-	elif dimension == 3 and order == 7:
-		return evaluate_polynomial_dimension3_order7(coefficients, q_pows, start_idx)
-	elif dimension == 3 and order == 8:
-		return evaluate_polynomial_dimension3_order8(coefficients, q_pows, start_idx)
-	elif dimension == 3 and order == 9:
-		return evaluate_polynomial_dimension3_order9(coefficients, q_pows, start_idx)
-	elif dimension == 4 and order == 2:
-		return evaluate_polynomial_dimension4_order2(coefficients, q_pows, start_idx)
-	elif dimension == 4 and order == 3:
-		return evaluate_polynomial_dimension4_order3(coefficients, q_pows, start_idx)
-	elif dimension == 4 and order == 4:
-		return evaluate_polynomial_dimension4_order4(coefficients, q_pows, start_idx)
-	elif dimension == 4 and order == 5:
-		return evaluate_polynomial_dimension4_order5(coefficients, q_pows, start_idx)
-	elif dimension == 4 and order == 6:
-		return evaluate_polynomial_dimension4_order6(coefficients, q_pows, start_idx)
-	elif dimension == 4 and order == 7:
-		return evaluate_polynomial_dimension4_order7(coefficients, q_pows, start_idx)
-	elif dimension == 4 and order == 8:
-		return evaluate_polynomial_dimension4_order8(coefficients, q_pows, start_idx)
-	elif dimension == 4 and order == 9:
-		return evaluate_polynomial_dimension4_order9(coefficients, q_pows, start_idx)
-	elif dimension == 5 and order == 4:
-		return evaluate_polynomial_dimension5_order4(coefficients, q_pows, start_idx)
-	elif dimension == 6 and order == 4:
-		return evaluate_polynomial_dimension6_order4(coefficients, q_pows, start_idx)
-	elif dimension == 7 and order == 4:
-		return evaluate_polynomial_dimension7_order4(coefficients, q_pows, start_idx)
-	elif dimension == 8 and order == 4:
-		return evaluate_polynomial_dimension8_order4(coefficients, q_pows, start_idx)
-	elif dimension == 9 and order == 4:
-		return evaluate_polynomial_dimension9_order4(coefficients, q_pows, start_idx)
-	elif dimension == 10 and order == 4:
-		return evaluate_polynomial_dimension10_order4(coefficients, q_pows, start_idx)
-	elif dimension == 12 and order == 4:
-		return evaluate_polynomial_dimension12_order4(coefficients, q_pows, start_idx)
-	return 0.0, types.PolyVec(0.0)
+EVALUATORS = {
+    (1, 2): evaluate_polynomial_dimension1_order2,
+    (1, 3): evaluate_polynomial_dimension1_order3,
+    (1, 4): evaluate_polynomial_dimension1_order4,
+    (1, 5): evaluate_polynomial_dimension1_order5,
+    (1, 6): evaluate_polynomial_dimension1_order6,
+    (1, 7): evaluate_polynomial_dimension1_order7,
+    (1, 8): evaluate_polynomial_dimension1_order8,
+    (1, 9): evaluate_polynomial_dimension1_order9,
+    (2, 2): evaluate_polynomial_dimension2_order2,
+    (2, 3): evaluate_polynomial_dimension2_order3,
+    (2, 4): evaluate_polynomial_dimension2_order4,
+    (2, 5): evaluate_polynomial_dimension2_order5,
+    (2, 6): evaluate_polynomial_dimension2_order6,
+    (2, 7): evaluate_polynomial_dimension2_order7,
+    (2, 8): evaluate_polynomial_dimension2_order8,
+    (2, 9): evaluate_polynomial_dimension2_order9,
+    (3, 2): evaluate_polynomial_dimension3_order2,
+    (3, 3): evaluate_polynomial_dimension3_order3,
+    (3, 4): evaluate_polynomial_dimension3_order4,
+    (3, 5): evaluate_polynomial_dimension3_order5,
+    (3, 6): evaluate_polynomial_dimension3_order6,
+    (3, 7): evaluate_polynomial_dimension3_order7,
+    (3, 8): evaluate_polynomial_dimension3_order8,
+    (3, 9): evaluate_polynomial_dimension3_order9,
+    (4, 2): evaluate_polynomial_dimension4_order2,
+    (4, 3): evaluate_polynomial_dimension4_order3,
+    (4, 4): evaluate_polynomial_dimension4_order4,
+    (4, 5): evaluate_polynomial_dimension4_order5,
+    (4, 6): evaluate_polynomial_dimension4_order6,
+    (4, 7): evaluate_polynomial_dimension4_order7,
+    (4, 8): evaluate_polynomial_dimension4_order8,
+    (4, 9): evaluate_polynomial_dimension4_order9,
+    (5, 4): evaluate_polynomial_dimension5_order4,
+    (6, 4): evaluate_polynomial_dimension6_order4,
+    (7, 4): evaluate_polynomial_dimension7_order4,
+    (8, 4): evaluate_polynomial_dimension8_order4,
+    (9, 4): evaluate_polynomial_dimension9_order4,
+    (10, 4): evaluate_polynomial_dimension10_order4,
+    (12, 4): evaluate_polynomial_dimension12_order4,
+}

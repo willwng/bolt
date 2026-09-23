@@ -268,10 +268,12 @@ def pack_muscles(m: Model, parsed: ParsedModel, topology: ModelTopology):
     m.muscle_pts_adr = to_warp_array(muscle_pts_adr, dtype=int)
 
     # Determine the path type for each muscle
-    point_paths_group, function_paths_groups = function_based_path_helper.path_type_to_muscle(function_paths)
+    point_paths_group, function_paths_groups, function_paths_dim_order = (
+        function_based_path_helper.path_type_to_muscle(function_paths))
     m.muscle_pt_group = to_warp_array(point_paths_group, dtype=int)
     m.muscle_pt_group_tuple = tuple(point_paths_group)
     m.muscle_fn_groups = tuple([to_warp_array(group, dtype=int) for group in function_paths_groups])
+    m.muscle_fn_group_dim_order = function_paths_dim_order
 
     # Function-based paths
     fn_path_term_start, fn_path_term_count = function_based_path_helper.compute_fn_path_term_start_and_count(

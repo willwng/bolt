@@ -522,6 +522,7 @@ class Model:
       muscle_pt_group: muscle ids for point paths
       muscle_pt_group_tuple: muscle ids for point paths (tuple for post processing)
       muscle_fn_groups: muscle ids for function paths, grouped by same (dim, order)
+      muscle_fn_group_dim_order: (dimension, order) of each muscle_fn_groups group
 
      * muscle function-based paths *
       fn_path_qpos_adr: qpos adr for each muscle fn path term  (nmuscle, PolyInt)
@@ -654,6 +655,7 @@ class Model:
     muscle_pt_group: array("*", int)
     muscle_pt_group_tuple: tuple[int, ...]
     muscle_fn_groups: tuple[wp.array(dtype=int), ...]
+    muscle_fn_group_dim_order: tuple[tuple[int, int], ...]
 
     # Polynomial/function paths
     fn_path_qpos_adr: array("nmuscle", PolyInts)
