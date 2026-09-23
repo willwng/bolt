@@ -124,7 +124,7 @@ def realize_actuators(m: Model, d: Data, run_reset: bool):
 def realize_forces(m: Model, d: Data):
     if m.opt.explicit_gravity:
         smooth_frc.apply_gravity(m, d)
-    # spring, damping, drag
+    # spring, damping
     smooth_frc.spring(m, d)
     smooth_frc.damping(m, d)
     # contacts

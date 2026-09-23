@@ -15,7 +15,7 @@
 # ==============================================================================
 
 import time
-from typing import Callable, Optional, Tuple
+from typing import Callable, Tuple
 from tqdm import tqdm
 
 import numpy as np

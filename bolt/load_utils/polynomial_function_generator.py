@@ -18,14 +18,14 @@ def generate_poly_evaluator(n_dof: int, order: int) -> tuple[str, str]:
     """
     function_name = f"evaluate_polynomial_dimension{n_dof}_order{order}"
     lines = []
-    lines.append(f"@wp.func")
+    lines.append("@wp.func")
     lines.append(f"def {function_name}(")
-    lines.append(f"        coefficients: wp.array(dtype=float),")
-    lines.append(f"        q_pows: types.PolyPowCache,")
-    lines.append(f"        start_idx: int,")
-    lines.append(f") -> tuple[float, types.PolyVec]:")
-    lines.append(f"    length = float(0.0)")
-    lines.append(f"    df_dq = types.PolyVec(0.0)")
+    lines.append("        coefficients: wp.array(dtype=float),")
+    lines.append("        q_pows: types.PolyPowCache,")
+    lines.append("        start_idx: int,")
+    lines.append(") -> tuple[float, types.PolyVec]:")
+    lines.append("    length = float(0.0)")
+    lines.append("    df_dq = types.PolyVec(0.0)")
     lines.append("")
 
     # Iterate through the generated exponents

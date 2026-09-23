@@ -71,23 +71,6 @@ def calc_active_force_length_multiplier(
 
 
 @wp.func
-def calc_active_force_length_multiplier_derivative(
-        norm_fiber_length: float,
-        active_force_width_scale: float,
-) -> float:
-    scale = active_force_width_scale
-    x = (norm_fiber_length - 1.0) / scale + 1.0
-    return (1.0 / scale) * (
-            calc_gaussian_like_curve_der(x, DGF_B11, DGF_B21,
-                                         DGF_B31, DGF_B41) +
-            calc_gaussian_like_curve_der(x, DGF_B12, DGF_B22,
-                                         DGF_B32, DGF_B42) +
-            calc_gaussian_like_curve_der(x, DGF_B13, DGF_B23,
-                                         DGF_B33, DGF_B43)
-    )
-
-
-@wp.func
 def calc_force_velocity_multiplier(
         norm_fiber_velocity: float,
 ) -> float:

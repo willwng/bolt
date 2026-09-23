@@ -1,4 +1,4 @@
-﻿import enum
+import enum
 from dataclasses import dataclass
 from . import consts
 import warp as wp
@@ -88,10 +88,6 @@ class mat36(wp.types.matrix(shape=(3, 6), dtype=float)):
 
 
 class mat43(wp.types.matrix(shape=(4, 3), dtype=float)):
-    pass
-
-
-class mat411(wp.types.matrix(shape=(4, 11), dtype=float)):
     pass
 
 
@@ -220,23 +216,6 @@ class IntegratorType(enum.IntEnum):
 
 
 @dataclass
-class MetabolicOptions:
-    """
-    Settings for muscle metabolic energy calculations
-    """
-    activation_maintenance_rate_on: bool
-    shortening_rate_on: bool
-    mechanical_work_rate_on: bool
-    enforce_minimum_heat_rate: bool
-
-    aerobic_factor: float
-    muscle_effort_scaling_factor: float
-    use_bhargava_recruitment: bool
-    include_negative_mechanical_work: bool
-    forbid_negative_total_power: bool
-
-
-@dataclass
 class Option:
     """
 
@@ -244,7 +223,6 @@ class Option:
       gravity: gravitational acceleration vector, in ground
       explicit_gravity: flag to compute gravity as an explicit force (or as fictitious acceleration)
       implicit_damping: flag to add h*damping to mass matrix for implicit damping
-      enable_drag: flag to enable drag forces
       visuals: whether to handle visual geometry
       nbeam_visuals: number of beam visuals (for rendering beams joints)
 
@@ -254,7 +232,6 @@ class Option:
 
       use_linear_stop: (debugging) use LinearStop instead of CoordinateLimitForce
 
-      metabolic_options: options for muscle metabolic energy calculations (MetabolicOptions)
 
       safety: (variable-step integration) safety factor
       min_shrink: (variable-step integration) minimum step shrink factor
@@ -272,7 +249,6 @@ class Option:
     gravity: wp.vec3
     explicit_gravity: bool
     implicit_damping: bool
-    enable_drag: bool
     visuals: bool
     nbeam_visuals: int
 
@@ -282,7 +258,6 @@ class Option:
 
     use_linear_stop: bool
 
-    metabolic_options: MetabolicOptions
 
     # Variable-step integration options
     safety: float
@@ -349,15 +324,10 @@ class MuscleMetadata:
     min_activation: float
     max_activation: float
 
-    # Additional parameters for metabolic calculations
-    specific_tension: float
-    density: float
-    slow_twitch_ratio: float
-
 
 @wp.struct
 class ActuatorMetadata:
-    """Muscle metadata. """
+    """Actuator metadata. """
     optimal_force: float
     activation_time_constant: float
     coordinate: int
@@ -502,7 +472,7 @@ class Model:
       cst_txfm_dof: dof idx offset (FROM JOINT) for each txfm  (njnts_cst, 6)
 
      * beam joints *
-      beam_to_mob_id: map beam idx -> mobilizer idx             (nbeam,)
+      beam_to_mob_id: map beam idx -> mobilizer idx             (nbeams,)
 
      * stiffness/damping *
       dof_damping: damping coefficient                         (nv)
@@ -527,7 +497,7 @@ class Model:
       geom_aabb: axis-aligned bounding box (center, size)      (ngeom, 2, 3)
       geom_rbound: bounding sphere radius                      (ngeom,)
 
-      stl_contact: exponential contact force parameters        (nexpcontact, ExponentialContact)
+      stl_contact: stateful contact force parameters           (nstlcontact, StatefulContact)
 
      * colliders *
       geom_pair_type_count: count of max number of each potential collision
@@ -619,7 +589,7 @@ class Model:
     cst_txfm_axes: array("njnts_cst", 6, wp.vec3)
     cst_txfm_dof: array("njnts_cst", 6, int)
 
-    beam_to_mob_id: array("nbeam", int)
+    beam_to_mob_id: array("nbeams", int)
 
     linear_fn_mb: array("nlinearfn", wp.vec2)
     const_fn_c: array("nconstfn", float)
@@ -707,7 +677,7 @@ class Contact:
       stiffness: contact stiffness                                     (naconmax,)
       dissipation: contact dissipation                                 (naconmax,)
       transition_velocity: contact transition velocity                 (naconmax,)
-      geom: geom ids; -1 for flex                                      (naconmax, 2)
+      geom: geom ids                                                   (naconmax, 2)
       worldid: world id                                                (naconmax,)
     """
 
@@ -764,7 +734,7 @@ class Data:
       m_state: muscle state variable                              (nworld, nmuscles)
       m_act: muscle activation                                    (nworld, nmuscles)
       a_act: actuator activation                                  (nworld, nactuator)
-      stl_contact_state: state variable for stateful contact      (nworld, nstlcontact, 4)
+      stl_contact_state: state variable for stateful contact      (nworld, nstlcontact, 3)
 
      * current controls *
       m_excitations: muscle excitations                           (nworld, nmuscles)
@@ -774,9 +744,9 @@ class Data:
       qdot: derived from qvel, i.e. qdot = N(q) @ qvel            (nworld, nq)
       qacc: acceleration                                          (nworld, nv)
       m_state_dot: time-derivative of muscle state variable       (nworld, nmuscles)
-      m_act_dot: time-derivative of actuator activation           (nworld, na)
+      m_act_dot: time-derivative of muscle activation             (nworld, nmuscle)
       a_act_dot: time-derivative of actuator activation           (nworld, nactuator)
-      stl_contact_state_dot: derivative info of contact state     (nworld, nstlcontact, 4)
+      stl_contact_state_dot: derivative info of contact state     (nworld, nstlcontact, 3)
 
      * simulator forces
         body_F_ are Cartesian forces applied to bodies.
@@ -786,7 +756,6 @@ class Data:
       body_F_gravity: gravity Cartesian force/torque on body      (nworld, nbody, 6)
       body_F_contact: contact Cartesian force/torque on body      (nworld, nbody, 6)
       body_F_muscle: muscle Cartesian force/torque on body        (nworld, nbody, 6)
-      body_F_drag: drag Cartesian force/torque on body            (nworld, nbody, 6)
       body_F: net Cartesian force/torque on body                  (nworld, nbody, 6)
       qfrc_muscle: muscle generalized force in qpos space         (nworld, nq)
       ufrc_spring: passive spring force                           (nworld, nv)
@@ -829,7 +798,7 @@ class Data:
       mob_HDot_FM: time-derivative of cross joint jacobian        (nworld, nv, 6)
       mob_HDot: time-derivative of cross joint jacobian in ground (nworld, nv, 6)
       mob_DI: DI = inverse(~H @ P @ H)                            (nworld, nv, 6) # ndof x ndof, won't use all 6
-      mob_G: G = PH * DI                                          (nworld, nv, nv)
+      mob_G: G = PH * DI                                          (nworld, nv, 6)
       mob_coriolis_acc: Coriolis/centrifugal acceleration         (nworld, nbody, 6)
 
       body_COM_G: Position of body com relative to ground         (nworld, nbody, 3)
@@ -853,6 +822,9 @@ class Data:
       vis_X: Cartesian visual transform                           (nworld, nvis, transform)
       vis_beam_pos: position of beam visuals                      (nworld, nbeams, nbeam_visuals, 3)
 
+      subtree_com: center of mass of each body's subtree          (nworld, nbody, 3)
+      subtree_mass: mass of each body's subtree                   (nworld, nbody)
+
      * Attached body sites *
       site_rel_pos_B: site position relative to body              (nworld, nsite, 3)
       site_pos_G: site position measured in ground                (nworld, nsite, 3)
@@ -871,7 +843,7 @@ class Data:
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
 
      * function-based muscle paths
-      muscle_moment_arm: moment arm of muscle r = dL/dq           (nworld, nmuscle, nq)
+      muscle_moment_arm: moment arm of muscle r = -dL/dq          (nworld, nmuscle, nq)
 
      * muscle dynamics
       muscle_length_info: info for muscle length calculation      (nworld, nmuscle)
@@ -885,16 +857,12 @@ class Data:
       muscle_active_velocity_multiplier: active velocity mult     (nworld, nmuscle)
       muscle_actuation_passive: passive component of actuation    (nworld, nmuscle)
       muscle_actuation_active: active component of actuation      (nworld, nmuscle)
-      muscle_metabolic: muscle metabolic energy rate              (nworld, nmuscle)
 
 
     warp only fields:
       nworld: number of worlds
       naconmax: maximum number of contacts (shared across all worlds)
-      njmax: maximum number of constraints per world
       nacon: number of detected contacts (across all worlds)
-      nsolving: number of unconverged worlds                      (1,)
-      subtree_bodyvel: subtree body velocity (ang, vel)           (nworld, nbody, 6)
     """
     nworld: int
     naconmax: int
@@ -914,7 +882,7 @@ class Data:
     m_excitations: array("nworld", "nmuscle", float)
     a_excitations: array("nworld", "nactuator", float)
 
-    qdot: array("nworld", "nv", float)
+    qdot: array("nworld", "nq", float)
     qacc: array("nworld", "nv", float)
     m_state_dot: array("nworld", "nmuscle", float)
     m_act_dot: array("nworld", "nmuscle", float)
@@ -924,7 +892,6 @@ class Data:
     body_F_gravity: array("nworld", "nbody", wp.spatial_vector)
     body_F_contact: array("nworld", "nbody", wp.spatial_vector)
     body_F_muscle: array("nworld", "nbody", wp.spatial_vector)
-    body_F_drag: array("nworld", "nbody", wp.spatial_vector)
     body_F: array("nworld", "nbody", wp.spatial_vector)
 
     qfrc_muscle: wp.array2d(dtype=float)
@@ -1016,7 +983,6 @@ class Data:
     muscle_active_velocity_multiplier: wp.array2d(dtype=float)
     muscle_actuation_passive: wp.array2d(dtype=float)
     muscle_actuation_active: wp.array2d(dtype=float)
-    muscle_metabolic: wp.array2d(dtype=float)
 
     # Adaptive integrator fields
     time1: wp.array(dtype=float)

@@ -1,6 +1,5 @@
 import warp as wp
 
-from . import consts
 from .types import ActivationType
 from .types import Data
 from .types import Model

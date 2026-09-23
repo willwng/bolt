@@ -3,6 +3,7 @@ import warp as wp
 from . import pennation
 from . import force_curves
 from .consts import M_MAX_NORM_TENDON_FORCE
+from .consts import M_MAX_PENNATION_ANGLE
 from .consts import M_MIN_NORM_TENDON_FORCE
 from .consts import BOLT_SIG_REAL
 from .types import Data
@@ -38,8 +39,8 @@ def _calc_eq_residual(
     cos_pennation_angle = fiber_length_along_tendon / fiber_length
     sin_pennation_angle = fiber_width / fiber_length
     pennation_angle = wp.asin(sin_pennation_angle)
-    if pennation_angle > wp.acos(0.1):
-        pennation_angle = wp.acos(0.1)
+    if pennation_angle > M_MAX_PENNATION_ANGLE:
+        pennation_angle = M_MAX_PENNATION_ANGLE
         cos_pennation_angle = wp.cos(pennation_angle)
     # Tendon velocity
     norm_tendon_velocity = force_curves.calc_tendon_force_inverse_derivative(norm_tendon_length, contraction_type)

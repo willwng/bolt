@@ -16,3 +16,9 @@ ACCELERATION_RTOL = 5e-4   # measured float32 error is up to ~1.5e-4 of the larg
 MUSCLE_LENGTH_M = 1e-5       # muscle-tendon length
 MUSCLE_SPEED_MS = 1e-4       # muscle lengthening speed
 MUSCLE_MOMENT_ARM_M = 1e-5   # moment arm (-d length / d q)
+
+BODY_FORCE_ATOL = 1e-5          # standalone body forces (e.g. drag), N and N*m
+BODY_FORCE_RTOL = 1e-4
+
+METABOLIC_POWER_ATOL = 1e-4     # W
+METABOLIC_POWER_RTOL = 1e-4
