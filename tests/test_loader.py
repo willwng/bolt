@@ -14,6 +14,9 @@ from bolt.loader.array_util import allocate_from_annotations
 from bolt.types import GeomType
 from models import FN_PATH_FILE, FN_PATH_MODEL, MODEL_NAMES, model_path
 
+# --- Every array allocated by the loader matches its annotation in bolt/_src/types.py ---
+_SCALAR_DTYPES = {float: wp.float32, int: wp.int32, bool: wp.bool}
+
 
 @pytest.mark.parametrize("geom_type, size, rbound", [
     (GeomType.SPHERE, (0.1, 0.1, 0.1), 0.1),
@@ -30,10 +33,6 @@ def test_convert_user_collider(geom_type, size, rbound):
     geom = bolt.convert_user_collider(user_geom)
     assert geom.geom_type == geom_type
     assert geom.rbound == pytest.approx(rbound)
-
-
-# --- Every array allocated by the loader matches its annotation in bolt/_src/types.py ---
-_SCALAR_DTYPES = {float: wp.float32, int: wp.int32, bool: wp.bool}
 
 
 def _cases():
