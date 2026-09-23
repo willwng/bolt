@@ -56,8 +56,9 @@ def get_dof_stiffness_damping(
         dof_ordering: dict[str, int]
 ) -> tuple[list[float], list[float]]:
     """ Returns the stiffness and damping value for each dof """
-    dof_stiffness = [0.0 for _ in range(len(dof_ordering))]
-    dof_damping = [0.0 for _ in range(len(dof_ordering))]
+    ndof = sum(1 for idx in dof_ordering.values() if idx >= 0)  # skip the NO_DOF entry
+    dof_stiffness = [0.0 for _ in range(ndof)]
+    dof_damping = [0.0 for _ in range(ndof)]
     for gen_force in spring_generalized_force_data:
         if gen_force.coordinate not in dof_ordering:
             raise ValueError(
@@ -72,8 +73,9 @@ def get_dof_stiffness_damping(
 def get_qpos_spring_rest(
         qpos_ordering: dict[str, int]
 ) -> list[float]:
-    """ Returns the stiffness value for each dof """
-    qpos_rest_length = [0.0 for _ in range(len(qpos_ordering))]
+    """ Returns the spring rest position for each qpos (currently all zeros) """
+    nqpos = sum(1 for idx in qpos_ordering.values() if idx >= 0)  # skip the NO_DOF entry
+    qpos_rest_length = [0.0 for _ in range(nqpos)]
     return qpos_rest_length
 
 

@@ -18,4 +18,4 @@ from bolt.load_utils.kinematic_tree import KinematicTree
 
 from bolt.load_utils.python_util import string_list_to_ordering, apply_map_to_list, gather, exclusive_scan, \
     create_nested_list, flatten_nested_list
-from bolt.load_utils.warp_util import to_warp_array, make_full, make_zero
+from bolt.load_utils.warp_util import to_warp_array, make_zero
