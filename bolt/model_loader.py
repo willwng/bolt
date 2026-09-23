@@ -4,11 +4,11 @@ import opensim as osim
 
 from bolt.load_utils import *
 from bolt.model_load_result import ModelLoadResult
+from bolt.load_utils.warp_util import allocate_from_annotations, dataclass_sizes
 from bolt.paths import get_geometry_dir
 from bolt.types_consts import Model, Data, IntegratorType, Option, ActivationType, ContractionType, \
-    MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, MuscleLengthInfo, FiberVelocityInfo, \
-    MuscleDynamicsInfo, Contact, SpatialInertia, ArticulatedInertia, TileBlockDim, SwingTwistLimit, \
-    CoordinateLimitForce, StatefulContact, vec5, PolyInts
+    MuscleMetadata, ActuatorMetadata, IntegratorStateScratch, IntegratorDotScratch, Contact, TileBlockDim, SwingTwistLimit, \
+    CoordinateLimitForce, StatefulContact, PolyInts
 
 
 def get_num_scratch_states(integrator: IntegratorType) -> tuple[int, int]:
@@ -411,201 +411,37 @@ def load_model(
         block_dim=TileBlockDim(),
     )
 
-    # --- Determine scratch space (integrators, mobilizers) ---
+    # --- Create Data ---
+    field_sizes = dataclass_sizes(opt, m) | {"nworld": n_worlds, "naconmax": naconmax}
+    # Scratch space for adaptive integrators
     n_int_states, n_int_dot_states = get_num_scratch_states(integrator)
-    integrator_scratch = [
-        IntegratorStateScratch(
-            time=make_zero(n_worlds, dtype=float),
-            qpos=make_zero((n_worlds, nq), dtype=float),
-            qvel=make_zero((n_worlds, nv), dtype=float),
-            m_state=make_zero((n_worlds, nmuscle), dtype=float),
-            m_act=make_zero((n_worlds, nmuscle), dtype=float),
-            a_act=make_zero((n_worlds, nactuator), dtype=float),
-            stl_contact_state=make_zero((n_worlds, nstlcontact), dtype=wp.vec3),
-        ) for _ in range(n_int_states)
-    ]
-
-    integrator_dot_scratch = [
-        IntegratorDotScratch(
-            qvel=make_zero((n_worlds, nv), dtype=float),
-            qacc=make_zero((n_worlds, nv), dtype=float),
-            m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
-            m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
-            a_act_dot=make_zero((n_worlds, nactuator), dtype=float),
-            stl_contact_state_dot=make_zero((n_worlds, nstlcontact), dtype=wp.vec3),
-        ) for _ in range(n_int_dot_states)
-    ]
-
+    integrator_scratch = [allocate_from_annotations(IntegratorStateScratch, field_sizes) for _ in range(n_int_states)]
+    integrator_dot_scratch = [allocate_from_annotations(IntegratorDotScratch, field_sizes) for _ in range(n_int_dot_states)]
     # Custom joints may need up to 6 additional vectors: [f(q), f'(q), f''(q)] for each 6 functions
     num_mob_scratch = 3 if n_custom_jnts == 0 else 6
-
-    dt = 1.0 / 100.0  # This will be modified later by the user
-
-    # --- Create Data ---
-    d = Data(
-        world_reset=make_full(True, n_worlds, dtype=bool),
-        time=make_zero(n_worlds, dtype=float),
-        rng_state=to_warp_array(wp.rand_init(0), dtype=wp.uint32),
-
+    d = allocate_from_annotations(
+        Data, field_sizes,
         nworld=n_worlds,
         naconmax=naconmax,
-
-        # for adaptive integrators
         integrator_scratch=integrator_scratch,
         integrator_dot_scratch=integrator_dot_scratch,
-        qvel_buffer=make_zero((n_worlds, nv), dtype=float),
-
-        time1=make_zero(n_worlds, dtype=float),
-        next_time=make_zero(n_worlds, dtype=float),
-        step_size=make_full(dt, (n_worlds,), dtype=float),
-        actual_step_size=make_full(dt, (n_worlds,), dtype=float),
-        artificially_limited=make_zero(n_worlds, dtype=bool),
-        step_accepted=make_zero(n_worlds, dtype=bool),
-        integration_done=make_zero(n_worlds, dtype=bool),
-        nintegrating=make_zero(1, dtype=int),
-
-        qvel_scales=make_full(1.0, (n_worlds, nv), dtype=float),
-        z_scales=make_full(1.0, (n_worlds, nz), dtype=float),
-        qpos_diff=make_zero((n_worlds, nq), dtype=float),
-        ninv_dq_tmp=make_zero((n_worlds, nv), dtype=float),
-        qpos_diff_scaled=make_zero((n_worlds, nq), dtype=float),
-        qvel_diff=make_zero((n_worlds, nv), dtype=float),
-        z_diff=make_zero((n_worlds, nz), dtype=float),
-        qpos_err=make_zero((n_worlds,), dtype=float),
-        qvel_err=make_zero((n_worlds,), dtype=float),
-        z_err=make_zero((n_worlds,), dtype=float),
-        error=make_zero(n_worlds, dtype=float),
-        steps_attempted=make_zero(n_worlds, dtype=int),
-
-        qpos=make_zero((n_worlds, nq), dtype=float),
-        qvel=make_zero((n_worlds, nv), dtype=float),
-        m_act=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act=make_full(0.5, (n_worlds, nactuator), dtype=float),
-        m_state=make_zero((n_worlds, nmuscle), dtype=float),
-        stl_contact_state=make_zero((n_worlds, nstlcontact), dtype=wp.vec3),
-
-        grf=make_zero((n_worlds,), dtype=wp.vec3),
-
-        qdot=make_zero((n_worlds, nq), dtype=float),
-        qacc=make_zero((n_worlds, nv), dtype=float),
-        m_act_dot=make_zero((n_worlds, nmuscle), dtype=float),
-        a_act_dot=make_zero((n_worlds, nactuator), dtype=float),
-        m_excitations=make_full(0.5, (n_worlds, nmuscle), dtype=float),
-        a_excitations=make_full(0.5, (n_worlds, nactuator), dtype=float),
-        m_state_dot=make_zero((n_worlds, nmuscle), dtype=float),
-        stl_contact_state_dot=make_zero((n_worlds, nstlcontact), dtype=wp.vec3),
-
-        cst_fn_output=make_zero((n_worlds, nfunctions), dtype=wp.vec3),
-
-        mob_X_GB=make_zero((n_worlds, nb), dtype=wp.transform),
-        mob_X_FM=make_zero((n_worlds, nb), dtype=wp.transform),
-        mob_X_PB=make_zero((n_worlds, nb), dtype=wp.transform),
+        contact=allocate_from_annotations(Contact, field_sizes),
         mob_scratch=make_zero((n_worlds, nb, num_mob_scratch), dtype=wp.vec3),
-        mob_phi=make_zero((n_worlds, nb), dtype=wp.vec3),
-        mob_coriolis_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-
-        body_COM_G=make_zero((n_worlds, nb), dtype=wp.vec3),
-        body_Mk_G=make_zero((n_worlds, nb), dtype=SpatialInertia),
-        body_P=make_zero((n_worlds, nb), dtype=ArticulatedInertia),
-        body_PPlus=make_zero((n_worlds, nb), dtype=ArticulatedInertia),
-        body_V_FM=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_V_PB_G=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_V_GB=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_VD_PB_G=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_A_GB=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_eps=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_gyro_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_total_coriolis_acc=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_total_centrifugal_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_articulated_centrifugal_force=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_zPlus=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_zTmp=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-
-        subtree_com=make_zero((n_worlds, nb), dtype=wp.vec3),
-        subtree_mass=make_zero((n_worlds, nb), dtype=float),
-
-        geom_X=make_zero((n_worlds, ngeom), dtype=wp.transform),
-        geom_cforce=make_zero((n_worlds, ngeom), dtype=float),
-        geom_self_cforce=make_zero((n_worlds, ngeom), dtype=float),
-        body_self_cforce=make_zero((n_worlds, nb), dtype=float),
-        joint_moments=make_zero((n_worlds, nv), dtype=float),
-
-        vis_X=make_zero((n_worlds, nvis), dtype=wp.transform),
-        vis_beam_pos=make_zero((n_worlds, n_beams, n_beam_visuals), dtype=wp.vec3),
-
-        site_rel_pos_B=make_zero((n_worlds, nsite), dtype=wp.vec3),
-        site_pos_G=make_zero((n_worlds, nsite), dtype=wp.vec3),
-        site_vel_G=make_zero((n_worlds, nsite), dtype=wp.vec3),
-
-        mob_H_FM=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-        mob_H=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-        mob_HDot_FM=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-        mob_HDot=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-
-        mob_G=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-        mob_DI=make_zero((n_worlds, nv), dtype=wp.spatial_vector),
-
-        muscle_length=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_velocity=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_moment_arm=make_zero((n_worlds, nmuscle, nq), dtype=float),
-        muscle_actuation=make_zero((n_worlds, nmuscle), dtype=float),
-
-        muscle_passive_length_multiplier=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_active_length_multiplier=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_active_velocity_multiplier=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_actuation_passive=make_zero((n_worlds, nmuscle), dtype=float),
-        muscle_actuation_active=make_zero((n_worlds, nmuscle), dtype=float),
-
-        muscle_length_info=make_zero((n_worlds, nmuscle), dtype=MuscleLengthInfo),
-        muscle_velocity_info=make_zero((n_worlds, nmuscle), dtype=FiberVelocityInfo),
-        muscle_dynamics_info=make_zero((n_worlds, nmuscle), dtype=MuscleDynamicsInfo),
-        muscle_norm_fiber_length=make_zero((n_worlds, nmuscle), dtype=float),
-
-        body_F=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_F_gravity=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_F_applied=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_F_contact=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-        body_F_muscle=make_zero((n_worlds, nb), dtype=wp.spatial_vector),
-
-        qfrc_muscle=make_zero((n_worlds, nq), dtype=float),
-
-        ufrc_applied=make_zero((n_worlds, nv), dtype=float),
-        ufrc_spring=make_zero((n_worlds, nv), dtype=float),
-        ufrc_damper=make_zero((n_worlds, nv), dtype=float),
-        ufrc_muscle=make_zero((n_worlds, nv), dtype=float),
-        ufrc_actuator=make_zero((n_worlds, nv), dtype=float),
-        ufrc_limit=make_zero((n_worlds, nv), dtype=float),
-
-        qfrc_muscle_passive=make_zero((n_worlds, nq), dtype=float),
-        qfrc_muscle_passive_breakdown=make_zero((n_worlds, nq, nmuscle), dtype=float),
-        qfrc_muscle_active_breakdown=make_zero((n_worlds, nq, nmuscle), dtype=float),
-        ufrc_muscle_passive=make_zero((n_worlds, nv), dtype=float),
-
-        ufrc_total=make_zero((n_worlds, nv), dtype=float),
-
-        contact=Contact(
-            dist=make_zero(naconmax, dtype=float),
-            pos=make_zero(naconmax, dtype=wp.vec3),
-            frame=make_zero(naconmax, dtype=wp.mat33),
-            friction=make_zero(naconmax, dtype=vec5),
-            dim=make_zero(naconmax, dtype=int),
-            curvature=make_zero(naconmax, dtype=float),
-            stiffness=make_zero(naconmax, dtype=float),
-            dissipation=make_zero(naconmax, dtype=float),
-            transition_velocity=make_zero(naconmax, dtype=float),
-            geom=make_zero(naconmax, dtype=wp.vec2i),
-            worldid=make_zero(naconmax, dtype=int),
-        ),
-
-        nacon=make_zero(n_worlds, dtype=int),
-
-        # collision driver
-        collision_pair=wp.zeros((naconmax,), dtype=wp.vec2i),
-        collision_pairid=wp.zeros((naconmax,), dtype=wp.vec2i),
-        collision_worldid=wp.zeros((naconmax,), dtype=int),
-        ncollision=wp.zeros((1,), dtype=int),
     )
 
+    # Non-zero initial values
+    dt = 1.0 / 100.0  # This will be modified later by the user
+    d.world_reset.fill_(True)
+    d.rng_state.fill_(wp.rand_init(0))
+    d.step_size.fill_(dt)
+    d.actual_step_size.fill_(dt)
+    d.qvel_scales.fill_(1.0)
+    d.z_scales.fill_(1.0)
+    d.a_act.fill_(0.5)
+    d.m_excitations.fill_(0.5)
+    d.a_excitations.fill_(0.5)
+
+    # Build lookups
     muscle_ordering = muscle_helper.get_muscle_ordering(converted_muscles)
     actuator_ordering = actuator_helper.get_actuator_ordering(converted_activation_actuators)
     collider_ordering = geom_helper.get_geom_ordering(converted_geoms)

@@ -528,7 +528,7 @@ class Model:
       fn_path_dimension: number of dependent variables         (nmuscle,)
       fn_path_order: order of polynomial function              (nmuscle,)
       fn_path_term_start: starting adr of each muscle's terms  (nmuscle,)
-      fn_path_term_coeffs: coefficients for each fn path term  (nmuscle, num_fn_terms)
+      fn_path_term_coeffs: coefficients of all fn path terms   (total number of terms,)
     """
 
     nbody: int
@@ -574,9 +574,9 @@ class Model:
 
     body_parentid: array("nbody", int)
     body_tree: tuple[wp.array(dtype=int), ...]
-    body_children: wp.array(dtype=int)
-    body_children_adr: wp.array(dtype=int)
-    body_children_num: wp.array(dtype=int)
+    body_children: array("*", int)
+    body_children_adr: array("nbody", int)
+    body_children_num: array("nbody", int)
 
     mob_type: array("nbody", int)
     mob_qposadr: array("nbody", int)
@@ -595,10 +595,10 @@ class Model:
 
     linear_fn_mb: array("nlinearfn", wp.vec2)
     const_fn_c: array("nconstfn", float)
-    poly_fn_coeff: array("total_coeff", float)
+    poly_fn_coeff: array("*", float)
     poly_fn_coeff_adr: array("npolyfn", int)
     poly_fn_coeff_num: array("npolyfn", int)
-    spline_fn_xy_y2s: array("total_xys", wp.vec3)
+    spline_fn_xy_y2s: array("*", wp.vec3)
     spline_fn_xys_adr: array("nsplinefn", int)
     spline_fn_xys_num: array("nsplinefn", int)
 
@@ -647,11 +647,11 @@ class Model:
     site_offset: array("nsite", wp.vec3)
 
     # Muscles
-    muscle_pts_adr: wp.array(dtype=int)
-    muscle_pts_num: wp.array(dtype=int)
+    muscle_pts_adr: array("nmuscle", int)
+    muscle_pts_num: array("nmuscle", int)
 
     # Muscle paths
-    muscle_pt_group: wp.array(dtype=int)
+    muscle_pt_group: array("*", int)
     muscle_pt_group_tuple: tuple[int, ...]
     muscle_fn_groups: tuple[wp.array(dtype=int), ...]
 
@@ -660,7 +660,7 @@ class Model:
     fn_path_dimension: array("nmuscle", int)
     fn_path_order: array("nmuscle", int)
     fn_path_term_start: array("nmuscle", int)
-    fn_path_term_coeffs: array("nmuscle", "num_fn_terms", float)
+    fn_path_term_coeffs: array("*", float)
 
     block_dim: TileBlockDim
 
@@ -683,38 +683,38 @@ class Contact:
       worldid: world id                                                (naconmax,)
     """
 
-    dist: wp.array(dtype=float)
-    pos: wp.array(dtype=wp.vec3)
-    frame: wp.array(dtype=wp.mat33)
-    friction: wp.array(dtype=vec5)
-    dim: wp.array(dtype=int)
-    curvature: wp.array(dtype=float)
-    stiffness: wp.array(dtype=float)
-    dissipation: wp.array(dtype=float)
-    transition_velocity: wp.array(dtype=float)
-    geom: wp.array(dtype=wp.vec2i)
-    worldid: wp.array(dtype=int)
+    dist: array("naconmax", float)
+    pos: array("naconmax", wp.vec3)
+    frame: array("naconmax", wp.mat33)
+    friction: array("naconmax", vec5)
+    dim: array("naconmax", int)
+    curvature: array("naconmax", float)
+    stiffness: array("naconmax", float)
+    dissipation: array("naconmax", float)
+    transition_velocity: array("naconmax", float)
+    geom: array("naconmax", wp.vec2i)
+    worldid: array("naconmax", int)
 
 
 @dataclass
 class IntegratorStateScratch:
-    time: wp.array(dtype=float)
-    qpos: wp.array2d(dtype=float)
-    qvel: wp.array2d(dtype=float)
-    m_state: wp.array2d(dtype=float)
-    m_act: wp.array2d(dtype=float)
-    a_act: wp.array2d(dtype=float)
-    stl_contact_state: wp.array2d(dtype=wp.vec3)
+    time: array("nworld", float)
+    qpos: array("nworld", "nq", float)
+    qvel: array("nworld", "nv", float)
+    m_state: array("nworld", "nmuscle", float)
+    m_act: array("nworld", "nmuscle", float)
+    a_act: array("nworld", "nactuator", float)
+    stl_contact_state: array("nworld", "nstlcontact", wp.vec3)
 
 
 @dataclass
 class IntegratorDotScratch:
-    qvel: wp.array2d(dtype=float)
-    qacc: wp.array2d(dtype=float)
-    m_state_dot: wp.array2d(dtype=float)
-    m_act_dot: wp.array2d(dtype=float)
-    a_act_dot: wp.array2d(dtype=float)
-    stl_contact_state_dot: wp.array2d(dtype=wp.vec3)
+    qvel: array("nworld", "nv", float)
+    qacc: array("nworld", "nv", float)
+    m_state_dot: array("nworld", "nmuscle", float)
+    m_act_dot: array("nworld", "nmuscle", float)
+    a_act_dot: array("nworld", "nactuator", float)
+    stl_contact_state_dot: array("nworld", "nstlcontact", wp.vec3)
 
 
 @dataclass
@@ -868,7 +868,7 @@ class Data:
     """
     nworld: int
     naconmax: int
-    rng_state: array("1", int)
+    rng_state: array(1, wp.uint32)
 
     world_reset: array("nworld", bool)
     next_time: array("nworld", float)
@@ -896,16 +896,16 @@ class Data:
     body_F_muscle: array("nworld", "nbody", wp.spatial_vector)
     body_F: array("nworld", "nbody", wp.spatial_vector)
 
-    qfrc_muscle: wp.array2d(dtype=float)
+    qfrc_muscle: array("nworld", "nq", float)
 
-    ufrc_spring: wp.array2d(dtype=float)
-    ufrc_damper: wp.array2d(dtype=float)
-    ufrc_muscle: wp.array2d(dtype=float)
-    ufrc_actuator: wp.array2d(dtype=float)
-    ufrc_limit: wp.array2d(dtype=float)
-    ufrc_total: wp.array2d(dtype=float)
+    ufrc_spring: array("nworld", "nv", float)
+    ufrc_damper: array("nworld", "nv", float)
+    ufrc_muscle: array("nworld", "nv", float)
+    ufrc_actuator: array("nworld", "nv", float)
+    ufrc_limit: array("nworld", "nv", float)
+    ufrc_total: array("nworld", "nv", float)
 
-    qfrc_muscle_passive: wp.array2d(dtype=float)
+    qfrc_muscle_passive: array("nworld", "nq", float)
     qfrc_muscle_passive_breakdown: array("nworld", "nq", "nmuscle", float)
     qfrc_muscle_active_breakdown: array("nworld", "nq", "nmuscle", float)
     ufrc_muscle_passive: array("nworld", "nv", float)
@@ -919,96 +919,96 @@ class Data:
     body_self_cforce: array("nworld", "nbody", float)
     joint_moments: array("nworld", "nv", float)
 
-    cst_fn_output: array("nworld", "nfunction", wp.vec3)
+    cst_fn_output: array("nworld", "nfunctions", wp.vec3)
 
-    mob_X_GB: wp.array2d(dtype=wp.transform)
-    mob_X_FM: wp.array2d(dtype=wp.transform)
-    mob_X_PB: wp.array2d(dtype=wp.transform)
-    mob_scratch: wp.array3d(dtype=wp.vec3)  # used for storing precomputed values
-    mob_phi: wp.array2d(dtype=wp.vec3)
-    mob_H_FM: wp.array2d(dtype=wp.spatial_vector)
-    mob_H: wp.array2d(dtype=wp.spatial_vector)
-    mob_HDot_FM: wp.array2d(dtype=wp.spatial_vector)
-    mob_HDot: wp.array2d(dtype=wp.spatial_vector)
-    mob_DI: wp.array2d(dtype=wp.spatial_vector)  # ndof x ndof, so we won't use all 6 of spatial vector
-    mob_G: wp.array2d(dtype=wp.spatial_vector)
-    mob_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
+    mob_X_GB: array("nworld", "nbody", wp.transform)
+    mob_X_FM: array("nworld", "nbody", wp.transform)
+    mob_X_PB: array("nworld", "nbody", wp.transform)
+    mob_scratch: array("nworld", "nbody", "*", wp.vec3)  # used for storing precomputed values
+    mob_phi: array("nworld", "nbody", wp.vec3)
+    mob_H_FM: array("nworld", "nv", wp.spatial_vector)
+    mob_H: array("nworld", "nv", wp.spatial_vector)
+    mob_HDot_FM: array("nworld", "nv", wp.spatial_vector)
+    mob_HDot: array("nworld", "nv", wp.spatial_vector)
+    mob_DI: array("nworld", "nv", wp.spatial_vector)  # ndof x ndof, so we won't use all 6 of spatial vector
+    mob_G: array("nworld", "nv", wp.spatial_vector)
+    mob_coriolis_acc: array("nworld", "nbody", wp.spatial_vector)
 
-    body_COM_G: wp.array2d(dtype=wp.vec3)
-    body_Mk_G: wp.array2d(dtype=SpatialInertia)
-    body_P: wp.array2d(dtype=ArticulatedInertia)
-    body_PPlus: wp.array2d(dtype=ArticulatedInertia)
-    body_V_FM: wp.array2d(dtype=wp.spatial_vector)
-    body_V_PB_G: wp.array2d(dtype=wp.spatial_vector)
-    body_V_GB: wp.array2d(dtype=wp.spatial_vector)
-    body_VD_PB_G: wp.array2d(dtype=wp.spatial_vector)
-    body_A_GB: wp.array2d(dtype=wp.spatial_vector)
-    body_gyro_force: wp.array2d(dtype=wp.spatial_vector)
-    body_total_coriolis_acc: wp.array2d(dtype=wp.spatial_vector)
-    body_total_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
-    body_articulated_centrifugal_force: wp.array2d(dtype=wp.spatial_vector)
-    body_zPlus: wp.array2d(dtype=wp.spatial_vector)
-    body_zTmp: wp.array2d(dtype=wp.spatial_vector)
-    body_eps: wp.array2d(dtype=wp.spatial_vector)
+    body_COM_G: array("nworld", "nbody", wp.vec3)
+    body_Mk_G: array("nworld", "nbody", SpatialInertia)
+    body_P: array("nworld", "nbody", ArticulatedInertia)
+    body_PPlus: array("nworld", "nbody", ArticulatedInertia)
+    body_V_FM: array("nworld", "nbody", wp.spatial_vector)
+    body_V_PB_G: array("nworld", "nbody", wp.spatial_vector)
+    body_V_GB: array("nworld", "nbody", wp.spatial_vector)
+    body_VD_PB_G: array("nworld", "nbody", wp.spatial_vector)
+    body_A_GB: array("nworld", "nbody", wp.spatial_vector)
+    body_gyro_force: array("nworld", "nbody", wp.spatial_vector)
+    body_total_coriolis_acc: array("nworld", "nbody", wp.spatial_vector)
+    body_total_centrifugal_force: array("nworld", "nbody", wp.spatial_vector)
+    body_articulated_centrifugal_force: array("nworld", "nbody", wp.spatial_vector)
+    body_zPlus: array("nworld", "nbody", wp.spatial_vector)
+    body_zTmp: array("nworld", "nbody", wp.spatial_vector)
+    body_eps: array("nworld", "nbody", wp.spatial_vector)
 
-    subtree_com: wp.array2d(dtype=wp.vec3)
-    subtree_mass: wp.array2d(dtype=float)
+    subtree_com: array("nworld", "nbody", wp.vec3)
+    subtree_mass: array("nworld", "nbody", float)
 
-    geom_X: wp.array2d(dtype=wp.transform)
-    vis_X: wp.array2d(dtype=wp.transform)
+    geom_X: array("nworld", "ngeom", wp.transform)
+    vis_X: array("nworld", "nvis", wp.transform)
     vis_beam_pos: array("nworld", "nbeams", "nbeam_visuals", wp.vec3)
 
-    collision_pair: wp.array(dtype=wp.vec2i)
-    collision_pairid: wp.array(dtype=wp.vec2i)
-    collision_worldid: wp.array(dtype=int)
-    ncollision: wp.array(dtype=int)
-    nacon: wp.array(dtype=int)
+    collision_pair: array("naconmax", wp.vec2i)
+    collision_pairid: array("naconmax", wp.vec2i)
+    collision_worldid: array("naconmax", int)
+    ncollision: array(1, int)
+    nacon: array("nworld", int)
     contact: Contact
 
-    muscle_length: wp.array2d(dtype=float)
-    muscle_velocity: wp.array2d(dtype=float)
+    muscle_length: array("nworld", "nmuscle", float)
+    muscle_velocity: array("nworld", "nmuscle", float)
 
-    site_rel_pos_B: wp.array2d(dtype=wp.vec3)
-    site_pos_G: wp.array2d(dtype=wp.vec3)
-    site_vel_G: wp.array2d(dtype=wp.vec3)
+    site_rel_pos_B: array("nworld", "nsite", wp.vec3)
+    site_pos_G: array("nworld", "nsite", wp.vec3)
+    site_vel_G: array("nworld", "nsite", wp.vec3)
 
-    muscle_moment_arm: wp.array3d(dtype=float)
+    muscle_moment_arm: array("nworld", "nmuscle", "nq", float)
 
-    muscle_length_info: wp.array2d(dtype=MuscleLengthInfo)
-    muscle_velocity_info: wp.array2d(dtype=FiberVelocityInfo)
-    muscle_dynamics_info: wp.array2d(dtype=MuscleDynamicsInfo)
-    muscle_norm_fiber_length: wp.array2d(dtype=float)
-    muscle_actuation: wp.array2d(dtype=float)
+    muscle_length_info: array("nworld", "nmuscle", MuscleLengthInfo)
+    muscle_velocity_info: array("nworld", "nmuscle", FiberVelocityInfo)
+    muscle_dynamics_info: array("nworld", "nmuscle", MuscleDynamicsInfo)
+    muscle_norm_fiber_length: array("nworld", "nmuscle", float)
+    muscle_actuation: array("nworld", "nmuscle", float)
 
-    muscle_passive_length_multiplier: wp.array2d(dtype=float)
-    muscle_active_length_multiplier: wp.array2d(dtype=float)
-    muscle_active_velocity_multiplier: wp.array2d(dtype=float)
-    muscle_actuation_passive: wp.array2d(dtype=float)
-    muscle_actuation_active: wp.array2d(dtype=float)
+    muscle_passive_length_multiplier: array("nworld", "nmuscle", float)
+    muscle_active_length_multiplier: array("nworld", "nmuscle", float)
+    muscle_active_velocity_multiplier: array("nworld", "nmuscle", float)
+    muscle_actuation_passive: array("nworld", "nmuscle", float)
+    muscle_actuation_active: array("nworld", "nmuscle", float)
 
     # Adaptive integrator fields
-    time1: wp.array(dtype=float)
-    step_size: wp.array(dtype=float)
-    actual_step_size: wp.array(dtype=float)
-    artificially_limited: wp.array(dtype=bool)
-    step_accepted: wp.array(dtype=bool)
-    integration_done: wp.array(dtype=bool)
-    nintegrating: wp.array(dtype=int)
+    time1: array("nworld", float)
+    step_size: array("nworld", float)
+    actual_step_size: array("nworld", float)
+    artificially_limited: array("nworld", bool)
+    step_accepted: array("nworld", bool)
+    integration_done: array("nworld", bool)
+    nintegrating: array(1, int)
     # error estimate for adaptive stepping
-    qvel_scales: wp.array2d(dtype=float)
-    z_scales: wp.array2d(dtype=float)
-    qpos_diff: wp.array2d(dtype=float)
-    ninv_dq_tmp: wp.array2d(dtype=float)
-    qpos_diff_scaled: wp.array2d(dtype=float)
-    qvel_diff: wp.array2d(dtype=float)
-    z_diff: wp.array2d(dtype=float)
-    qpos_err: wp.array(dtype=float)
-    qvel_err: wp.array(dtype=float)
-    z_err: wp.array(dtype=float)
-    error: wp.array(dtype=float)
-    steps_attempted: wp.array(dtype=int)
+    qvel_scales: array("nworld", "nv", float)
+    z_scales: array("nworld", "nz", float)
+    qpos_diff: array("nworld", "nq", float)
+    ninv_dq_tmp: array("nworld", "nv", float)
+    qpos_diff_scaled: array("nworld", "nq", float)
+    qvel_diff: array("nworld", "nv", float)
+    z_diff: array("nworld", "nz", float)
+    qpos_err: array("nworld", float)
+    qvel_err: array("nworld", float)
+    z_err: array("nworld", float)
+    error: array("nworld", float)
+    steps_attempted: array("nworld", int)
 
     # Stored state for adaptive time-stepper
     integrator_scratch: list[IntegratorStateScratch]
     integrator_dot_scratch: list[IntegratorDotScratch]  # for higher order integrators
-    qvel_buffer: wp.array2d(dtype=float)
+    qvel_buffer: array("nworld", "nv", float)
