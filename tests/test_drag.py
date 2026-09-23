@@ -9,8 +9,8 @@ import pytest
 import warp as wp
 
 import opensim_oracle
-from bolt._src import forward
-from bolt._src.smooth_drag import DEFAULT_DRAG_FACTOR, Drag, drag_forces
+from bolt._src.pipeline import forward
+from bolt._src.dynamics.drag import DEFAULT_DRAG_FACTOR, Drag, drag_forces
 from conftest import N_STATES
 from models import MODEL_NAMES, model_path
 from tolerances import BODY_FORCE_ATOL, BODY_FORCE_RTOL

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 import opensim_oracle
-from bolt._src import forward
+from bolt._src.pipeline import forward
 from conftest import N_STATES
 from models import MODEL_NAMES, model_path
 from tolerances import ACCELERATION_ATOL, ACCELERATION_RTOL

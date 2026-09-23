@@ -1,7 +1,9 @@
 import enum
 from dataclasses import dataclass
-from . import consts
+
 import warp as wp
+
+from . import consts
 
 
 @dataclass
