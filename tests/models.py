@@ -18,3 +18,6 @@ MODEL_NAMES = ["example_model", "example_model2"]
 # Model + fitted function-based paths
 FN_PATH_MODEL = "example_model"
 FN_PATH_FILE = os.path.join(MODELS_DIR, "example_model_fn.xml")
+
+# Pelvis height at which each model stands with its contacts engaged by ~5 mm
+STANDING_PELVIS_HEIGHT = {"example_model": 1.033, "example_model2": 0.915}

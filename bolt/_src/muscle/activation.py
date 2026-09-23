@@ -90,6 +90,34 @@ def _compute_activation_dot_millard(
     return
 
 
+@wp.kernel
+def _clamp_activation_on_reset(
+        # Model:
+        muscle_metadata: wp.array(dtype=MuscleMetadata),
+        # Data in:
+        world_reset_in: wp.array(dtype=bool),
+        act_in: wp.array2d(dtype=float),
+        # Data out:
+        act_out: wp.array2d(dtype=float),
+):
+    worldid, muscle_id = wp.tid()
+    if not world_reset_in[worldid]:
+        return
+    mm = muscle_metadata[muscle_id]
+    act_out[worldid, muscle_id] = wp.clamp(act_in[worldid, muscle_id], mm.min_activation, mm.max_activation)
+
+
+@event_scope
+def clamp_activation_on_reset(m: Model, d: Data):
+    """ Clamps the activation of reset worlds into [min_activation, max_activation] """
+    wp.launch(
+        _clamp_activation_on_reset,
+        dim=(d.nworld, m.nmuscle),
+        inputs=[m.muscle_metadata, d.world_reset, d.m_act],
+        outputs=[d.m_act],
+    )
+
+
 @event_scope
 def activation_dynamics(m: Model, d: Data):
     if m.opt.activation_type == ActivationType.DGF:
