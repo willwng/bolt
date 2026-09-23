@@ -71,7 +71,7 @@ def _gravity(
         integration_done_in: wp.array(dtype=bool),
         X_GB_in: wp.array2d(dtype=wp.transform),
         # In:
-        gravity: float,
+        gravity: wp.vec3,
         # Data out:
         body_F_gravity: wp.array2d(dtype=wp.spatial_vector)
 ):
@@ -81,7 +81,7 @@ def _gravity(
     m = body_mass_in[bodyid]
     com_local = body_mass_center[bodyid]
     X_GB = X_GB_in[worldid, bodyid]
-    frc = wp.vec3(0.0, m * gravity, 0.0)
+    frc = m * gravity
     body_F_gravity[worldid, bodyid] = math.apply_force_to_body_point(X_GB, com_local, frc)
     return
 

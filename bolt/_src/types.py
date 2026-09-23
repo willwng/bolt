@@ -241,7 +241,7 @@ class Option:
     """
 
     Attributes:
-      gravity: gravitational acceleration
+      gravity: gravitational acceleration vector, in ground
       explicit_gravity: flag to compute gravity as an explicit force (or as fictitious acceleration)
       implicit_damping: flag to add h*damping to mass matrix for implicit damping
       enable_drag: flag to enable drag forces
@@ -269,7 +269,7 @@ class Option:
       z_weights: (variable-step integration) weights for additional state error calculation
     """
 
-    gravity: float
+    gravity: wp.vec3
     explicit_gravity: bool
     implicit_damping: bool
     enable_drag: bool

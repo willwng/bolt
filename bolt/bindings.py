@@ -193,12 +193,12 @@ def muscle_max_isometric_forces(m: Model) -> torch.Tensor:
     return muscle_isometric_forces
 
 
-def gravity(m: Model) -> float:
+def gravity(m: Model) -> wp.vec3:
     return m.opt.gravity
 
 
-def set_gravity(m: Model, new_gravity: float):
-    m.opt.gravity = new_gravity
+def set_gravity(m: Model, new_gravity: wp.vec3):
+    m.opt.gravity = wp.vec3(new_gravity)
 
 
 def geom_transforms(m: Model) -> torch.Tensor:
