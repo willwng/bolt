@@ -1,11 +1,8 @@
 """
 Integration tests for bolt.step with each integrator.
 
-Each model starts standing with its contacts slightly engaged, with a small different initial velocity per world
-(so adaptive integrators take different steps in different worlds), and is simulated for a short time.
-
-Muscle activation with constant excitation is an independent scalar ODE per muscle, so it is checked against a
-float64 scipy solution. Positions and velocities are checked loosely against the RK-Merson adaptive integrator.
+Positions and velocities are checked loosely against the RK-Merson adaptive integrator
+Muscle activation with constant excitation is an independent scalar ODE per muscle, checked against scipy
 """
 
 from __future__ import annotations
