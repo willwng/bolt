@@ -1,3 +1,5 @@
+import functools
+
 import warp as wp
 
 from ..consts import MAX_POLY_NUM_DOFS
@@ -12,59 +14,63 @@ from . import polynomial_evaluator
 wp.set_module_options({"enable_backward": False})
 
 
-@wp.kernel
-def _compute_path_kernel(
-        # Model:
-        fn_path_dimension: wp.array(dtype=int),
-        fn_path_order: wp.array(dtype=int),
-        fn_path_term_coeff: wp.array(dtype=float),
-        fn_path_term_start: wp.array(dtype=int),
-        fn_path_qpos_adr: wp.array(dtype=PolyInts),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        qpos_in: wp.array2d(dtype=float),
-        qdot_in: wp.array2d(dtype=float),
-        # In:
-        fn_group: wp.array(dtype=int),
-        # Data out:
-        muscle_length_out: wp.array2d(dtype=float),
-        muscle_moment_arm_out: wp.array3d(dtype=float),
-        muscle_velocity_out: wp.array2d(dtype=float),
-):
-    worldid, nodeid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-    muscle_id = fn_group[nodeid]
+@functools.cache
+def _compute_path_kernel(dimension: int, order: int):
+    """
+    Computes length, moment arms and velocity for function-path muscles whose polynomial has this (dimension, order)
+    """
+    evaluate_polynomial = polynomial_evaluator.EVALUATORS[(dimension, order)]
 
-    # Fetch polynomial data: dimension, order, address into coeffs, and dependent dof addresses
-    n_dof = fn_path_dimension[muscle_id]
-    order = fn_path_order[muscle_id]
-    start_idx = fn_path_term_start[muscle_id]
-    qpos_adr = fn_path_qpos_adr[muscle_id]
+    @wp.kernel(module="unique")
+    def kernel(
+            # Model:
+            fn_path_term_coeff: wp.array(dtype=float),
+            fn_path_term_start: wp.array(dtype=int),
+            fn_path_qpos_adr: wp.array(dtype=PolyInts),
+            # Data in:
+            integration_done_in: wp.array(dtype=bool),
+            qpos_in: wp.array2d(dtype=float),
+            qdot_in: wp.array2d(dtype=float),
+            # In:
+            fn_group: wp.array(dtype=int),
+            # Data out:
+            muscle_length_out: wp.array2d(dtype=float),
+            muscle_moment_arm_out: wp.array3d(dtype=float),
+            muscle_velocity_out: wp.array2d(dtype=float),
+    ):
+        worldid, nodeid = wp.tid()
+        if integration_done_in[worldid]:
+            return
+        muscle_id = fn_group[nodeid]
 
-    # Fetch q values into registers
-    q = PolyVec(0.0)
-    for i in range(n_dof):
-        q[i] = qpos_in[worldid, qpos_adr[i]]
+        # Fetch polynomial data: address into coeffs, and dependent dof addresses
+        start_idx = fn_path_term_start[muscle_id]
+        qpos_adr = fn_path_qpos_adr[muscle_id]
 
-    # Pre-calculate powers
-    q_pows = PolyPowCache(1.0)
-    for d in range(n_dof):
-        for p in range(1, order + 1):
-            q_pows[d, p] = q_pows[d, p - 1] * q[d]
+        # Fetch q values into registers
+        q = PolyVec(0.0)
+        for i in range(wp.static(dimension)):
+            q[i] = qpos_in[worldid, qpos_adr[i]]
 
-    # Evaluate polynomial and derivative
-    length, df_dq = polynomial_evaluator.evaluate_polynomial(fn_path_term_coeff, q_pows, start_idx, order, n_dof)
+        # Pre-calculate powers
+        q_pows = PolyPowCache(1.0)
+        for dof in range(wp.static(dimension)):
+            for p in range(1, wp.static(order + 1)):
+                q_pows[dof, p] = q_pows[dof, p - 1] * q[dof]
 
-    # Write out length
-    muscle_length_out[worldid, muscle_id] = length
-    # Write moment arm and compute velocity
-    velocity = float(0.0)
-    for i in range(n_dof):
-        muscle_moment_arm_out[worldid, muscle_id, qpos_adr[i]] = -df_dq[i]
-        velocity += df_dq[i] * qdot_in[worldid, qpos_adr[i]]
-    muscle_velocity_out[worldid, muscle_id] = velocity
-    return
+        # Evaluate polynomial and derivative
+        length, df_dq = evaluate_polynomial(fn_path_term_coeff, q_pows, start_idx)
+
+        # Write out length
+        muscle_length_out[worldid, muscle_id] = length
+        # Write moment arm and compute velocity
+        velocity = float(0.0)
+        for i in range(wp.static(dimension)):
+            muscle_moment_arm_out[worldid, muscle_id, qpos_adr[i]] = -df_dq[i]
+            velocity += df_dq[i] * qdot_in[worldid, qpos_adr[i]]
+        muscle_velocity_out[worldid, muscle_id] = velocity
+
+    return kernel
 
 
 @wp.kernel
@@ -130,13 +136,12 @@ def _apply_muscle_frc_breakdown_kernel(
 @event_scope
 def muscle_fn_path(m: Model, d: Data):
     """ Computes the muscle path length and moment arms using a polynomial function approximation """
-    for i in range(len(m.muscle_fn_groups)):
-        fn_group = m.muscle_fn_groups[i]
+    for (dimension, order), fn_group in zip(m.muscle_fn_group_dim_order, m.muscle_fn_groups):
         wp.launch(
-            _compute_path_kernel,
+            _compute_path_kernel(dimension, order),
             dim=(d.nworld, fn_group.size),
             inputs=[
-                m.fn_path_dimension, m.fn_path_order, m.fn_path_term_coeffs, m.fn_path_term_start, m.fn_path_qpos_adr,
+                m.fn_path_term_coeffs, m.fn_path_term_start, m.fn_path_qpos_adr,
                 d.integration_done, d.qpos, d.qdot,
                 fn_group
             ],

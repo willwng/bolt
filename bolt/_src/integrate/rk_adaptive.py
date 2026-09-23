@@ -84,7 +84,7 @@ def attempt_adaptive_step(m: Model, d: Data):
 
 @event_scope
 def integrate(m: Model, d: Data):
-    """ Steps from d.time to d.next_time using second-order Euler. """
+    """ Steps from d.time to d.next_time using RK Merson. """
     d.integration_done.zero_()
     d.steps_attempted.zero_()
 
