@@ -80,4 +80,4 @@ Command line:
 
 **Note: The first time running the simulator will take a while to 
 compile the warp kernels (especially the function-based muscle paths code).
-Subsequent runs will use cached kernels and are much faster.**
+Subsequent runs will use cached kernels and are much faster to launch.**

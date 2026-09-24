@@ -80,8 +80,8 @@ __all__ = [
     "muscle_actuations",
     "muscle_path_lengths",
     "muscle_path_velocities",
-    "muscle_fiber_lengths",
-    "muscle_fiber_velocities",
+    "muscle_norm_fiber_lengths",
+    "muscle_norm_fiber_velocities",
     "muscle_moment_arms",
     "muscle_passive_length_multiplier",
     "muscle_active_length_multiplier",
@@ -448,12 +448,12 @@ def muscle_path_velocities(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_velocity)
 
 
-def muscle_fiber_lengths(d: Data) -> torch.Tensor:
+def muscle_norm_fiber_lengths(d: Data) -> torch.Tensor:
     return wp.to_torch(d.muscle_norm_fiber_length)
 
 
-def muscle_fiber_velocities(d: Data) -> torch.Tensor:
-    return wp.to_torch(d.m_state_dot)
+def muscle_norm_fiber_velocities(d: Data) -> torch.Tensor:
+    return wp.to_torch(d.muscle_norm_fiber_velocity)
 
 
 def muscle_moment_arms(d: Data) -> torch.Tensor:
@@ -559,6 +559,7 @@ def get_collider_transforms(d: Data) -> torch.Tensor:
     return wp.to_torch(d.geom_X)
 
 
+# --- Forces for output/debugging
 def collider_forces(d: Data) -> torch.Tensor:
     return wp.to_torch(d.geom_cforce)
 

@@ -891,6 +891,7 @@ class Data:
       muscle_velocity_info: info for muscle velocity calculation  (nworld, nmuscle)
       muscle_dynamics_info: info for muscle force calculation     (nworld, nmuscle)
       muscle_norm_fiber_length: norm fiber lengths (obs only)     (nworld, nmuscle)
+      muscle_norm_fiber_velocity: norm fiber velocities (obs only)(nworld, nmuscle)
       muscle_actuation: muscle actuation forces                   (nworld, nmuscle)
      * analytics only
       muscle_passive_length_multiplier: passive length mult       (nworld, nmuscle)
@@ -1017,6 +1018,7 @@ class Data:
     muscle_velocity_info: array("nworld", "nmuscle", FiberVelocityInfo)
     muscle_dynamics_info: array("nworld", "nmuscle", MuscleDynamicsInfo)
     muscle_norm_fiber_length: array("nworld", "nmuscle", float)
+    muscle_norm_fiber_velocity: array("nworld", "nmuscle", float)
     muscle_actuation: array("nworld", "nmuscle", float)
 
     muscle_passive_length_multiplier: array("nworld", "nmuscle", float)

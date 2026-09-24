@@ -395,12 +395,14 @@ def _set_state(
         # Data out:
         mstate_dot_out: wp.array2d(dtype=float),
         muscle_actuation_out: wp.array2d(dtype=float),
+        # Data out (observation only):
         muscle_passive_length_multiplier_out: wp.array2d(dtype=float),
         muscle_active_length_multiplier_out: wp.array2d(dtype=float),
         muscle_active_velocity_multiplier_out: wp.array2d(dtype=float),
         muscle_actuation_active_out: wp.array2d(dtype=float),
         muscle_actuation_passive_out: wp.array2d(dtype=float),
         muscle_norm_fiber_length_out: wp.array2d(dtype=float),
+        muscle_norm_fiber_velocity_out: wp.array2d(dtype=float),
 ):
     worldid, muscle_id = wp.tid()
     if integration_done_in[worldid]:
@@ -419,8 +421,9 @@ def _set_state(
     else:
         mstate_dot_out[worldid, muscle_id] = fvi.fiber_velocity / mm.optimal_fiber_length
 
-    # Fiber length (for output/observation purposes, not used for dynamics)
+    # Observation only: fiber length & velocity (not used for dynamics)
     muscle_norm_fiber_length_out[worldid, muscle_id] = mli.norm_fiber_length
+    muscle_norm_fiber_velocity_out[worldid, muscle_id] = fvi.fiber_velocity / mm.optimal_fiber_length
 
     # Remaining analytics/observations
     muscle_passive_length_multiplier_out[worldid, muscle_id] = mli.fiber_passive_force_length_multiplier
@@ -488,6 +491,6 @@ def contraction_dynamics(m: Model, d: Data):
             d.muscle_passive_length_multiplier,
             d.muscle_active_length_multiplier, d.muscle_active_velocity_multiplier,
             d.muscle_actuation_active, d.muscle_actuation_passive,
-            d.muscle_norm_fiber_length
+            d.muscle_norm_fiber_length, d.muscle_norm_fiber_velocity,
         ],
     )
