@@ -4,6 +4,7 @@ __all__ = [
     "BOLT_MINVAL",
     "BOLT_MAXVAL",
     "BOLT_SIG_REAL",
+    "COND_PATH_POINT_RANGE_TOL",
     "IDX_SCRATCH_ROT_F",
     "IDX_SCRATCH_ROT_DF",
     "IDX_SCRATCH_ROT_D2F",
@@ -28,6 +29,9 @@ MAX_POLY_ORDER = 10  # Maximum polynomial order
 BOLT_MINVAL = 1e-15
 BOLT_MAXVAL = 10000000000.0
 BOLT_SIG_REAL = 1e-6
+
+# OpenSim padding for a ConditionalPathPoint's coordinate range
+COND_PATH_POINT_RANGE_TOL = 1e-5
 
 # Index helpers for custom joints
 IDX_SCRATCH_ROT_F = 0

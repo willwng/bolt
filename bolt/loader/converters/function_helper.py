@@ -1,6 +1,6 @@
 import warp as wp
 from bolt.loader.converters.converted_objects import FunctionData, LinearFunctionData, PolynomialFunctionData, \
-    ConstantFunctionData, SimmSplineData, TransformAxisData
+    ConstantFunctionData, SimmSplineData
 from bolt.loader.converters.property_helper import extract_vector
 from bolt.loader.converters.osim_types import OSimType
 from bolt.loader.converters.python_util import exclusive_scan
@@ -40,12 +40,12 @@ def convert_function(function: OSimType.Function) -> FunctionData:
 
 
 def get_functions_of_type(
-        transform_axes: list[TransformAxisData],
+        functions: list[FunctionData],
         cls: Type[T],
 ) -> tuple[list[T], list[int]]:
     """ Returns all functions of class [cls], and a list containing the index in the original list """
-    ret_fns = [f.function for f in transform_axes if isinstance(f.function, cls)]
-    ret_ids = [i for i, f in enumerate(transform_axes) if isinstance(f.function, cls)]
+    ret_fns = [f for f in functions if isinstance(f, cls)]
+    ret_ids = [i for i, f in enumerate(functions) if isinstance(f, cls)]
     return ret_fns, ret_ids
 
 

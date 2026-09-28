@@ -54,6 +54,15 @@ class SiteData:
 
     offset: wp.vec3
 
+    # ConditionalPathPoint: the site is only part of the muscle path while this coordinate is inside cond_range
+    cond_coord: str | None = None
+    cond_range: tuple[float, float] = (0.0, 0.0)
+
+    # MovingPathPoint: the location in frame F is (fx(qx), fy(qy), fz(qz)), and offset is unused
+    moving_fns: tuple["FunctionData", "FunctionData", "FunctionData"] | None = None
+    moving_coords: tuple[str, str, str] | None = None
+    moving_X_BF: wp.transform = field(default_factory=wp.transform_identity)
+
 
 @dataclass
 class UserGeomData:

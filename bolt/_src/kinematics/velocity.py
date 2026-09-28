@@ -353,11 +353,14 @@ def _centrifugal_forces(
 def _site_global_velocity(
         # Model:
         site_bodyid: wp.array(dtype=int),
-        site_pos: wp.array(dtype=wp.vec3),
+        site_moving_qposadr: wp.array(dtype=wp.vec3i),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
+        qdot_in: wp.array2d(dtype=float),
         body_X_in: wp.array2d(dtype=wp.transform),
         body_V_in: wp.array2d(dtype=wp.spatial_vector),
+        site_pos_B_in: wp.array2d(dtype=wp.vec3),
+        site_moving_jac_G_in: wp.array2d(dtype=wp.mat33),
         # Data out:
         site_vel_G_out: wp.array2d(dtype=wp.vec3),
 ):
@@ -368,8 +371,16 @@ def _site_global_velocity(
     bodyid = site_bodyid[siteid]
     X_GB = body_X_in[worldid, bodyid]
     V_GB = body_V_in[worldid, bodyid]
-    station = site_pos[siteid]
-    site_vel_G_out[worldid, siteid] = math.find_station_velocity_in_ground(X_GB, V_GB, station)
+    station = site_pos_B_in[worldid, siteid]
+    vel = math.find_station_velocity_in_ground(X_GB, V_GB, station)
+
+    # Moving path points also move relative to their body
+    qposadr = site_moving_qposadr[siteid]
+    if qposadr[0] >= 0:
+        jac = site_moving_jac_G_in[worldid, siteid]
+        for i in range(3):
+            vel += jac[i] * qdot_in[worldid, qposadr[i]]
+    site_vel_G_out[worldid, siteid] = vel
     return
 
 
@@ -503,6 +514,7 @@ def attachment_kinematics_vel(m: Model, d: Data):
     wp.launch(
         _site_global_velocity,
         dim=(d.nworld, m.nsite),
-        inputs=[m.site_bodyid, m.site_offset, d.integration_done, d.mob_X_GB, d.body_V_GB],
+        inputs=[m.site_bodyid, m.site_moving_qposadr,
+                d.integration_done, d.qdot, d.mob_X_GB, d.body_V_GB, d.site_pos_B, d.site_moving_jac_G],
         outputs=[d.site_vel_G],
     )

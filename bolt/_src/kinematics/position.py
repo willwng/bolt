@@ -144,10 +144,15 @@ def _site_local_to_global(
         # Model:
         site_bodyid: wp.array(dtype=int),
         site_pos: wp.array(dtype=wp.vec3),
+        site_moving_fnadr: wp.array(dtype=wp.vec3i),
+        site_moving_X_BF: wp.array(dtype=wp.transform),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         body_X_in: wp.array2d(dtype=wp.transform),
+        cst_fn_output_in: wp.array2d(dtype=wp.vec3),
         # Data out:
+        site_pos_B_out: wp.array2d(dtype=wp.vec3),
+        site_moving_jac_G_out: wp.array2d(dtype=wp.mat33),
         site_rel_pos_B_out: wp.array2d(dtype=wp.vec3),
         site_pos_G_out: wp.array2d(dtype=wp.vec3),
 ):
@@ -159,8 +164,26 @@ def _site_local_to_global(
     body_X = body_X_in[worldid, bodyid]
     body_quat = wp.transform_get_rotation(body_X)
     body_pos = wp.transform_get_translation(body_X)
+
+    # Moving path points: location (fx(qx), fy(qy), fz(qz)) in frame F
+    pos_B = site_pos[siteid]
+    fnadr = site_moving_fnadr[siteid]
+    if fnadr[0] >= 0:
+        fx, fy, fz = cst_fn_output_in[worldid, fnadr[0]], cst_fn_output_in[worldid, fnadr[1]], \
+            cst_fn_output_in[worldid, fnadr[2]]
+        X_BF = site_moving_X_BF[siteid]
+        pos_B = wp.transform_point(X_BF, wp.vec3(fx[0], fy[0], fz[0]))
+        # Row i: derivative of the site's ground position wrt the coordinate of location function i
+        R_GF = wp.quat_to_matrix(body_quat * wp.transform_get_rotation(X_BF))
+        site_moving_jac_G_out[worldid, siteid] = wp.matrix_from_rows(
+            fx[1] * wp.vec3(R_GF[0, 0], R_GF[1, 0], R_GF[2, 0]),
+            fy[1] * wp.vec3(R_GF[0, 1], R_GF[1, 1], R_GF[2, 1]),
+            fz[1] * wp.vec3(R_GF[0, 2], R_GF[1, 2], R_GF[2, 2]),
+        )
+    site_pos_B_out[worldid, siteid] = pos_B
+
     # Relative to body
-    rpos = wp.quat_rotate(body_quat, site_pos[siteid])
+    rpos = wp.quat_rotate(body_quat, pos_B)
     site_rel_pos_B_out[worldid, siteid] = rpos
     # Position measured in ground
     site_pos_G_out[worldid, siteid] = body_pos + rpos
@@ -493,8 +516,9 @@ def attachment_kinematics(m: Model, d: Data):
     wp.launch(
         _site_local_to_global,
         dim=(d.nworld, m.nsite),
-        inputs=[m.site_bodyid, m.site_offset, d.integration_done, d.mob_X_GB],
-        outputs=[d.site_rel_pos_B, d.site_pos_G],
+        inputs=[m.site_bodyid, m.site_offset, m.site_moving_fnadr, m.site_moving_X_BF,
+                d.integration_done, d.mob_X_GB, d.cst_fn_output],
+        outputs=[d.site_pos_B, d.site_moving_jac_G, d.site_rel_pos_B, d.site_pos_G],
     )
 
     # Visuals: only position is needed
