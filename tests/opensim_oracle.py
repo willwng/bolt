@@ -154,6 +154,12 @@ def wrapped_muscles(model_path: str) -> set[str]:
     return wrapped
 
 
+def muscles_with_path_point(model_path: str, point_type: str) -> set[str]:
+    """ Names of muscles whose path has a path point of the given type, e.g. "MovingPathPoint" """
+    return {el.get("name") for el in ET.parse(model_path).getroot().iter()
+            if el.tag.endswith("Muscle") and el.find(f".//{point_type}") is not None}
+
+
 def function_based_path_model(model_path: str, paths_xml: str) -> osim.Model:
     """ Loads a model and replaces its muscle paths with function-based (polynomial) paths """
     processor = osim.ModelProcessor(model_path)

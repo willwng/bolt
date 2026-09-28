@@ -33,41 +33,54 @@ def _max_err(case, names, refs, mine, index):
 
 
 # --- Point (geometry) paths ---
+UNSUPPORTED = {
+    "wrapping": ("Bolt point paths do not model wrap surfaces/obstacles", opensim_oracle.wrapped_muscles),
+    "moving_points": ("Bolt drops MovingPathPoints (their location is a function of a coordinate)",
+                      lambda path: opensim_oracle.muscles_with_path_point(path, "MovingPathPoint")),
+    "conditional_points": ("Bolt treats ConditionalPathPoints as always active",
+                           lambda path: opensim_oracle.muscles_with_path_point(path, "ConditionalPathPoint")),
+}
+
+
 @pytest.fixture(scope="module", params=MODEL_NAMES)
 def point_paths(request, load_case):
     case = load_case(model_path(request.param))
     q, u = opensim_oracle.random_states(case.osim_model, N_STATES, seed=2)
     L, V = _realize_paths(case, q, u)
     refs = [opensim_oracle.muscle_paths(case.osim_model, case.osim_state, qi, ui) for qi, ui in zip(q, u)]
-    wrapped = opensim_oracle.wrapped_muscles(case.path)
-    return case, refs, L, V, wrapped
+    unsupported = {feature: find(case.path) for feature, (_, find) in UNSUPPORTED.items()}
+    return case, refs, L, V, unsupported
 
 
-def _unwrapped(names, wrapped):
-    names = [n for n in names if n not in wrapped]
+def _supported(names, unsupported):
+    excluded = set().union(*unsupported.values())
+    names = [n for n in names if n not in excluded]
     if not names:
-        pytest.skip("no unwrapped muscles")
+        pytest.skip("no muscles with fully supported point paths")
     return names
 
 
 def test_point_path_lengths(point_paths):
-    case, refs, L, _, wrapped = point_paths
-    err, worst = _max_err(case, _unwrapped(refs[0], wrapped), refs, L, 0)
+    case, refs, L, _, unsupported = point_paths
+    err, worst = _max_err(case, _supported(refs[0], unsupported), refs, L, 0)
     assert err < MUSCLE_LENGTH_M, f"max length error {err:.3e} m at {worst}"
 
 
 def test_point_path_speeds(point_paths):
-    case, refs, _, V, wrapped = point_paths
-    err, worst = _max_err(case, _unwrapped(refs[0], wrapped), refs, V, 1)
+    case, refs, _, V, unsupported = point_paths
+    err, worst = _max_err(case, _supported(refs[0], unsupported), refs, V, 1)
     assert err < MUSCLE_SPEED_MS, f"max lengthening-speed error {err:.3e} m/s at {worst}"
 
 
-@pytest.mark.xfail(strict=True, reason="Bolt point paths do not model wrap surfaces/obstacles")
-def test_wrapped_point_path_lengths(point_paths):
-    case, refs, L, _, wrapped = point_paths
-    if not wrapped:
-        pytest.skip("no wrapped muscles")
-    err, worst = _max_err(case, sorted(wrapped), refs, L, 0)
+@pytest.mark.parametrize("feature", [
+    pytest.param(feature, marks=pytest.mark.xfail(strict=True, reason=reason))
+    for feature, (reason, _) in UNSUPPORTED.items()
+])
+def test_unsupported_point_path_lengths(point_paths, feature):
+    case, refs, L, _, unsupported = point_paths
+    if not unsupported[feature]:
+        pytest.skip(f"no muscles with {feature}")
+    err, worst = _max_err(case, sorted(unsupported[feature]), refs, L, 0)
     assert err < MUSCLE_LENGTH_M, f"max length error {err:.3e} m at {worst}"
 
 

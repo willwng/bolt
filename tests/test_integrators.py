@@ -19,11 +19,16 @@ from tolerances import INTEGRATOR_ACTIVATION, INTEGRATOR_QPOS, INTEGRATOR_QVEL
 I = bolt.IntegratorType
 
 N_WORLDS = 4
+DURATION = 5e-3
 DT = 1e-3
-N_STEPS = 5
+FIXED_DT = DT / 5.0  # should be small enough to ensure accuracy
 INITIAL_SPEED = 0.1  # max |initial generalized velocity|
 REFERENCE = I.RK_MERSON_ADAPTIVE
 STATE_FIELDS = ["qpos", "qvel", "m_act", "m_state", "a_act", "stl_contact_state"]
+
+
+def _step_size(integrator: bolt.IntegratorType) -> float:
+    return FIXED_DT if integrator in (I.EULER_FIXED, I.RK4_FIXED) else DT
 
 
 def _simulate(path: str, integrator: bolt.IntegratorType, height: float) -> dict:
@@ -39,8 +44,9 @@ def _simulate(path: str, integrator: bolt.IntegratorType, height: float) -> dict
     bolt.reset(m, d)
 
     out = {"m_act_initial": d.m_act.numpy().copy(), "max_grf": 0.0}
-    for _ in range(N_STEPS):
-        bolt.increment_next_time(m, d, DT)
+    dt = _step_size(integrator)
+    for _ in range(round(DURATION / dt)):
+        bolt.increment_next_time(m, d, dt)
         bolt.step(m, d)
         out["max_grf"] = max(out["max_grf"], float(np.abs(d.grf.numpy()).max()))
     out.update({f: getattr(d, f).numpy().copy() for f in STATE_FIELDS})
@@ -68,7 +74,7 @@ def _exact_activation(run: dict) -> np.ndarray:
     out = np.empty_like(a0)
     for world in range(a0.shape[0]):
         sol = solve_ivp(lambda t, a: _activation_derivative(a, e[world], mm, run["activation_type"]),
-                        (0.0, DT * N_STEPS), a0[world], method="DOP853", rtol=1e-10, atol=1e-12)
+                        (0.0, DURATION), a0[world], method="DOP853", rtol=1e-10, atol=1e-12)
         out[world] = np.clip(sol.y[:, -1], mm["min_activation"], mm["max_activation"])
     return out
 
@@ -85,7 +91,7 @@ def test_state_is_valid(runs, integrator):
     run = results[integrator]
     for field in STATE_FIELDS:
         assert np.isfinite(run[field]).all(), f"{field} is not finite"
-    np.testing.assert_allclose(run["time"], DT * N_STEPS, rtol=1e-6, err_msg="worlds did not reach the target time")
+    np.testing.assert_allclose(run["time"], DURATION, rtol=1e-6, err_msg="worlds did not reach the target time")
     assert run["max_grf"] > 0.0, "contacts were never engaged"
 
 

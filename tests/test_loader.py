@@ -5,10 +5,12 @@ from __future__ import annotations
 import dataclasses
 
 import numpy as np
+import opensim as osim
 import pytest
 import warp as wp
 
 import bolt
+from bolt.loader.converters import function_helper
 from bolt.types import array as types_array
 from bolt.loader.array_util import allocate_from_annotations
 from bolt.types import GeomType
@@ -170,3 +172,19 @@ def test_update_colliders_adds_user_collider():
     bolt.increment_next_time(m, d, 1e-3)
     bolt.step(m, d)
     assert np.isfinite(d.qpos.numpy()).all()
+
+
+# --- SimmSpline ---
+@pytest.mark.parametrize("n", [2, 3, 4, 7, 20])
+def test_simm_spline_matches_opensim(n):
+    """ The loader's knot second derivatives define the same cubic spline as OpenSim's SimmSpline """
+    rng = np.random.default_rng(n)
+    x = np.cumsum(rng.uniform(0.1, 0.5, n))  # uneven spacing
+    y = rng.uniform(-1.0, 1.0, n)
+    spline = osim.SimmSpline()
+    for xi, yi in zip(x, y):
+        spline.addPoint(float(xi), float(yi))
+
+    y2 = function_helper.simm_spline_second_derivatives(list(x), list(y))
+    expected = [spline.calcDerivative(osim.StdVectorInt([0, 0]), osim.Vector(1, float(xi))) for xi in x]
+    np.testing.assert_allclose(y2, expected, rtol=1e-9, atol=1e-12)

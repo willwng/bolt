@@ -69,46 +69,54 @@ def get_poly_coeffs_num_adr(poly_fns: list[PolynomialFunctionData]) -> tuple[lis
     return poly_coeffs_num, poly_coeffs_adr
 
 
+def simm_spline_second_derivatives(x: list[float], y: list[float]) -> list[float]:
+    """
+    Second derivatives at the knots of SimmSpline interpolant
+    Note: SimmSpline isn't a natural spline and uses the Forsythe-Malcolm-Moler end conditions
+    """
+    n = len(x)
+    if n < 3:
+        return [0.0] * n
+    b, c, d = [0.0] * n, [0.0] * n, [0.0] * n
+    nm1 = n - 1
+    d[0] = x[1] - x[0]
+    c[1] = (y[1] - y[0]) / d[0]
+    for i in range(1, nm1):
+        d[i] = x[i + 1] - x[i]
+        b[i] = 2.0 * (d[i - 1] + d[i])
+        c[i + 1] = (y[i + 1] - y[i]) / d[i]
+        c[i] = c[i + 1] - c[i]
+
+    # End conditions: third derivatives at the ends from divided differences
+    b[0], b[nm1] = -d[0], -d[n - 2]
+    c[0] = c[nm1] = 0.0
+    if n > 3:
+        c[0] = c[2] / (x[3] - x[1]) - c[1] / (x[2] - x[0])
+        c[nm1] = c[n - 2] / (x[nm1] - x[n - 3]) - c[n - 3] / (x[n - 2] - x[n - 4])
+        c[0] = c[0] * d[0] * d[0] / (x[3] - x[0])
+        c[nm1] = -c[nm1] * d[n - 2] * d[n - 2] / (x[nm1] - x[n - 4])
+
+    # Solve the tridiagonal system (forward elimination, back substitution)
+    for i in range(1, n):
+        t = d[i - 1] / b[i - 1]
+        b[i] -= t * d[i - 1]
+        c[i] -= t * c[i - 1]
+    c[nm1] /= b[nm1]
+    for i in range(n - 2, -1, -1):
+        c[i] = (c[i] - d[i] * c[i + 1]) / b[i]
+    return [6.0 * ci for ci in c]  # c holds y''/6
+
+
 def get_spline_xy_y2s(spline_fns: list) -> list[wp.vec3]:
     """
     Returns a flattened list of the (x, y, y2) triplets for simm spline functions,
-    where y2 is the precomputed second derivative for the Natural Cubic Spline.
+    where y2 is the precomputed second derivative
     """
     flattened_xy_y2s = []
-
     for fn in spline_fns:
-        n = len(fn.x)
-        y2 = [0.0] * n
-        if n > 2:
-            # Thomas algorithm for solving the tridiagonal system
-            c_prime = [0.0] * n
-            d_prime = [0.0] * n
-            # Forward elimination
-            for i in range(1, n - 1):
-                hx_prev = fn.x[i] - fn.x[i - 1]
-                hx_next = fn.x[i + 1] - fn.x[i]
-                a = hx_prev
-                b = 2.0 * (hx_prev + hx_next)
-                c = hx_next
-                dy_prev = (fn.y[i] - fn.y[i - 1]) / hx_prev
-                dy_next = (fn.y[i + 1] - fn.y[i]) / hx_next
-                d = 6.0 * (dy_next - dy_prev)
-
-                denom = b - a * c_prime[i - 1]
-                # prevent division by zero in case of degenerate identical x values
-                if denom == 0.0:
-                    denom = 1e-7
-                c_prime[i] = c / denom
-                d_prime[i] = (d - a * d_prime[i - 1]) / denom
-
-            # back substitution
-            # natural spline boundary condition: y2[n-1] is inherently 0.0
-            for i in range(n - 2, 0, -1):
-                y2[i] = d_prime[i] - c_prime[i] * y2[i + 1]
-
+        y2 = simm_spline_second_derivatives(list(fn.x), list(fn.y))
         for x, y, y_sec in zip(fn.x, fn.y, y2):
             flattened_xy_y2s.append(wp.vec3(x, y, y_sec))
-
     return flattened_xy_y2s
 
 
