@@ -108,8 +108,14 @@ def _compute_articulated_inertia(
     D = wp.transpose(H) @ PH
 
     # Add armature here, so that M = M + armature TODO(checkme does this make sense?)
+    # Implicit damping: add h * damping here too, before DI, G and P+ are formed, so that the articulated
+    # inertias handed to the parents are those of M + h * B and the solve gives (M + h * B)^-1 f
     for i in range(dofnum):
         D[i, i] += dof_armature[dofadr + i]
+    if implicit_damping:
+        h = actual_step_size_in[worldid]
+        for i in range(dofnum):
+            D[i, i] += h * dof_damping[dofadr + i]
 
     # DI = D^{-1}, G = P @ H @ D^{-1}
     DI = math.invert_upper_left(D, dofnum)
@@ -120,14 +126,6 @@ def _compute_articulated_inertia(
     PPlus = math.articulated_inertia_sub(P, ArticulatedInertia(mass, inertia, mass_moment))
     PPlus = math.symmetrize_articulated_inertia(PPlus)
     body_PPlus_out[worldid, bodyid] = PPlus
-
-    # Implicit damping: modify "M^{-1}" to be (M + h * D)^{-1}, but do not modify M itself
-    if implicit_damping:
-        h = actual_step_size_in[worldid]
-        for i in range(dofnum):
-            D[i, i] += h * dof_damping[dofadr + i]
-        DI = math.invert_upper_left(D, dofnum)
-        G = PH @ DI
 
     # Need G and DI for computing accelerations. here we store col by col
     math.store_mat66(mob_G_out[worldid], G, dofadr, dofnum)
