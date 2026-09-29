@@ -109,10 +109,9 @@ def _check(obj, m, d):
             except KeyError as e:
                 problems.append(f"{path}: {e.args[0]}")
                 continue
-            # the loader allocates at least 1 along every axis (loader.arrays.check_zero)
-            if exact is not None and actual != exact and not (exact == 0 and actual == 1):
+            if exact is not None and actual != exact:
                 problems.append(f"{path}: axis {axis} is {actual}, annotation {dim!r} = {exact}")
-            if bound is not None and actual > max(bound, 1):
+            if bound is not None and actual > bound:
                 problems.append(f"{path}: axis {axis} is {actual}, annotation {dim!r} = {bound}")
         dtype = _SCALAR_DTYPES.get(ann.dtype, ann.dtype)
         if not wp.types.types_equal(dtype, arr.dtype):
@@ -138,7 +137,7 @@ _Example = dataclasses.make_dataclass("_Example", [
 
 def test_allocate_from_annotations():
     obj = allocate_from_annotations(_Example, {"nworld": 2, "n": 0}, n=0, b=wp.zeros(5, dtype=float))
-    assert obj.a.shape == (2, 1) and obj.a.dtype == wp.vec3  # zero-sized dims are padded to 1
+    assert obj.a.shape == (2, 0) and obj.a.dtype == wp.vec3  # zero-sized dims are allocated empty
     assert obj.b.shape == (5,)
 
 

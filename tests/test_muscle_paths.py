@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+import numpy as np
 
 import bolt
 import opensim_oracle
@@ -177,3 +178,26 @@ def test_fn_path_moment_arms(fn_paths):
                 if e > err:
                     err, worst = e, (world, muscle, coord)
     assert err < MUSCLE_MOMENT_ARM_M, f"max moment-arm error {err:.3e} m at {worst}"
+
+
+def test_fn_path_model_has_no_point_path_forces(load_case):
+    """
+    A model whose muscles all use function-based paths has no point-path muscles, so the forward pipeline
+    must not apply any point-path muscle force or overwrite any path length (muscle_point_path runs after
+    muscle_fn_path in forward.realize_forces).
+    """
+    case = load_case(model_path(FN_PATH_MODEL), muscle_fn_path=FN_PATH_FILE)
+    assert case.m.muscle_pt_group_tuple == ()
+
+    osim_fn_model = opensim_oracle.function_based_path_model(model_path(FN_PATH_MODEL), FN_PATH_FILE)
+    osim_fn_state = osim_fn_model.initSystem()
+    coords = opensim_oracle.function_based_path_coordinates(osim_fn_model)
+    q, u = opensim_oracle.random_states(osim_fn_model, N_STATES, seed=3)
+    case.set_states(q, u)
+    forward.fwd(case.m, case.d)
+
+    body_force = np.abs(case.d.body_F_muscle.numpy()).max()
+    assert body_force == 0.0, f"point-path muscle force {body_force:.3e} applied with no point-path muscles"
+    refs = [opensim_oracle.muscle_paths(osim_fn_model, osim_fn_state, qi, ui) for qi, ui in zip(q, u)]
+    err, worst = _max_err(case, coords, refs, case.d.muscle_length.numpy(), 0)
+    assert err < MUSCLE_LENGTH_M, f"max length error {err:.3e} m at {worst}"
