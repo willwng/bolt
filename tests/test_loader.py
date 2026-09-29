@@ -22,7 +22,7 @@ _SCALAR_DTYPES = {float: wp.float32, int: wp.int32, bool: wp.bool}
 
 @pytest.mark.parametrize("geom_type, size, rbound", [
     (GeomType.SPHERE, (0.1, 0.1, 0.1), 0.1),
-    (GeomType.CAPSULE, (0.03, 0.04, 0.03), 0.05),
+    (GeomType.CAPSULE, (0.03, 0.04, 0.03), 0.07),  # half_height + radius
 ])
 def test_convert_user_collider(geom_type, size, rbound):
     user_geom = bolt.UserGeomData(

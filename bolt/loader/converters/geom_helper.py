@@ -11,7 +11,7 @@ from bolt.loader.converters.property_helper import extract_vec3
 
 def collect_geom_type_sizes(geom: osim.ContactGeometry) -> tuple[GeomType, wp.vec3, AABB, float]:
     """
-    Returns the converted geometry type, size, aabb (center, size), radius bound
+    Returns the converted geometry type, size, aabb (center, half-extents), radius bound
     """
     geom_cls = geom.getConcreteClassName()
     if geom_cls == "ContactSphere":
@@ -19,7 +19,7 @@ def collect_geom_type_sizes(geom: osim.ContactGeometry) -> tuple[GeomType, wp.ve
         geom_type = GeomType.SPHERE
         radius = geom.getRadius()
         size = wp.vec3(radius, radius, radius)
-        aabb = (wp.vec3(0.0), wp.vec3(2.0 * radius, 2.0 * radius, 2.0 * radius))
+        aabb = (wp.vec3(0.0), wp.vec3(radius, radius, radius))
         rbound = radius
         return geom_type, size, aabb, rbound
 
@@ -31,7 +31,7 @@ def collect_geom_type_sizes(geom: osim.ContactGeometry) -> tuple[GeomType, wp.ve
         if "capsule" not in geom_name.lower():  # parse as ellipsoid
             geom_type = GeomType.ELLIPSOID
             size = wp.vec3(radii)
-            aabb = (wp.vec3(0.0), wp.vec3(radii[0] * 2, radii[1] * 2, radii[2] * 2))
+            aabb = (wp.vec3(0.0), wp.vec3(radii))
             rbound = max(radii)
             return geom_type, size, aabb, rbound
         else:  # parse as capsule
@@ -39,10 +39,10 @@ def collect_geom_type_sizes(geom: osim.ContactGeometry) -> tuple[GeomType, wp.ve
                 raise ValueError("Converting the ellipsoid to a capsule, x and z radii should be the same")
             geom_type = GeomType.CAPSULE
             radius, half_height = radii[0], radii[1]
-            height = 2.0 * half_height
             size = wp.vec3(radius, half_height, radius)
-            aabb = (wp.vec3(0.0), wp.vec3(radii[0] * 2, height + 2 * radius, radii[2] * 2))
-            rbound = wp.sqrt(half_height ** 2 + radius ** 2)
+            # the narrowphase takes a capsule's axis to be its local z
+            aabb = (wp.vec3(0.0), wp.vec3(radius, radius, half_height + radius))
+            rbound = half_height + radius  # distance from the center to the tips
             return geom_type, size, aabb, rbound
     else:
         raise NotImplementedError(f"Unsupported contact geometry: {geom_cls}")
@@ -52,14 +52,13 @@ def collect_user_geom_aabb(geom: UserGeomData) -> tuple[AABB, float]:
     geom_type = geom.geom_type
     if geom_type == GeomType.SPHERE:
         radius = geom.size[0]
-        aabb = (wp.vec3(0.0), wp.vec3(2.0 * radius, 2.0 * radius, 2.0 * radius))
+        aabb = (wp.vec3(0.0), wp.vec3(radius, radius, radius))
         rbound = radius
         return aabb, rbound
     elif geom_type == GeomType.CAPSULE:
         radius, half_height = geom.size[0], geom.size[1]
-        height = 2.0 * half_height
-        aabb = (wp.vec3(0.0), wp.vec3(2.0 * radius, height + 2.0 * radius, 2.0 * radius))
-        rbound = wp.sqrt(half_height ** 2 + radius ** 2)
+        aabb = (wp.vec3(0.0), wp.vec3(radius, radius, half_height + radius))  # axis is local z
+        rbound = half_height + radius  # distance from the center to the tips
         return aabb, rbound
     else:
         raise NotImplementedError(f"Unsupported contact geometry: {geom_type}")

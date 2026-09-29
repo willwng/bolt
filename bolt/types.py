@@ -533,7 +533,7 @@ class Model:
       geom_dissipation: contact dissipation (Hunt-Crossley)    (ngeom,)
       geom_transition_velocity: friction transition velocity   (ngeom,)
       geom_priority: collision priority (Hunt-Crossley)        (ngeom,)
-      geom_aabb: axis-aligned bounding box (center, size)      (ngeom, 2, 3)
+      geom_aabb: geom frame bounding box (center, half-exts)   (ngeom, 2, 3)
       geom_rbound: bounding sphere radius                      (ngeom,)
 
       stl_contact: stateful contact force parameters           (nstlcontact, StatefulContact)
