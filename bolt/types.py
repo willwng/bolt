@@ -550,6 +550,13 @@ class Model:
      * sites *
       site_bodyid: id of site's body                           (nsite,)
       site_offset: local position offset rel. to body          (nsite, 3)
+      site_cond_qposadr: qpos address gating a conditional     (nsite,)
+                         path point, -1 if always active
+      site_cond_range: qpos range where the point is active    (nsite, 2)
+      site_moving_fnadr: location functions (x, y, z) of a     (nsite, 3)
+                         moving path point, -1 if static
+      site_moving_qposadr: qpos address of each location fn    (nsite, 3)
+      site_moving_X_BF: moving point frame rel. to body        (nsite, transform)
 
      * muscles *
       muscle_pts_adr: address of first point in muscle's path  (nmuscle,)
@@ -683,6 +690,11 @@ class Model:
     # Attachment sites (muscle path)
     site_bodyid: array("nsite", int)
     site_offset: array("nsite", wp.vec3)
+    site_cond_qposadr: array("nsite", int)
+    site_cond_range: array("nsite", wp.vec2)
+    site_moving_fnadr: array("nsite", wp.vec3i)
+    site_moving_qposadr: array("nsite", wp.vec3i)
+    site_moving_X_BF: array("nsite", wp.transform)
 
     # Muscles
     muscle_pts_adr: array("nmuscle", int)
@@ -870,6 +882,9 @@ class Data:
       site_rel_pos_B: site position relative to body              (nworld, nsite, 3)
       site_pos_G: site position measured in ground                (nworld, nsite, 3)
       site_vel_G: site velocity measured in ground                (nworld, nsite, 3)
+      site_pos_B: site position in its body's frame               (nworld, nsite, 3)
+      site_moving_jac_G: row i is d(site_pos_G)/dq for the        (nworld, nsite, 3, 3)
+                         coordinate of location function i (moving path points)
 
      * contacts *
       collision_pair: pair of geoms in contact                    (nacon, 2)
@@ -1011,6 +1026,8 @@ class Data:
     site_rel_pos_B: array("nworld", "nsite", wp.vec3)
     site_pos_G: array("nworld", "nsite", wp.vec3)
     site_vel_G: array("nworld", "nsite", wp.vec3)
+    site_pos_B: array("nworld", "nsite", wp.vec3)
+    site_moving_jac_G: array("nworld", "nsite", wp.mat33)
 
     muscle_moment_arm: array("nworld", "nmuscle", "nq", float)
 

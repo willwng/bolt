@@ -12,13 +12,14 @@ from bolt.consts import (
 )
 from bolt.types import ContractionType, MuscleMetadata
 from bolt.loader.converters.converted_objects import MuscleData, SiteData
+from bolt.loader.converters.function_helper import convert_function
 from bolt.loader.converters.osim_types import OSimType
 from bolt.loader.converters.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
 from bolt.loader.converters.property_helper import extract_vec3
 
 
 def convert_path_point(point: OSimType.PathPoint) -> SiteData:
-    """ Converts an OpenSim PathPoint to a SiteData """
+    """ Converts an OpenSim PathPoint (or ConditionalPathPoint) to a SiteData """
     parent_frame = point.getParentFrame()
     body_name = get_body_name_of_frame(parent_frame)
 
@@ -27,10 +28,31 @@ def convert_path_point(point: OSimType.PathPoint) -> SiteData:
     location = wp.vec3(extract_vec3(point.get_location()))
     offset = wp.transform_point(frame_transform, location)
 
-    return SiteData(
+    site = SiteData(
         name=point.getName(),
         body_name=body_name,
         offset=offset
+    )
+    # ConditionalPathPoint is a subclass of PathPoint
+    if cond_point := OSimType.ConditionalPathPoint.safeDownCast(point):
+        site.cond_coord = cond_point.getCoordinate().getName()
+        site.cond_range = (cond_point.get_range(0), cond_point.get_range(1))
+    return site
+
+
+def convert_moving_path_point(point: OSimType.MovingPathPoint) -> SiteData:
+    """ Converts an OpenSim MovingPathPoint, whose location is a function of coordinates, to a SiteData """
+    parent_frame = point.getParentFrame()
+    frame_transform = extract_frame_transform_from_base_frame(parent_frame)
+    return SiteData(
+        name=point.getName(),
+        body_name=get_body_name_of_frame(parent_frame),
+        offset=wp.transform_get_translation(frame_transform),
+        moving_fns=(convert_function(point.get_x_location()), convert_function(point.get_y_location()),
+                    convert_function(point.get_z_location())),
+        moving_coords=(point.getXCoordinate().getName(), point.getYCoordinate().getName(),
+                       point.getZCoordinate().getName()),
+        moving_X_BF=frame_transform,
     )
 
 
@@ -51,10 +73,10 @@ def collect_geometry_path_points(muscle_path: OSimType.GeometryPath) -> list[Sit
     path_points = []
     for i in range(num_path_points):
         point = path_point_set.get(i)
-        if path_point := OSimType.PathPoint.safeDownCast(point):
+        if moving_point := OSimType.MovingPathPoint.safeDownCast(point):
+            path_points.append(convert_moving_path_point(moving_point))
+        elif path_point := OSimType.PathPoint.safeDownCast(point):
             path_points.append(convert_path_point(path_point))
-        elif cond_point := OSimType.ConditionalPathPoint.safeDownCast(point):
-            path_points.append(convert_path_point(cond_point))
         else:
             warnings.warn(f"Ignoring unsupported path point {point.getName()} ({point.getConcreteClassName()}) "
                           f"in {muscle_path.getAbsolutePathString()}")

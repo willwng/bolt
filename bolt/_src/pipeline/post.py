@@ -22,17 +22,20 @@ def compute_muscle_moments(m: Model, d: Data):
     body_F_tmp = wp.zeros((d.nworld, m.nbody), dtype=wp.spatial_vector)
     ufrc_tmp = wp.zeros((d.nworld, m.nv), dtype=float)
     qfrc_tmp = wp.zeros((d.nworld, m.nq), dtype=float)
+    qfrc_moving_tmp = wp.zeros((d.nworld, m.nq), dtype=float)
     for muscle_id in m.muscle_pt_group_tuple:
-        # Compute body F for a unit actuation,
-        point_path.apply_unit_force_one_muscle(m, d, body_F_out=body_F_tmp, muscle_id=muscle_id)
+        # Compute body F for a unit actuation, and the generalized force on the coordinates of moving points
+        point_path.apply_unit_force_one_muscle(m, d, body_F_out=body_F_tmp, qfrc_out=qfrc_moving_tmp,
+                                               muscle_id=muscle_id)
         # Then compute generalized force f_u = J^T F.
         operators.multiply_by_jacobian_transpose(m, d, X_in=body_F_tmp, JtX_out=ufrc_tmp)
         # Map f_u (in u space) to q space (f_q = N^{-T} f_u), and then copy
         forces.ufrc_to_qfrc(m, d, ufrc_in=ufrc_tmp, qfrc_out=qfrc_tmp)
         # Store the result into muscle moment arm
-        point_path.copy_ufrc_into_moment_arm(m, d, muscle_id=muscle_id, qfrc=qfrc_tmp)
+        point_path.copy_ufrc_into_moment_arm(m, d, muscle_id=muscle_id, qfrc=qfrc_tmp, qfrc_moving=qfrc_moving_tmp)
         # Reset for next muscle
         body_F_tmp.zero_()
+        qfrc_moving_tmp.zero_()
     return
 
 

@@ -6,6 +6,7 @@ import warp.render
 from scipy.spatial.transform import Rotation as R
 
 from bolt import types
+from bolt.consts import COND_PATH_POINT_RANGE_TOL
 from .mesh import load_mesh
 from .ellipsoid import create_ellipsoid_mesh
 
@@ -81,6 +82,8 @@ class Renderer:
         self.muscle_data = m.muscle_data
         self.muscle_pts_adr = m.muscle_pts_adr.numpy()
         self.muscle_num_pts = m.muscle_pts_num.numpy()
+        self.site_cond_qposadr = m.site_cond_qposadr.numpy()
+        self.site_cond_range = m.site_cond_range.numpy()
         self.mob_qposadr = m.mob_qposadr.numpy()
         self.joint_extra = m.mob_extra_info.numpy()
         self.joint_parent_id = m.body_parentid.numpy()
@@ -174,12 +177,21 @@ class Renderer:
         # Map activation [0, 1] to color from blue to red
         return act, 0.0, 1.0 - act
 
+    def site_active(self, qpos: np.ndarray) -> np.ndarray:
+        """ Mirrors point_path.site_is_active for every site """
+        conditional = self.site_cond_qposadr >= 0
+        q = qpos[np.where(conditional, self.site_cond_qposadr, 0)]
+        lo, hi = self.site_cond_range[:, 0], self.site_cond_range[:, 1]
+        tol = COND_PATH_POINT_RANGE_TOL
+        return ~conditional | ((q >= lo - tol) & (q <= hi + tol))
+
     def render(self, m: types.Model, d: types.Data):
         # Each call copies the full (all-world) array from device to host
         site_pos_all = d.site_pos_G.numpy() if (self.draw_sites or self.draw_muscles) else None
         geom_X_all = d.geom_X.numpy() if self.draw_colliders else None
         vis_X_all = d.vis_X.numpy() if self.draw_visuals else None
         muscle_act_all = d.m_act.numpy() if self.draw_muscles else None
+        qpos_all = d.qpos.numpy() if self.draw_muscles else None
         body_com_all = d.body_COM_G.numpy() if self.draw_body_mass else None
         vis_beam_pos_all = d.vis_beam_pos.numpy() if self.draw_beams else None
 
@@ -278,6 +290,7 @@ class Renderer:
                 num_muscles = m.nmuscle
                 site_xpos = site_pos_all[wid]
                 muscle_activations = muscle_act_all[wid]
+                site_active = self.site_active(qpos_all[wid])
 
                 for i in range(num_muscles):
                     # Muscle radius
@@ -287,7 +300,7 @@ class Renderer:
                     # Gather all active site indices for this muscle
                     start_idx = self.muscle_pts_adr[i]
                     end_idx = start_idx + self.muscle_num_pts[i]
-                    pt_inds = range(start_idx, end_idx)
+                    pt_inds = [s for s in range(start_idx, end_idx) if site_active[s]]
                     # Line segment connecting active points
                     pts_xloc = site_xpos[pt_inds]
                     color = self.activation_to_color(muscle_activations[i])

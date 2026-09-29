@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+import bolt
 import opensim_oracle
 from bolt._src.pipeline import forward
 from bolt._src.muscle import function_path
@@ -12,14 +13,11 @@ from conftest import N_STATES
 from models import FN_PATH_FILE, FN_PATH_MODEL, MODEL_NAMES, model_path
 from tolerances import MUSCLE_LENGTH_M, MUSCLE_MOMENT_ARM_M, MUSCLE_SPEED_MS
 
+N_MOMENT_ARM_STATES = 4  # computing moment arms of point-based paths is slow, so just check a few
 
-def _realize_paths(case, q, u):
-    case.set_states(q, u)
-    forward.realize_position(case.m, case.d)
-    forward.realize_velocity(case.m, case.d)
-    point_path.muscle_point_path(case.m, case.d)
-    function_path.muscle_fn_path(case.m, case.d)
-    return case.d.muscle_length.numpy(), case.d.muscle_velocity.numpy()
+UNSUPPORTED = {
+    "wrapping": ("Bolt point paths do not model wrap surfaces/obstacles", opensim_oracle.wrapped_muscles),
+}
 
 
 def _max_err(case, names, refs, mine, index):
@@ -32,16 +30,16 @@ def _max_err(case, names, refs, mine, index):
     return err, worst
 
 
+def _realize_paths(case, q, u):
+    case.set_states(q, u)
+    forward.realize_position(case.m, case.d)
+    forward.realize_velocity(case.m, case.d)
+    point_path.muscle_point_path(case.m, case.d)
+    function_path.muscle_fn_path(case.m, case.d)
+    return case.d.muscle_length.numpy(), case.d.muscle_velocity.numpy()
+
+
 # --- Point (geometry) paths ---
-UNSUPPORTED = {
-    "wrapping": ("Bolt point paths do not model wrap surfaces/obstacles", opensim_oracle.wrapped_muscles),
-    "moving_points": ("Bolt drops MovingPathPoints (their location is a function of a coordinate)",
-                      lambda path: opensim_oracle.muscles_with_path_point(path, "MovingPathPoint")),
-    "conditional_points": ("Bolt treats ConditionalPathPoints as always active",
-                           lambda path: opensim_oracle.muscles_with_path_point(path, "ConditionalPathPoint")),
-}
-
-
 @pytest.fixture(scope="module", params=MODEL_NAMES)
 def point_paths(request, load_case):
     case = load_case(model_path(request.param))
@@ -82,6 +80,60 @@ def test_unsupported_point_path_lengths(point_paths, feature):
         pytest.skip(f"no muscles with {feature}")
     err, worst = _max_err(case, sorted(unsupported[feature]), refs, L, 0)
     assert err < MUSCLE_LENGTH_M, f"max length error {err:.3e} m at {worst}"
+
+
+@pytest.fixture(scope="module", params=MODEL_NAMES)
+def point_moment_arms(request, load_case):
+    case = load_case(model_path(request.param))
+    lr = case.load_result
+    q, u = opensim_oracle.random_states(case.osim_model, N_STATES, seed=5)
+    case.set_states(q, u)
+    forward.realize_position(case.m, case.d)
+    bolt.compute_muscle_moments(case.m, case.d)
+    MA = case.d.muscle_moment_arm.numpy()
+
+    # The free root is a quaternion in Bolt (not comparable to OpenSim's coordinates), and muscles are internal
+    # forces, so they apply no net generalized force to it anyway
+    root = opensim_oracle.root_free_coordinates(case.osim_model, lr)
+    coords = [c for c in opensim_oracle.coordinate_names(case.osim_model) if c not in root]
+    muscles = [lr_name for lr_name in lr.muscle_id_lookup if
+               lr.muscle_id_lookup[lr_name] in case.m.muscle_pt_group_tuple]
+    refs = [opensim_oracle.muscle_paths(case.osim_model, case.osim_state, q[w], u[w],
+                                        moment_arm_coords={mu: coords for mu in muscles})[1]
+            for w in range(N_MOMENT_ARM_STATES)]
+    unsupported = {feature: find(case.path) for feature, (_, find) in UNSUPPORTED.items()}
+    return case, MA, refs, muscles, unsupported
+
+
+def _moment_arm_err(case, MA, refs, muscles):
+    lr = case.load_result
+    err, worst = 0.0, None
+    for world, ref in enumerate(refs):
+        for muscle in muscles:
+            for coord, r in ref[muscle].items():
+                e = abs(float(MA[world, lr.muscle_id_lookup[muscle], lr.qpos_id_lookup[coord]]) - r)
+                if e > err:
+                    err, worst = e, (world, muscle, coord, r)
+    return err, worst
+
+
+def test_point_path_moment_arms(point_moment_arms):
+    case, MA, refs, muscles, unsupported = point_moment_arms
+    err, worst = _moment_arm_err(case, MA, refs, _supported(muscles, unsupported))
+    assert err < MUSCLE_MOMENT_ARM_M, f"max moment-arm error {err:.3e} m at {worst}"
+
+
+@pytest.mark.parametrize("feature", [
+    pytest.param(feature, marks=pytest.mark.xfail(strict=True, reason=reason))
+    for feature, (reason, _) in UNSUPPORTED.items()
+])
+def test_unsupported_point_path_moment_arms(point_moment_arms, feature):
+    case, MA, refs, muscles, unsupported = point_moment_arms
+    affected = sorted(set(muscles) & unsupported[feature])
+    if not affected:
+        pytest.skip(f"no muscles with {feature}")
+    err, worst = _moment_arm_err(case, MA, refs, affected)
+    assert err < MUSCLE_MOMENT_ARM_M, f"max moment-arm error {err:.3e} m at {worst}"
 
 
 # --- Function-based (polynomial) paths ---

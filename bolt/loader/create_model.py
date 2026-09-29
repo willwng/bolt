@@ -20,6 +20,7 @@ from bolt.loader.converters.converted_objects import GeomData
 from bolt.loader.converters.converted_objects import LinearFunctionData
 from bolt.loader.converters.converted_objects import PolynomialFunctionData
 from bolt.loader.converters.converted_objects import SimmSplineData
+from bolt.loader.converters.converted_objects import SiteData
 from bolt.loader.converters.python_util import apply_map_to_list
 from bolt.loader.converters.python_util import create_nested_list
 from bolt.loader.converters.python_util import exclusive_scan
@@ -131,11 +132,16 @@ def pack_custom_joints(m: Model, parsed: ParsedModel, topology: ModelTopology):
     m.cst_txfm_axes = to_warp_array(cst_txfm_axes, dtype=wp.vec3)
     m.cst_txfm_dof = to_warp_array(cst_txfm_dof, dtype=int)
 
-    # Collect all functions in the spatial transforms
-    linear_fns, linear_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=LinearFunctionData)
-    const_fns, const_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=ConstantFunctionData)
-    poly_fns, poly_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=PolynomialFunctionData)
-    spline_fns, spline_fns_idx = function_helper.get_functions_of_type(ordered_transform_axes, cls=SimmSplineData)
+    # Collect all functions: the spatial transform axes, followed by the location functions of moving path points
+    functions = [axis.function for axis in ordered_transform_axes]
+    fn_qpos_global_idx = list(txfm_qpos_global_idx)
+    for site in moving_sites(parsed):
+        functions.extend(site.moving_fns)
+        fn_qpos_global_idx.extend(site_coordinate_qposadr(site, site.moving_coords, topology))
+    linear_fns, linear_fns_idx = function_helper.get_functions_of_type(functions, cls=LinearFunctionData)
+    const_fns, const_fns_idx = function_helper.get_functions_of_type(functions, cls=ConstantFunctionData)
+    poly_fns, poly_fns_idx = function_helper.get_functions_of_type(functions, cls=PolynomialFunctionData)
+    spline_fns, spline_fns_idx = function_helper.get_functions_of_type(functions, cls=SimmSplineData)
     m.nlinearfn = len(linear_fns)
     m.nconstfn = len(const_fns)
     m.npolyfn = len(poly_fns)
@@ -154,16 +160,16 @@ def pack_custom_joints(m: Model, parsed: ParsedModel, topology: ModelTopology):
     m.spline_fn_xys_adr = to_warp_array(spline_xys_adr, dtype=int)
     m.spline_fn_xys_num = to_warp_array(spline_xys_num, dtype=int)
 
-    # Transform axis of each function
+    # Index of each function in the list of all functions
     m.linear_fn_adr = to_warp_array(linear_fns_idx, dtype=int)
     m.const_fn_adr = to_warp_array(const_fns_idx, dtype=int)
     m.poly_fn_adr = to_warp_array(poly_fns_idx, dtype=int)
     m.spline_fn_adr = to_warp_array(spline_fns_idx, dtype=int)
 
     # Use gather to find the global coordinate indices used for each function
-    m.linear_fn_qpos_adr = to_warp_array(gather(txfm_qpos_global_idx, linear_fns_idx), dtype=int)
-    m.poly_fn_qpos_adr = to_warp_array(gather(txfm_qpos_global_idx, poly_fns_idx), dtype=int)
-    m.spline_fn_qpos_adr = to_warp_array(gather(txfm_qpos_global_idx, spline_fns_idx), dtype=int)
+    m.linear_fn_qpos_adr = to_warp_array(gather(fn_qpos_global_idx, linear_fns_idx), dtype=int)
+    m.poly_fn_qpos_adr = to_warp_array(gather(fn_qpos_global_idx, poly_fns_idx), dtype=int)
+    m.spline_fn_qpos_adr = to_warp_array(gather(fn_qpos_global_idx, spline_fns_idx), dtype=int)
     return
 
 
@@ -230,6 +236,24 @@ def pack_sites_and_contacts(m: Model, parsed: ParsedModel, topology: ModelTopolo
     m.site_bodyid = to_warp_array(
         apply_map_to_list([site.body_name for site in sites], topology.body_ordering), dtype=int)
     m.site_offset = to_warp_array([site.offset for site in sites], dtype=wp.vec3)
+    m.site_cond_qposadr = to_warp_array(
+        [site_coordinate_qposadr(site, (site.cond_coord,), topology)[0] for site in sites], dtype=int)
+    m.site_cond_range = to_warp_array([site.cond_range for site in sites], dtype=wp.vec2)
+
+    # Moving path points: their location functions were appended after the spatial transform functions
+    fn_adr = m.nfunctions - 3 * len(moving_sites(parsed))
+    site_moving_fnadr = []
+    for site in sites:
+        if site.moving_fns is None:
+            site_moving_fnadr.append(wp.vec3i(-1, -1, -1))
+        else:
+            site_moving_fnadr.append(wp.vec3i(fn_adr, fn_adr + 1, fn_adr + 2))
+            fn_adr += 3
+    m.site_moving_fnadr = to_warp_array(site_moving_fnadr, dtype=wp.vec3i)
+    m.site_moving_qposadr = to_warp_array(
+        [wp.vec3i(*site_coordinate_qposadr(site, site.moving_coords or (None,) * 3, topology)) for site in sites],
+        dtype=wp.vec3i)
+    m.site_moving_X_BF = to_warp_array([site.moving_X_BF for site in sites], dtype=wp.transform)
 
     stateful_contact_data = stateful_contact_helper.create_stateful_contact_data(
         stateful_contact_data=parsed.stl_contacts,
@@ -239,6 +263,23 @@ def pack_sites_and_contacts(m: Model, parsed: ParsedModel, topology: ModelTopolo
     m.nstlcontact = len(parsed.stl_contacts)
     m.stl_contact = wp.array(stateful_contact_data, dtype=StatefulContact)
     return
+
+
+def moving_sites(parsed: ParsedModel) -> list[SiteData]:
+    return [site for site in parsed.sites if site.moving_fns is not None]
+
+
+def site_coordinate_qposadr(site: SiteData, coords: tuple[str | None, ...], topology: ModelTopology) -> list[int]:
+    """ qpos addresses of the coordinates a conditional/moving site depends on, -1 for None """
+    # A free joint's qpos holds a quaternion rather than its coordinates, so they can't drive a site
+    free_coords = {coord for joint in topology.joints if joint.mob_type == MobilizerType.FREE
+                   for coord in joint.coordinates}
+    qposadr = []
+    for coord in coords:
+        if coord in free_coords:
+            raise ValueError(f"Path point {site.name} depends on free-joint coordinate {coord}")
+        qposadr.append(-1 if coord is None else topology.qpos_ordering[coord])
+    return qposadr
 
 
 def pack_visuals(m: Model, parsed: ParsedModel, topology: ModelTopology):
