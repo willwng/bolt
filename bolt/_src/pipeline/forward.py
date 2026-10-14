@@ -165,6 +165,22 @@ def fwd(m: Model, d: Data):
 
 
 @event_scope
+def realize_inputs(m: Model, d: Data):
+    """
+    Re-realizes only what depends on user inputs (excitations, applied forces), assuming the state
+    (qpos, qvel, muscle/actuator/contact state) is unchanged since the last fwd.
+    """
+    activation.activation_dynamics(m, d)
+    if m.nactuator:
+        actuators.activation_dynamics(m, d)
+        d.ufrc_actuator.zero_()
+        actuators.actuator_force(m, d)
+    forces.accumulate_forces(m, d)
+    compute_accelerations(m, d)
+    return
+
+
+@event_scope
 def reset(m: Model, d: Data):
     """
     Called after resetting any of the worlds.

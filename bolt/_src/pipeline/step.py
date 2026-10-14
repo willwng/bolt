@@ -29,9 +29,18 @@ def _increment_next_time(
 
 
 @event_scope
-def step(m: Model, d: Data):
-    """ Steps from d.time to d.next_time """
-    forward.fwd(m, d)  # Realize state (needed if for example excitation changes after a step)
+def step(m: Model, d: Data, realize_state: bool = False):
+    """
+    Steps from d.time to d.next_time.
+
+    The previous step leaves the state realized, so by default only input-dependent quantities
+    (excitations, applied forces) are recomputed. Pass realize_state=True if qpos, qvel or other
+    state was modified directly since the last step without going through bolt.reset.
+    """
+    if realize_state:
+        forward.fwd(m, d)
+    else:
+        forward.realize_inputs(m, d)
 
     if wp.static(m.opt.integrator) == IntegratorType.EULER_FIXED:
         euler_fixed.integrate(m, d)

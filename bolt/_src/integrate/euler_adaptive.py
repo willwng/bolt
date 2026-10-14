@@ -41,11 +41,12 @@ def attempt_adaptive_step(m: Model, d: Data):
     # Restore state for worlds where the step was rejected
     adaptive_common.restore_state(m, d, 0, only_on_reject=True)
 
+    # Prepare derivatives for the next attempt (or step). Must run before check_done_integrating, which
+    # would otherwise make fwd skip the worlds that just finished
+    forward.fwd(m, d)
+
     # Check if we've reached the target time
     adaptive_common.check_done_integrating(m, d)
-
-    # Prepare derivatives for next attempt
-    forward.fwd(m, d)
     return
 
 

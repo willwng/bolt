@@ -7,7 +7,6 @@ from bolt.types import Data
 from bolt.types import Model
 
 from .. import math
-from ..pipeline import forward
 from ..kinematics import mobilizers
 from ..warp_util import event_scope
 
@@ -701,6 +700,5 @@ def integrate_adaptive(m: Model, d: Data, attempt_step):
         d=d,
     )
 
-    # One more forward pass to realize state
+    # The last attempt of each world already realized its final state
     d.integration_done.zero_()
-    forward.fwd(m, d)
