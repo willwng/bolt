@@ -6,6 +6,7 @@ from bolt.types import Data
 from bolt.types import Model
 
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -212,7 +213,7 @@ def _apply_unit_muscle_force_one_muscle_kernel(
 @event_scope
 def muscle_point_path(m: Model, d: Data):
     """ Computes the muscle path length and velocity for point-based paths """
-    wp.launch(
+    launch(
         _compute_path_kernel,
         dim=(d.nworld, m.muscle_pt_group.size),
         inputs=[
@@ -226,7 +227,7 @@ def muscle_point_path(m: Model, d: Data):
 
 @event_scope
 def apply_muscle_force_pt(m: Model, d: Data):
-    wp.launch(
+    launch(
         _apply_muscle_force_kernel,
         dim=(d.nworld, m.muscle_pt_group.size),
         inputs=[
@@ -242,7 +243,7 @@ def apply_muscle_force_pt(m: Model, d: Data):
 @event_scope
 def apply_unit_force_one_muscle(m: Model, d: Data, body_F_out: wp.array2d, qfrc_out: wp.array2d, muscle_id: int):
     """ Body forces for a unit muscle tension, plus the generalized forces on the coordinates of moving points """
-    wp.launch(
+    launch(
         _apply_unit_muscle_force_one_muscle_kernel,
         dim=(d.nworld,),
         inputs=[

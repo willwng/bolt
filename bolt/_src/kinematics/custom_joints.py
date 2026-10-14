@@ -11,6 +11,7 @@ from bolt.types import Data
 from bolt.types import Model
 
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -231,7 +232,7 @@ def _fetch_fn_into_cst(
 def evaluate_cst_functions(m: Model, d: Data):
     """ Evaluates all custom functions, compute f(x), f'(x) """
     if m.nlinearfn:
-        wp.launch(
+        launch(
             _eval_lin_fn,
             dim=(d.nworld, m.nlinearfn),
             inputs=[
@@ -243,7 +244,7 @@ def evaluate_cst_functions(m: Model, d: Data):
 
     # TODO: do we really need to keep evaluating this? it's cheap but repetitive
     if m.nconstfn:
-        wp.launch(
+        launch(
             _eval_const_fn,
             dim=(d.nworld, m.nconstfn),
             inputs=[
@@ -254,7 +255,7 @@ def evaluate_cst_functions(m: Model, d: Data):
         )
 
     if m.npolyfn:
-        wp.launch(
+        launch(
             _eval_poly_fn,
             dim=(d.nworld, m.npolyfn),
             inputs=[
@@ -265,7 +266,7 @@ def evaluate_cst_functions(m: Model, d: Data):
         )
 
     if m.nsplinefn:
-        wp.launch(
+        launch(
             _eval_spline_fn,
             dim=(d.nworld, m.nsplinefn),
             inputs=[
@@ -280,7 +281,7 @@ def evaluate_cst_functions(m: Model, d: Data):
 def prepare_cst_joint(m: Model, d: Data):
     """ Loads the function outputs into the custom function mobilizer scratch """
     if m.njnts_cst:
-        wp.launch(
+        launch(
             _fetch_fn_into_cst,
             dim=(d.nworld, m.njnts_cst),
             inputs=[

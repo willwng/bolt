@@ -7,6 +7,7 @@ from bolt.types import vec5
 
 from .. import math
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -127,7 +128,7 @@ def _process_contacts_hc(
 
 @event_scope
 def contact_forces_hc(m: Model, d: Data):
-    wp.launch(
+    launch(
         _process_contacts_hc,
         dim=(d.naconmax),
         inputs=[

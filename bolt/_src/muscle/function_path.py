@@ -10,6 +10,7 @@ from bolt.types import PolyPowCache
 from bolt.types import PolyVec
 
 from ..warp_util import event_scope
+from ..warp_util import launch
 from . import polynomial_evaluator
 
 wp.set_module_options({"enable_backward": False})
@@ -141,7 +142,7 @@ def _apply_muscle_frc_breakdown_kernel(
 def muscle_fn_path(m: Model, d: Data):
     """ Computes the muscle path length and moment arms using a polynomial function approximation """
     for (dimension, order), fn_group in zip(m.muscle_fn_group_dim_order, m.muscle_fn_groups):
-        wp.launch(
+        launch(
             _compute_path_kernel(dimension, order),
             dim=(d.nworld, fn_group.size),
             inputs=[
@@ -159,7 +160,7 @@ def apply_muscle_force_fn(m: Model, d: Data, passive_only: bool = False):
     if m.nmuscle:
         actuation_in = d.muscle_actuation_passive if passive_only else d.muscle_actuation
         qfrc_out = d.qfrc_muscle_passive if passive_only else d.qfrc_muscle
-        wp.launch(
+        launch(
             _apply_muscle_frc_kernel,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.fn_path_dimension, m.fn_path_qpos_adr,
@@ -172,7 +173,7 @@ def apply_muscle_force_fn(m: Model, d: Data, passive_only: bool = False):
 @event_scope
 def apply_muscle_force_fn_breakdown(m: Model, d: Data, actuation: wp.array, qfrc_breakdown_out: wp.array):
     if m.nmuscle:
-        wp.launch(
+        launch(
             _apply_muscle_frc_breakdown_kernel,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.fn_path_dimension, m.fn_path_qpos_adr,

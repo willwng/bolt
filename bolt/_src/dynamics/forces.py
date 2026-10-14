@@ -7,6 +7,7 @@ from bolt.types import Model
 from .. import math
 from ..kinematics import mobilizers
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -217,7 +218,7 @@ def apply_gravity(m: Model, d: Data):
     Compute gravity forces. Note: this applies an external force.
     It is more efficient to set the acceleration to -g in the articulated body algorithm
     """
-    wp.launch(
+    launch(
         _gravity,
         dim=(d.nworld, m.nbody),
         inputs=[m.body_mass, m.body_mass_center, d.integration_done, d.mob_X_GB, m.opt.gravity],
@@ -228,7 +229,7 @@ def apply_gravity(m: Model, d: Data):
 @event_scope
 def spring(m: Model, d: Data):
     """Adds all passive forces."""
-    wp.launch(
+    launch(
         _spring_jnt_passive,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -247,7 +248,7 @@ def spring(m: Model, d: Data):
 
 @event_scope
 def damping(m: Model, d: Data):
-    wp.launch(
+    launch(
         _damper_dof_passive,
         dim=(d.nworld, m.nv),
         inputs=[
@@ -262,7 +263,7 @@ def damping(m: Model, d: Data):
 @event_scope
 def qfrc_to_ufrc(m: Model, d: Data, qfrc_in: wp.array, ufrc_out: wp.array):
     """ Converts all forces in qpos space to u space """
-    wp.launch(
+    launch(
         _calc_ufrc_from_qfrc,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -276,7 +277,7 @@ def qfrc_to_ufrc(m: Model, d: Data, qfrc_in: wp.array, ufrc_out: wp.array):
 @event_scope
 def ufrc_to_qfrc(m: Model, d: Data, ufrc_in: wp.array, qfrc_out: wp.array):
     """ Converts all forces in u space to q space """
-    wp.launch(
+    launch(
         _calc_qfrc_from_ufrc,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -290,14 +291,14 @@ def ufrc_to_qfrc(m: Model, d: Data, ufrc_in: wp.array, qfrc_out: wp.array):
 @event_scope
 def accumulate_forces(m: Model, d: Data):
     """ Accumulate all forces into d.body_F and d.mob_f smooth"""
-    wp.launch(
+    launch(
         _body_frc_accumulate,
         dim=(d.nworld, m.nbody),
         inputs=[d.integration_done, d.body_F_gravity, d.body_F_contact, d.body_F_muscle, d.body_F_applied],
         outputs=[d.body_F]
     )
 
-    wp.launch(
+    launch(
         _mob_f_accumulate,
         dim=(d.nworld, m.nv),
         inputs=[d.integration_done,

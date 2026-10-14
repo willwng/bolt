@@ -14,6 +14,7 @@ from bolt.types import MuscleLengthInfo
 from bolt.types import MuscleMetadata
 
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -177,7 +178,7 @@ def compute_muscle_metabolics(
     """ Writes the metabolic power (W) of each muscle to muscle_metabolic_out """
     if not m.nmuscle:
         return
-    wp.launch(
+    launch(
         _metabolics_kernel,
         dim=(d.nworld, m.nmuscle),
         inputs=[

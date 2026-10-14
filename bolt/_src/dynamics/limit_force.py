@@ -9,6 +9,7 @@ from bolt.types import SwingTwistLimit
 
 from .. import math
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -161,7 +162,7 @@ def _process_swing_twist_limits(
 
 @event_scope
 def coordinate_limit_force(m: Model, d: Data):
-    wp.launch(
+    launch(
         _process_limit_forces,
         dim=(d.nworld, m.nlimitforce),
         inputs=[
@@ -176,7 +177,7 @@ def coordinate_limit_force(m: Model, d: Data):
 
 @event_scope
 def swing_twist_limit_force(m: Model, d: Data):
-    wp.launch(
+    launch(
         _process_swing_twist_limits,
         dim=(d.nworld, m.nswingtwist),
         inputs=[

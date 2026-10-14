@@ -9,6 +9,7 @@ from bolt.types import Model
 from .. import math
 from ..kinematics import mobilizers
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -55,7 +56,7 @@ def _determine_current_target_time(
 
 @event_scope
 def choose_target_time(m: Model, d: Data):
-    wp.launch(
+    launch(
         _determine_current_target_time,
         dim=d.nworld,
         inputs=[d.time, d.next_time, d.step_size, d.integration_done],
@@ -174,7 +175,7 @@ def _check_done_integrating(
 
 @event_scope
 def check_done_integrating(m: Model, d: Data):
-    wp.launch(
+    launch(
         _check_done_integrating,
         dim=d.nworld,
         inputs=[d.step_accepted, d.time1, d.next_time],
@@ -369,7 +370,7 @@ def compute_error(m: Model, d: Data, idx: int, scale: float = 1.0):
         outputs=[d.z_err],
         block_dim=m.block_dim.error_step,
     )
-    wp.launch(
+    launch(
         _aggregate_errors,
         dim=d.nworld,
         inputs=[d.integration_done, d.qpos_err, d.qvel_err, d.z_err],
@@ -461,7 +462,7 @@ def _adjust_step_size(
 
 @event_scope
 def adjust_step_size(m: Model, d: Data, err_order: float):
-    wp.launch(
+    launch(
         _adjust_step_size,
         dim=d.nworld,
         inputs=[

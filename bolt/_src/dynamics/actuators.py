@@ -5,6 +5,7 @@ from bolt.types import Data
 from bolt.types import Model
 
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -74,7 +75,7 @@ def _ufrc_actuators(
 
 @event_scope
 def reset_to_default_activation(m: Model, d: Data):
-    wp.launch(
+    launch(
         _reset_to_default_activation,
         dim=(d.nworld, m.nactuator),
         inputs=[m.actuator_metadata, d.world_reset],
@@ -84,7 +85,7 @@ def reset_to_default_activation(m: Model, d: Data):
 
 @event_scope
 def activation_dynamics(m: Model, d: Data):
-    wp.launch(
+    launch(
         _compute_activation_dot,
         dim=(d.nworld, m.nactuator),
         inputs=[m.actuator_metadata, d.integration_done, d.a_excitations, d.a_act],
@@ -94,7 +95,7 @@ def activation_dynamics(m: Model, d: Data):
 
 @event_scope
 def actuator_force(m: Model, d: Data):
-    wp.launch(
+    launch(
         _ufrc_actuators,
         dim=(d.nworld, m.nactuator),
         inputs=[m.actuator_metadata, d.integration_done, d.a_act],

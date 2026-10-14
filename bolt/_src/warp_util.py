@@ -1,4 +1,5 @@
 # Copyright 2025 The Newton Developers
+# Modified for Bolt by Will Wang
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,10 +16,35 @@
 
 import functools
 import inspect
+import math
 
 import warp as wp
 
 _STACK = None
+
+# Smallest number of blocks per SM that launch() aims for before shrinking blocks
+_MIN_BLOCKS_PER_SM = 2
+_MIN_BLOCK_DIM, _MAX_BLOCK_DIM = 32, 256
+
+
+def block_dim_for(nthreads: int, device: wp.Device) -> int:
+    """
+    Largest power-of-two block size in [32, 256] that still gives every SM at least _MIN_BLOCKS_PER_SM blocks.
+    Small grids may otherwise run on only a few SMs with the default of 256
+    """
+    per_block = nthreads // (_MIN_BLOCKS_PER_SM * device.sm_count)
+    if per_block < _MIN_BLOCK_DIM:
+        return _MIN_BLOCK_DIM
+    return min(_MAX_BLOCK_DIM, 1 << int(math.log2(per_block)))
+
+
+def launch(kernel, dim, *args, **kwargs):
+    """ wp.launch that picks block_dim from the grid size on CUDA devices, unless one is given """
+    device = wp.get_device(kwargs.get("device"))
+    if device.is_cuda and kwargs.get("block_dim") is None:
+        nthreads = math.prod(dim) if isinstance(dim, (tuple, list)) else int(dim)
+        kwargs["block_dim"] = block_dim_for(nthreads, device)
+    return wp.launch(kernel, dim, *args, **kwargs)
 
 
 class EventTracer:

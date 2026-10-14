@@ -6,6 +6,7 @@ from bolt.types import SpatialInertia
 
 from .. import math
 from ..warp_util import event_scope
+from ..warp_util import launch
 from . import mobilizers
 
 wp.set_module_options({"enable_backward": False})
@@ -387,7 +388,7 @@ def _site_global_velocity(
 @event_scope
 def joint_velocity_jacobian_dot(m: Model, d: Data):
     """ Computes the derivative of the Jacobian """
-    wp.launch(
+    launch(
         _across_joint_velocity_jacobian_dot,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -397,7 +398,7 @@ def joint_velocity_jacobian_dot(m: Model, d: Data):
         outputs=[d.mob_HDot_FM],
     )
 
-    wp.launch(
+    launch(
         _parent_to_child_joint_velocity_jacobian_in_ground_dot,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -412,7 +413,7 @@ def joint_velocity_jacobian_dot(m: Model, d: Data):
 @event_scope
 def calc_q_dot(m: Model, d: Data):
     """ Computes qdot = N(q) * u """
-    wp.launch(
+    launch(
         _calc_q_dot,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -430,7 +431,7 @@ def compute_body_velocities(m: Model, d: Data):
      then body velocities in the ground frame.
     """
     # Compute mobilizer spatial velocity and body velocity in parent (measured in ground)
-    wp.launch(
+    launch(
         _compute_body_velocities,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -443,7 +444,7 @@ def compute_body_velocities(m: Model, d: Data):
     # Body velocity in ground frame: requires forward pass
     for i in range(1, len(m.body_tree)):
         body_tree = m.body_tree[i]
-        wp.launch(
+        launch(
             _compute_body_velocities_in_ground,
             dim=(d.nworld, body_tree.size),
             inputs=[
@@ -458,7 +459,7 @@ def compute_body_velocities(m: Model, d: Data):
 @event_scope
 def compute_parent_to_child_accelerations(m: Model, d: Data):
     """ Compute acceleration of child body relative to parent, expressed in ground frame """
-    wp.launch(
+    launch(
         _compute_parent_to_child_accelerations,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -473,7 +474,7 @@ def compute_parent_to_child_accelerations(m: Model, d: Data):
 @event_scope
 def joint_independent_kinematics_vel(m: Model, d: Data):
     """ Computes remaining kinematic-dependent quantities """
-    wp.launch(
+    launch(
         _gyroscopic_forces,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -486,7 +487,7 @@ def joint_independent_kinematics_vel(m: Model, d: Data):
     # Coriolis acceleration, requires forward pass
     for i in range(1, len(m.body_tree)):
         body_tree = m.body_tree[i]
-        wp.launch(
+        launch(
             _coriolis_acceleration,
             dim=(d.nworld, body_tree.size),
             inputs=[
@@ -498,7 +499,7 @@ def joint_independent_kinematics_vel(m: Model, d: Data):
         )
 
     # Total of the rotational velocity-dependent forces acting on this body
-    wp.launch(
+    launch(
         _centrifugal_forces,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -511,7 +512,7 @@ def joint_independent_kinematics_vel(m: Model, d: Data):
 @event_scope
 def attachment_kinematics_vel(m: Model, d: Data):
     # Sites
-    wp.launch(
+    launch(
         _site_global_velocity,
         dim=(d.nworld, m.nsite),
         inputs=[m.site_bodyid, m.site_moving_qposadr,

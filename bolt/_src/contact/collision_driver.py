@@ -21,6 +21,7 @@ from bolt.types import Data
 from bolt.types import Model
 
 from ..warp_util import event_scope
+from ..warp_util import launch
 from .collision_primitive import narrowphase
 
 wp.set_module_options({"enable_backward": False})
@@ -369,7 +370,7 @@ def broadphase(m: Model, d: Data):
     `contype`/`conaffinity`, parent-child relationships, and explicit `<exclude>` tags.
     """
     broadphase_filter = _broadphase_filter(m)
-    wp.launch(
+    launch(
         _nxn_broadphase(broadphase_filter),
         dim=(d.nworld, m.nxn_geom_pair_filtered.shape[0]),
         inputs=[
@@ -395,7 +396,7 @@ def broadphase(m: Model, d: Data):
 def collision(m: Model, d: Data):
     """Runs the full collision detection pipeline. """
     # zero contact and collision counters
-    wp.launch(_zero_nacon_ncollision, dim=1, outputs=[d.nacon, d.ncollision])
+    launch(_zero_nacon_ncollision, dim=1, outputs=[d.nacon, d.ncollision])
 
     if d.naconmax == 0:
         return

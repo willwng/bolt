@@ -10,6 +10,7 @@ from bolt.types import StatefulContact
 from .. import math
 from ..kinematics import mobilizers
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -233,13 +234,13 @@ def advance(
 ):
     """Advance state and time given state derivatives"""
     if m.nmuscle:
-        wp.launch(
+        launch(
             _next_muscle_activation,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.muscle_metadata, d.integration_done, d.m_act, d.m_act_dot, d.actual_step_size, scale],
             outputs=[d.m_act],
         )
-        wp.launch(
+        launch(
             _next_muscle_state,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.muscle_metadata, d.integration_done, d.m_state, d.m_state_dot, d.actual_step_size, scale],
@@ -247,7 +248,7 @@ def advance(
         )
 
     if m.nactuator:
-        wp.launch(
+        launch(
             _next_actuator_activation,
             dim=(d.nworld, m.nactuator),
             inputs=[m.actuator_metadata, d.integration_done, d.a_act, d.a_act_dot, d.actual_step_size, scale],
@@ -255,7 +256,7 @@ def advance(
         )
 
     if m.nstlcontact:
-        wp.launch(
+        launch(
             _next_stl_contact_state,
             dim=(d.nworld, m.nstlcontact),
             inputs=[m.stl_contact, d.integration_done, d.stl_contact_state_dot, d.actual_step_size, scale],
@@ -263,13 +264,13 @@ def advance(
         )
 
     if symplectic:
-        wp.launch(
+        launch(
             _next_velocity,
             dim=(d.nworld, m.nv),
             inputs=[d.integration_done, d.qvel, qacc, d.actual_step_size, scale],
             outputs=[d.qvel],
         )
-        wp.launch(
+        launch(
             _next_position,
             dim=(d.nworld, m.nbody),
             inputs=[m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
@@ -277,20 +278,20 @@ def advance(
             outputs=[d.qpos],
         )
     else:
-        wp.launch(
+        launch(
             _next_position,
             dim=(d.nworld, m.nbody),
             inputs=[m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
                     d.integration_done, d.qpos, qvel, d.actual_step_size, scale],
             outputs=[d.qpos],
         )
-        wp.launch(
+        launch(
             _next_velocity,
             dim=(d.nworld, m.nv),
             inputs=[d.integration_done, d.qvel, qacc, d.actual_step_size, scale],
             outputs=[d.qvel],
         )
-    wp.launch(
+    launch(
         _next_time,
         dim=d.nworld,
         inputs=[d.integration_done, d.time, d.actual_step_size, time_scale],
@@ -301,7 +302,7 @@ def advance(
 @event_scope
 def update_step_size(m: Model, d: Data):
     """ For fixed time-stepping. Updates the actual step size to match the desired dt """
-    wp.launch(
+    launch(
         _update_fixed_step_size,
         dim=d.nworld,
         inputs=[d.time, d.next_time],

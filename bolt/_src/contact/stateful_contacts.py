@@ -7,6 +7,7 @@ from bolt.types import StatefulContact
 
 from .. import math
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -207,7 +208,7 @@ def _process_contacts(
 @event_scope
 def reset_contact_state(m: Model, d: Data):
     if m.nstlcontact:
-        wp.launch(
+        launch(
             _reset_stl_contact_state,
             dim=(d.nworld, m.nstlcontact),
             inputs=[m.stl_contact, d.world_reset, d.integration_done, d.site_pos_G],
@@ -219,7 +220,7 @@ def reset_contact_state(m: Model, d: Data):
 @event_scope
 def contact_forces(m: Model, d: Data):
     if m.nstlcontact:
-        wp.launch(
+        launch(
             _process_contacts,
             dim=(d.nworld, m.nstlcontact),
             inputs=[

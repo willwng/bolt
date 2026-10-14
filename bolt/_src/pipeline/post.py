@@ -9,6 +9,7 @@ from ..kinematics import mobilizers
 from ..muscle import function_path
 from ..muscle import point_path
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -69,7 +70,7 @@ def compute_muscle_force_breakdown(m: Model, d: Data):
 @event_scope
 def map_dq_to_u(m: Model, d: Data, dq: wp.array2d(dtype=float)):
     u_out = wp.zeros((d.nworld, m.nv), dtype=wp.float32)
-    wp.launch(
+    launch(
         kernel=mobilizers.multiply_N_inv_kernel,
         dim=(d.nworld, m.nbody),
         inputs=[m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum, d.qpos, dq, ],

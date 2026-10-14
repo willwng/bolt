@@ -7,6 +7,7 @@ from bolt.types import SpatialInertia
 
 from .. import math
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -160,7 +161,7 @@ def _articulated_body_velocity(
 @event_scope
 def initialize_articulated_body_inertia(m: Model, d: Data):
     """ Initialize articulated inertia based on body's own spatial inertia """
-    wp.launch(
+    launch(
         _initialize_articulated_inertia,
         dim=(d.nworld, m.nbody),
         inputs=[d.integration_done, d.body_Mk_G, ],
@@ -175,7 +176,7 @@ def accumulate_articulated_body_inertia(m: Model, d: Data):
     for i in reversed(range(len(m.body_tree))):
         body_tree = m.body_tree[i]
         # should we fuse these kernels? performance doesn't seem to take a hit keeping them un-fused
-        wp.launch(
+        launch(
             _accumulate_child_articulated_inertia,
             dim=(d.nworld, body_tree.size),
             inputs=[
@@ -185,7 +186,7 @@ def accumulate_articulated_body_inertia(m: Model, d: Data):
             ],
             outputs=[d.body_P],
         )
-        wp.launch(
+        launch(
             _compute_articulated_inertia,
             dim=(d.nworld, body_tree.size),
             inputs=[
@@ -200,7 +201,7 @@ def accumulate_articulated_body_inertia(m: Model, d: Data):
 @event_scope
 def articulated_body_velocity(m: Model, d: Data):
     """ Calculate velocity-related quantities that also depend on articulated body inertias """
-    wp.launch(
+    launch(
         _articulated_body_velocity,
         dim=(d.nworld, m.nbody),
         inputs=[

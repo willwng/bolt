@@ -9,6 +9,7 @@ from ..integrate import euler_fixed
 from ..integrate import rk_adaptive
 from ..integrate import rk_fixed
 from ..warp_util import event_scope
+from ..warp_util import launch
 from . import forward
 
 wp.set_module_options({"enable_backward": False})
@@ -56,7 +57,7 @@ def step(m: Model, d: Data, realize_state: bool = False):
 
 def increment_next_time(m: Model, d: Data, dt: float):
     """ Updates d.next_time to d.time + dt """
-    wp.launch(
+    launch(
         _increment_next_time,
         dim=d.nworld,
         inputs=[d.time, dt],

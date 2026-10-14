@@ -10,6 +10,7 @@ from bolt.types import Data
 from bolt.types import Model
 
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -49,7 +50,7 @@ def exponential_limit_forces(m: Model, d: Data, limits: wp.array, ufrc_out: wp.a
     """ Adds the exponential limit generalized forces (in dof space) to ufrc_out (nworld, nv) """
     if limits.size == 0:
         return
-    wp.launch(
+    launch(
         _exponential_limit_forces,
         dim=(d.nworld, limits.size),
         inputs=[d.integration_done, d.qpos, limits],

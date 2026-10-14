@@ -7,6 +7,7 @@ from bolt.types import Model
 
 from ..pipeline import forward
 from ..warp_util import event_scope
+from ..warp_util import launch
 from . import common
 
 wp.set_module_options({"enable_backward": False})
@@ -59,7 +60,7 @@ def _rk_accumulate_actuator(
 
 def _rk_accumulate(m: Model, d: Data, scale: float, rk: IntegratorDotScratch):
     """Computes one term of 1/6 k_1 + 1/3 k_2 + 1/3 k_3 + 1/6 k_4, accumulated into rk."""
-    wp.launch(
+    launch(
         _rk_accumulate_velocity_acceleration,
         dim=(d.nworld, m.nv),
         inputs=[d.qvel, d.qacc, scale],
@@ -67,14 +68,14 @@ def _rk_accumulate(m: Model, d: Data, scale: float, rk: IntegratorDotScratch):
     )
 
     if m.nmuscle:
-        wp.launch(
+        launch(
             _rk_accumulate_muscle,
             dim=(d.nworld, m.nmuscle),
             inputs=[d.m_act_dot, d.m_state_dot, scale],
             outputs=[rk.m_act_dot, rk.m_state_dot],
         )
     if m.nactuator:
-        wp.launch(
+        launch(
             _rk_accumulate_actuator,
             dim=(d.nworld, m.nactuator),
             inputs=[d.a_act_dot, scale],
@@ -86,7 +87,7 @@ def _rk_perturb_state(m: Model, d: Data, scale: float, t0: IntegratorStateScratc
     """ Sets the state to y_0 + scale * h * (current derivative) """
     qpos_t0, qvel_t0, m_act_t0, m_state_t0, a_act_t0 = t0.qpos, t0.qvel, t0.m_act, t0.m_state, t0.a_act
     # position
-    wp.launch(
+    launch(
         common._next_position,
         dim=(d.nworld, m.nbody),
         inputs=[m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum,
@@ -94,7 +95,7 @@ def _rk_perturb_state(m: Model, d: Data, scale: float, t0: IntegratorStateScratc
         outputs=[d.qpos],
     )
     # velocity
-    wp.launch(
+    launch(
         common._next_velocity,
         dim=(d.nworld, m.nv),
         inputs=[d.integration_done, qvel_t0, d.qacc, d.actual_step_size, scale],
@@ -103,13 +104,13 @@ def _rk_perturb_state(m: Model, d: Data, scale: float, t0: IntegratorStateScratc
 
     # muscles
     if m.nmuscle:
-        wp.launch(
+        launch(
             common._next_muscle_activation,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.muscle_metadata, d.integration_done, m_act_t0, d.m_act_dot, d.actual_step_size, scale],
             outputs=[d.m_act],
         )
-        wp.launch(
+        launch(
             common._next_muscle_state,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.muscle_metadata, d.integration_done, m_state_t0, d.m_state_dot, d.actual_step_size, scale],
@@ -117,7 +118,7 @@ def _rk_perturb_state(m: Model, d: Data, scale: float, t0: IntegratorStateScratc
         )
 
     if m.nactuator:
-        wp.launch(
+        launch(
             common._next_actuator_activation,
             dim=(d.nworld, m.nactuator),
             inputs=[m.actuator_metadata, d.integration_done, a_act_t0, d.a_act_dot, d.actual_step_size, scale],
@@ -125,7 +126,7 @@ def _rk_perturb_state(m: Model, d: Data, scale: float, t0: IntegratorStateScratc
         )
 
     if m.nstlcontact:
-        wp.launch(
+        launch(
             common._next_stl_contact_state,
             dim=(d.nworld, m.nstlcontact),
             inputs=[m.stl_contact, d.integration_done, d.stl_contact_state_dot, d.actual_step_size, scale],

@@ -7,6 +7,7 @@ from bolt.types import SpatialInertia
 
 from .. import math
 from ..warp_util import event_scope
+from ..warp_util import launch
 from . import mobilizers
 
 wp.set_module_options({"enable_backward": False})
@@ -423,7 +424,7 @@ def _subtree_div(
 
 @event_scope
 def calc_mobilizer_X_FM(m: Model, d: Data):
-    wp.launch(
+    launch(
         _calc_mobilizer_X_FM,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -438,7 +439,7 @@ def calc_mobilizer_X_FM(m: Model, d: Data):
 def calc_body_transforms(m: Model, d: Data):
     """ Computes world-space transformations for all bodies """
     # World body
-    wp.launch(
+    launch(
         _body_transforms_ground,
         dim=(d.nworld),
         inputs=[d.integration_done],
@@ -448,7 +449,7 @@ def calc_body_transforms(m: Model, d: Data):
     # Forward pass, parallelize over bodies within a tree level
     for i in range(1, len(m.body_tree)):
         body_tree = m.body_tree[i]
-        wp.launch(
+        launch(
             _body_transforms_level,
             dim=(d.nworld, body_tree.size),
             inputs=[
@@ -463,7 +464,7 @@ def calc_body_transforms(m: Model, d: Data):
 @event_scope
 def joint_velocity_jacobian(m: Model, d: Data):
     """ Computes the Jacobian mapping joint velocities to body velocities """
-    wp.launch(
+    launch(
         _across_joint_velocity_jacobian,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -472,7 +473,7 @@ def joint_velocity_jacobian(m: Model, d: Data):
         ],
         outputs=[d.mob_H_FM],
     )
-    wp.launch(
+    launch(
         _parent_to_child_joint_velocity_jacobian_in_ground,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -486,7 +487,7 @@ def joint_velocity_jacobian(m: Model, d: Data):
 @event_scope
 def joint_independent_kinematics(m: Model, d: Data):
     """ Computes remaining kinematic-dependent quantities """
-    wp.launch(
+    launch(
         _joint_independent_kinematics,
         dim=(d.nworld, m.nbody),
         inputs=[
@@ -505,7 +506,7 @@ def joint_independent_kinematics(m: Model, d: Data):
 @event_scope
 def attachment_kinematics(m: Model, d: Data):
     # Collision geometry: only position is needed
-    wp.launch(
+    launch(
         _geom_local_to_global,
         dim=(d.nworld, m.ngeom),
         inputs=[m.geom_bodyid, m.geom_X_loc, d.integration_done, d.mob_X_GB],
@@ -513,7 +514,7 @@ def attachment_kinematics(m: Model, d: Data):
     )
 
     # Sites
-    wp.launch(
+    launch(
         _site_local_to_global,
         dim=(d.nworld, m.nsite),
         inputs=[m.site_bodyid, m.site_offset, m.site_moving_fnadr, m.site_moving_X_BF,
@@ -523,14 +524,14 @@ def attachment_kinematics(m: Model, d: Data):
 
     # Visuals: only position is needed
     if wp.static(m.opt.visuals):
-        wp.launch(
+        launch(
             _vis_local_to_global,
             dim=(d.nworld, m.nvis),
             inputs=[m.vis_bodyid, m.vis_X_loc, d.integration_done, d.mob_X_GB],
             outputs=[d.vis_X],
         )
 
-        wp.launch(
+        launch(
             _beam_visuals,
             dim=(d.nworld, m.nbeams),
             inputs=[
@@ -545,7 +546,7 @@ def attachment_kinematics(m: Model, d: Data):
 @event_scope
 def com_pos(m: Model, d: Data):
     """ Computes subtree center of mass positions. """
-    wp.launch(
+    launch(
         _subtree_com_init,
         dim=(d.nworld, m.nbody),
         inputs=[m.body_mass, d.integration_done, d.body_COM_G],
@@ -554,14 +555,14 @@ def com_pos(m: Model, d: Data):
 
     for i in reversed(range(len(m.body_tree))):
         body_tree = m.body_tree[i]
-        wp.launch(
+        launch(
             _subtree_com_acc,
             dim=(d.nworld, body_tree.size),
             inputs=[m.body_parentid, d.integration_done, d.subtree_com, body_tree],
             outputs=[d.subtree_com, d.subtree_mass],
         )
 
-    wp.launch(
+    launch(
         _subtree_div,
         dim=(d.nworld, m.nbody),
         inputs=[d.integration_done, d.subtree_com, d.subtree_mass],

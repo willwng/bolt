@@ -6,6 +6,7 @@ from bolt.types import SpatialInertia
 
 from .. import math
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -150,7 +151,7 @@ def multiply_by_jacobian_transpose(m: Model, d: Data, X_in: wp.array2d, JtX_out:
     # Forward pass, parallelize over bodies within a tree level
     for i in reversed(range(len(m.body_tree))):
         body_tree = m.body_tree[i]
-        wp.launch(
+        launch(
             _multiply_by_jacobian_transpose_kernel,
             dim=(d.nworld, body_tree.size),
             inputs=[
@@ -169,7 +170,7 @@ def multiply_by_mass(m: Model, d: Data, qacc: wp.array, tau_out: wp.array):
 
     for i in range(1, len(m.body_tree)):
         body_tree = m.body_tree[i]
-        wp.launch(
+        launch(
             _multiply_by_M_pass1,
             dim=(d.nworld, body_tree.size),
             inputs=[
@@ -182,7 +183,7 @@ def multiply_by_mass(m: Model, d: Data, qacc: wp.array, tau_out: wp.array):
 
     for i in reversed(range(len(m.body_tree))):
         body_tree = m.body_tree[i]
-        wp.launch(
+        launch(
             _multiply_by_M_pass2,
             dim=(d.nworld, body_tree.size),
             inputs=[

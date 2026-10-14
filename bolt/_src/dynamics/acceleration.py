@@ -5,6 +5,7 @@ from bolt.types import Model
 
 from .. import math
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -138,7 +139,7 @@ def _calc_udot_pass_outward(
 def calc_udot(m: Model, d: Data):
     # Initialize world acceleration if not explicitly using gravity force
     if not m.opt.explicit_gravity:
-        wp.launch(
+        launch(
             _acc_world,
             dim=[d.nworld],
             inputs=[d.integration_done, m.opt.gravity],
@@ -148,7 +149,7 @@ def calc_udot(m: Model, d: Data):
     # tip to base, first inward pass
     for i in reversed(range(len(m.body_tree))):
         body_tree = m.body_tree[i]
-        wp.launch(
+        launch(
             _calc_udot_pass_inward,
             dim=(d.nworld, body_tree.size),
             inputs=[
@@ -163,7 +164,7 @@ def calc_udot(m: Model, d: Data):
     # base to tip: acceleration in internal coordinates
     for i in range(1, len(m.body_tree)):
         body_tree = m.body_tree[i]
-        wp.launch(
+        launch(
             _calc_udot_pass_outward,
             dim=(d.nworld, body_tree.size),
             inputs=[

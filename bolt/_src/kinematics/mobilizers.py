@@ -14,6 +14,7 @@ from bolt.types import mat36
 
 from .. import math
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -775,7 +776,7 @@ def scale_dq(
     # q_dot_scaled = (N * W_u * N_inv) * q_dot
 
     # N_inv * q_dot
-    wp.launch(
+    launch(
         kernel=multiply_N_inv_kernel,
         dim=(d.nworld, m.nbody),
         inputs=[m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum, d.qpos, dq, ],
@@ -786,7 +787,7 @@ def scale_dq(
     multiply_W(m, d)
 
     # N * W * N_inv * q_dot
-    wp.launch(
+    launch(
         kernel=multiply_N_kernel,
         dim=(d.nworld, m.nbody),
         inputs=[m.mob_type, m.mob_qposadr, m.mob_dofadr, m.mob_dofnum, d.qpos, d.ninv_dq_tmp, ],

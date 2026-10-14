@@ -13,6 +13,7 @@ from bolt.types import MuscleMetadata
 from bolt.types import ResidualResult
 
 from ..warp_util import event_scope
+from ..warp_util import launch
 from . import force_curves
 from . import pennation
 
@@ -439,7 +440,7 @@ def _set_state(
 
 @event_scope
 def contraction_dynamics_fused(m: Model, d: Data):
-    wp.launch(
+    launch(
         _contraction_dynamics_fused_kernel,
         dim=(d.nworld, m.nmuscle),
         inputs=[
@@ -458,7 +459,7 @@ def equilibrate(m: Model, d: Data):
         return
 
     # Equilibrate (bisection)
-    wp.launch(
+    launch(
         _equilibrate,
         dim=(d.nworld, m.nmuscle),
         inputs=[
@@ -479,7 +480,7 @@ def contraction_dynamics(m: Model, d: Data):
     contraction_dynamics_fused(m, d)
 
     # Set actuation and muscle state derivatives
-    wp.launch(
+    launch(
         _set_state,
         dim=(d.nworld, m.nmuscle),
         inputs=[

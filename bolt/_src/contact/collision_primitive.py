@@ -26,6 +26,7 @@ from bolt.types import vec5
 from ..math import make_frame
 from ..math import upper_trid_index
 from ..warp_util import event_scope
+from ..warp_util import launch
 from .collision_primitive_core import capsule_capsule
 from .collision_primitive_core import plane_capsule
 from .collision_primitive_core import plane_ellipsoid
@@ -735,7 +736,7 @@ def narrowphase(m: Model, d: Data):
     """
     # we need to figure out how to keep the overhead of this small - not launching anything
     # for pair types without collisions, as well as updating the launch dimensions.
-    wp.launch(
+    launch(
         _primitive_narrowphase_builder(m),
         dim=d.naconmax,
         inputs=[

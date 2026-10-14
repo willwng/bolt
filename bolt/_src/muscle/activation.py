@@ -6,6 +6,7 @@ from bolt.types import Model
 from bolt.types import MuscleMetadata
 
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -111,7 +112,7 @@ def _clamp_activation_on_reset(
 @event_scope
 def clamp_activation_on_reset(m: Model, d: Data):
     """ Clamps the activation of reset worlds into [min_activation, max_activation] """
-    wp.launch(
+    launch(
         _clamp_activation_on_reset,
         dim=(d.nworld, m.nmuscle),
         inputs=[m.muscle_metadata, d.world_reset, d.m_act],
@@ -122,14 +123,14 @@ def clamp_activation_on_reset(m: Model, d: Data):
 @event_scope
 def activation_dynamics(m: Model, d: Data):
     if m.opt.activation_type == ActivationType.DGF:
-        wp.launch(
+        launch(
             _compute_activation_dot_dgf,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.muscle_metadata, d.m_excitations, d.m_act],
             outputs=[d.m_act_dot],
         )
     elif m.opt.activation_type == ActivationType.MILLARD:
-        wp.launch(
+        launch(
             _compute_activation_dot_millard,
             dim=(d.nworld, m.nmuscle),
             inputs=[m.muscle_metadata, d.m_excitations, d.m_act],

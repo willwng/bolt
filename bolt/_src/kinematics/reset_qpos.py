@@ -5,6 +5,7 @@ from bolt.types import Data
 from bolt.types import Model
 
 from ..warp_util import event_scope
+from ..warp_util import launch
 from . import mobilizers
 
 wp.set_module_options({"enable_backward": False})
@@ -54,7 +55,7 @@ def _fix_quaternions_kernel(
 @event_scope
 def fix_qpos_limits(m: Model, d: Data):
     """Clamps qpos values to joint limits."""
-    wp.launch(
+    launch(
         _fix_limits_lf_kernel,
         dim=(d.nworld, m.nlimitforce),
         inputs=[m.coordinate_limit_force, d.world_reset, d.qpos, ],
@@ -66,7 +67,7 @@ def fix_qpos_limits(m: Model, d: Data):
 @event_scope
 def fix_quaternions(m: Model, d: Data):
     """Ensures quaternion qpos values are normalized."""
-    wp.launch(
+    launch(
         _fix_quaternions_kernel,
         dim=(d.nworld, m.nbody),
         inputs=[m.mob_type, m.mob_qposadr, d.world_reset, ],

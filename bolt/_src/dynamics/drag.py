@@ -11,6 +11,7 @@ from bolt.types import Model
 
 from .. import math
 from ..warp_util import event_scope
+from ..warp_util import launch
 
 wp.set_module_options({"enable_backward": False})
 
@@ -65,7 +66,7 @@ def drag_forces(m: Model, d: Data, drags: wp.array, body_F_out: wp.array2d):
     """
     if drags.size == 0:
         return
-    wp.launch(
+    launch(
         _drag_forces,
         dim=(d.nworld, drags.size),
         inputs=[m.body_mass_center, d.integration_done, d.mob_X_GB, d.body_V_GB, drags],
