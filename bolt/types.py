@@ -279,6 +279,9 @@ class Option:
       max_step_size: (variable-step integration) maximum step size
       hysteresis_low: (variable-step integration) error hysteresis lower bound
       hysteresis_high: (variable-step integration) error hysteresis upper bound
+      pi_controller: (variable-step integration) use a PI step size controller instead of the integral-only one
+      pi_alpha: (variable-step integration) PI controller gain on the current error, divided by the error order
+      pi_beta: (variable-step integration) PI controller gain on the previous accepted error, divided by the error order
       accuracy: (variable-step integration) target accuracy
       use_inf_norm: (variable-step integration) whether to use infinity norm for error calculation
       qvel_weights: (variable-step integration) weights for qvel error calculation
@@ -306,6 +309,9 @@ class Option:
     max_step_size: float
     hysteresis_low: float
     hysteresis_high: float
+    pi_controller: bool
+    pi_alpha: float
+    pi_beta: float
     accuracy: float
     use_inf_norm: bool
     qvel_weights: array("nv", float)
@@ -1064,6 +1070,7 @@ class Data:
     qvel_err: array("nworld", float)
     z_err: array("nworld", float)
     error: array("nworld", float)
+    prev_error: array("nworld", float)  # error of the last accepted step (0 if none), for the PI controller
     steps_attempted: array("nworld", int)
 
     # Stored state for adaptive time-stepper

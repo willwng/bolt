@@ -12,7 +12,6 @@ from bolt.loader.model_load_result import ModelLoadResult
 from bolt.render.renderer import Renderer, RendererType
 from bolt.types import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata
 
-
 __all__ = [
     "load_model",
     "convert_user_collider",
@@ -52,6 +51,7 @@ __all__ = [
     "set_integrator_accuracy",
     "set_integrator_min_step_size",
     "set_integrator_use_inf_norm",
+    "set_pi_integrator",
     "is_adaptive",
     "set_reset",
     "time",
@@ -328,6 +328,10 @@ def set_integrator_min_step_size(m: Model, min_step_size: float):
 
 def set_integrator_use_inf_norm(m: Model, use_inf_norm: bool):
     m.opt.use_inf_norm = use_inf_norm
+
+
+def set_pi_integrator(m: Model, enabled: bool):
+    m.opt.pi_controller = enabled
 
 
 def is_adaptive(integrator_type: IntegratorType) -> bool:

@@ -395,9 +395,13 @@ def _adjust_step_size(
         hysteresis_high: float,
         accuracy: float,
         err_order: float,
+        pi_controller: bool,
+        pi_alpha: float,
+        pi_beta: float,
         # Data out:
         step_size_out: wp.array(dtype=float),
         step_accepted_out: wp.array(dtype=bool),
+        prev_error_out: wp.array(dtype=float),
 ):
     worldid = wp.tid()
     if integration_done_in[worldid]:
@@ -411,6 +415,18 @@ def _adjust_step_size(
         new_step_size = curr_step_size * min_shrink
     elif wp.abs(error) < BOLT_MINVAL:
         new_step_size = curr_step_size * max_grow
+    elif pi_controller:
+        # PI controller (Gustafsson; Hairer & Wanner II, IV.2): h * (tol/err)^alpha * (err_prev/tol)^beta.
+        # The previous error only enters on accepted steps
+        prev_error = prev_error_out[worldid]
+        prev_rejected = not step_accepted_out[worldid]
+
+        new_step_size = safety * curr_step_size * wp.pow(accuracy / error, pi_alpha / err_order)
+        if error <= accuracy and prev_error > 0.0:
+            new_step_size *= wp.pow(prev_error / accuracy, pi_beta / err_order)
+        # Don't grow right after a rejection
+        if prev_rejected:
+            new_step_size = wp.min(new_step_size, curr_step_size)
     else:
         new_step_size = (safety * curr_step_size * wp.pow(accuracy / error, 1.0 / err_order))
     # If the new step is bigger than the old, don't make the change if the
@@ -435,7 +451,11 @@ def _adjust_step_size(
     new_step_size = wp.clamp(new_step_size, min_step_size, max_step_size)
     step_size_out[worldid] = new_step_size
     # This is an odd definition of success
-    step_accepted_out[worldid] = (new_step_size >= curr_step_size)
+    accepted = new_step_size >= curr_step_size
+    step_accepted_out[worldid] = accepted
+    # Store error
+    if accepted:
+        prev_error_out[worldid] = wp.max(error, 1.0e-4 * accuracy)
     return
 
 
@@ -457,9 +477,12 @@ def adjust_step_size(m: Model, d: Data, err_order: float):
             m.opt.hysteresis_low,
             m.opt.hysteresis_high,
             m.opt.accuracy,
-            err_order
+            err_order,
+            m.opt.pi_controller,
+            m.opt.pi_alpha,
+            m.opt.pi_beta,
         ],
-        outputs=[d.step_size, d.step_accepted],
+        outputs=[d.step_size, d.step_accepted, d.prev_error],
     )
 
 
