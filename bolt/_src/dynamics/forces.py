@@ -192,24 +192,63 @@ def _calc_qfrc_from_ufrc(
     return
 
 
+@wp.kernel
+def _reset_forces(
+        # Data in:
+        integration_done_in: wp.array(dtype=bool),
+        # Data out:
+        body_F_gravity_out: wp.array2d(dtype=wp.spatial_vector),
+        body_F_contact_out: wp.array2d(dtype=wp.spatial_vector),
+        body_F_muscle_out: wp.array2d(dtype=wp.spatial_vector),
+        ufrc_spring_out: wp.array2d(dtype=float),
+        ufrc_damper_out: wp.array2d(dtype=float),
+        qfrc_muscle_out: wp.array2d(dtype=float),
+        ufrc_muscle_out: wp.array2d(dtype=float),
+        ufrc_actuator_out: wp.array2d(dtype=float),
+        ufrc_limit_out: wp.array2d(dtype=float),
+        grf_out: wp.array(dtype=wp.vec3),
+        geom_cforce_out: wp.array2d(dtype=float),
+        geom_self_cforce_out: wp.array2d(dtype=float),
+        body_self_cforce_out: wp.array2d(dtype=float),
+):
+    worldid, i = wp.tid()
+    # Worlds that finished integrating keep their forces, which describe their final state
+    if integration_done_in[worldid]:
+        return
+
+    if i < body_F_gravity_out.shape[1]:
+        body_F_gravity_out[worldid, i] = wp.spatial_vector()
+        body_F_contact_out[worldid, i] = wp.spatial_vector()
+        body_F_muscle_out[worldid, i] = wp.spatial_vector()
+        body_self_cforce_out[worldid, i] = 0.0
+    if i < ufrc_spring_out.shape[1]:
+        ufrc_spring_out[worldid, i] = 0.0
+        ufrc_damper_out[worldid, i] = 0.0
+        ufrc_muscle_out[worldid, i] = 0.0
+        ufrc_actuator_out[worldid, i] = 0.0
+        ufrc_limit_out[worldid, i] = 0.0
+    if i < qfrc_muscle_out.shape[1]:
+        qfrc_muscle_out[worldid, i] = 0.0
+    if i < geom_cforce_out.shape[1]:
+        geom_cforce_out[worldid, i] = 0.0
+        geom_self_cforce_out[worldid, i] = 0.0
+    if i == 0:
+        grf_out[worldid] = wp.vec3()
+
+
 @event_scope
 def reset_forces(m: Model, d: Data):
-    """ Compute all applied forces """
-    d.body_F_gravity.zero_()
-    d.body_F_contact.zero_()
-    d.body_F_muscle.zero_()
-
-    d.ufrc_spring.zero_()
-    d.ufrc_damper.zero_()
-    d.qfrc_muscle.zero_()
-    d.ufrc_muscle.zero_()
-    d.ufrc_actuator.zero_()
-    d.ufrc_limit.zero_()
-
-    d.grf.zero_()
-    d.geom_cforce.zero_()
-    d.geom_self_cforce.zero_()
-    d.body_self_cforce.zero_()
+    """ Zeros the force accumulators of the worlds that are still integrating """
+    launch(
+        _reset_forces,
+        dim=(d.nworld, max(m.nbody, m.nv, m.nq, m.ngeom, 1)),
+        inputs=[d.integration_done],
+        outputs=[
+            d.body_F_gravity, d.body_F_contact, d.body_F_muscle,
+            d.ufrc_spring, d.ufrc_damper, d.qfrc_muscle, d.ufrc_muscle, d.ufrc_actuator, d.ufrc_limit,
+            d.grf, d.geom_cforce, d.geom_self_cforce, d.body_self_cforce,
+        ],
+    )
 
 
 @event_scope
