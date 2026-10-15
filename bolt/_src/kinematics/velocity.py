@@ -83,26 +83,26 @@ def _compute_body_velocities_in_ground(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         mob_phi_in: wp.array2d(dtype=wp.vec3),
-        v_GB_in: wp.array2d(dtype=wp.spatial_vector),
         V_PB_G_in: wp.array2d(dtype=wp.spatial_vector),
         # In:
-        body_tree_: wp.array(dtype=int),
+        nbody: int,
         # Data out:
         V_GB_out: wp.array2d(dtype=wp.spatial_vector),
 ):
-    worldid, nodeid = wp.tid()
+    worldid = wp.tid()
     if integration_done_in[worldid]:
         return
 
-    bodyid = body_tree_[nodeid]
-    pid = body_parentid[bodyid]
+    # Forward pass. Body ids are in tree level order, so a parent is always done before its children
+    for bodyid in range(1, nbody):
+        pid = body_parentid[bodyid]
 
-    V_GP = v_GB_in[worldid, pid]  # parent P's velocity
-    V_PB_G = V_PB_G_in[worldid, bodyid]  # child B's vel in P, expressed in G
-    phi = mob_phi_in[worldid, bodyid]  # need the "transpose" to shift outward
+        V_GP = V_GB_out[worldid, pid]  # parent P's velocity
+        V_PB_G = V_PB_G_in[worldid, bodyid]  # child B's vel in P, expressed in G
+        phi = mob_phi_in[worldid, bodyid]  # need the "transpose" to shift outward
 
-    V_GB = math.multiply_phi_transpose(phi, V_GP) + V_PB_G
-    V_GB_out[worldid, bodyid] = V_GB
+        V_GB = math.multiply_phi_transpose(phi, V_GP) + V_PB_G
+        V_GB_out[worldid, bodyid] = V_GB
     return
 
 
@@ -287,43 +287,42 @@ def _coriolis_acceleration(
         mob_phi_in: wp.array2d(dtype=wp.vec3),
         body_V_GB_in: wp.array2d(dtype=wp.spatial_vector),
         body_VD_PB_G_in: wp.array2d(dtype=wp.spatial_vector),
-        body_total_coriolis_acc_in: wp.array2d(dtype=wp.spatial_vector),
         # In:
-        body_tree_: wp.array(dtype=int),
+        nbody: int,
         # Data out:
         mob_coriolis_acc_out: wp.array2d(dtype=wp.spatial_vector),
         body_total_coriolis_acc_out: wp.array2d(dtype=wp.spatial_vector)
 ):
-    worldid, nodeid = wp.tid()
+    worldid = wp.tid()
     if integration_done_in[worldid]:
         return
 
-    bodyid = body_tree_[nodeid]
+    # Forward pass. Body ids are in tree level order, so a parent is always done before its children
+    for bodyid in range(1, nbody):
+        V_GB = body_V_GB_in[worldid, bodyid]
+        w_GB = wp.spatial_top(V_GB)
+        v_GB = wp.spatial_bottom(V_GB)
 
-    V_GB = body_V_GB_in[worldid, bodyid]
-    w_GB = wp.spatial_top(V_GB)
-    v_GB = wp.spatial_bottom(V_GB)
+        # Parent velocity
+        pid = body_parentid[bodyid]
+        V_GP = body_V_GB_in[worldid, pid]
+        w_GP = wp.spatial_top(V_GP)
+        v_GP = wp.spatial_bottom(V_GP)
 
-    # Parent velocity
-    pid = body_parentid[bodyid]
-    V_GP = body_V_GB_in[worldid, pid]
-    w_GP = wp.spatial_top(V_GP)
-    v_GP = wp.spatial_bottom(V_GP)
+        # Calculate this mobilizer's incremental contribution to the coriolis acceleration
+        VD_PB_G = body_VD_PB_G_in[worldid, bodyid]
+        A = wp.spatial_vector(
+            wp.spatial_top(VD_PB_G),
+            wp.spatial_bottom(VD_PB_G) + wp.cross(w_GP, v_GB - v_GP)
+        )
+        mob_coriolis_acc_out[worldid, bodyid] = A
 
-    # Calculate this mobilizer's incremental contribution to the coriolis acceleration
-    VD_PB_G = body_VD_PB_G_in[worldid, bodyid]
-    A = wp.spatial_vector(
-        wp.spatial_top(VD_PB_G),
-        wp.spatial_bottom(VD_PB_G) + wp.cross(w_GP, v_GB - v_GP)
-    )
-    mob_coriolis_acc_out[worldid, bodyid] = A
-
-    # Next, the total coriolis acceleration a of body B is the total coriolis acceleration
-    # of parent shifted outward, plus B's local contribution A
-    parentA = body_total_coriolis_acc_in[worldid, pid]
-    phi = mob_phi_in[worldid, bodyid]
-    a = math.multiply_phi_transpose(phi, parentA) + A
-    body_total_coriolis_acc_out[worldid, bodyid] = a
+        # Next, the total coriolis acceleration a of body B is the total coriolis acceleration
+        # of parent shifted outward, plus B's local contribution A
+        parentA = body_total_coriolis_acc_out[worldid, pid]
+        phi = mob_phi_in[worldid, bodyid]
+        a = math.multiply_phi_transpose(phi, parentA) + A
+        body_total_coriolis_acc_out[worldid, bodyid] = a
     return
 
 
@@ -442,18 +441,16 @@ def compute_body_velocities(m: Model, d: Data):
     )
 
     # Body velocity in ground frame: requires forward pass
-    for i in range(1, len(m.body_tree)):
-        body_tree = m.body_tree[i]
-        launch(
-            _compute_body_velocities_in_ground,
-            dim=(d.nworld, body_tree.size),
-            inputs=[
-                m.body_parentid,
-                d.integration_done, d.mob_phi, d.body_V_GB, d.body_V_PB_G,
-                body_tree,
-            ],
-            outputs=[d.body_V_GB],
-        )
+    launch(
+        _compute_body_velocities_in_ground,
+        dim=d.nworld,
+        inputs=[
+            m.body_parentid,
+            d.integration_done, d.mob_phi, d.body_V_PB_G,
+            m.nbody,
+        ],
+        outputs=[d.body_V_GB],
+    )
 
 
 @event_scope
@@ -485,18 +482,16 @@ def joint_independent_kinematics_vel(m: Model, d: Data):
     )
 
     # Coriolis acceleration, requires forward pass
-    for i in range(1, len(m.body_tree)):
-        body_tree = m.body_tree[i]
-        launch(
-            _coriolis_acceleration,
-            dim=(d.nworld, body_tree.size),
-            inputs=[
-                m.body_parentid,
-                d.integration_done, d.mob_phi, d.body_V_GB, d.body_VD_PB_G, d.body_total_coriolis_acc,
-                body_tree
-            ],
-            outputs=[d.mob_coriolis_acc, d.body_total_coriolis_acc],
-        )
+    launch(
+        _coriolis_acceleration,
+        dim=d.nworld,
+        inputs=[
+            m.body_parentid,
+            d.integration_done, d.mob_phi, d.body_V_GB, d.body_VD_PB_G,
+            m.nbody,
+        ],
+        outputs=[d.mob_coriolis_acc, d.body_total_coriolis_acc],
+    )
 
     # Total of the rotational velocity-dependent forces acting on this body
     launch(

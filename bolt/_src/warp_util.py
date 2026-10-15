@@ -26,6 +26,9 @@ _STACK = None
 _MIN_BLOCKS_PER_SM = 2
 _MIN_BLOCK_DIM, _MAX_BLOCK_DIM = 32, 256
 
+# When trees have greater bodies than this amount at a single level, parallelize the tree pass per level
+_TREE_PASS_PER_WORLD_MAX_WIDTH = 2
+
 
 def block_dim_for(nthreads: int, device: wp.Device) -> int:
     """
@@ -36,6 +39,14 @@ def block_dim_for(nthreads: int, device: wp.Device) -> int:
     if per_block < _MIN_BLOCK_DIM:
         return _MIN_BLOCK_DIM
     return min(_MAX_BLOCK_DIM, 1 << int(math.log2(per_block)))
+
+
+def tree_pass_per_world(body_tree: tuple[wp.array, ...]) -> bool:
+    """
+    Whether heavy tree passes (articulated inertia, udot) run as one thread per world walking the whole tree,
+        instead of one launch per tree level
+    """
+    return max(level.size for level in body_tree) <= _TREE_PASS_PER_WORLD_MAX_WIDTH
 
 
 def launch(kernel, dim, *args, **kwargs):

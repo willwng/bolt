@@ -47,9 +47,17 @@ def _calc_mobilizer_X_FM(
 
 
 @wp.kernel
-def _body_transforms_ground(
+def _body_transforms(
+        # Model:
+        body_parentid: wp.array(dtype=int),
+        mob_type: wp.array(dtype=int),
+        mob_X_PF: wp.array(dtype=wp.transform),
+        mob_X_MB: wp.array(dtype=wp.transform),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
+        mob_X_FM_in: wp.array2d(dtype=wp.transform),
+        # In:
+        nbody: int,
         # Data out:
         mob_X_PB_out: wp.array2d(dtype=wp.transform),
         mob_X_GB_out: wp.array2d(dtype=wp.transform),
@@ -60,43 +68,22 @@ def _body_transforms_ground(
     mob_X_PB_out[worldid, 0] = wp.transform_identity()
     mob_X_GB_out[worldid, 0] = wp.transform_identity()
 
+    # Forward pass. Body ids are in tree level order, so a parent is always done before its children
+    for bodyid in range(1, nbody):
+        pid = body_parentid[bodyid]
 
-@wp.kernel
-def _body_transforms_level(
-        # Model:
-        body_parentid: wp.array(dtype=int),
-        mob_type: wp.array(dtype=int),
-        mob_X_PF: wp.array(dtype=wp.transform),
-        mob_X_MB: wp.array(dtype=wp.transform),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        mob_X_FM_in: wp.array2d(dtype=wp.transform),
-        mob_X_GB_in: wp.array2d(dtype=wp.transform),
-        # In:
-        body_tree_: wp.array(dtype=int),
-        # Data out:
-        mob_X_PB_out: wp.array2d(dtype=wp.transform),
-        mob_X_GB_out: wp.array2d(dtype=wp.transform),
-):
-    worldid, nodeid = wp.tid()
-    if integration_done_in[worldid]:
-        return
+        X_MB = mob_X_MB[bodyid]  # Transform from mobilizer frame M to body frame B
+        X_PF = mob_X_PF[bodyid]  # Transform from parent frame P to mobilizer fixed frame F
+        X_FM = mob_X_FM_in[worldid, bodyid]  # just calculated
+        X_GP = mob_X_GB_out[worldid, pid]  # already calculated
+        if pid == 0 and mob_type[bodyid] == MobilizerType.FREE:
+            X_PF = wp.transform_identity()
 
-    bodyid = body_tree_[nodeid]
-    pid = body_parentid[bodyid]
+        X_PB = X_PF * X_FM * X_MB
+        X_GB = X_GP * X_PB
 
-    X_MB = mob_X_MB[bodyid]  # Transform from mobilizer frame M to body frame B
-    X_PF = mob_X_PF[bodyid]  # Transform from parent frame P to mobilizer fixed frame F
-    X_FM = mob_X_FM_in[worldid, bodyid]  # just calculated
-    X_GP = mob_X_GB_in[worldid, pid]  # already calculated
-    if pid == 0 and mob_type[bodyid] == MobilizerType.FREE:
-        X_PF = wp.transform_identity()
-
-    X_PB = X_PF * X_FM * X_MB
-    X_GB = X_GP * X_PB
-
-    mob_X_PB_out[worldid, bodyid] = X_PB
-    mob_X_GB_out[worldid, bodyid] = X_GB
+        mob_X_PB_out[worldid, bodyid] = X_PB
+        mob_X_GB_out[worldid, bodyid] = X_GB
     return
 
 
@@ -363,63 +350,36 @@ def _beam_visuals(
 
 
 @wp.kernel
-def _subtree_com_init(
+def _subtree_com(
         # Model:
         body_mass: wp.array(dtype=float),
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        body_COM_G_in: wp.array2d(dtype=wp.vec3),
-        # Data out:
-        subtree_com_out: wp.array2d(dtype=wp.vec3),
-        subtree_mass_out: wp.array2d(dtype=float),
-):
-    worldid, bodyid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-    subtree_com_out[worldid, bodyid] = body_COM_G_in[worldid, bodyid] * body_mass[bodyid]
-    subtree_mass_out[worldid, bodyid] = body_mass[bodyid]
-
-
-@wp.kernel
-def _subtree_com_acc(
-        # Model:
         body_parentid: wp.array(dtype=int),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        subtree_com_in: wp.array2d(dtype=wp.vec3),
+        body_COM_G_in: wp.array2d(dtype=wp.vec3),
         # In:
-        body_tree_: wp.array(dtype=int),
+        nbody: int,
         # Data out:
         subtree_com_out: wp.array2d(dtype=wp.vec3),
         subtree_mass_out: wp.array2d(dtype=float),
 ):
-    worldid, nodeid = wp.tid()
+    worldid = wp.tid()
     if integration_done_in[worldid]:
         return
+    for bodyid in range(nbody):
+        subtree_com_out[worldid, bodyid] = body_COM_G_in[worldid, bodyid] * body_mass[bodyid]
+        subtree_mass_out[worldid, bodyid] = body_mass[bodyid]
 
-    bodyid = body_tree_[nodeid]
-    pid = body_parentid[bodyid]
-    wp.atomic_add(subtree_com_out, worldid, pid, subtree_com_in[worldid, bodyid])
-    wp.atomic_add(subtree_mass_out, worldid, pid, subtree_mass_out[worldid, bodyid])
+    # Backward pass (children have larger ids than their parents). Ground is its own parent
+    for bodyid in range(nbody - 1, -1, -1):
+        pid = body_parentid[bodyid]
+        subtree_com_out[worldid, pid] = subtree_com_out[worldid, pid] + subtree_com_out[worldid, bodyid]
+        subtree_mass_out[worldid, pid] = subtree_mass_out[worldid, pid] + subtree_mass_out[worldid, bodyid]
 
-
-@wp.kernel
-def _subtree_div(
-        # Data in:
-        integration_done_in: wp.array(dtype=bool),
-        subtree_com_in: wp.array2d(dtype=wp.vec3),
-        subtree_mass_in: wp.array2d(dtype=float),
-        # Data out:
-        subtree_com_out: wp.array2d(dtype=wp.vec3),
-):
-    worldid, bodyid = wp.tid()
-    if integration_done_in[worldid]:
-        return
-    com = subtree_com_in[worldid, bodyid]
-    mass = subtree_mass_in[worldid, bodyid]
-    if mass != 0.0:
-        subtree_com_out[worldid, bodyid] = com / mass
-
+    for bodyid in range(nbody):
+        mass = subtree_mass_out[worldid, bodyid]
+        if mass != 0.0:
+            subtree_com_out[worldid, bodyid] = subtree_com_out[worldid, bodyid] / mass
 
 
 @event_scope
@@ -438,27 +398,16 @@ def calc_mobilizer_X_FM(m: Model, d: Data):
 @event_scope
 def calc_body_transforms(m: Model, d: Data):
     """ Computes world-space transformations for all bodies """
-    # World body
     launch(
-        _body_transforms_ground,
-        dim=(d.nworld),
-        inputs=[d.integration_done],
-        outputs=[d.mob_X_PB, d.mob_X_GB]
+        _body_transforms,
+        dim=d.nworld,
+        inputs=[
+            m.body_parentid, m.mob_type, m.mob_X_PF, m.mob_X_MB,
+            d.integration_done, d.mob_X_FM,
+            m.nbody,
+        ],
+        outputs=[d.mob_X_PB, d.mob_X_GB],
     )
-
-    # Forward pass, parallelize over bodies within a tree level
-    for i in range(1, len(m.body_tree)):
-        body_tree = m.body_tree[i]
-        launch(
-            _body_transforms_level,
-            dim=(d.nworld, body_tree.size),
-            inputs=[
-                m.body_parentid, m.mob_type, m.mob_X_PF, m.mob_X_MB,
-                d.integration_done, d.mob_X_FM, d.mob_X_GB,
-                body_tree,
-            ],
-            outputs=[d.mob_X_PB, d.mob_X_GB],
-        )
 
 
 @event_scope
@@ -547,24 +496,8 @@ def attachment_kinematics(m: Model, d: Data):
 def com_pos(m: Model, d: Data):
     """ Computes subtree center of mass positions. """
     launch(
-        _subtree_com_init,
-        dim=(d.nworld, m.nbody),
-        inputs=[m.body_mass, d.integration_done, d.body_COM_G],
+        _subtree_com,
+        dim=d.nworld,
+        inputs=[m.body_mass, m.body_parentid, d.integration_done, d.body_COM_G, m.nbody],
         outputs=[d.subtree_com, d.subtree_mass],
-    )
-
-    for i in reversed(range(len(m.body_tree))):
-        body_tree = m.body_tree[i]
-        launch(
-            _subtree_com_acc,
-            dim=(d.nworld, body_tree.size),
-            inputs=[m.body_parentid, d.integration_done, d.subtree_com, body_tree],
-            outputs=[d.subtree_com, d.subtree_mass],
-        )
-
-    launch(
-        _subtree_div,
-        dim=(d.nworld, m.nbody),
-        inputs=[d.integration_done, d.subtree_com, d.subtree_mass],
-        outputs=[d.subtree_com]
     )
