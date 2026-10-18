@@ -10968,6 +10968,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -10993,6 +10999,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11018,6 +11030,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11043,6 +11061,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11068,6 +11092,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11093,6 +11123,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11118,6 +11154,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11143,6 +11185,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11168,6 +11216,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11193,6 +11247,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11218,6 +11278,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11243,6 +11309,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11268,6 +11340,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11293,6 +11371,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11318,6 +11402,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11343,6 +11433,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11368,6 +11464,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11393,6 +11495,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11418,6 +11526,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11443,6 +11557,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11468,6 +11588,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11493,6 +11619,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11518,6 +11650,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11543,6 +11681,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11568,6 +11712,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11593,6 +11743,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11618,6 +11774,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11643,6 +11805,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11668,6 +11836,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11693,6 +11867,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11718,6 +11898,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11743,6 +11929,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11768,6 +11960,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11793,6 +11991,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11818,6 +12022,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11843,6 +12053,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11868,6 +12084,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11893,6 +12115,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11918,6 +12146,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11943,6 +12177,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11968,6 +12208,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->
@@ -11993,6 +12239,12 @@
                     <initial_mu_static>0.69999999999999996</initial_mu_static>
                     <!--Initial value of the kinetic coefficient of friction.-->
                     <initial_mu_kinetic>0.5</initial_mu_kinetic>
+                    <!--Use the continuous-time friction model (elasto-plastic spring stretch) instead of the per-step anchor update.-->
+                    <continuous_friction>true</continuous_friction>
+                    <!--(Continuous friction) Time constant of the sliding factor following the slip speed (0.01 s).-->
+                    <sliding_time_constant>0.01</sliding_time_constant>
+                    <!--(Continuous friction) Fraction of the saturated friction stretch below which the anchor never slides.-->
+                    <breakaway_fraction>0.8</breakaway_fraction>
                     <!--The station at which the contact force is applied.-->
                     <Station name="station">
                         <!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame to which this station is fixed.).-->

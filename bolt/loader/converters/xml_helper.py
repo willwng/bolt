@@ -23,3 +23,13 @@ def extract_float_from_element(element: ET.Element, field_name: str) -> float:
     return float(extract_string_from_element(element, field_name))
 
 
+def extract_optional_float_from_element(element: ET.Element, field_name: str, default: float) -> float:
+    field = element.find(field_name)
+    return default if field is None else float(field.text)
+
+
+def extract_optional_bool_from_element(element: ET.Element, field_name: str, default: bool) -> bool:
+    field = element.find(field_name)
+    return default if field is None else field.text.strip().lower() in ("true", "1")
+
+

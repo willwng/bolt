@@ -5,6 +5,7 @@ from bolt.loader.converters.converted_objects import StatefulContactForce, SiteD
 from bolt.loader.converters.osim_types import OSimType
 from bolt.loader.converters.physical_frame_helper import wp_transform_from_osim_transform
 from bolt.loader.converters.xml_helper import extract_bolt_only_objects, extract_float_from_element
+from bolt.loader.converters.xml_helper import extract_optional_bool_from_element, extract_optional_float_from_element
 from bolt.types import StatefulContact
 
 
@@ -66,6 +67,10 @@ def convert_stateful_contacts(
                 initial_mu_kinetic=exp_contact_force.getInitialMuKinetic(),
                 station=station,
                 margin=0.0,
+                # ExponentialContactForce uses the per-step anchor update; the continuous parameters are unused
+                continuous_friction=False,
+                sliding_time_constant=0.0,
+                breakaway_fraction=0.0,
             )
         )
 
@@ -93,6 +98,9 @@ def convert_stateful_contacts(
                     initial_mu_kinetic=extract_float_from_element(obj, "initial_mu_kinetic"),
                     station=station,
                     margin=radius,
+                    continuous_friction=extract_optional_bool_from_element(obj, "continuous_friction", False),
+                    sliding_time_constant=extract_optional_float_from_element(obj, "sliding_time_constant", 0.01),
+                    breakaway_fraction=extract_optional_float_from_element(obj, "breakaway_fraction", 0.8),
                 )
             )
 
@@ -124,6 +132,9 @@ def create_stateful_contact_data(
         contact.initial_mu_kinetic = data.initial_mu_kinetic
         contact.margin = data.margin
         contact.use_exp_force = data.use_exp_force
+        contact.continuous_friction = data.continuous_friction
+        contact.sliding_time_constant = data.sliding_time_constant
+        contact.breakaway_fraction = data.breakaway_fraction
 
         contact.siteid = site_start_stl + i
         contact.bodyid = body_ordering[data.station.body_name]

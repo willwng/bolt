@@ -159,7 +159,7 @@ def _next_stl_contact_state(
         stl_contact: wp.array(dtype=StatefulContact),
         # Data in:
         integration_done_in: wp.array(dtype=bool),
-        stl_contact_state_dot_in: wp.array2d(dtype=wp.vec3),
+        stl_contact_state_dot_in: wp.array2d(dtype=wp.vec4),
         actual_step_size_in: wp.array(dtype=float),
         # In:
         scale: float,
@@ -170,8 +170,22 @@ def _next_stl_contact_state(
     if integration_done_in[worldid]:
         return
     step_size = actual_step_size_in[worldid] * scale
-
     contact = stl_contact[conid]
+
+    if contact.continuous_friction:
+        # State holds (K, z), state_dot holds (K target, dz/dt, largest stretch). K follows its target exactly
+        # (stable for any step); z takes an Euler step and stays inside the friction cone
+        state = stl_contact_state_out[worldid, conid]
+        state_dot = stl_contact_state_dot_in[worldid, conid]
+        K = state[0] + (state_dot[0] - state[0]) * (1.0 - wp.exp(-step_size / contact.sliding_time_constant))
+        z = wp.vec2(state[1], state[2]) + step_size * wp.vec2(state_dot[1], state_dot[2])
+        z_max = state_dot[3]
+        z_len = wp.length(z)
+        if z_len > z_max:  # z_max >= 0, so z_len > 0 here
+            z = z * (z_max / z_len)
+        stl_contact_state_out[worldid, conid] = wp.vec3(K, z.x, z.y)
+        return
+
     settle_velocity = contact.settle_velocity
 
     # State_dot holds wp.length(p0_delta), p0.x, p0.y
@@ -179,12 +193,13 @@ def _next_stl_contact_state(
     p0_delta_length = state_dot[0]
     p0 = wp.vec2(state_dot[1], state_dot[2])
 
-    # Compute new sliding state (K)
-    K = 1.0
-    if p0_delta_length > 0.0 and step_size > BOLT_SIG_REAL:
+    # Compute new sliding state (K) from the anchor's speed. An anchor that didn't move is sticking (K = 0)
+    if step_size > BOLT_SIG_REAL:
         speed = p0_delta_length / step_size
         speed_frac = speed / settle_velocity
         K = math.step_up(wp.clamp(speed_frac, 0.0, 1.0))
+    else:  # no time passed, so no speed to go by: keep the previous sliding state
+        K = stl_contact_state_out[worldid, conid][0]
 
     # Update state
     stl_contact_state_out[worldid, conid] = wp.vec3(K, p0.x, p0.y)

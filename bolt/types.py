@@ -197,6 +197,11 @@ class StatefulContact:
     margin: float
     use_exp_force: bool
 
+    # Continuous-time friction model
+    continuous_friction: bool
+    sliding_time_constant: float  # time constant (s) of the sliding factor K
+    breakaway_fraction: float  # fraction of the saturated stretch below which the anchor never slides
+
     siteid: int
     bodyid: int
     station_B: wp.vec3
@@ -299,7 +304,6 @@ class Option:
     integrator: IntegratorType
 
     use_linear_stop: bool
-
 
     # Variable-step integration options
     safety: float
@@ -771,7 +775,7 @@ class IntegratorDotScratch:
     m_state_dot: array("nworld", "nmuscle", float)
     m_act_dot: array("nworld", "nmuscle", float)
     a_act_dot: array("nworld", "nactuator", float)
-    stl_contact_state_dot: array("nworld", "nstlcontact", wp.vec3)
+    stl_contact_state_dot: array("nworld", "nstlcontact", wp.vec4)
 
 
 @dataclass
@@ -805,7 +809,7 @@ class Data:
       m_state_dot: time-derivative of muscle state variable       (nworld, nmuscles)
       m_act_dot: time-derivative of muscle activation             (nworld, nmuscle)
       a_act_dot: time-derivative of actuator activation           (nworld, nactuator)
-      stl_contact_state_dot: derivative info of contact state     (nworld, nstlcontact, 3)
+      stl_contact_state_dot: derivative info of contact state     (nworld, nstlcontact, 4)
 
      * simulator forces
         body_F_ are Cartesian forces applied to bodies.
@@ -950,7 +954,7 @@ class Data:
     m_state_dot: array("nworld", "nmuscle", float)
     m_act_dot: array("nworld", "nmuscle", float)
     a_act_dot: array("nworld", "nactuator", float)
-    stl_contact_state_dot: array("nworld", "nstlcontact", wp.vec3)
+    stl_contact_state_dot: array("nworld", "nstlcontact", wp.vec4)
 
     body_F_gravity: array("nworld", "nbody", wp.spatial_vector)
     body_F_contact: array("nworld", "nbody", wp.spatial_vector)

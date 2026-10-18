@@ -215,8 +215,13 @@ class StatefulContactForce:
     station: SiteData
 
     # Radius of the sphere used for sphere-vs-plane contact
-    # margin=0 recovers the original point-vs-plane behavior.
+    # margin=0 recovers the original point-vs-plane behavior
     margin: float
+
+    # Continuous-time friction (StatefulHalfspaceContact only)
+    continuous_friction: bool
+    sliding_time_constant: float  # s
+    breakaway_fraction: float
 
 
 @dataclass

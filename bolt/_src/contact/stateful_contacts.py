@@ -27,7 +27,9 @@ def _reset_stl_contact_state(
     if integration_done_in[worldid]:
         return
 
-    if world_reset_in[worldid]:
+    if world_reset_in[worldid] and stl_contact[conid].continuous_friction:
+        stl_contact_state_out[worldid, conid] = wp.vec3(0.0)  # sticking (K = 0), unstretched (z = 0)
+    elif world_reset_in[worldid]:
         contact = stl_contact[conid]
         siteid = contact.siteid
         X_GP = contact.contact_plane_transform
@@ -107,6 +109,42 @@ def compute_friction(
     return fric_P, p0
 
 
+@wp.func
+def compute_continuous_friction(
+        z: wp.vec2,
+        vxy: wp.vec2,
+        fz: float,
+        K: float,
+        mus: float,
+        muk: float,
+        kp_fric: float,
+        kv_fric: float,
+        settle_velocity: float,
+        breakaway_fraction: float,
+) -> tuple[wp.vec2, wp.vec4]:
+    """
+    Continuous-time friction: an elasto-plastic spring stretch z (the anchor only slides once the stretch nears
+    saturation, and never while unloading) and a sliding factor K driven by the slip speed. Returns the friction
+    force and the state derivative info (K target, dz/dt, largest stretch)
+    """
+    g = (mus - K * (mus - muk)) * fz  # friction limit
+    if g < BOLT_SIG_REAL:  # no contact: no friction, and the stretch is clamped to zero
+        return wp.vec2(0.0), wp.vec4(K, 0.0, 0.0, 0.0)
+    z_max = g / kp_fric
+    alpha = 0.0
+    if wp.dot(z, vxy) > 0.0:
+        alpha = math.step_up(wp.clamp(
+            (wp.length(z) - breakaway_fraction * z_max) / ((1.0 - breakaway_fraction) * z_max), 0.0, 1.0))
+    slip = alpha * (kp_fric * wp.length(vxy) / g) * z  # anchor velocity
+    zdot = vxy - slip
+    fric_P = -(kp_fric * z + kv_fric * zdot)
+    fric_len = wp.length(fric_P)
+    if fric_len > g:
+        fric_P = fric_P * (g / fric_len)
+    K_target = math.step_up(wp.clamp(wp.length(slip) / settle_velocity, 0.0, 1.0))
+    return fric_P, wp.vec4(K_target, zdot.x, zdot.y, z_max)
+
+
 @wp.kernel
 def _process_contacts(
         # Model:
@@ -118,7 +156,7 @@ def _process_contacts(
         mob_X_GB_in: wp.array2d(dtype=wp.transform),
         stl_contact_state_in: wp.array2d(dtype=wp.vec3),
         # Data out:
-        stl_contact_state_dot_out: wp.array2d(dtype=wp.vec3),
+        stl_contact_state_dot_out: wp.array2d(dtype=wp.vec4),
         body_F_contact_out: wp.array2d(dtype=wp.spatial_vector),
         grf_out: wp.array(dtype=wp.vec3)
 ):
@@ -176,6 +214,18 @@ def _process_contacts(
     K = state_in[0]
     p0 = wp.vec2(state_in[1], state_in[2])
 
+    if contact.continuous_friction:  # the state holds (K, spring stretch z) instead
+        fric_P, state_dot = compute_continuous_friction(
+            z=p0, vxy=vxy, fz=fz, K=K, mus=mus, muk=muk, kp_fric=kp_fric, kv_fric=kv_fric,
+            settle_velocity=contact.settle_velocity, breakaway_fraction=contact.breakaway_fraction,
+        )
+        stl_contact_state_dot_out[worldid, conid] = state_dot
+        f_G = wp.quat_rotate(R_GP, wp.vec3(fric_P.x, fric_P.y, fz))
+        X_GB = mob_X_GB_in[worldid, bodyid]
+        wp.atomic_add(body_F_contact_out[worldid], bodyid, math.apply_force_to_body_point(X_GB, station_B, f_G))
+        wp.atomic_add(grf_out, worldid, f_G)
+        return
+
     # --- Calculate friction force ---
     p0_last = p0
     # Compute max friction force based on the instantaneous mu
@@ -193,7 +243,7 @@ def _process_contacts(
             fxy_limit=fxy_limit, K=K,
             kp_fric=kp_fric, kv_fric=kv_fric,
         )
-    stl_contact_state_dot_out[worldid, conid] = wp.vec3(wp.length(p0 - p0_last), p0.x, p0.y)
+    stl_contact_state_dot_out[worldid, conid] = wp.vec4(wp.length(p0 - p0_last), p0.x, p0.y, 0.0)
 
     # --- Calculate Force ---
     f_P = wp.vec3(fric_P.x, fric_P.y, fz)
