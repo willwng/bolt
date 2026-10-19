@@ -6,6 +6,7 @@ from bolt.consts import BOLT_MINVAL
 from bolt.consts import INITIAL_STEP_SIZE
 from bolt.types import Data
 from bolt.types import Model
+from bolt.types import StepEstimator
 
 from .. import math
 from ..contact import collision_driver
@@ -509,7 +510,7 @@ def adjust_step_size(m: Model, d: Data, err_order: float):
             m.opt.hysteresis_high,
             m.opt.accuracy,
             err_order,
-            m.opt.pi_controller,
+            m.opt.step_estimator == StepEstimator.PI_CONTROL,
             m.opt.pi_alpha,
             m.opt.pi_beta,
         ],

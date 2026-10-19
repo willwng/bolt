@@ -27,6 +27,7 @@ __all__ = [
     "ActivationType",
     "ContractionType",
     "IntegratorType",
+    "StepEstimator",
     "Option",
     "ResidualResult",
     "MuscleMetadata",
@@ -254,6 +255,16 @@ class IntegratorType(enum.IntEnum):
     RK_MERSON_ADAPTIVE = 4
 
 
+class StepEstimator(enum.IntEnum):
+    """ Step size estimator for variable-step integration.
+    Attributes:
+        INTEGRAL_CONTROL: integral controller, h * (tol/err)^(1/order)
+        PI_CONTROL: PI controller, which also uses the error of the previous accepted step
+    """
+    INTEGRAL_CONTROL = 1
+    PI_CONTROL = 2
+
+
 @dataclass
 class Option:
     """
@@ -262,6 +273,7 @@ class Option:
       gravity: gravitational acceleration vector, in ground
       explicit_gravity: flag to compute gravity as an explicit force (or as fictitious acceleration)
       implicit_damping: flag to add h*damping to mass matrix for implicit damping
+      implicit_friction_damping: flag to add h*(linearized Hunt-Crossley friction damping) to the articulated inertias
       visuals: whether to handle visual geometry
       nbeam_visuals: number of beam visuals (for rendering beams joints)
 
@@ -279,7 +291,7 @@ class Option:
       max_step_size: (variable-step integration) maximum step size
       hysteresis_low: (variable-step integration) error hysteresis lower bound
       hysteresis_high: (variable-step integration) error hysteresis upper bound
-      pi_controller: (variable-step integration) use a PI step size controller instead of the integral-only one
+      step_estimator: (variable-step integration) step size estimator (StepEstimator)
       pi_alpha: (variable-step integration) PI controller gain on the current error, divided by the error order
       pi_beta: (variable-step integration) PI controller gain on the previous accepted error, divided by the error order
       accuracy: (variable-step integration) target accuracy
@@ -291,6 +303,7 @@ class Option:
     gravity: wp.vec3
     explicit_gravity: bool
     implicit_damping: bool
+    implicit_friction_damping: bool
     visuals: bool
     nbeam_visuals: int
 
@@ -309,7 +322,7 @@ class Option:
     max_step_size: float
     hysteresis_low: float
     hysteresis_high: float
-    pi_controller: bool
+    step_estimator: StepEstimator
     pi_alpha: float
     pi_beta: float
     accuracy: float
@@ -816,6 +829,7 @@ class Data:
       body_F_contact: contact Cartesian force/torque on body      (nworld, nbody, 6)
       body_F_muscle: muscle Cartesian force/torque on body        (nworld, nbody, 6)
       body_F: net Cartesian force/torque on body                  (nworld, nbody, 6)
+      body_C_contact: Hunt-Crossley friction damping body matrix  (nworld, nbody, 6, 6)
       qfrc_muscle: muscle generalized force in qpos space         (nworld, nq)
       ufrc_spring: passive spring force                           (nworld, nv)
       ufrc_damper: passive damper force                           (nworld, nv)
@@ -956,6 +970,7 @@ class Data:
     body_F_contact: array("nworld", "nbody", wp.spatial_vector)
     body_F_muscle: array("nworld", "nbody", wp.spatial_vector)
     body_F: array("nworld", "nbody", wp.spatial_vector)
+    body_C_contact: array("nworld", "nbody", wp.spatial_matrix)
 
     qfrc_muscle: array("nworld", "nq", float)
 

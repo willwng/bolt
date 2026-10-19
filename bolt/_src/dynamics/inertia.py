@@ -18,6 +18,11 @@ def _initialize_articulated_inertia(
         # Data in:
         integration_done_in: wp.array(dtype=bool),
         body_Mk_G_in: wp.array2d(dtype=SpatialInertia),
+        body_C_contact_in: wp.array2d(dtype=wp.spatial_matrix),
+        actual_step_size_in: wp.array(dtype=float),
+        # In:
+        implicit_friction_damping: bool,
+        implicit_step_scale: float,
         # Data out:
         body_P_out: wp.array2d(dtype=ArticulatedInertia),
 ):
@@ -27,6 +32,12 @@ def _initialize_articulated_inertia(
 
     Mk_G = body_Mk_G_in[worldid, bodyid]
     P = math.spatial_inertia_to_articulated_inertia(Mk_G)
+
+    # Implicit contact damping: M + h C
+    if implicit_friction_damping:
+        J, F, _, M = math.extract_33_blocks(
+            actual_step_size_in[worldid] * implicit_step_scale * body_C_contact_in[worldid, bodyid])
+        P = math.articulated_inertia_add(P, ArticulatedInertia(M, J, F))
     body_P_out[worldid, bodyid] = P
     return
 
@@ -49,6 +60,7 @@ def _articulated_inertia_body(
         actual_step_size_in: wp.array(dtype=float),
         # In:
         implicit_damping: bool,
+        implicit_step_scale: float,
         # Data out:
         body_P_out: wp.array2d(dtype=ArticulatedInertia),
         mob_G_out: wp.array2d(dtype=wp.spatial_vector),
@@ -86,9 +98,12 @@ def _articulated_inertia_body(
     # D = ~H @ P @ H
     D = wp.transpose(H) @ PH
 
-    # Add armature here, so that M = M + armature TODO(checkme does this make sense?)
+    # Add armature here, so that M = M + armature
     for i in range(dofnum):
         D[i, i] += dof_armature[dofadr + i]
+        # Implicit damping adds h * damping the same way
+        if implicit_damping:
+            D[i, i] += (actual_step_size_in[worldid] * implicit_step_scale) * dof_damping[dofadr + i]
 
     # DI = D^{-1}, G = P @ H @ D^{-1}
     DI = math.invert_upper_left(D, dofnum)
@@ -99,14 +114,6 @@ def _articulated_inertia_body(
     PPlus = math.articulated_inertia_sub(P, ArticulatedInertia(mass, inertia, mass_moment))
     PPlus = math.symmetrize_articulated_inertia(PPlus)
     body_PPlus_out[worldid, bodyid] = PPlus
-
-    # Implicit damping: modify "M^{-1}" to be (M + h * D)^{-1}, but do not modify M itself
-    if implicit_damping:
-        h = actual_step_size_in[worldid]
-        for i in range(dofnum):
-            D[i, i] += h * dof_damping[dofadr + i]
-        DI = math.invert_upper_left(D, dofnum)
-        G = PH @ DI
 
     # Need G and DI for computing accelerations. here we store col by col
     math.store_mat66(mob_G_out[worldid], G, dofadr, dofnum)
@@ -131,6 +138,7 @@ def _articulated_inertia_tree(
         # In:
         nbody: int,
         implicit_damping: bool,
+        implicit_step_scale: float,
         # Data out:
         body_P_out: wp.array2d(dtype=ArticulatedInertia),
         mob_G_out: wp.array2d(dtype=wp.spatial_vector),
@@ -145,7 +153,7 @@ def _articulated_inertia_tree(
         _articulated_inertia_body(
             worldid, bodyid,
             body_children, body_children_num, body_children_adr, mob_dofnum, mob_dofadr, dof_damping, dof_armature,
-            mob_phi_in, mob_H_in, actual_step_size_in, implicit_damping,
+            mob_phi_in, mob_H_in, actual_step_size_in, implicit_damping, implicit_step_scale,
             body_P_out, mob_G_out, mob_DI_out, body_PPlus_out,
         )
 
@@ -168,6 +176,7 @@ def _articulated_inertia_level(
         # In:
         body_tree_: wp.array(dtype=int),
         implicit_damping: bool,
+        implicit_step_scale: float,
         # Data out:
         body_P_out: wp.array2d(dtype=ArticulatedInertia),
         mob_G_out: wp.array2d(dtype=wp.spatial_vector),
@@ -180,7 +189,7 @@ def _articulated_inertia_level(
     _articulated_inertia_body(
         worldid, body_tree_[nodeid],
         body_children, body_children_num, body_children_adr, mob_dofnum, mob_dofadr, dof_damping, dof_armature,
-        mob_phi_in, mob_H_in, actual_step_size_in, implicit_damping,
+        mob_phi_in, mob_H_in, actual_step_size_in, implicit_damping, implicit_step_scale,
         body_P_out, mob_G_out, mob_DI_out, body_PPlus_out,
     )
 
@@ -208,19 +217,26 @@ def _articulated_body_velocity(
 
 
 @event_scope
-def initialize_articulated_body_inertia(m: Model, d: Data):
-    """ Initialize articulated inertia based on body's own spatial inertia """
+def initialize_articulated_body_inertia(m: Model, d: Data, implicit_step_scale: float = 1.0):
+    """
+    Initialize articulated inertia based on body's own spatial inertia.
+    With implicit contact damping, adds the contact damping term
+    """
     launch(
         _initialize_articulated_inertia,
         dim=(d.nworld, m.nbody),
-        inputs=[d.integration_done, d.body_Mk_G, ],
+        inputs=[d.integration_done, d.body_Mk_G, d.body_C_contact, d.actual_step_size,
+                m.opt.implicit_friction_damping, implicit_step_scale],
         outputs=[d.body_P],
     )
 
 
 @event_scope
-def accumulate_articulated_body_inertia(m: Model, d: Data):
-    """ Accumulate articulated inertia from children to parent. Also stores G and DI """
+def accumulate_articulated_body_inertia(m: Model, d: Data, implicit_step_scale: float = 1.0):
+    """
+    Accumulate articulated inertia from children to parent. Also stores G and DI. With implicit damping, the joint
+    damping is added for a step of implicit_step_scale * the actual step size
+    """
     inputs = [
         m.body_children, m.body_children_num, m.body_children_adr,
         m.mob_dofnum, m.mob_dofadr, m.dof_damping, m.dof_armature,
@@ -232,7 +248,7 @@ def accumulate_articulated_body_inertia(m: Model, d: Data):
         launch(
             _articulated_inertia_tree,
             dim=d.nworld,
-            inputs=inputs + [m.nbody, m.opt.implicit_damping],
+            inputs=inputs + [m.nbody, m.opt.implicit_damping, implicit_step_scale],
             outputs=outputs
         )
     else:  # backward pass, parallel over the bodies of each tree level
@@ -241,7 +257,7 @@ def accumulate_articulated_body_inertia(m: Model, d: Data):
             launch(
                 _articulated_inertia_level,
                 dim=(d.nworld, body_tree.size),
-                inputs=inputs + [body_tree, m.opt.implicit_damping],
+                inputs=inputs + [body_tree, m.opt.implicit_damping, implicit_step_scale],
                 outputs=outputs
             )
 

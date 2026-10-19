@@ -32,8 +32,10 @@ def _process_contacts_hc(
         pos_in: wp.array(dtype=wp.vec3),
         frame_in: wp.array(dtype=wp.mat33),
         friction_in: wp.array(dtype=vec5),
+        implicit_friction_damping: bool,
         # Data out:
         body_F_contact_out: wp.array2d(dtype=wp.spatial_vector),
+        body_C_contact_out: wp.array2d(dtype=wp.spatial_matrix),
         grf_out: wp.array(dtype=wp.vec3),
         geom_cforce_out: wp.array2d(dtype=float),
         body_self_cforce_out: wp.array2d(dtype=float),
@@ -95,11 +97,35 @@ def _process_contacts_hc(
 
     # Friction force
     v_slip = wp.length(v_t)
+    f_friction = float(0.0)
     if v_slip > BOLT_MINVAL:
         v_rel = v_slip / transition_velocity
         f_friction = f * (wp.min(v_rel, 1.0) * (ud + 2.0 * (us - ud) / (1.0 + v_rel * v_rel)) + uv * v_slip)
 
         force += f_friction * v_t / v_slip
+
+    # Implicit friction damping, for contacts with ground
+    if implicit_friction_damping and (body1 == 0) != (body2 == 0):
+        T = wp.identity(3, dtype=float) - wp.outer(normal, normal)
+        C = f * ((ud + 2.0 * (us - ud)) / transition_velocity + uv) * T  # the slope at zero slip, in all directions
+        if v_slip > BOLT_MINVAL:
+            vr = v_slip / transition_velocity
+            q = 1.0 / (1.0 + vr * vr)
+            slope = f * uv
+            if vr < 1.0:
+                slope += f / transition_velocity * (ud + 2.0 * (us - ud) * q * (1.0 - 2.0 * vr * vr * q))
+            else:
+                slope -= f / transition_velocity * 4.0 * (us - ud) * vr * q * q
+            t_hat = v_t / v_slip
+            along = wp.outer(t_hat, t_hat)
+            C = wp.max(slope, 0.0) * along + (f_friction / v_slip) * (T - along)
+        moving = body1
+        X_GB = X_GB_1
+        if body1 == 0:
+            moving = body2
+            X_GB = X_GB_2
+        r = location - wp.transform_get_translation(X_GB)
+        wp.atomic_add(body_C_contact_out[worldid], moving, math.point_damper_matrix(r, C))
 
     # Apply forces to bodies
     wp.atomic_add(body_F_contact_out[worldid], body1,
@@ -135,10 +161,10 @@ def contact_forces_hc(m: Model, d: Data):
             m.geom_bodyid,
             d.integration_done, d.mob_X_GB, d.body_V_GB, d.nacon, d.contact.dist, d.contact.curvature,
             d.contact.stiffness, d.contact.dissipation, d.contact.transition_velocity, d.contact.worldid,
-            d.contact.geom, d.contact.pos, d.contact.frame, d.contact.friction,
+            d.contact.geom, d.contact.pos, d.contact.frame, d.contact.friction, m.opt.implicit_friction_damping,
         ],
         outputs=[
-            d.body_F_contact, d.grf, d.geom_cforce, d.body_self_cforce, d.geom_self_cforce
+            d.body_F_contact, d.body_C_contact, d.grf, d.geom_cforce, d.body_self_cforce, d.geom_self_cforce
         ],
     )
     return

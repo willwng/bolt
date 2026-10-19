@@ -249,6 +249,8 @@ def reset_forces(m: Model, d: Data):
             d.grf, d.geom_cforce, d.geom_self_cforce, d.body_self_cforce,
         ],
     )
+    if m.opt.implicit_friction_damping:
+        d.body_C_contact.zero_()
 
 
 @event_scope

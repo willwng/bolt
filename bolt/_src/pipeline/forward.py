@@ -87,9 +87,9 @@ def realize_velocity(m: Model, d: Data):
 
 
 @event_scope
-def realize_articulated_body_inertia(m: Model, d: Data):
-    inertia.initialize_articulated_body_inertia(m, d)
-    inertia.accumulate_articulated_body_inertia(m, d)
+def realize_articulated_body_inertia(m: Model, d: Data, implicit_step_scale: float = 1.0):
+    inertia.initialize_articulated_body_inertia(m, d, implicit_step_scale)
+    inertia.accumulate_articulated_body_inertia(m, d, implicit_step_scale)
     inertia.articulated_body_velocity(m, d)
     return
 
@@ -157,15 +157,25 @@ def realize_forces(m: Model, d: Data):
 
 
 @event_scope
-def fwd(m: Model, d: Data):
+def fwd(m: Model, d: Data, implicit_step_scale: float = 1.0):
     """ Forward dynamics. No integration """
     reset_forces(m, d)
     realize_position(m, d, run_reset=False)
     realize_velocity(m, d)
-    realize_articulated_body_inertia(m, d)
     realize_muscles(m, d, run_reset=False)
     realize_actuators(m, d, run_reset=False)
-    realize_forces(m, d)
+    realize_forces(m, d)  # before the inertias, which take damping
+    realize_articulated_body_inertia(m, d, implicit_step_scale)
+    compute_accelerations(m, d)
+    return
+
+
+@event_scope
+def implicit_accelerations(m: Model, d: Data, implicit_step_scale: float):
+    """
+    Recomputes the accelerations for a step of implicit_step_scale * the actual step size
+    """
+    realize_articulated_body_inertia(m, d, implicit_step_scale)
     compute_accelerations(m, d)
     return
 
@@ -195,10 +205,10 @@ def reset(m: Model, d: Data):
     reset_forces(m, d)
     realize_position(m, d, run_reset=True)
     realize_velocity(m, d)
-    realize_articulated_body_inertia(m, d)
     realize_muscles(m, d, run_reset=True)
     realize_actuators(m, d, run_reset=True)
     realize_forces(m, d)
+    realize_articulated_body_inertia(m, d)
     compute_accelerations(m, d)
     reset_integrator(m, d)
     d.world_reset.zero_()

@@ -268,6 +268,27 @@ def invert_mat66(m: wp.spatial_matrix) -> wp.spatial_matrix:
 
 
 @wp.func
+def point_damper_matrix(r: wp.vec3, C: wp.mat33) -> wp.spatial_matrix:
+    """
+    Damping matrix, on the body's spatial velocity (w, v), of a damper C at the point r from the body origin:
+        the damper's force -C (v + w x r) acting at r is the spatial force -K (w, v) with
+        K = [[~rx C rx, rx C], [-C rx, C]]
+    """
+    rx = wp.skew(r)
+    TL = wp.transpose(rx) @ C @ rx
+    TR = rx @ C
+    BL = wp.transpose(TR)
+    return wp.spatial_matrix(
+        TL[0, 0], TL[0, 1], TL[0, 2], TR[0, 0], TR[0, 1], TR[0, 2],
+        TL[1, 0], TL[1, 1], TL[1, 2], TR[1, 0], TR[1, 1], TR[1, 2],
+        TL[2, 0], TL[2, 1], TL[2, 2], TR[2, 0], TR[2, 1], TR[2, 2],
+        BL[0, 0], BL[0, 1], BL[0, 2], C[0, 0], C[0, 1], C[0, 2],
+        BL[1, 0], BL[1, 1], BL[1, 2], C[1, 0], C[1, 1], C[1, 2],
+        BL[2, 0], BL[2, 1], BL[2, 2], C[2, 0], C[2, 1], C[2, 2],
+    )
+
+
+@wp.func
 def spatial_inertia_to_articulated_inertia(Mk_G: types.SpatialInertia) -> types.ArticulatedInertia:
     m, p, G = Mk_G.m, Mk_G.p, Mk_G.G
     return types.ArticulatedInertia(

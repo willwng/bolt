@@ -38,6 +38,7 @@ from bolt.types import MuscleMetadata
 from bolt.types import Option
 from bolt.types import PolyInts
 from bolt.types import StatefulContact
+from bolt.types import StepEstimator
 from bolt.types import SwingTwistLimit
 from bolt.types import TileBlockDim
 
@@ -346,6 +347,7 @@ def make_options(
         gravity=parsed.gravity,
         explicit_gravity=True,
         implicit_damping=False,
+        implicit_friction_damping=False,
         visuals=requires_visuals,
         nbeam_visuals=nbeam_visuals,
 
@@ -360,7 +362,7 @@ def make_options(
         max_grow=5.0,
         hysteresis_low=0.9,
         hysteresis_high=1.2,
-        pi_controller=True,
+        step_estimator=StepEstimator.PI_CONTROL,
         pi_alpha=0.7,
         pi_beta=0.4,
         min_step_size=1e-7,

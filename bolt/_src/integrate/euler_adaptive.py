@@ -22,14 +22,21 @@ def attempt_adaptive_step(m: Model, d: Data):
     # Save state y_0
     adaptive_common.save_state(m, d, 0)
 
+    # With implicit damping, accelerations depend on the step
+    implicit = m.opt.implicit_friction_damping or m.opt.implicit_damping
+    if implicit:
+        forward.implicit_accelerations(m, d, 1.0)
+
     # Big step using full current step size, store y_1
     common.advance(m, d, d.qacc, d.qvel, scale=1.0, time_scale=1.0)
     adaptive_common.save_state(m, d, 1)
 
     # Restore y_0 (note that y_0' is unmodified after restore). Take two half steps
     adaptive_common.restore_state(m, d, 0, only_on_reject=False)
+    if implicit:
+        forward.implicit_accelerations(m, d, 0.5)
     common.advance(m, d, d.qacc, d.qvel, 0.5, time_scale=0.5)
-    forward.fwd(m, d)  # realize for mid-point
+    forward.fwd(m, d, implicit_step_scale=0.5)  # realize for mid-point
     common.advance(m, d, d.qacc, d.qvel, 0.5, time_scale=0.5)
 
     # Compute error between y_1* and y_1

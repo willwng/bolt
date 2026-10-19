@@ -10,7 +10,7 @@ from bolt.loader.converters import muscle_helper, geom_helper
 from bolt.loader.converters.converted_objects import UserGeomData, GeomData
 from bolt.loader.model_load_result import ModelLoadResult
 from bolt.render.renderer import Renderer, RendererType
-from bolt.types import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata
+from bolt.types import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata, StepEstimator
 
 __all__ = [
     "load_model",
@@ -44,6 +44,7 @@ __all__ = [
     "geom_transforms",
     "geom_bodyid",
     "set_implicit_damping",
+    "set_implicit_friction_damping",
     "set_activation_type",
     "set_contraction_type",
     "set_use_linear_stop",
@@ -51,7 +52,7 @@ __all__ = [
     "set_integrator_accuracy",
     "set_integrator_min_step_size",
     "set_integrator_use_inf_norm",
-    "set_pi_integrator",
+    "set_step_estimator",
     "is_adaptive",
     "set_reset",
     "time",
@@ -302,6 +303,10 @@ def set_implicit_damping(m: Model, enabled: bool):
     m.opt.implicit_damping = enabled
 
 
+def set_implicit_friction_damping(m: Model, enabled: bool):
+    m.opt.implicit_friction_damping = enabled
+
+
 def set_activation_type(m: Model, activation_type: ActivationType):
     m.opt.activation_type = activation_type
 
@@ -330,8 +335,8 @@ def set_integrator_use_inf_norm(m: Model, use_inf_norm: bool):
     m.opt.use_inf_norm = use_inf_norm
 
 
-def set_pi_integrator(m: Model, enabled: bool):
-    m.opt.pi_controller = enabled
+def set_step_estimator(m: Model, step_estimator: StepEstimator):
+    m.opt.step_estimator = step_estimator
 
 
 def is_adaptive(integrator_type: IntegratorType) -> bool:
