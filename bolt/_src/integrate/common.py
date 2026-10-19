@@ -179,12 +179,13 @@ def _next_stl_contact_state(
     p0_delta_length = state_dot[0]
     p0 = wp.vec2(state_dot[1], state_dot[2])
 
-    # Compute new sliding state (K)
-    K = 1.0
-    if p0_delta_length > 0.0 and step_size > BOLT_SIG_REAL:
+    # Compute new sliding state (K) from the anchor's speed. An anchor that didn't move is sticking (K = 0)
+    if step_size > BOLT_SIG_REAL:
         speed = p0_delta_length / step_size
         speed_frac = speed / settle_velocity
         K = math.step_up(wp.clamp(speed_frac, 0.0, 1.0))
+    else:  # no time passed, so no speed to go by: keep the previous sliding state
+        K = stl_contact_state_out[worldid, conid][0]
 
     # Update state
     stl_contact_state_out[worldid, conid] = wp.vec3(K, p0.x, p0.y)
