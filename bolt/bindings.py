@@ -9,11 +9,13 @@ from bolt.loader import model_loader
 from bolt.loader.converters import muscle_helper, geom_helper
 from bolt.loader.converters.converted_objects import UserGeomData, GeomData
 from bolt.loader.model_load_result import ModelLoadResult
+from bolt.loader.scene import Scene, load_scene_file
 from bolt.render.renderer import Renderer, RendererType
 from bolt.types import Model, Data, IntegratorType, ActivationType, ContractionType, MuscleMetadata, StepEstimator
 
 __all__ = [
     "load_model",
+    "load_scene",
     "convert_user_collider",
     "update_colliders",
     "reinitialize_model",
@@ -133,6 +135,33 @@ def load_model(
         render_kinematic_tree=render_kinematic_tree,
     )
     m, d = load_result.model, load_result.data
+    reinitialize_model(m, d)
+    return load_result
+
+
+def load_scene(
+        scene: Scene | str,
+        n_worlds: int,
+        integrator: IntegratorType,
+        requires_visuals: bool,
+        render_kinematic_tree: bool = False,
+) -> ModelLoadResult:
+    """
+    Loads several models into every world. scene is a Scene or the path to a scene YAML file.
+    Names in the load result's lookups are prefixed with "<model name>/" (e.g. "ball/ball_tx").
+    Every world starts at load_result.initial_qpos, which includes the scene's initial poses
+    """
+    if isinstance(scene, str):
+        scene = load_scene_file(scene)
+    load_result = model_loader.load_scene(
+        scene=scene,
+        n_worlds=n_worlds,
+        integrator=integrator,
+        requires_visuals=requires_visuals,
+        render_kinematic_tree=render_kinematic_tree,
+    )
+    m, d = load_result.model, load_result.data
+    d.qpos.assign(np.tile(load_result.initial_qpos, (d.nworld, 1)))
     reinitialize_model(m, d)
     return load_result
 

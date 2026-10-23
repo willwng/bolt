@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<OpenSimDocument Version="40600">
+    <!--Size 5 soccer ball: a thin spherical shell (r = 0.11 m, m = 0.43 kg) with a 6-dof root joint-->
+    <Model name="ball">
+        <Ground name="ground" />
+        <gravity>0 -9.8066499999999994 0</gravity>
+        <BodySet name="bodyset">
+            <objects>
+                <Body name="ball">
+                    <mass>0.43</mass>
+                    <mass_center>0 0 0</mass_center>
+                    <attached_geometry>
+                        <Mesh name="ball_geom">
+                            <socket_frame>..</socket_frame>
+                            <scale_factors>0.22 0.22 0.22</scale_factors>
+                            <mesh_file>sphere.vtp</mesh_file> <!--unit diameter, so scaled by 2r-->
+                        </Mesh>
+                    </attached_geometry>
+                    <inertia>0.003468666667 0.003468666667 0.003468666667 0 0 0</inertia>
+                </Body>
+            </objects>
+            <groups />
+        </BodySet>
+        <JointSet name="jointset">
+            <objects>
+                <CustomJoint name="ground_ball">
+                    <socket_parent_frame>/ground</socket_parent_frame>
+                    <socket_child_frame>/bodyset/ball</socket_child_frame>
+                    <coordinates>
+                        <Coordinate name="ball_rx">
+                            <default_value>0</default_value>
+                            <default_speed_value>0</default_speed_value>
+                            <range>-6.283185307179586 6.283185307179586</range>
+                            <clamped>false</clamped>
+                            <locked>false</locked>
+                            <prescribed>false</prescribed>
+                        </Coordinate>
+                        <Coordinate name="ball_ry">
+                            <default_value>0</default_value>
+                            <default_speed_value>0</default_speed_value>
+                            <range>-6.283185307179586 6.283185307179586</range>
+                            <clamped>false</clamped>
+                            <locked>false</locked>
+                            <prescribed>false</prescribed>
+                        </Coordinate>
+                        <Coordinate name="ball_rz">
+                            <default_value>0</default_value>
+                            <default_speed_value>0</default_speed_value>
+                            <range>-6.283185307179586 6.283185307179586</range>
+                            <clamped>false</clamped>
+                            <locked>false</locked>
+                            <prescribed>false</prescribed>
+                        </Coordinate>
+                        <Coordinate name="ball_tx">
+                            <default_value>0</default_value>
+                            <default_speed_value>0</default_speed_value>
+                            <range>-100 100</range>
+                            <clamped>false</clamped>
+                            <locked>false</locked>
+                            <prescribed>false</prescribed>
+                        </Coordinate>
+                        <Coordinate name="ball_ty">
+                            <default_value>0</default_value>
+                            <default_speed_value>0</default_speed_value>
+                            <range>-100 100</range>
+                            <clamped>false</clamped>
+                            <locked>false</locked>
+                            <prescribed>false</prescribed>
+                        </Coordinate>
+                        <Coordinate name="ball_tz">
+                            <default_value>0</default_value>
+                            <default_speed_value>0</default_speed_value>
+                            <range>-100 100</range>
+                            <clamped>false</clamped>
+                            <locked>false</locked>
+                            <prescribed>false</prescribed>
+                        </Coordinate>
+                    </coordinates>
+                    <SpatialTransform>
+                        <TransformAxis name="rotation1">
+                            <coordinates>ball_rx</coordinates>
+                            <axis>1 0 0</axis>
+                            <LinearFunction name="function">
+                                <coefficients>1 0</coefficients>
+                            </LinearFunction>
+                        </TransformAxis>
+                        <TransformAxis name="rotation2">
+                            <coordinates>ball_ry</coordinates>
+                            <axis>0 1 0</axis>
+                            <LinearFunction name="function">
+                                <coefficients>1 0</coefficients>
+                            </LinearFunction>
+                        </TransformAxis>
+                        <TransformAxis name="rotation3">
+                            <coordinates>ball_rz</coordinates>
+                            <axis>0 0 1</axis>
+                            <LinearFunction name="function">
+                                <coefficients>1 0</coefficients>
+                            </LinearFunction>
+                        </TransformAxis>
+                        <TransformAxis name="translation1">
+                            <coordinates>ball_tx</coordinates>
+                            <axis>1 0 0</axis>
+                            <LinearFunction name="function">
+                                <coefficients>1 0</coefficients>
+                            </LinearFunction>
+                        </TransformAxis>
+                        <TransformAxis name="translation2">
+                            <coordinates>ball_ty</coordinates>
+                            <axis>0 1 0</axis>
+                            <LinearFunction name="function">
+                                <coefficients>1 0</coefficients>
+                            </LinearFunction>
+                        </TransformAxis>
+                        <TransformAxis name="translation3">
+                            <coordinates>ball_tz</coordinates>
+                            <axis>0 0 1</axis>
+                            <LinearFunction name="function">
+                                <coefficients>1 0</coefficients>
+                            </LinearFunction>
+                        </TransformAxis>
+                    </SpatialTransform>
+                </CustomJoint>
+            </objects>
+            <groups />
+        </JointSet>
+        <ContactGeometrySet name="contactgeometryset">
+            <objects>
+                <ContactSphere name="ball_contact">
+                    <socket_frame>/bodyset/ball</socket_frame>
+                    <location>0 0 0</location>
+                    <orientation>0 0 0</orientation>
+                    <radius>0.11</radius>
+                </ContactSphere>
+            </objects>
+            <groups />
+        </ContactGeometrySet>
+    </Model>
+</OpenSimDocument>

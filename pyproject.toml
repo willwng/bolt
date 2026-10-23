@@ -17,6 +17,7 @@ dependencies = [
     "pyvista",
     "pyglet",
     "tqdm",
+    "pyyaml",
 ]
 
 [project.scripts]

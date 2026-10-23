@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+import numpy as np
+
 from bolt.loader.converters import actuator_helper
 from bolt.loader.converters import coordinate_force_helper
 from bolt.loader.converters import geom_helper
@@ -28,6 +30,8 @@ class ModelLoadResult:
     collider_id_lookup: dict[str, int]
     mesh_load_results: list[MeshLoadResult]
     colliders: list[GeomData]
+    # Initial qpos (nq,): zero, with identity quaternions, plus any scene initial poses. Not used by the simulation
+    initial_qpos: np.ndarray
 
 
 def make_load_result(parsed: ParsedModel, topology: ModelTopology, m: Model, d: Data) -> ModelLoadResult:
@@ -44,4 +48,14 @@ def make_load_result(parsed: ParsedModel, topology: ModelTopology, m: Model, d: 
         collider_id_lookup=geom_helper.get_geom_ordering(parsed.geoms),
         mesh_load_results=visual_helper.create_mesh_load_results(parsed.visuals),
         colliders=parsed.geoms,
+        initial_qpos=default_qpos(topology),
     )
+
+
+def default_qpos(topology: ModelTopology) -> np.ndarray:
+    """ Zero qpos, with identity quaternions """
+    qpos = np.zeros(sum(joint.num_coordinates for joint in topology.joints), dtype=np.float32)
+    for joint, adr in zip(topology.joints, topology.mob_qpos_adr):
+        if joint.mob_type in joint_helper.mobilizer_quaternion_scalar_index:
+            qpos[adr + joint_helper.mobilizer_quaternion_scalar_index[joint.mob_type]] = 1.0
+    return qpos

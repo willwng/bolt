@@ -1,0 +1,130 @@
+# A pile of balls in a stack
+models:
+  - name: ball00
+    path: ../models/ball.osim
+  - name: ball01
+    path: ../models/ball.osim
+  - name: ball02
+    path: ../models/ball.osim
+  - name: ball03
+    path: ../models/ball.osim
+  - name: ball04
+    path: ../models/ball.osim
+  - name: ball05
+    path: ../models/ball.osim
+  - name: ball06
+    path: ../models/ball.osim
+  - name: ball07
+    path: ../models/ball.osim
+  - name: ball08
+    path: ../models/ball.osim
+  - name: ball09
+    path: ../models/ball.osim
+  - name: ball10
+    path: ../models/ball.osim
+  - name: ball11
+    path: ../models/ball.osim
+  - name: ball12
+    path: ../models/ball.osim
+  - name: ball13
+    path: ../models/ball.osim
+  - name: ball14
+    path: ../models/ball.osim
+  - name: ball15
+    path: ../models/ball.osim
+  - name: ball16
+    path: ../models/ball.osim
+  - name: ball17
+    path: ../models/ball.osim
+  - name: ball18
+    path: ../models/ball.osim
+  - name: ball19
+    path: ../models/ball.osim
+  - name: ball20
+    path: ../models/ball.osim
+  - name: ball21
+    path: ../models/ball.osim
+  - name: ball22
+    path: ../models/ball.osim
+  - name: ball23
+    path: ../models/ball.osim
+  - name: ball24
+    path: ../models/ball.osim
+  - name: ball25
+    path: ../models/ball.osim
+  - name: ball26
+    path: ../models/ball.osim
+  - name: ball27
+    path: ../models/ball.osim
+  - name: ball28
+    path: ../models/ball.osim
+  - name: ball29
+    path: ../models/ball.osim
+  - name: ball30
+    path: ../models/ball.osim
+  - name: ball31
+    path: ../models/ball.osim
+  - name: ball32
+    path: ../models/ball.osim
+  - name: ball33
+    path: ../models/ball.osim
+  - name: ball34
+    path: ../models/ball.osim
+  - name: ball35
+    path: ../models/ball.osim
+  - name: ball36
+    path: ../models/ball.osim
+  - name: ball37
+    path: ../models/ball.osim
+  - name: ball38
+    path: ../models/ball.osim
+  - name: ball39
+    path: ../models/ball.osim
+  - name: ball40
+    path: ../models/ball.osim
+  - name: ball41
+    path: ../models/ball.osim
+  - name: ball42
+    path: ../models/ball.osim
+  - name: ball43
+    path: ../models/ball.osim
+  - name: ball44
+    path: ../models/ball.osim
+  - name: ball45
+    path: ../models/ball.osim
+  - name: ball46
+    path: ../models/ball.osim
+  - name: ball47
+    path: ../models/ball.osim
+  - name: ball48
+    path: ../models/ball.osim
+  - name: ball49
+    path: ../models/ball.osim
+  - name: ball50
+    path: ../models/ball.osim
+  - name: ball51
+    path: ../models/ball.osim
+  - name: ball52
+    path: ../models/ball.osim
+  - name: ball53
+    path: ../models/ball.osim
+  - name: ball54
+    path: ../models/ball.osim
+  - name: ball55
+    path: ../models/ball.osim
+  - name: ball56
+    path: ../models/ball.osim
+  - name: ball57
+    path: ../models/ball.osim
+  - name: ball58
+    path: ../models/ball.osim
+  - name: ball59
+    path: ../models/ball.osim
+  - name: ball60
+    path: ../models/ball.osim
+  - name: ball61
+    path: ../models/ball.osim
+  - name: ball62
+    path: ../models/ball.osim
+  - name: ball63
+    path: ../models/ball.osim

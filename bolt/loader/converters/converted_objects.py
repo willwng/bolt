@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Annotated
 
 import warp as wp
 from bolt.types import GeomType, MobilizerType
@@ -11,9 +12,20 @@ PADDED_DOF = "__PADDED_DOF"  # for coordinates that are not actually part of the
 AABB = tuple[wp.vec3, wp.vec3]
 
 
+class NameMarker:
+    """
+    Marks a field that refers to a model component (body, joint, coordinate, ...)
+    Useful for when there are more than one models in the world
+    """
+    pass
+
+
+Name = Annotated[str, NameMarker()]
+
+
 @dataclass
 class BodyData:
-    name: str
+    name: Name
     mass: float
     mass_center: wp.vec3
     unit_inertia_OB_B: wp.mat33
@@ -21,12 +33,12 @@ class BodyData:
 
 @dataclass
 class JointData:
-    name: str
-    parent_body_name: str
-    child_body_name: str
+    name: Name
+    parent_body_name: Name
+    child_body_name: Name
 
     mob_type: MobilizerType
-    coordinates: list[str]
+    coordinates: list[Name]
     num_coordinates: int  # != len(coordinates) if quaternion is used in mobilizer
     num_speeds: int
 
@@ -39,8 +51,8 @@ class JointData:
 
 @dataclass
 class VisualData:
-    name: str
-    body_name: str
+    name: Name
+    body_name: Name
     mesh_file: str
 
     transform: wp.transform
@@ -49,25 +61,25 @@ class VisualData:
 
 @dataclass
 class SiteData:
-    name: str
-    body_name: str
+    name: Name
+    body_name: Name
 
     offset: wp.vec3
 
     # ConditionalPathPoint: the site is only part of the muscle path while this coordinate is inside cond_range
-    cond_coord: str | None = None
+    cond_coord: Name | None = None
     cond_range: tuple[float, float] = (0.0, 0.0)
 
     # MovingPathPoint: the location in frame F is (fx(qx), fy(qy), fz(qz)), and offset is unused
     moving_fns: tuple["FunctionData", "FunctionData", "FunctionData"] | None = None
-    moving_coords: tuple[str, str, str] | None = None
+    moving_coords: tuple[Name, Name, Name] | None = None
     moving_X_BF: wp.transform = field(default_factory=wp.transform_identity)
 
 
 @dataclass
 class UserGeomData:
-    name: str
-    body_name: str
+    name: Name
+    body_name: Name
     geom_type: GeomType
     transform: wp.transform
     size: wp.vec3
@@ -82,8 +94,8 @@ class UserGeomData:
 
 @dataclass
 class GeomData:
-    name: str
-    body_name: str
+    name: Name
+    body_name: Name
 
     geom_type: GeomType
     transform: wp.transform
@@ -140,14 +152,14 @@ class SimmSplineData(FunctionData):
 
 @dataclass
 class TransformAxisData:
-    coordinate: str
+    coordinate: Name
     axis: wp.vec3
     function: FunctionData
 
 
 @dataclass
 class SpatialTransformData:
-    joint_name: str
+    joint_name: Name
 
     rotation_1: TransformAxisData
     rotation_2: TransformAxisData
@@ -159,16 +171,16 @@ class SpatialTransformData:
 
 @dataclass
 class SpringGeneralizedForceData:
-    name: str
-    coordinate: str
+    name: Name
+    coordinate: Name
     stiffness: float
     viscosity: float
 
 
 @dataclass
 class CoordinateLimitForceData:
-    name: str
-    coordinate: str
+    name: Name
+    coordinate: Name
     stiffness: wp.vec2
     range: wp.vec2
     damping: float
@@ -177,8 +189,8 @@ class CoordinateLimitForceData:
 
 @dataclass
 class SwingTwistLimitData:
-    name: str
-    joint: str
+    name: Name
+    joint: Name
     stiffness: float
     damping: float
 
@@ -189,9 +201,9 @@ class SwingTwistLimitData:
 
 @dataclass
 class ActivationCoordinateActuatorData:
-    name: str
+    name: Name
 
-    coordinate: str
+    coordinate: Name
     optimal_force: float
     activation_time_constant: float
     default_activation: float
@@ -199,8 +211,8 @@ class ActivationCoordinateActuatorData:
 
 @dataclass
 class StatefulContactForce:
-    name: str
-    use_exp_force: bool # True: Exponential force, False: Smoothed Hunt-Crossley
+    name: Name
+    use_exp_force: bool  # True: Exponential force, False: Smoothed Hunt-Crossley
 
     contact_plane_transform: wp.transform
     exponential_shape_parameters: wp.vec3
@@ -221,7 +233,7 @@ class StatefulContactForce:
 
 @dataclass
 class MuscleData:
-    name: str
+    name: Name
 
     ignore_tendon_compliance: bool
 
@@ -246,8 +258,8 @@ class MuscleData:
 
 @dataclass
 class MuscleFunctionPathData:
-    name: str
-    coordinates: list[str]
+    name: Name
+    coordinates: list[Name]
     coefficients: list[float]
     dimension: int
     order: int

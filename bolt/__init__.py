@@ -23,6 +23,9 @@ from .loader.converters.converted_objects import GROUND as GROUND
 from .loader.converters.converted_objects import GROUND_COLLIDER as GROUND_COLLIDER
 
 from .loader.model_load_result import ModelLoadResult as ModelLoadResult
+from .loader.scene import Scene as Scene
+from .loader.scene import SceneModel as SceneModel
+from .loader.scene import InitialPose as InitialPose
 
 from .bindings import *
 from .paths import *
