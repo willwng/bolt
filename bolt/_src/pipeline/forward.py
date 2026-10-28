@@ -20,6 +20,7 @@ from ..muscle import activation
 from ..muscle import contraction
 from ..muscle import function_path
 from ..muscle import point_path
+from ..muscle import wrap_path
 from ..warp_util import event_scope
 
 wp.set_module_options({"enable_backward": False})
@@ -103,9 +104,12 @@ def compute_accelerations(m: Model, d: Data):
 @event_scope
 def realize_muscles(m: Model, d: Data, run_reset: bool):
     """ Muscle-related computations. """
-    # Compute muscle path
+    # Compute muscle path, restarting the wrapping solver of reset worlds from the contact hints
+    if run_reset:
+        wrap_path.reset_wrap_geodesics(m, d)
     function_path.muscle_fn_path(m, d)
     point_path.muscle_point_path(m, d)
+    wrap_path.muscle_wrap_path(m, d)
 
     # Activation dynamics, starting from a valid activation if reset
     if run_reset:
@@ -145,6 +149,7 @@ def realize_forces(m: Model, d: Data):
     # muscles
     function_path.apply_muscle_force_fn(m, d)
     point_path.apply_muscle_force_pt(m, d)
+    wrap_path.apply_muscle_force_wrap(m, d)
     # actuators
     actuators.actuator_force(m, d)
 

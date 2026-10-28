@@ -11,7 +11,8 @@ from bolt.consts import (
     M_MAX_PENNATION_ANGLE,
 )
 from bolt.types import ContractionType, MuscleMetadata
-from bolt.loader.converters.converted_objects import MuscleData, SiteData
+from bolt.loader.converters import wrap_helper
+from bolt.loader.converters.converted_objects import MuscleData, SiteData, WrapObstacleData
 from bolt.loader.converters.function_helper import convert_function
 from bolt.loader.converters.osim_types import OSimType
 from bolt.loader.converters.physical_frame_helper import extract_frame_transform_from_base_frame, get_body_name_of_frame
@@ -105,6 +106,13 @@ def convert_path(muscle_path: OSimType.Path) -> list[SiteData]:
         raise ValueError(f"Unsupported muscle path type: {muscle_path.getConcreteClassName()}")
 
 
+def convert_obstacles(muscle_path: OSimType.Path) -> list[WrapObstacleData]:
+    """ Converts the wrapping obstacles of a Scholz2015GeometryPath (other paths have none) """
+    if muscle_path.getConcreteClassName() != "Scholz2015GeometryPath":
+        return []
+    return wrap_helper.convert_obstacles(OSimType.ScholzPath.safeDownCast(muscle_path))
+
+
 def get_passive_fiber_force_curve(muscle: OSimType.Muscle) -> tuple[float, float, float, float, float]:
     if muscle.getConcreteClassName() == "Millard2012EquilibriumMuscle":
         muscle = OSimType.MillardMuscle.safeDownCast(muscle)
@@ -168,7 +176,8 @@ def convert_muscles(model: OSimType.Model) -> list[MuscleData]:
                 stiffness_at_one_norm_force=stiffness_at_one_norm_force,
                 curviness=curviness,
 
-                path_points=convert_path(muscle.getPath())
+                path_points=convert_path(muscle.getPath()),
+                obstacles=convert_obstacles(muscle.getPath()),
             )
         )
 

@@ -7,8 +7,10 @@ from scipy.spatial.transform import Rotation as R
 
 from bolt import types
 from bolt.consts import COND_PATH_POINT_RANGE_TOL
+from bolt._src.muscle import wrap_path
 from .mesh import load_mesh
 from .ellipsoid import create_ellipsoid_mesh
+from .torus import create_torus_mesh
 
 
 class RendererType(Enum):
@@ -30,6 +32,7 @@ class Renderer:
             draw_body_mass: bool,
             draw_beams: bool,
             draw_sites: bool,
+            draw_wrap_geometries: bool = False,
     ):
         if renderer_type == RendererType.OPENGL:
             self.renderer = wp.render.OpenGLRenderer(
@@ -75,6 +78,7 @@ class Renderer:
         self.draw_body_mass = draw_body_mass
         self.draw_beams = draw_beams
         self.draw_sites = draw_sites
+        self.draw_wrap_geometries = draw_wrap_geometries and m.nwrap > 0
 
         # model-specific: doesn't change during each step
         self.geom_types = m.geom_type.numpy()
@@ -85,6 +89,12 @@ class Renderer:
         self.muscle_num_pts = m.muscle_pts_num.numpy()
         self.site_cond_qposadr = m.site_cond_qposadr.numpy()
         self.site_cond_range = m.site_cond_range.numpy()
+        # Wrapping muscles are drawn along polylines sampled over their obstacles
+        wrap_adr, wrap_num = wrap_path.wrap_render_layout(m)
+        self.wrap_polyline = {muscle: (adr, adr + num) for muscle, adr, num in
+                              zip(m.muscle_wrap_group_tuple, wrap_adr, wrap_num)}
+        self.wrap_render_adr = wp.array(wrap_adr, dtype=int)
+        self.wrap_points = None
         self.mob_qposadr = m.mob_qposadr.numpy()
         self.joint_extra = m.mob_extra_info.numpy()
         self.joint_parent_id = m.body_parentid.numpy()
@@ -106,6 +116,7 @@ class Renderer:
             "exp_contact_site": (0.7, 0.5, 0.5),
             "marker_site": (0.0, 0.0, 1.0),
             "site": (0.5, 0.5, 0.5),
+            "wrap": (0.95, 0.78, 0.35),
         }
 
         number_instances_per_world = 0
@@ -117,6 +128,8 @@ class Renderer:
             number_instances_per_world += m.nbody
         if self.draw_sites:
             number_instances_per_world += m.nsite
+        if self.draw_wrap_geometries:
+            number_instances_per_world += m.nwrap
         # Muscles and beams are drawn with render_line_strip, which goes
         # through a separate per-name ShapeInstancer path in the underlying
         # renderer that never registers into the per-tile instance table.
@@ -129,6 +142,15 @@ class Renderer:
         ellipsoid_mesh = create_ellipsoid_mesh(1.0, 1.0, 1.0)
         self.ellipsoid_points = ellipsoid_mesh.points.numpy()
         self.ellipsoid_indices = ellipsoid_mesh.indices.numpy()
+
+        # Wrapping obstacles (static geometry in their surface frame)
+        if self.draw_wrap_geometries:
+            self.wrap_types = m.wrap_type.numpy()
+            self.wrap_sizes = m.wrap_size.numpy()
+            self.wrap_bodyid = m.wrap_bodyid.numpy()
+            self.wrap_X_BS = m.wrap_X_BS.numpy()
+            self.wrap_tori = {o: create_torus_mesh(*self.wrap_sizes[o][:2])
+                              for o in np.flatnonzero(self.wrap_types == types.WrapType.TORUS)}
 
         self.num_instances_per_world = number_instances_per_world
         self.num_global_instances = 1
@@ -186,6 +208,18 @@ class Renderer:
         tol = COND_PATH_POINT_RANGE_TOL
         return ~conditional | ((q >= lo - tol) & (q <= hi + tol))
 
+    def sample_wrap_paths(self, m: types.Model, d: types.Data) -> np.ndarray | None:
+        """ Polylines of the wrapping muscles in every world (see wrap_path.wrap_render_layout) """
+        if not self.wrap_polyline:
+            return None
+        if self.wrap_points is None:
+            npoints = max(end for _, end in self.wrap_polyline.values())
+            self.wrap_points = wp.empty((d.nworld, npoints), dtype=wp.vec3, device=d.site_pos_G.device)
+            self.wrap_worlds = wp.array(np.arange(d.nworld), dtype=int, device=d.site_pos_G.device)
+            self.wrap_render_adr = self.wrap_render_adr.to(d.site_pos_G.device)
+        wrap_path.sample_wrap_paths(m, d, self.wrap_render_adr, self.wrap_worlds, self.wrap_points)
+        return self.wrap_points.numpy()
+
     def render(self, m: types.Model, d: types.Data):
         # Each call copies the full (all-world) array from device to host
         site_pos_all = d.site_pos_G.numpy() if (self.draw_sites or self.draw_muscles) else None
@@ -194,7 +228,9 @@ class Renderer:
         muscle_act_all = d.m_act.numpy() if self.draw_muscles else None
         qpos_all = d.qpos.numpy() if self.draw_muscles else None
         body_com_all = d.body_COM_G.numpy() if self.draw_body_mass else None
+        wrap_points_all = self.sample_wrap_paths(m, d) if self.draw_muscles else None
         vis_beam_pos_all = d.vis_beam_pos.numpy() if self.draw_beams else None
+        body_X_all = d.mob_X_GB.numpy() if self.draw_wrap_geometries else None
 
         def render_body(wid: int = 0):
             obj_id = self.num_global_instances + wid * self.num_instances_per_world
@@ -268,6 +304,34 @@ class Renderer:
                         )
                     obj_id += 1
 
+            # Wrapping obstacles
+            if self.draw_wrap_geometries:
+                for o in range(m.nwrap):
+                    X_GB, X_BS = body_X_all[wid, self.wrap_bodyid[o]], self.wrap_X_BS[o]
+                    R_GB = R.from_quat(X_GB[3:])
+                    pos = X_GB[:3] + R_GB.apply(X_BS[:3])
+                    R_GS = R_GB * R.from_quat(X_BS[3:])
+                    size = self.wrap_sizes[o]
+                    wrap_type = self.wrap_types[o]
+                    name = f"wrap_{obj_id}"
+                    if wrap_type == types.WrapType.SPHERE:
+                        self.renderer.render_sphere(name, pos, R_GS.as_quat(), radius=float(size[0]),
+                                                    color=self.colors["wrap"])
+                    elif wrap_type == types.WrapType.CYLINDER:
+                        # The renderer's cylinders run along local Y, the obstacle's along its surface z
+                        rot = (R_GS * R.from_euler("x", 90, degrees=True)).as_quat()
+                        self.renderer.render_cylinder(
+                            name, pos, rot, radius=float(size[0]),
+                            half_height=float(size[0] * wrap_path.WRAP_RENDER_CYLINDER_HALF_LENGTH),
+                            color=self.colors["wrap"])
+                    else:
+                        points, indices, scale = self.ellipsoid_points, self.ellipsoid_indices, tuple(size)
+                        if wrap_type == types.WrapType.TORUS:
+                            (points, indices), scale = self.wrap_tori[o], (1.0, 1.0, 1.0)
+                        self.renderer.render_mesh(name=name, points=points, indices=indices, pos=pos,
+                                                  rot=R_GS.as_quat(), scale=scale, colors=self.colors["wrap"])
+                    obj_id += 1
+
             # Visuals
             if self.draw_visuals:
                 vis_X = vis_X_all[wid]
@@ -298,12 +362,16 @@ class Renderer:
                     mm = self.muscle_data[i]
                     radius = np.sqrt(mm.max_isometric_force) / 8000.0
 
-                    # Gather all active site indices for this muscle
-                    start_idx = self.muscle_pts_adr[i]
-                    end_idx = start_idx + self.muscle_num_pts[i]
-                    pt_inds = [s for s in range(start_idx, end_idx) if site_active[s]]
-                    # Line segment connecting active points
-                    pts_xloc = site_xpos[pt_inds]
+                    if i in self.wrap_polyline:
+                        start_idx, end_idx = self.wrap_polyline[i]
+                        pts_xloc = wrap_points_all[wid, start_idx:end_idx]
+                    else:
+                        # Gather all active site indices for this muscle
+                        start_idx = self.muscle_pts_adr[i]
+                        end_idx = start_idx + self.muscle_num_pts[i]
+                        pt_inds = [s for s in range(start_idx, end_idx) if site_active[s]]
+                        # Line segment connecting active points
+                        pts_xloc = site_xpos[pt_inds]
                     color = self.activation_to_color(muscle_activations[i])
                     self.renderer.render_line_strip(
                         f"muscle_{obj_id}",

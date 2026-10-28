@@ -138,20 +138,109 @@ def skeleton_only_model(model_path: str, out_dir: str, gravity=None) -> str:
 
 
 def wrapped_muscles(model_path: str) -> set[str]:
-    """
-    Names of muscles whose path wraps (GeometryPath wrap objects or Scholz2015 obstacles).
-    Bolt point paths do not model wrapping.
-    """
+    """ Names of muscles whose GeometryPath has wrap objects, which Bolt does not model """
     wrapped = set()
     for el in ET.parse(model_path).getroot().iter():
-        if not el.tag.endswith("Muscle"):
-            continue
-        for path in el:
-            if path.tag == "GeometryPath" and path.findall("./PathWrapSet/objects/*"):
-                wrapped.add(el.get("name"))
-            elif path.tag == "Scholz2015GeometryPath" and path.findall(".//Scholz2015GeometryPathObstacle"):
-                wrapped.add(el.get("name"))
+        if el.tag.endswith("Muscle"):
+            for path in el:
+                if path.tag == "GeometryPath" and path.findall("./PathWrapSet/objects/*"):
+                    wrapped.add(el.get("name"))
     return wrapped
+
+
+def scholz_wrapped_muscles(model_path: str) -> set[str]:
+    """ Names of muscles whose Scholz2015GeometryPath has obstacles """
+    wrapped = set()
+    for el in ET.parse(model_path).getroot().iter():
+        if el.tag.endswith("Muscle"):
+            for path in el:
+                if path.tag == "Scholz2015GeometryPath" and path.findall(".//Scholz2015GeometryPathObstacle"):
+                    wrapped.add(el.get("name"))
+    return wrapped
+
+
+def continuation_muscle_paths(model_path: str, q, u, num_steps: int, moment_arm_coords=None):
+    """
+    As muscle_paths at (q, u), approaching q in num_steps from the default pose of a fresh model. Wrapping
+    (Scholz2015GeometryPath) obstacles are solved from the previous solution, so states far apart can
+    converge to different (locally shortest) paths: approaching q gradually is what a simulation sees.
+    """
+    model = osim.Model(model_path)
+    state = model.initSystem()
+    q0 = default_coordinates(model, state)
+    for k in range(1, num_steps):
+        set_state(model, state, q0 + (q - q0) * k / num_steps, u)
+        model.realizePosition(state)
+    return muscle_paths(model, state, q, u, moment_arm_coords=moment_arm_coords)
+
+
+def default_coordinates(model: osim.Model, state: osim.State) -> np.ndarray:
+    """ Default coordinate values, in coordinate-set order """
+    return np.array([c.getValue(state) for c in model.getCoordinateSet()])
+
+
+def wrapping_test_model(out_path: str) -> str:
+    """
+    Writes a two-link (pin joint) model whose muscles wrap the knee-like joint over each obstacle surface type,
+    one with two obstacles between its path points, and one with a via point. Returns out_path.
+    """
+    model = osim.Model()
+    model.setName("wrapping_test")
+    model.setGravity(osim.Vec3(0, -9.81, 0))
+    upper = osim.Body("upper", 1.0, osim.Vec3(0, -0.25, 0), osim.Inertia(0.01, 0.01, 0.01))
+    lower = osim.Body("lower", 1.0, osim.Vec3(0, -0.25, 0), osim.Inertia(0.01, 0.01, 0.01))
+    model.addBody(upper)
+    model.addBody(lower)
+    hip = osim.PinJoint("hip", model.getGround(), osim.Vec3(0, 1.0, 0), osim.Vec3(0), upper, osim.Vec3(0),
+                        osim.Vec3(0))
+    knee = osim.PinJoint("knee", upper, osim.Vec3(0, -0.5, 0), osim.Vec3(0), lower, osim.Vec3(0), osim.Vec3(0))
+    model.addJoint(hip)
+    model.addJoint(knee)
+    for joint, (lo, hi) in [(hip, (-1.0, 1.0)), (knee, (-1.5, 1.5))]:
+        joint.upd_coordinates(0).setRangeMin(lo)
+        joint.upd_coordinates(0).setRangeMax(hi)
+
+    def obstacle(geom, body):
+        geom.setFrame(body)
+        body.addComponent(geom)
+        return geom
+
+    knee_center = osim.Vec3(0, -0.5, 0)
+    cylinder = obstacle(osim.ContactCylinder(0.03, knee_center, osim.Vec3(0), upper), upper)
+    cylinder.setName("knee_cylinder")
+    sphere = obstacle(osim.ContactSphere(0.03, knee_center, upper), upper)
+    sphere.setName("knee_sphere")
+    torus = obstacle(osim.ContactTorus(0.04, 0.015, knee_center, osim.Vec3(0), upper), upper)
+    torus.setName("knee_torus")
+    shaft = obstacle(osim.ContactEllipsoid(osim.Vec3(0.045, 0.08, 0.03), osim.Vec3(0, -0.3, 0), osim.Vec3(0.1, 0, 0),
+                                           upper), upper)
+    shaft.setName("shaft_ellipsoid")
+    tilted = obstacle(osim.ContactCylinder(0.025, knee_center, osim.Vec3(0.3, 0.2, 0), upper), upper)
+    tilted.setName("tilted_cylinder")
+
+    def muscle(name, elements):
+        m = osim.Millard2012EquilibriumMuscle(name, 1000.0, 0.2, 0.3, 0.0)
+        m.upd_FiberForceLengthCurve().setOptionalProperties(0.2, 2.0 / 0.7, 0.75)  # the loader reads them
+        m.set_path(osim.Scholz2015GeometryPath())
+        model.addForce(m)
+        path = osim.Scholz2015GeometryPath.safeDownCast(m.updPath())
+        for element in elements:
+            if isinstance(element[0], osim.ContactGeometry):
+                path.appendObstacle(element[0], osim.Vec3(*element[1]))
+            else:
+                path.appendPathPoint(element[0], osim.Vec3(*element[1]))
+
+    muscle("over_cylinder", [(upper, (0.05, -0.2, 0.01)), (cylinder, (0.03, 0, 0)), (lower, (0.05, -0.2, -0.01))])
+    muscle("over_sphere", [(upper, (-0.05, -0.2, 0.02)), (sphere, (-0.03, 0, 0)), (lower, (-0.05, -0.2, 0.0))])
+    muscle("over_torus", [(upper, (0.06, -0.2, 0.005)), (torus, (0.055, 0, 0)), (lower, (0.06, -0.2, 0.0))])
+    muscle("over_two", [(upper, (0.04, -0.05, 0.0)), (shaft, (0.045, 0, 0)), (tilted, (0.025, 0, 0)),
+                        (lower, (0.04, -0.2, 0.0))])
+    muscle("via_point", [(upper, (-0.04, -0.1, -0.01)), (upper, (-0.045, -0.4, 0.0)), (sphere, (-0.03, 0, 0)),
+                         (lower, (-0.04, -0.2, 0.0))])
+    model.finalizeConnections()
+    model.initSystem()
+    model.printToXML(out_path)
+    return out_path
 
 
 def muscles_with_path_point(model_path: str, point_type: str) -> set[str]:

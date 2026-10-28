@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from dataclasses import field
 
 import warp as wp
-from bolt.types import GeomType, MobilizerType
+from bolt.types import GeomType, MobilizerType, WrapType
 
 GROUND_PARENT = "N/A"
 GROUND = "ground"
@@ -242,6 +242,24 @@ class MuscleData:
     curviness: float
 
     path_points: list[SiteData]
+    # Wrapping obstacles of a Scholz2015GeometryPath
+    obstacles: list["WrapObstacleData"] = field(default_factory=list)
+
+
+@dataclass
+class WrapObstacleData:
+    """ A wrapping obstacle of a Scholz2015GeometryPath """
+    name: str
+    body_name: str
+    wrap_type: WrapType
+    # Surface frame relative to the body frame
+    transform: wp.transform
+    size: wp.vec3
+    # Index (in path_points) of the path point before this obstacle
+    segment: int
+    # Contact point hint in the surface frame (NaN if none), and the hint projected onto the surface
+    hint: wp.vec3
+    hint_on_surface: wp.vec3
 
 
 @dataclass

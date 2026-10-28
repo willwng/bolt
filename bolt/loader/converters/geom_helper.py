@@ -64,7 +64,7 @@ def collect_user_geom_aabb(geom: UserGeomData) -> tuple[AABB, float]:
         raise NotImplementedError(f"Unsupported contact geometry: {geom_type}")
 
 
-def _compute_contact_geom_transform(geom: osim.ContactGeometry) -> wp.transform:
+def compute_contact_geom_transform(geom: osim.ContactGeometry) -> wp.transform:
     """ Computes the transform of the contact geometry relative to the body frame it is attached to. """
     # Transform of geometry relative to the frame it is attached to
     X_FP = geom.getTransform()
@@ -83,7 +83,7 @@ def convert_contact_geometry(geom: osim.ContactGeometry) -> GeomData:
     frame = geom.getFrame()
     body_name = get_body_name_of_frame(frame)
 
-    transform = _compute_contact_geom_transform(geom)
+    transform = compute_contact_geom_transform(geom)
 
     geom_type, size, aabb, rbound = collect_geom_type_sizes(geom)
 

@@ -16,6 +16,7 @@ arg_parser.add_argument("--debug", action="store_true")
 arg_parser.add_argument("--benchmark", action="store_true")
 arg_parser.add_argument("--tree", action="store_true")
 arg_parser.add_argument("--renderer", type=str, default="opengl", choices=["opengl", "tiled", "newton"])
+arg_parser.add_argument("--draw-wrap", action="store_true")
 args = arg_parser.parse_args()
 
 
@@ -52,7 +53,7 @@ def main():
     bolt.reset(m, d)
 
     dt = 1.0 / 100.0
-    if not args.benchmark:  # Live OpenGL render
+    if not args.benchmark:  # Live render
         viewer = bolt.create_renderer(
             load_result=load_result,
             renderer_type=bolt.RendererType[args.renderer.upper()],
@@ -62,6 +63,7 @@ def main():
             draw_body_mass=False,
             draw_beams=True,
             draw_sites=False,
+            draw_wrap_geometries=args.draw_wrap,
         )
         if viewer.viewer_type in (bolt.RendererType.TILED, bolt.RendererType.NEWTON):
             viewer.setup_tiled_renderer(list(range(args.nworld)))

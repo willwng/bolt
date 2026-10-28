@@ -18,6 +18,9 @@ __all__ = [
     "PolyInts",
     "PolyEval",
     "PolyPowCache",
+    "WrapType",
+    "WrapStatus",
+    "WrapGeodesic",
     "SpatialInertia",
     "ArticulatedInertia",
     "CoordinateLimitForce",
@@ -146,6 +149,62 @@ class PolyEval(wp.types.vector(length=consts.MAX_POLY_NUM_DOFS + 1, dtype=float)
 
 class PolyPowCache(wp.types.matrix(shape=(consts.MAX_POLY_NUM_DOFS, consts.MAX_POLY_ORDER + 1), dtype=float)):
     pass
+
+
+class WrapType(enum.IntEnum):
+    """Type of wrapping obstacle surface (Scholz2015GeometryPath)
+
+    Attributes:
+      SPHERE: sphere, size = (radius, -, -)
+      CYLINDER: infinite cylinder along the surface z-axis, size = (radius, -, -)
+      ELLIPSOID: ellipsoid, size = radii
+      TORUS: torus around the surface z-axis, size = (torus radius, tube radius, -)
+    """
+
+    SPHERE = 0
+    CYLINDER = 1
+    ELLIPSOID = 2
+    TORUS = 3
+
+
+class WrapStatus(enum.IntEnum):
+    """Wrapping status of an obstacle in a muscle path (see Simbody's CableSpan)
+
+    Attributes:
+      UNINITIALIZED: not yet initialized from the contact hint (zero-initialized, or the world was reset)
+      INITIAL_GUESS: initialize the geodesic from the contact hint
+      IN_CONTACT: the path wraps over the obstacle
+      LIFTED: the path misses the obstacle, and tracks the point on the line nearest the surface
+    """
+
+    UNINITIALIZED = 0
+    INITIAL_GUESS = 1
+    IN_CONTACT = 2
+    LIFTED = 3
+
+
+@wp.struct
+class WrapGeodesic:
+    """
+    The geodesic over an obstacle, in the obstacle's surface frame S, and the warm start for the next evaluation.
+    P is the initial contact point and Q the final contact point. The Frenet frames are (tangent, normal, binormal).
+    """
+    status: int  # WrapStatus
+    p_P: wp.vec3
+    t_P: wp.vec3
+    n_P: wp.vec3
+    p_Q: wp.vec3
+    t_Q: wp.vec3
+    n_Q: wp.vec3
+    length: float
+    curvatures_P: wp.vec2  # curvatures in the (tangent, binormal) directions
+    curvatures_Q: wp.vec2
+    torsion_P: float
+    torsion_Q: float
+    jacobi_Q: wp.vec2  # (translational, rotational) Jacobi scalars at Q
+    jacobi_dot_Q: wp.vec2
+    tracking_point: wp.vec3  # if lifted: the point on the straight line nearest the surface
+    step_size: float  # initial step size for the next geodesic integration (implicit surfaces only)
 
 
 @wp.struct
@@ -283,6 +342,9 @@ class Option:
 
       use_linear_stop: (debugging) use LinearStop instead of CoordinateLimitForce
 
+      wrap_smoothness_tol: (wrapping) max misalignment (rad) between straight and curved path segments
+      wrap_max_iterations: (wrapping) max solver iterations per path segment and evaluation
+      wrap_geodesic_accuracy: (wrapping) accuracy of the geodesic integrator over implicit surfaces
 
       safety: (variable-step integration) safety factor
       min_shrink: (variable-step integration) minimum step shrink factor
@@ -313,6 +375,10 @@ class Option:
 
     use_linear_stop: bool
 
+    # Muscle wrapping (Scholz2015GeometryPath) options
+    wrap_smoothness_tol: float
+    wrap_max_iterations: int
+    wrap_geodesic_accuracy: float
 
     # Variable-step integration options
     safety: float
@@ -465,6 +531,7 @@ class Model:
       nsite: number of sites
       nlimitforce: number of (CoordinateLimitForce) limits
       nswingtwist: number of swing-twist limits
+      nwrap: number of muscle wrapping obstacles (summed over muscles)
 
       nfunctions: number of custom functions
       nlinearfn: number of linear functions
@@ -584,6 +651,8 @@ class Model:
      * muscle paths *
       muscle_pt_group: muscle ids for point paths
       muscle_pt_group_tuple: muscle ids for point paths (tuple for post processing)
+      muscle_wrap_group: muscle ids for wrapping (Scholz2015) paths
+      muscle_wrap_group_tuple: muscle ids for wrapping paths (tuple for post processing)
       muscle_fn_groups: muscle ids for function paths, grouped by same (dim, order)
       muscle_fn_group_dim_order: (dimension, order) of each muscle_fn_groups group
 
@@ -593,6 +662,20 @@ class Model:
       fn_path_order: order of polynomial function              (nmuscle,)
       fn_path_term_start: starting adr of each muscle's terms  (nmuscle,)
       fn_path_term_coeffs: coefficients of all fn path terms   (total number of terms,)
+
+     * muscle wrapping obstacles (Scholz2015GeometryPath) *
+      muscle_wrap_adr: address of first obstacle in muscle     (nmuscle,)
+      muscle_wrap_num: number of obstacles in muscle's path    (nmuscle,)
+      wrap_max_per_segment: max obstacles between two consecutive path points of any muscle
+      wrap_type: type of obstacle surface (WrapType)           (nwrap,)
+      wrap_bodyid: id of obstacle's body                       (nwrap,)
+      wrap_X_BS: surface frame rel. to body                    (nwrap, transform)
+      wrap_size: surface-specific size parameters              (nwrap, 3)
+      wrap_segment: index of the path point before obstacle,   (nwrap,)
+                    relative to the muscle's first path point
+      wrap_hint_S: contact point hint in the surface frame,    (nwrap, 3)
+                   NaN if none
+      wrap_hint_on_surface_S: hint projected onto the surface  (nwrap, 3)
     """
 
     nbody: int
@@ -609,6 +692,7 @@ class Model:
     nsite: int
     nlimitforce: int
     nswingtwist: int
+    nwrap: int
 
     nfunctions: int
     nlinearfn: int
@@ -722,6 +806,8 @@ class Model:
     # Muscle paths
     muscle_pt_group: array("*", int)
     muscle_pt_group_tuple: tuple[int, ...]
+    muscle_wrap_group: array("*", int)
+    muscle_wrap_group_tuple: tuple[int, ...]
     muscle_fn_groups: tuple[wp.array(dtype=int), ...]
     muscle_fn_group_dim_order: tuple[tuple[int, int], ...]
 
@@ -731,6 +817,18 @@ class Model:
     fn_path_order: array("nmuscle", int)
     fn_path_term_start: array("nmuscle", int)
     fn_path_term_coeffs: array("*", float)
+
+    # Muscle wrapping obstacles
+    muscle_wrap_adr: array("nmuscle", int)
+    muscle_wrap_num: array("nmuscle", int)
+    wrap_max_per_segment: int
+    wrap_type: array("nwrap", int)
+    wrap_bodyid: array("nwrap", int)
+    wrap_X_BS: array("nwrap", wp.transform)
+    wrap_size: array("nwrap", wp.vec3)
+    wrap_segment: array("nwrap", int)
+    wrap_hint_S: array("nwrap", wp.vec3)
+    wrap_hint_on_surface_S: array("nwrap", wp.vec3)
 
     block_dim: TileBlockDim
 
@@ -917,6 +1015,8 @@ class Data:
      * muscle paths
       muscle_length: muscle lengths                               (nworld, nmuscle)
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
+      wrap_geodesic: geodesic over each obstacle, also the        (nworld, nwrap)
+                     warm start for the next path evaluation
 
      * function-based muscle paths
       muscle_moment_arm: moment arm of muscle r = -dL/dq          (nworld, nmuscle, nq)
@@ -1043,6 +1143,7 @@ class Data:
 
     muscle_length: array("nworld", "nmuscle", float)
     muscle_velocity: array("nworld", "nmuscle", float)
+    wrap_geodesic: array("nworld", "nwrap", WrapGeodesic)
 
     site_rel_pos_B: array("nworld", "nsite", wp.vec3)
     site_pos_G: array("nworld", "nsite", wp.vec3)
