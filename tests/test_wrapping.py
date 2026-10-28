@@ -118,8 +118,11 @@ def test_wrapping_forces_match_moment_arms(load_case, wrapping_test_model):
     actual = ufrc.numpy()  # pin joints: qpos and qvel spaces coincide
     bolt.compute_muscle_moments(case.m, case.d)
     expected = np.einsum("wmq,wm->wq", case.d.muscle_moment_arm.numpy(), case.d.muscle_actuation.numpy())
-    assert np.abs(expected).max() > 1.0
-    np.testing.assert_allclose(actual, expected, atol=1e-3, rtol=1e-4)
+    scale = np.abs(expected).max()
+    assert scale > 1.0
+    # Both sum body moments of hundreds of N m in float32, so coordinates the muscles don't cross (where these cancel
+    # to zero) are left with rounding errors that depend on the platform: compare relative to the largest moment
+    np.testing.assert_allclose(actual, expected, atol=1e-5 * scale, rtol=1e-4)
 
 
 def test_wrapping_reset_restarts_from_hints(load_case, wrapping_test_model):
