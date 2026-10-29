@@ -15,4 +15,4 @@ def integrate(m: Model, d: Data):
     """Steps from d.time to d.next_time using Symplectic Euler """
     common.update_step_size(m, d)
     common.advance(m, d, d.qacc, d.qvel, scale=1.0, time_scale=1.0, symplectic=True)
-    forward.fwd(m, d)  # realize state for next step
+    forward.fwd(m, d, project=True)  # realize state for next step

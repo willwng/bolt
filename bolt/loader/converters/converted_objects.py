@@ -176,6 +176,16 @@ class CoordinateLimitForceData:
 
 
 @dataclass
+class CoordinateCouplerData:
+    """ Constraint dependent_coordinate = scale * function(independent_coordinate) """
+    name: str
+    independent_coordinate: str
+    dependent_coordinate: str
+    function: FunctionData
+    scale: float
+
+
+@dataclass
 class SwingTwistLimitData:
     name: str
     joint: str

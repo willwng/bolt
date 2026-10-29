@@ -54,6 +54,7 @@ def create_model(
     pack_joints(m, topology)
     pack_custom_joints(m, parsed, topology)
     pack_coordinate_forces(m, parsed, topology)
+    pack_couplers(m, parsed, topology)
     pack_geoms(m, parsed.geoms, topology.body_ordering, topology.body_parent_id)
     pack_sites_and_contacts(m, parsed, topology)
     pack_visuals(m, parsed, topology)
@@ -133,12 +134,16 @@ def pack_custom_joints(m: Model, parsed: ParsedModel, topology: ModelTopology):
     m.cst_txfm_axes = to_warp_array(cst_txfm_axes, dtype=wp.vec3)
     m.cst_txfm_dof = to_warp_array(cst_txfm_dof, dtype=int)
 
-    # Collect all functions: the spatial transform axes, followed by the location functions of moving path points
+    # Collect all functions: the spatial transform axes, followed by the location functions of moving path points,
+    # then the coordinate coupler functions
     functions = [axis.function for axis in ordered_transform_axes]
     fn_qpos_global_idx = list(txfm_qpos_global_idx)
     for site in moving_sites(parsed):
         functions.extend(site.moving_fns)
         fn_qpos_global_idx.extend(site_coordinate_qposadr(site, site.moving_coords, topology))
+    for coupler in parsed.couplers:
+        functions.append(coupler.function)
+        fn_qpos_global_idx.append(topology.qpos_ordering[coupler.independent_coordinate])
     linear_fns, linear_fns_idx = function_helper.get_functions_of_type(functions, cls=LinearFunctionData)
     const_fns, const_fns_idx = function_helper.get_functions_of_type(functions, cls=ConstantFunctionData)
     poly_fns, poly_fns_idx = function_helper.get_functions_of_type(functions, cls=PolynomialFunctionData)
@@ -196,6 +201,34 @@ def pack_coordinate_forces(m: Model, parsed: ParsedModel, topology: ModelTopolog
     return
 
 
+def pack_couplers(m: Model, parsed: ParsedModel, topology: ModelTopology):
+    """ Coordinate coupler constraints. Their functions were appended last in pack_custom_joints """
+    couplers = parsed.couplers
+    # Couplers need qdot = u, and projection sets each dependent coordinate directly from its independent one
+    coord_mob_type = {coord: joint.mob_type for joint in topology.joints for coord in joint.coordinates}
+    dependent = [coupler.dependent_coordinate for coupler in couplers]
+    independent = {coupler.independent_coordinate for coupler in couplers}
+    for coupler in couplers:
+        for coord in (coupler.independent_coordinate, coupler.dependent_coordinate):
+            if coord_mob_type[coord] not in (MobilizerType.PIN, MobilizerType.SLIDER, MobilizerType.CUSTOM):
+                raise ValueError(f"Coupler {coupler.name}: coordinate {coord} must be on a pin, slider or "
+                                 f"(non-root) custom joint")
+        if dependent.count(coupler.dependent_coordinate) > 1 or coupler.dependent_coordinate in independent:
+            raise ValueError(f"Coupler {coupler.name}: dependent coordinate {coupler.dependent_coordinate} "
+                             f"is also constrained by another coupler")
+
+    m.ncoupler = len(couplers)
+    m.coupler_fnadr = to_warp_array(list(range(m.nfunctions - m.ncoupler, m.nfunctions)), dtype=int)
+    m.coupler_scale = to_warp_array([coupler.scale for coupler in couplers], dtype=float)
+    m.coupler_indep_qposadr = to_warp_array(
+        apply_map_to_list([coupler.independent_coordinate for coupler in couplers], topology.qpos_ordering), dtype=int)
+    m.coupler_indep_dofadr = to_warp_array(
+        apply_map_to_list([coupler.independent_coordinate for coupler in couplers], topology.dof_ordering), dtype=int)
+    m.coupler_dep_qposadr = to_warp_array(apply_map_to_list(dependent, topology.qpos_ordering), dtype=int)
+    m.coupler_dep_dofadr = to_warp_array(apply_map_to_list(dependent, topology.dof_ordering), dtype=int)
+    return
+
+
 def pack_geoms(m: Model, geoms: list[GeomData], body_ordering: dict[str, int], body_parent_id: list[int]):
     """ Collider (geom) fields, including broadphase pair registration. Also used to update colliders later """
     geom_type = [geom.geom_type for geom in geoms]
@@ -241,8 +274,9 @@ def pack_sites_and_contacts(m: Model, parsed: ParsedModel, topology: ModelTopolo
         [site_coordinate_qposadr(site, (site.cond_coord,), topology)[0] for site in sites], dtype=int)
     m.site_cond_range = to_warp_array([site.cond_range for site in sites], dtype=wp.vec2)
 
-    # Moving path points: their location functions were appended after the spatial transform functions
-    fn_adr = m.nfunctions - 3 * len(moving_sites(parsed))
+    # Moving path points: their location functions were appended after the spatial transform functions,
+    # followed only by the coupler functions
+    fn_adr = m.nfunctions - len(parsed.couplers) - 3 * len(moving_sites(parsed))
     site_moving_fnadr = []
     for site in sites:
         if site.moving_fns is None:

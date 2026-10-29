@@ -7,6 +7,7 @@ import warp as wp
 
 from bolt.loader.converters import actuator_helper
 from bolt.loader.converters import body_helper
+from bolt.loader.converters import constraint_helper
 from bolt.loader.converters import coordinate_force_helper
 from bolt.loader.converters import function_based_path_helper
 from bolt.loader.converters import geom_helper
@@ -37,6 +38,7 @@ class ParsedModel:
     spring_gen_forces: list
     limit_forces: list
     swing_twists: list
+    couplers: list
     activation_actuators: list
     muscles: list
     function_paths: list
@@ -93,6 +95,7 @@ def parse_osim_model(
     spring_gen_forces = coordinate_force_helper.convert_spring_generalized_force(model)
     limit_forces = coordinate_force_helper.convert_coordinate_limit_force(model)  # also a limit force
     swing_twists = swing_twist_helper.convert_swing_twist_limits(model_path)
+    couplers = constraint_helper.convert_coordinate_couplers(model)
     activation_actuators = actuator_helper.convert_activation_actuators(model)
     muscles = muscle_helper.convert_muscles(model)
     # Gather all sites
@@ -119,6 +122,7 @@ def parse_osim_model(
         spring_gen_forces=spring_gen_forces,
         limit_forces=limit_forces,
         swing_twists=swing_twists,
+        couplers=couplers,
         activation_actuators=activation_actuators,
         muscles=muscles,
         function_paths=function_paths,
