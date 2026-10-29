@@ -12,6 +12,7 @@ import functools
 import warp as wp
 
 from bolt.consts import BOLT_MINVAL
+from bolt.consts import WRAP_CONTINUOUS_ANGLE
 from bolt.consts import WRAP_INITIAL_STEP_SIZE
 from bolt.consts import WRAP_MAX_STEP_ANGLE
 from bolt.types import Data
@@ -99,9 +100,15 @@ def update_wrap_status(
         accuracy: float,
 ) -> WrapGeodesic:
     """ Initializes the geodesic from the hint, or detects liftoff / touchdown, given the neighbouring path points """
+    # The geodesic to shoot, if any: a single call site keeps the kernels small (and quick to compile)
+    shoot = bool(False)
+    point = wp.vec3()
+    tangent = next_S - prev_S
+    length = float(0.0)
     if g.status == WrapStatus.INITIAL_GUESS:
         # Zero-length geodesic at the hint, directed along the straight line
-        g = wrap_geometry.shoot_geodesic(wrap_type, size, g, hint, next_S - prev_S, 0.0, accuracy)
+        shoot = True
+        point = hint
     elif g.status == WrapStatus.IN_CONTACT:
         # Lift off once the geodesic has shrunk to zero length, and the neighbouring points are above the surface
         if g.length <= 0.0 and wp.dot(prev_S - g.p_P, g.n_P) > 0.0 and wp.dot(next_S - g.p_P, g.n_P) > 0.0:
@@ -109,11 +116,14 @@ def update_wrap_status(
             g.tracking_point = g.p_P
     elif g.status == WrapStatus.LIFTED:
         # Touch down when the straight line between the neighbouring points dips below the surface
-        point, touchdown = wrap_geometry.nearest_point_on_line(wrap_type, size, prev_S, next_S, g.tracking_point)
+        nearest, touchdown = wrap_geometry.nearest_point_on_line(wrap_type, size, prev_S, next_S, g.tracking_point)
         if touchdown:
-            g = wrap_geometry.shoot_geodesic(wrap_type, size, g, point, next_S - prev_S, 0.0, accuracy)
+            shoot = True
+            point = nearest
         else:
-            g.tracking_point = point
+            g.tracking_point = nearest
+    if shoot:
+        g = wrap_geometry.shoot_geodesic(wrap_type, size, g, point, tangent, length, accuracy)
     return g
 
 
@@ -204,6 +214,62 @@ def segment_obstacle_end(wrap_begin: int, wrap_end: int, wrap_segment: wp.array(
     while o < wrap_end and wrap_segment[o] == segment:
         o += 1
     return o
+
+
+# --- Restarting from the contact hints ---
+# The solver converges to a locally shortest path near its warm start. In continuous motion that is the right path:
+# a cable can't pass through an obstacle, so it stays on the same side of it, or hooked around it, even when another
+# path would be shorter. After a large change of pose, the warm start can be far off and the solver settles on an
+# impossible path (e.g. glued to an obstacle with its straight lines passing through it). The path then restarts from
+# the contact hints, as after a reset
+@wp.func
+def moved_little(old: wp.vec3, new: wp.vec3) -> bool:
+    """
+    Whether a point turned little about the obstacle's center, and kept about its distance. Unset (after a reset):
+    yes, since the first solve starts from the contact hints anyway
+    """
+    lo, ln = wp.length(old), wp.length(new)
+    if lo < BOLT_MINVAL:
+        return True
+    if ln < BOLT_MINVAL:
+        return False
+    return wp.dot(old, new) >= wp.cos(WRAP_CONTINUOUS_ANGLE) * lo * ln and ln <= 1.25 * lo and lo <= 1.25 * ln
+
+
+@wp.func
+def segment_moved_little(
+        wrap_bodyid: wp.array(dtype=int), wrap_X_BS: wp.array(dtype=wp.transform), X_GB: wp.array(dtype=wp.transform),
+        seg_begin: int, seg_end: int, start_G: wp.vec3, end_G: wp.vec3, seg_start_S: wp.array(dtype=wp.vec3),
+        seg_end_S: wp.array(dtype=wp.vec3),
+) -> bool:
+    """ Whether the segment's path points moved little about each obstacle since its last solve """
+    for o in range(seg_begin, seg_end):
+        X_SG = wp.transform_inverse(surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB))
+        if not (moved_little(seg_start_S[o], wp.transform_point(X_SG, start_G))
+                and moved_little(seg_end_S[o], wp.transform_point(X_SG, end_G))):
+            return False
+    return True
+
+
+@wp.func
+def record_segment(
+        wrap_bodyid: wp.array(dtype=int), wrap_X_BS: wp.array(dtype=wp.transform), X_GB: wp.array(dtype=wp.transform),
+        seg_begin: int, seg_end: int, start_G: wp.vec3, end_G: wp.vec3, seg_start_S: wp.array(dtype=wp.vec3),
+        seg_end_S: wp.array(dtype=wp.vec3),
+):
+    """ Records the segment's path points at this solve, in each obstacle's surface frame """
+    for o in range(seg_begin, seg_end):
+        X_SG = wp.transform_inverse(surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB))
+        seg_start_S[o] = wp.transform_point(X_SG, start_G)
+        seg_end_S[o] = wp.transform_point(X_SG, end_G)
+
+
+@wp.func
+def restart_segment(seg_begin: int, seg_end: int, wrap_hint_on_surface_S: wp.array(dtype=wp.vec3),
+                    geodesics: wp.array(dtype=WrapGeodesic)):
+    """ Restarts the segment's geodesics from the contact hints, as after a reset """
+    for o in range(seg_begin, seg_end):
+        geodesics[o] = init_geodesic(wrap_hint_on_surface_S[o])
 
 
 @functools.cache
@@ -427,6 +493,7 @@ def _wrap_kernels(max_per_segment: int):
             smoothness_tol: float,
             max_iterations: int,
             accuracy: float,
+            reseed: bool,
             # Data in:
             integration_done_in: wp.array(dtype=bool),
             mob_X_GB_in: wp.array2d(dtype=wp.transform),
@@ -437,6 +504,8 @@ def _wrap_kernels(max_per_segment: int):
             muscle_wrap_group: wp.array(dtype=int),
             # Data out:
             wrap_geodesic_out: wp.array2d(dtype=WrapGeodesic),
+            wrap_seg_start_S_out: wp.array2d(dtype=wp.vec3),
+            wrap_seg_end_S_out: wp.array2d(dtype=wp.vec3),
             muscle_length_out: wp.array2d(dtype=float),
             muscle_velocity_out: wp.array2d(dtype=float),
     ):
@@ -450,6 +519,8 @@ def _wrap_kernels(max_per_segment: int):
         X_GB = mob_X_GB_in[worldid]
         V_GB = body_V_GB_in[worldid]
         geodesics = wrap_geodesic_out[worldid]
+        seg_start_S = wrap_seg_start_S_out[worldid]
+        seg_end_S = wrap_seg_end_S_out[worldid]
 
         for o in range(wrap_begin, wrap_end):
             if geodesics[o].status == WrapStatus.UNINITIALIZED:
@@ -463,8 +534,14 @@ def _wrap_kernels(max_per_segment: int):
             x0 = site_pos_G_in[worldid, pts_adr + s]
             x1 = site_pos_G_in[worldid, pts_adr + s + 1]
             if seg_end > seg_begin:
+                # Restart from the contact hints if the pose jumped since the last solve
+                if reseed and not segment_moved_little(wrap_bodyid, wrap_X_BS, X_GB, seg_begin, seg_end, x0, x1,
+                                                       seg_start_S, seg_end_S):
+                    restart_segment(seg_begin, seg_end, wrap_hint_on_surface_S, geodesics)
                 solve_segment(wrap_type, wrap_bodyid, wrap_X_BS, wrap_size, wrap_hint_S, smoothness_tol,
                               max_iterations, accuracy, X_GB, seg_begin, seg_end, x0, x1, geodesics)
+                if reseed:
+                    record_segment(wrap_bodyid, wrap_X_BS, X_GB, seg_begin, seg_end, x0, x1, seg_start_S, seg_end_S)
 
             # Sum the straight lines and the curves. The lengthening speed is that of the straight lines, whose
             # end points move with their bodies (the curves slide over the surfaces)
@@ -623,10 +700,14 @@ def _reset_wrap_geodesic_kernel(
         world_reset_in: wp.array(dtype=bool),
         # Data out:
         wrap_geodesic_out: wp.array2d(dtype=WrapGeodesic),
+        wrap_seg_start_S_out: wp.array2d(dtype=wp.vec3),
+        wrap_seg_end_S_out: wp.array2d(dtype=wp.vec3),
 ):
     worldid, wrapid = wp.tid()
     if world_reset_in[worldid]:
         wrap_geodesic_out[worldid, wrapid] = WrapGeodesic()
+        wrap_seg_start_S_out[worldid, wrapid] = wp.vec3()
+        wrap_seg_end_S_out[worldid, wrapid] = wp.vec3()
 
 
 @event_scope
@@ -634,16 +715,20 @@ def reset_wrap_geodesics(m: Model, d: Data):
     """ Reset worlds restart their wrapping solution from the obstacles' contact hints """
     if m.nwrap:
         launch(_reset_wrap_geodesic_kernel, dim=(d.nworld, m.nwrap), inputs=[d.world_reset],
-               outputs=[d.wrap_geodesic])
+               outputs=[d.wrap_geodesic, d.wrap_seg_start_S, d.wrap_seg_end_S])
 
 
 @event_scope
 def muscle_wrap_path(m: Model, d: Data, length_out: wp.array2d | None = None,
-                     velocity_out: wp.array2d | None = None):
+                     velocity_out: wp.array2d | None = None, geodesic_out: wp.array2d | None = None,
+                     seg_points_out: tuple[wp.array2d, wp.array2d] | None = None):
     """
     Computes the muscle path length and velocity for paths wrapping over obstacles, into d.muscle_length and
-    d.muscle_velocity unless other outputs are given
+    d.muscle_velocity unless other outputs are given. The geodesics are solved in place, warm started from their
+    current values: d.wrap_geodesic unless geodesic_out is given, as are the segments' path points recorded with them
+    (d.wrap_seg_start_S and d.wrap_seg_end_S unless seg_points_out is given)
     """
+    seg_start_S, seg_end_S = (d.wrap_seg_start_S, d.wrap_seg_end_S) if seg_points_out is None else seg_points_out
     if not m.muscle_wrap_group_tuple:
         return
     launch(
@@ -652,11 +737,13 @@ def muscle_wrap_path(m: Model, d: Data, length_out: wp.array2d | None = None,
         inputs=[
             m.muscle_pts_adr, m.muscle_pts_num, m.muscle_wrap_adr, m.muscle_wrap_num, m.wrap_type, m.wrap_bodyid,
             m.wrap_X_BS, m.wrap_size, m.wrap_segment, m.wrap_hint_S, m.wrap_hint_on_surface_S,
-            m.opt.wrap_smoothness_tol, m.opt.wrap_max_iterations, m.opt.wrap_geodesic_accuracy,
+            m.opt.wrap_smoothness_tol, m.opt.wrap_max_iterations, m.opt.wrap_geodesic_accuracy, m.opt.wrap_reseed,
             d.integration_done, d.mob_X_GB, d.body_V_GB, d.site_pos_G, d.site_vel_G,
             m.muscle_wrap_group
         ],
-        outputs=[d.wrap_geodesic, d.muscle_length if length_out is None else length_out,
+        outputs=[d.wrap_geodesic if geodesic_out is None else geodesic_out,
+                 seg_start_S, seg_end_S,
+                 d.muscle_length if length_out is None else length_out,
                  d.muscle_velocity if velocity_out is None else velocity_out],
     )
 
@@ -772,19 +859,21 @@ def _sample_wrap_path_kernel(
 def sample_wrap_paths(m: Model, d: Data, render_adr: wp.array, worlds: wp.array, points_out: wp.array2d):
     """
     Polylines along the wrapping paths of the given worlds, laid out as wrap_render_layout. The paths are solved at
-    the current positions first (e.g. after only realizing positions), without changing the muscle lengths or speeds
+    the current positions first (e.g. after only realizing positions), on a copy of the geodesics
     """
     if not m.muscle_wrap_group_tuple:
         return
     scratch = wp.empty((d.nworld, m.nmuscle), dtype=float, device=d.muscle_length.device)
-    muscle_wrap_path(m, d, length_out=scratch, velocity_out=scratch)
+    geodesics = wp.clone(d.wrap_geodesic)
+    muscle_wrap_path(m, d, length_out=scratch, velocity_out=scratch, geodesic_out=geodesics,
+                     seg_points_out=(wp.clone(d.wrap_seg_start_S), wp.clone(d.wrap_seg_end_S)))
     wp.launch(
         _sample_wrap_path_kernel,
         dim=(worlds.shape[0], m.muscle_wrap_group.size),
         inputs=[
             m.muscle_pts_adr, m.muscle_pts_num, m.muscle_wrap_adr, m.muscle_wrap_num, m.wrap_type, m.wrap_bodyid,
             m.wrap_X_BS, m.wrap_size, m.wrap_segment, m.opt.wrap_geodesic_accuracy,
-            d.mob_X_GB, d.site_pos_G, d.wrap_geodesic,
+            d.mob_X_GB, d.site_pos_G, geodesics,
             m.muscle_wrap_group, render_adr, worlds,
         ],
         outputs=[points_out],

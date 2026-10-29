@@ -345,6 +345,8 @@ class Option:
       wrap_smoothness_tol: (wrapping) max misalignment (rad) between straight and curved path segments
       wrap_max_iterations: (wrapping) max solver iterations per path segment and evaluation
       wrap_geodesic_accuracy: (wrapping) accuracy of the geodesic integrator over implicit surfaces
+      wrap_reseed: (wrapping) restart a path from the contact hints after a large change of pose (the warm start
+        is then too far off, and can converge to an impossible path)
 
       safety: (variable-step integration) safety factor
       min_shrink: (variable-step integration) minimum step shrink factor
@@ -379,6 +381,7 @@ class Option:
     wrap_smoothness_tol: float
     wrap_max_iterations: int
     wrap_geodesic_accuracy: float
+    wrap_reseed: bool
 
     # Variable-step integration options
     safety: float
@@ -873,6 +876,7 @@ class IntegratorStateScratch:
     m_act: array("nworld", "nmuscle", float)
     a_act: array("nworld", "nactuator", float)
     stl_contact_state: array("nworld", "nstlcontact", wp.vec3)
+    wrap_geodesic: array("nworld", "nwrap", WrapGeodesic)  # warm start of the wrapping solver
 
 
 @dataclass
@@ -1017,6 +1021,9 @@ class Data:
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
       wrap_geodesic: geodesic over each obstacle, also the        (nworld, nwrap)
                      warm start for the next path evaluation
+      wrap_seg_start_S: path points around each obstacle's segment  (nworld, nwrap)
+      wrap_seg_end_S:   at its last solve, in its surface frame     (nworld, nwrap)
+                        (zero after a reset)
 
      * function-based muscle paths
       muscle_moment_arm: moment arm of muscle r = -dL/dq          (nworld, nmuscle, nq)
@@ -1144,6 +1151,8 @@ class Data:
     muscle_length: array("nworld", "nmuscle", float)
     muscle_velocity: array("nworld", "nmuscle", float)
     wrap_geodesic: array("nworld", "nwrap", WrapGeodesic)
+    wrap_seg_start_S: array("nworld", "nwrap", wp.vec3)
+    wrap_seg_end_S: array("nworld", "nwrap", wp.vec3)
 
     site_rel_pos_B: array("nworld", "nsite", wp.vec3)
     site_pos_G: array("nworld", "nsite", wp.vec3)

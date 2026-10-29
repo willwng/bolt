@@ -3,6 +3,7 @@ import warp as wp
 
 from bolt.consts import WRAP_GEODESIC_ACCURACY
 from bolt.consts import WRAP_MAX_ITERATIONS
+from bolt.consts import WRAP_RESEED
 from bolt.consts import WRAP_SMOOTHNESS_TOL
 from bolt.loader.array_util import assert_all_fields_set
 from bolt.loader.array_util import make_zero
@@ -395,6 +396,7 @@ def make_options(
         wrap_smoothness_tol=WRAP_SMOOTHNESS_TOL,
         wrap_max_iterations=WRAP_MAX_ITERATIONS,
         wrap_geodesic_accuracy=WRAP_GEODESIC_ACCURACY,
+        wrap_reseed=WRAP_RESEED,
 
         safety=0.9,
         min_shrink=0.1,
