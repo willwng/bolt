@@ -175,7 +175,9 @@ def create_renderer(
         draw_body_mass: bool,
         draw_beams: bool,
         draw_sites: bool,
+        draw_wrap_geometries: bool = False,
 ):
+    """ draw_wrap_geometries: draw the muscle wrapping obstacles (of Scholz2015GeometryPaths) """
     if renderer_type == RendererType.NEWTON:
         # Imported lazily so Newton stays an optional dependency
         from bolt.render.newton_renderer import NewtonRenderer
@@ -187,6 +189,7 @@ def create_renderer(
             draw_body_mass=draw_body_mass,
             draw_beams=draw_beams,
             draw_sites=draw_sites,
+            draw_wrap_geometries=draw_wrap_geometries,
         )
         viewer.load_meshes(load_result.mesh_load_results)
         return viewer
@@ -200,6 +203,7 @@ def create_renderer(
         draw_body_mass=draw_body_mass,
         draw_beams=draw_beams,
         draw_sites=draw_sites,
+        draw_wrap_geometries=draw_wrap_geometries,
     )
     viewer.load_meshes(load_result.mesh_load_results)
     return viewer

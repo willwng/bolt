@@ -8,6 +8,7 @@ from ..dynamics import operators
 from ..kinematics import mobilizers
 from ..muscle import function_path
 from ..muscle import point_path
+from ..muscle import wrap_path
 from ..warp_util import event_scope
 from ..warp_util import launch
 
@@ -37,6 +38,14 @@ def compute_muscle_moments(m: Model, d: Data):
         # Reset for next muscle
         body_F_tmp.zero_()
         qfrc_moving_tmp.zero_()
+    # Wrapping paths (which have no moving points), along the path at the current positions
+    wrap_path.muscle_wrap_path(m, d)
+    for muscle_id in m.muscle_wrap_group_tuple:
+        wrap_path.apply_unit_force_one_muscle(m, d, body_F_out=body_F_tmp, muscle_id=muscle_id)
+        operators.multiply_by_jacobian_transpose(m, d, X_in=body_F_tmp, JtX_out=ufrc_tmp)
+        forces.ufrc_to_qfrc(m, d, ufrc_in=ufrc_tmp, qfrc_out=qfrc_tmp)
+        point_path.copy_ufrc_into_moment_arm(m, d, muscle_id=muscle_id, qfrc=qfrc_tmp, qfrc_moving=qfrc_moving_tmp)
+        body_F_tmp.zero_()
     return
 
 

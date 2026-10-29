@@ -4,9 +4,11 @@ import newton
 from newton.viewer import ViewerGL
 
 from bolt import types
+from bolt._src.muscle import wrap_path
 from bolt._src.muscle.point_path import site_is_active
 from .mesh import load_mesh
 from .renderer import RendererType
+from .torus import create_torus_mesh
 
 
 @wp.kernel
@@ -32,6 +34,23 @@ def gather_points(
 ):
     w, i = wp.tid()
     out[w, i] = src[worlds[w], i] + world_offsets[w]
+
+
+@wp.kernel
+def gather_wrap_transforms(
+        mob_X_GB: wp.array2d(dtype=wp.transform),
+        wrap_bodyid: wp.array(dtype=int),
+        wrap_X_BS: wp.array(dtype=wp.transform),
+        ids: wp.array(dtype=int),
+        worlds: wp.array(dtype=int),
+        world_offsets: wp.array(dtype=wp.vec3),
+        out: wp.array2d(dtype=wp.transform),
+):
+    """ out[k, w] = surface frame of wrapping obstacle ids[k] in world worlds[w], shifted by its grid offset """
+    k, w = wp.tid()
+    o = ids[k]
+    X = wp.transform_multiply(mob_X_GB[worlds[w], wrap_bodyid[o]], wrap_X_BS[o])
+    out[k, w] = wp.transform(wp.transform_get_translation(X) + world_offsets[w], wp.transform_get_rotation(X))
 
 
 @wp.func
@@ -92,6 +111,30 @@ def muscle_segments(
 
 
 @wp.kernel
+def wrap_muscle_segments(
+        points: wp.array2d(dtype=wp.vec3),
+        m_act: wp.array2d(dtype=float),
+        seg_point: wp.array(dtype=int),
+        seg_muscle: wp.array(dtype=int),
+        muscle_radius: wp.array(dtype=float),
+        worlds: wp.array(dtype=int),
+        world_offsets: wp.array(dtype=wp.vec3),
+        xforms: wp.array(dtype=wp.transform),
+        scales: wp.array(dtype=wp.vec3),
+        colors: wp.array(dtype=wp.vec3),
+):
+    """ One segment per pair of consecutive points sampled along a wrapping path (see wrap_path.sample_wrap_paths) """
+    w, j = wp.tid()
+    idx = w * seg_point.shape[0] + j
+    muscle = seg_muscle[j]
+    act = m_act[worlds[w], muscle]
+    colors[idx] = wp.vec3(act, 0.0, 1.0 - act)
+    offset = world_offsets[w]
+    segment_capsule(points[w, seg_point[j]] + offset, points[w, seg_point[j] + 1] + offset, muscle_radius[muscle],
+                    xforms, scales, idx)
+
+
+@wp.kernel
 def beam_segments(
         vis_beam_pos: wp.array3d(dtype=wp.vec3),
         radius: float,
@@ -125,6 +168,7 @@ class NewtonRenderer:
             draw_body_mass: bool,
             draw_beams: bool,
             draw_sites: bool,
+            draw_wrap_geometries: bool = False,
             world_spacing: float = 2.0,
             width: int = 1200,
             height: int = 1000,
@@ -149,6 +193,7 @@ class NewtonRenderer:
         self.draw_body_mass = draw_body_mass
         self.draw_beams = draw_beams
         self.draw_sites = draw_sites
+        self.draw_wrap_geometries = draw_wrap_geometries
         self.world_spacing = world_spacing
         self.beam_radius = 0.01
 
@@ -162,6 +207,7 @@ class NewtonRenderer:
             "site": (0.5, 0.5, 0.5),
             "mass": (1.0, 1.0, 0.0),
             "ground": (0.55, 0.56, 0.58),
+            "wrap": (0.95, 0.78, 0.35),
         }
         # Per-instance (roughness, metallic, checker, texture)
         self.materials = {
@@ -169,7 +215,9 @@ class NewtonRenderer:
             "geom": (0.7, 0.0, 0.0, 0.0),
             "muscle": (0.35, 0.0, 0.0, 0.0),
             "ground": (0.9, 0.0, 1.0, 0.0),
+            "wrap": (0.5, 0.0, 0.0, 0.0),
         }
+        self.wrap_opacity = 0.6
 
         self.viewer_type = RendererType.NEWTON
         self.m = m
@@ -294,6 +342,45 @@ class NewtonRenderer:
                     materials=self._full(len(ids) * nw, self.materials["geom"], wp.vec4),
                 ))
 
+        # Wrapping obstacles: unit spheres scaled to spheres and ellipsoids, unit cylinders, and a mesh per torus
+        self.wrap_batches = []
+        if self.draw_wrap_geometries and m.nwrap > 0:
+            wrap_types, wrap_sizes = m.wrap_type.numpy(), m.wrap_size.numpy()
+            for mesh, geo in (("/bolt/geometry/unit_sphere", newton.GeoType.SPHERE),
+                              ("/bolt/geometry/unit_cylinder", newton.GeoType.CYLINDER)):
+                if mesh not in self.viewer.objects:
+                    self.viewer.log_geo(mesh, geo, (1.0, 1.0) if geo == newton.GeoType.CYLINDER else (1.0,), 0.0, True,
+                                        hidden=True)
+            groups = []
+            for wtype, mesh in ((types.WrapType.SPHERE, "/bolt/geometry/unit_sphere"),
+                                (types.WrapType.ELLIPSOID, "/bolt/geometry/unit_sphere"),
+                                (types.WrapType.CYLINDER, "/bolt/geometry/unit_cylinder")):
+                ids = np.flatnonzero(wrap_types == wtype)
+                if len(ids):
+                    groups.append((f"/bolt/wrap_{wtype.name.lower()}", mesh, ids))
+            for o in np.flatnonzero(wrap_types == types.WrapType.TORUS):
+                mesh = f"/bolt/geometry/wrap_torus_{o}"
+                points, indices = create_torus_mesh(*wrap_sizes[o][:2])
+                self.viewer.log_mesh(mesh, wp.array(points, dtype=wp.vec3, device=dev),
+                                     wp.array(indices, dtype=wp.int32, device=dev), hidden=True)
+                groups.append((f"/bolt/wrap_torus_{o}", mesh, np.array([o])))
+            cylinder_scale = np.array([1.0, 1.0, wrap_path.WRAP_RENDER_CYLINDER_HALF_LENGTH])
+            for name, mesh, ids in groups:
+                size = wrap_sizes[ids]
+                scale = {types.WrapType.SPHERE: size[:, [0, 0, 0]],
+                         types.WrapType.ELLIPSOID: size,
+                         types.WrapType.CYLINDER: size[:, [0, 0, 0]] * cylinder_scale,
+                         types.WrapType.TORUS: np.ones_like(size)}[types.WrapType(wrap_types[ids[0]])]
+                self.wrap_batches.append(dict(
+                    name=name, mesh=mesh,
+                    ids=wp.array(ids, dtype=int, device=dev),
+                    xforms=wp.empty((len(ids), nw), dtype=wp.transform, device=dev),
+                    scales=wp.array(np.repeat(scale, nw, axis=0), dtype=wp.vec3, device=dev),
+                    colors=self._full(len(ids) * nw, self.colors["wrap"], wp.vec3),
+                    materials=self._full(len(ids) * nw, self.materials["wrap"], wp.vec4),
+                    opacities=wp.full(len(ids) * nw, self.wrap_opacity, dtype=wp.float32, device=dev),
+                ))
+
         # Visuals: one instance batch per mesh, one instance per world
         if self.draw_visuals and self.mesh_loads:
             self.vis_ids = wp.array(np.arange(m.nvis), dtype=int, device=dev)
@@ -320,17 +407,20 @@ class NewtonRenderer:
             self.mass_pts = wp.empty((nw, m.nbody), dtype=wp.vec3, device=dev)
             self.mass_colors = self._full(nw * m.nbody, self.colors["mass"], wp.vec3)
 
-        # Muscles: one capsule per path point (see muscle_segments)
+        # Muscles: one capsule per path point (see muscle_segments), and per point sampled along wrapping paths
+        self.nseg_muscle = self.nseg_wrap = 0
         if self.draw_muscles and m.nmuscle > 0:
             adr = m.muscle_pts_adr.numpy()
             num = m.muscle_pts_num.numpy()
             seg_site, seg_end, seg_muscle = [], [], []
             for i in range(m.nmuscle):
+                if i in m.muscle_wrap_group_tuple:
+                    continue
                 for s in range(adr[i], adr[i] + num[i] - 1):
                     seg_site.append(s)
                     seg_end.append(adr[i] + num[i])
                     seg_muscle.append(i)
-            nseg = len(seg_site)
+            nseg = self.nseg_muscle = len(seg_site)
             radius = [np.sqrt(mm.max_isometric_force) / 8000.0 for mm in m.muscle_data]
             self.seg_site = wp.array(seg_site, dtype=int, device=dev)
             self.seg_end = wp.array(seg_end, dtype=int, device=dev)
@@ -340,6 +430,20 @@ class NewtonRenderer:
             self.muscle_scales = wp.empty(nw * nseg, dtype=wp.vec3, device=dev)
             self.muscle_colors = wp.empty(nw * nseg, dtype=wp.vec3, device=dev)
             self.muscle_materials = self._full(nw * nseg, self.materials["muscle"], wp.vec4)
+
+            wrap_adr, wrap_num = wrap_path.wrap_render_layout(m)
+            wrap_seg_point = [p for a, n in zip(wrap_adr, wrap_num) for p in range(a, a + n - 1)]
+            wrap_seg_muscle = [i for i, n in zip(m.muscle_wrap_group_tuple, wrap_num) for _ in range(n - 1)]
+            nseg = self.nseg_wrap = len(wrap_seg_point)
+            if nseg:
+                self.wrap_render_adr = wp.array(wrap_adr, dtype=int, device=dev)
+                self.wrap_points = wp.empty((nw, sum(wrap_num)), dtype=wp.vec3, device=dev)
+                self.wrap_seg_point = wp.array(wrap_seg_point, dtype=int, device=dev)
+                self.wrap_seg_muscle = wp.array(wrap_seg_muscle, dtype=int, device=dev)
+                self.wrap_xforms = wp.empty(nw * nseg, dtype=wp.transform, device=dev)
+                self.wrap_scales = wp.empty(nw * nseg, dtype=wp.vec3, device=dev)
+                self.wrap_colors = wp.empty(nw * nseg, dtype=wp.vec3, device=dev)
+                self.wrap_materials = self._full(nw * nseg, self.materials["muscle"], wp.vec4)
 
         if self.draw_beams and m.nbeams > 0:
             self.beam_shape = None  # sized from vis_beam_pos on first render
@@ -366,6 +470,13 @@ class NewtonRenderer:
             log(batch["name"], "/bolt/geometry/unit_sphere", batch["xforms"].flatten(), batch["scales"],
                 static(batch["colors"]), static(batch["materials"]))
 
+        for batch in self.wrap_batches:
+            wp.launch(gather_wrap_transforms, dim=batch["xforms"].shape,
+                      inputs=[d.mob_X_GB, m.wrap_bodyid, m.wrap_X_BS, batch["ids"], self.worlds_wp, self.world_offsets],
+                      outputs=[batch["xforms"]], device=dev)
+            v.log_instances(batch["name"], batch["mesh"], batch["xforms"].flatten(), batch["scales"],
+                            static(batch["colors"]), static(batch["materials"]), opacities=static(batch["opacities"]))
+
         if self.draw_visuals and self.mesh_loads:
             wp.launch(gather_transforms, dim=self.vis_xforms.shape,
                       inputs=[d.vis_X, self.vis_ids, self.worlds_wp, self.world_offsets],
@@ -386,7 +497,7 @@ class NewtonRenderer:
                       outputs=[self.mass_pts], device=dev)
             v.log_points("/bolt/body_mass", self.mass_pts.flatten(), 0.02, static(self.mass_colors))
 
-        if self.draw_muscles and m.nmuscle > 0:
+        if self.nseg_muscle:
             wp.launch(muscle_segments, dim=(nw, self.seg_site.shape[0]),
                       inputs=[d.site_pos_G, d.qpos, d.m_act, m.site_cond_qposadr, m.site_cond_range,
                               self.seg_site, self.seg_end, self.seg_muscle, self.muscle_radius,
@@ -394,6 +505,15 @@ class NewtonRenderer:
                       outputs=[self.muscle_xforms, self.muscle_scales, self.muscle_colors], device=dev)
             v.log_capsules("/bolt/muscles", "", self.muscle_xforms, self.muscle_scales, self.muscle_colors,
                            static(self.muscle_materials))
+
+        if self.nseg_wrap:
+            wrap_path.sample_wrap_paths(m, d, self.wrap_render_adr, self.worlds_wp, self.wrap_points)
+            wp.launch(wrap_muscle_segments, dim=(nw, self.nseg_wrap),
+                      inputs=[self.wrap_points, d.m_act, self.wrap_seg_point, self.wrap_seg_muscle,
+                              self.muscle_radius, self.worlds_wp, self.world_offsets],
+                      outputs=[self.wrap_xforms, self.wrap_scales, self.wrap_colors], device=dev)
+            v.log_capsules("/bolt/wrapped_muscles", "", self.wrap_xforms, self.wrap_scales, self.wrap_colors,
+                           static(self.wrap_materials))
 
         if self.draw_beams and m.nbeams > 0:
             nbeam_vis = d.vis_beam_pos.shape[2]

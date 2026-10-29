@@ -10,6 +10,7 @@ import opensim_oracle
 from bolt._src.pipeline import forward
 from bolt._src.muscle import function_path
 from bolt._src.muscle import point_path
+from bolt._src.muscle import wrap_path
 from conftest import N_STATES
 from models import FN_PATH_FILE, FN_PATH_MODEL, MODEL_NAMES, model_path
 from tolerances import MUSCLE_LENGTH_M, MUSCLE_MOMENT_ARM_M, MUSCLE_SPEED_MS
@@ -17,8 +18,10 @@ from tolerances import MUSCLE_LENGTH_M, MUSCLE_MOMENT_ARM_M, MUSCLE_SPEED_MS
 N_MOMENT_ARM_STATES = 4  # computing moment arms of point-based paths is slow, so just check a few
 
 UNSUPPORTED = {
-    "wrapping": ("Bolt point paths do not model wrap surfaces/obstacles", opensim_oracle.wrapped_muscles),
+    "wrapping": ("Bolt does not model GeometryPath wrap objects", opensim_oracle.wrapped_muscles),
 }
+# Scholz2015GeometryPath obstacles are validated in test_wrapping (random poses can mess up wrapping)
+TESTED_ELSEWHERE = {"scholz_wrapping": opensim_oracle.scholz_wrapped_muscles}
 
 
 def _max_err(case, names, refs, mine, index):
@@ -37,6 +40,7 @@ def _realize_paths(case, q, u):
     forward.realize_velocity(case.m, case.d)
     point_path.muscle_point_path(case.m, case.d)
     function_path.muscle_fn_path(case.m, case.d)
+    wrap_path.muscle_wrap_path(case.m, case.d)
     return case.d.muscle_length.numpy(), case.d.muscle_velocity.numpy()
 
 
@@ -48,6 +52,7 @@ def point_paths(request, load_case):
     L, V = _realize_paths(case, q, u)
     refs = [opensim_oracle.muscle_paths(case.osim_model, case.osim_state, qi, ui) for qi, ui in zip(q, u)]
     unsupported = {feature: find(case.path) for feature, (_, find) in UNSUPPORTED.items()}
+    unsupported |= {feature: find(case.path) for feature, find in TESTED_ELSEWHERE.items()}
     return case, refs, L, V, unsupported
 
 

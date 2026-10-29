@@ -24,7 +24,10 @@ Inspired by [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) and [O
     the fast friction model of ExponentialContactForces
   - Joint limits: [MobilityLinearStop](https://simtk.org/api_docs/simbody/api_docs33/Simbody/html/classSimTK_1_1Force_1_1MobilityLinearStop.html) and [CoordinateLimitForce](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CoordinateLimitForce.html)
 - **Geometry-based and polynomial/function-based muscle paths**
-  - Optimized kernels for polynomial evaluations within function-based paths
+  - Supports muscle wrapping with [Scholz Algorithm](https://nmbl.stanford.edu/wp-content/uploads/Scholz2016_Article_AFastMulti-obstacleMuscleWrapp.pdf)
+    (sphere, cylinder, ellipsoid and torus obstacles).
+  - Supports ConditionalPathPoint and MovingPathPoint
+  - Optimized kernels for evaluating function-based paths.
 - **Several integrators, including error-controlled adaptive integrators**
   - Symplectic Euler and RK4 
   - Adaptive symplectic Euler and Runge-Kutta-Merson
@@ -36,10 +39,8 @@ for debugging. The Newton renderer is preferred for performance.
 - Bolt only supports open-loop kinematic trees. Closed-loop kinematic trees 
 (e.g., via [CoordinateCouplerConstraint](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CoordinateCouplerConstraint.html)) are
 not planned to be supported in the near future.
-- Bolt currently has very limited support for muscle wrapping.
-- The above can be worked around by using [function-based muscle paths](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1FunctionBasedPath.html), 
-which can be fitted to OpenSim models with wrapping surfaces. 
-Bolt accelerates the evaluation of these function-based paths.
+- Bolt does not support OpenSim's legacy muscle wrapping (GeometryPath wrap objects). These models can be converted
+to use the newer muscle wrapping surfaces, or fit with function-based paths.
 
 ## Installation
 To install Bolt, you'll need have a version a Python that supports OpenSim wheels (e.g., Python 3.11).

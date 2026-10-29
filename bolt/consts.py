@@ -19,6 +19,15 @@ __all__ = [
     "M_MIN_PENNATION_ANGLE",
     "M_MAX_PENNATION_ANGLE",
     "MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH",
+    "WRAP_SMOOTHNESS_TOL",
+    "WRAP_MAX_ITERATIONS",
+    "WRAP_GEODESIC_ACCURACY",
+    "WRAP_MAX_STEP_ANGLE",
+    "WRAP_PROJECTION_TOL",
+    "WRAP_NEAREST_POINT_TOL",
+    "WRAP_NEAREST_POINT_MAX_ITERATIONS",
+    "WRAP_MAX_GEODESIC_STEPS",
+    "WRAP_INITIAL_STEP_SIZE",
 ]
 
 
@@ -57,3 +66,18 @@ M_MAX_PENNATION_ANGLE = 1.47062891
 
 # MILLARD only: minimum active fiber length
 MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH = 0.4441
+
+# Muscle wrapping (Scholz2015GeometryPath), defaults for the Option fields
+WRAP_SMOOTHNESS_TOL = 1e-5  # rad
+WRAP_MAX_ITERATIONS = 50
+WRAP_GEODESIC_ACCURACY = 1e-6
+WRAP_RESEED = True  # restart a path from the contact hints after a large change of pose
+# Muscle wrapping solver internals (Simbody's CableSpan, relaxed for float32)
+WRAP_MAX_STEP_ANGLE = 10.0 / 180.0 * 3.141592653589793  # max angular correction per solver iteration
+WRAP_PROJECTION_TOL = 1e-5  # implicit surface value tolerance when projecting the geodesic onto the surface
+WRAP_NEAREST_POINT_TOL = 1e-6  # touchdown: convergence of the point on the line nearest the surface
+WRAP_NEAREST_POINT_MAX_ITERATIONS = 50
+WRAP_MAX_GEODESIC_STEPS = 200  # integration steps per geodesic over an implicit surface
+WRAP_INITIAL_STEP_SIZE = 1e-4  # first integration step size for a new geodesic
+WRAP_CONTINUOUS_ANGLE = 15.0 / 180.0 * 3.141592653589793  # max turn of a segment's path points about an obstacle since
+# the last solve for the motion to count as continuous (else the path restarts from the contact hints)

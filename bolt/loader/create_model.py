@@ -1,6 +1,10 @@
 """ Create the Model struct. Each pack_* function sets one group of Model fields """
 import warp as wp
 
+from bolt.consts import WRAP_GEODESIC_ACCURACY
+from bolt.consts import WRAP_MAX_ITERATIONS
+from bolt.consts import WRAP_RESEED
+from bolt.consts import WRAP_SMOOTHNESS_TOL
 from bolt.loader.array_util import assert_all_fields_set
 from bolt.loader.array_util import make_zero
 from bolt.loader.array_util import new_unset_class
@@ -18,6 +22,7 @@ from bolt.loader.converters import swing_twist_helper
 from bolt.loader.converters.converted_objects import ConstantFunctionData
 from bolt.loader.converters.converted_objects import GeomData
 from bolt.loader.converters.converted_objects import LinearFunctionData
+from bolt.loader.converters.converted_objects import MuscleData
 from bolt.loader.converters.converted_objects import PolynomialFunctionData
 from bolt.loader.converters.converted_objects import SimmSplineData
 from bolt.loader.converters.converted_objects import SiteData
@@ -309,8 +314,15 @@ def pack_muscles(m: Model, parsed: ParsedModel, topology: ModelTopology):
     # Determine the path type for each muscle
     point_paths_group, function_paths_groups, function_paths_dim_order = (
         function_based_path_helper.path_type_to_muscle(function_paths))
+    # Point paths with wrapping obstacles are solved separately (function-based paths take precedence)
+    wrap_paths_group = [i for i in point_paths_group if muscles[i].obstacles]
+    point_paths_group = [i for i in point_paths_group if not muscles[i].obstacles]
     m.muscle_pt_group = to_warp_array(point_paths_group, dtype=int)
     m.muscle_pt_group_tuple = tuple(point_paths_group)
+    m.muscle_wrap_group = to_warp_array(wrap_paths_group, dtype=int)
+    m.muscle_wrap_group_tuple = tuple(wrap_paths_group)
+    pack_wrap_obstacles(m, [muscle if i in wrap_paths_group else None for i, muscle in enumerate(muscles)],
+                        topology)
     m.muscle_fn_groups = tuple([to_warp_array(group, dtype=int) for group in function_paths_groups])
     m.muscle_fn_group_dim_order = function_paths_dim_order
 
@@ -324,6 +336,29 @@ def pack_muscles(m: Model, parsed: ParsedModel, topology: ModelTopology):
         function_based_path_helper.get_fn_term_adr(function_paths, topology.qpos_ordering), dtype=PolyInts)
     m.fn_path_dimension = to_warp_array([path.dimension for path in function_paths], dtype=int)
     m.fn_path_order = to_warp_array([path.order for path in function_paths], dtype=int)
+    return
+
+
+def pack_wrap_obstacles(m: Model, muscles: list[MuscleData | None], topology: ModelTopology):
+    """ Wrapping obstacles of each muscle's Scholz2015GeometryPath (None for muscles that don't wrap) """
+    muscle_wrap_num = [len(muscle.obstacles) if muscle else 0 for muscle in muscles]
+    obstacles = [obstacle for muscle in muscles if muscle for obstacle in muscle.obstacles]
+    for muscle in muscles:
+        if muscle and any(site.cond_coord or site.moving_fns for site in muscle.path_points):
+            raise ValueError(f"Muscle {muscle.name} wraps, but has conditional or moving path points")
+    m.nwrap = len(obstacles)
+    m.muscle_wrap_num = to_warp_array(muscle_wrap_num, dtype=int)
+    m.muscle_wrap_adr = to_warp_array(exclusive_scan(muscle_wrap_num), dtype=int)
+    segments = [(i, obstacle.segment) for i, muscle in enumerate(muscles) if muscle for obstacle in muscle.obstacles]
+    m.wrap_max_per_segment = max(segments.count(segment) for segment in segments) if segments else 0
+    m.wrap_type = wp.array([obstacle.wrap_type for obstacle in obstacles], dtype=int)
+    m.wrap_bodyid = wp.array(apply_map_to_list([obstacle.body_name for obstacle in obstacles],
+                                               topology.body_ordering), dtype=int)
+    m.wrap_X_BS = wp.array([obstacle.transform for obstacle in obstacles], dtype=wp.transform)
+    m.wrap_size = wp.array([obstacle.size for obstacle in obstacles], dtype=wp.vec3)
+    m.wrap_segment = wp.array([obstacle.segment for obstacle in obstacles], dtype=int)
+    m.wrap_hint_S = wp.array([obstacle.hint for obstacle in obstacles], dtype=wp.vec3)
+    m.wrap_hint_on_surface_S = wp.array([obstacle.hint_on_surface for obstacle in obstacles], dtype=wp.vec3)
     return
 
 
@@ -356,6 +391,12 @@ def make_options(
         integrator=integrator,
 
         use_linear_stop=False,
+
+        # OpenSim uses 1e-5 rad and a 1e-10 geodesic accuracy, which float32 can't resolve
+        wrap_smoothness_tol=WRAP_SMOOTHNESS_TOL,
+        wrap_max_iterations=WRAP_MAX_ITERATIONS,
+        wrap_geodesic_accuracy=WRAP_GEODESIC_ACCURACY,
+        wrap_reseed=WRAP_RESEED,
 
         safety=0.9,
         min_shrink=0.1,
