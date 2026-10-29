@@ -137,6 +137,31 @@ def skeleton_only_model(model_path: str, out_dir: str, gravity=None) -> str:
     return out_path
 
 
+def coupled_model(model_path: str, out_dir: str, couplers: list[tuple[str, str, osim.Function, float]],
+                  skeleton_only: bool = False) -> str:
+    """
+    Writes a copy of the model (optionally skeleton-only, see skeleton_only_model) with a CoordinateCouplerConstraint
+    dependent = scale * function(independent) for each (independent, dependent, function, scale). Returns the path.
+    """
+    if skeleton_only:
+        model_path = skeleton_only_model(model_path, out_dir)
+    model = osim.Model(model_path)
+    for independent, dependent, function, scale in couplers:
+        coupler = osim.CoordinateCouplerConstraint()
+        coupler.setName(f"{dependent}_coupler")
+        names = osim.ArrayStr()
+        names.append(independent)
+        coupler.setIndependentCoordinateNames(names)
+        coupler.setDependentCoordinateName(dependent)
+        coupler.setFunction(function)
+        osim.PropertyHelper.setValueDouble(scale, coupler.updPropertyByName("scale_factor"))
+        model.addConstraint(coupler)
+    model.initSystem()
+    out_path = os.path.join(out_dir, "coupled_" + os.path.basename(model_path))
+    model.printToXML(out_path)
+    return out_path
+
+
 def wrapped_muscles(model_path: str) -> set[str]:
     """
     Names of muscles whose path wraps (GeometryPath wrap objects or Scholz2015 obstacles).

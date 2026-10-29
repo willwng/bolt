@@ -8,6 +8,7 @@ from ..contact import hunt_crossley
 from ..contact import stateful_contacts
 from ..dynamics import acceleration
 from ..dynamics import actuators
+from ..dynamics import constraints
 from ..dynamics import forces
 from ..dynamics import inertia
 from ..dynamics import limit_force
@@ -36,8 +37,8 @@ def reset_integrator(m: Model, d: Data):
 
 
 @event_scope
-def realize_position(m: Model, d: Data, run_reset: bool = False):
-    """ Position-dependent computations. """
+def realize_position(m: Model, d: Data, run_reset: bool = False, project: bool = False):
+    """ Position-dependent computations. project (implied by run_reset) puts the state back on the constraints """
     # If we requested a reset, let's make sure we're within the joint limits
     if run_reset:
         reset_qpos.fix_qpos_limits(m, d)
@@ -45,6 +46,10 @@ def realize_position(m: Model, d: Data, run_reset: bool = False):
 
     # evaluate the functions for custom joints
     custom_joints.evaluate_cst_functions(m, d)
+    # project onto the constraints, then re-evaluate the functions of the projected coordinates
+    if (run_reset or project) and m.ncoupler:
+        constraints.project(m, d)
+        custom_joints.evaluate_cst_functions(m, d)
     custom_joints.prepare_cst_joint(m, d)
 
     # mobilizer transforms
@@ -97,6 +102,8 @@ def realize_articulated_body_inertia(m: Model, d: Data, implicit_step_scale: flo
 @event_scope
 def compute_accelerations(m: Model, d: Data):
     acceleration.calc_udot(m, d)
+    if m.ncoupler:
+        constraints.constrain_accelerations(m, d)
     return
 
 
@@ -157,10 +164,10 @@ def realize_forces(m: Model, d: Data):
 
 
 @event_scope
-def fwd(m: Model, d: Data, implicit_step_scale: float = 1.0):
-    """ Forward dynamics. No integration """
+def fwd(m: Model, d: Data, implicit_step_scale: float = 1.0, project: bool = False):
+    """ Forward dynamics. No integration. project puts the state back on the constraints first (after a step) """
     reset_forces(m, d)
-    realize_position(m, d, run_reset=False)
+    realize_position(m, d, run_reset=False, project=project)
     realize_velocity(m, d)
     realize_muscles(m, d, run_reset=False)
     realize_actuators(m, d, run_reset=False)

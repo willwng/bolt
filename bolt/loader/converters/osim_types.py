@@ -53,5 +53,7 @@ class OSimType:
     CoordinateLimitForce = osim.CoordinateLimitForce
     ActivationCoordinateActuator = osim.ActivationCoordinateActuator
 
+    CoordinateCouplerConstraint = osim.CoordinateCouplerConstraint
+
     Property = osim.common.AbstractProperty
     PropertyStringList = osim.common.PropertyStringList

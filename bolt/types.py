@@ -465,6 +465,7 @@ class Model:
       nsite: number of sites
       nlimitforce: number of (CoordinateLimitForce) limits
       nswingtwist: number of swing-twist limits
+      ncoupler: number of coordinate coupler constraints
 
       nfunctions: number of custom functions
       nlinearfn: number of linear functions
@@ -542,6 +543,14 @@ class Model:
       coordinate_limit_force: coordinate limit forces          (nlimitforce, CoordinateLimitForce)
       swing_twist_limit: swing-twist limits for quaternions    (nswingtwist, SwingTwistLimit)
 
+     * coordinate coupler constraints: q_dep = scale * f(q_indep) *
+      coupler_fnadr: "global" fn address of f                  (ncoupler,)
+      coupler_scale: scale factor                              (ncoupler,)
+      coupler_indep_qposadr: qpos address of q_indep           (ncoupler,)
+      coupler_indep_dofadr: dof address of q_indep             (ncoupler,)
+      coupler_dep_qposadr: qpos address of q_dep               (ncoupler,)
+      coupler_dep_dofadr: dof address of q_dep                 (ncoupler,)
+
      * collision geometry *
       geom_type: geometric type (GeomType)                     (ngeom,)
       geom_bodyid: id of geom's body                           (ngeom,)
@@ -609,6 +618,7 @@ class Model:
     nsite: int
     nlimitforce: int
     nswingtwist: int
+    ncoupler: int
 
     nfunctions: int
     nlinearfn: int
@@ -682,6 +692,13 @@ class Model:
 
     coordinate_limit_force: array("nlimitforce", CoordinateLimitForce)
     swing_twist_limit: array("nswingtwist", SwingTwistLimit)
+
+    coupler_fnadr: array("ncoupler", int)
+    coupler_scale: array("ncoupler", float)
+    coupler_indep_qposadr: array("ncoupler", int)
+    coupler_indep_dofadr: array("ncoupler", int)
+    coupler_dep_qposadr: array("ncoupler", int)
+    coupler_dep_dofadr: array("ncoupler", int)
 
     # Collision geometry
     geom_type: array("ngeom", int)
@@ -891,6 +908,14 @@ class Data:
       body_zTmp: similar to zPlus, used for J^T calculations      (nworld, nbody, 6)
       body_eps: f - ~H * z                                        (nworld, nbody, 6)
 
+     * coordinate coupler constraints *
+      coupler_ufrc: generalized force G^T e_k for one constraint  (nworld, nv)
+      coupler_Y: M^-1 G^T, one column per constraint              (ncoupler, nworld, nv)
+      coupler_A: body accelerations from M^-1 G^T                 (ncoupler, nworld, nbody, 6)
+      coupler_GY: G M^-1 G^T, factored in place                   (nworld, ncoupler, ncoupler)
+      coupler_rhs: acceleration error, then multipliers           (nworld, ncoupler)
+      coupler_zero_body: zero bias terms for the solves           (nworld, nbody, 6)
+
       geom_X: Cartesian geom transform                            (nworld, ngeom, transform)
       vis_X: Cartesian visual transform                           (nworld, nvis, transform)
       vis_beam_pos: position of beam visuals                      (nworld, nbeams, nbeam_visuals, 3)
@@ -1026,6 +1051,13 @@ class Data:
     body_zPlus: array("nworld", "nbody", wp.spatial_vector)
     body_zTmp: array("nworld", "nbody", wp.spatial_vector)
     body_eps: array("nworld", "nbody", wp.spatial_vector)
+
+    coupler_ufrc: array("nworld", "nv", float)
+    coupler_Y: array("ncoupler", "nworld", "nv", float)
+    coupler_A: array("ncoupler", "nworld", "nbody", wp.spatial_vector)
+    coupler_GY: array("nworld", "ncoupler", "ncoupler", float)
+    coupler_rhs: array("nworld", "ncoupler", float)
+    coupler_zero_body: array("nworld", "nbody", wp.spatial_vector)
 
     subtree_com: array("nworld", "nbody", wp.vec3)
     subtree_mass: array("nworld", "nbody", float)
