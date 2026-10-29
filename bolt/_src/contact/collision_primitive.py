@@ -27,10 +27,14 @@ from ..math import make_frame
 from ..math import upper_trid_index
 from ..warp_util import event_scope
 from ..warp_util import launch
+from .collision_primitive_core import box_box
+from .collision_primitive_core import capsule_box
 from .collision_primitive_core import capsule_capsule
+from .collision_primitive_core import plane_box
 from .collision_primitive_core import plane_capsule
 from .collision_primitive_core import plane_ellipsoid
 from .collision_primitive_core import plane_sphere
+from .collision_primitive_core import sphere_box
 from .collision_primitive_core import sphere_capsule
 from .collision_primitive_core import sphere_sphere
 
@@ -365,6 +369,69 @@ def sphere_capsule_wrapper(
 
 
 @wp.func
+def sphere_box_wrapper(
+        # Data in:
+        naconmax_in: int,
+        # In:
+        sphere: Geom,
+        box: Geom,
+        worldid: int,
+        condim: int,
+        friction: vec5,
+        stiffness: float,
+        dissipation: float,
+        transition_velocity: float,
+        geoms: wp.vec2i,
+        pairid: wp.vec2i,
+        # Data out:
+        contact_dist_out: wp.array(dtype=float),
+        contact_pos_out: wp.array(dtype=wp.vec3),
+        contact_frame_out: wp.array(dtype=wp.mat33),
+        contact_friction_out: wp.array(dtype=vec5),
+        contact_dim_out: wp.array(dtype=int),
+        contact_curvature_out: wp.array(dtype=float),
+        contact_stiffness_out: wp.array(dtype=float),
+        contact_dissipation_out: wp.array(dtype=float),
+        contact_transition_velocity_out: wp.array(dtype=float),
+        contact_geom_out: wp.array(dtype=wp.vec2i),
+        contact_worldid_out: wp.array(dtype=int),
+        nacon_out: wp.array(dtype=int),
+):
+    """Calculates contacts between a sphere and a box."""
+    dist, pos, normal = sphere_box(sphere.pos, sphere.size[0], box.pos, box.rot, box.size)
+    curvature = sphere.size[0]  # box faces are flat, as for plane-sphere
+
+    write_contact(
+        naconmax_in,
+        0,
+        dist,
+        pos,
+        make_frame(normal),
+        condim,
+        curvature,
+        stiffness,
+        dissipation,
+        transition_velocity,
+        friction,
+        geoms,
+        pairid,
+        worldid,
+        contact_dist_out,
+        contact_pos_out,
+        contact_frame_out,
+        contact_friction_out,
+        contact_dim_out,
+        contact_curvature_out,
+        contact_stiffness_out,
+        contact_dissipation_out,
+        contact_transition_velocity_out,
+        contact_geom_out,
+        contact_worldid_out,
+        nacon_out,
+    )
+
+
+@wp.func
 def capsule_capsule_wrapper(
         # Data in:
         naconmax_in: int,
@@ -579,13 +646,224 @@ def plane_ellipsoid_wrapper(
     )
 
 
+@wp.func
+def plane_box_wrapper(
+        # Data in:
+        naconmax_in: int,
+        # In:
+        plane: Geom,
+        box: Geom,
+        worldid: int,
+        condim: int,
+        friction: vec5,
+        stiffness: float,
+        dissipation: float,
+        transition_velocity: float,
+        geoms: wp.vec2i,
+        pairid: wp.vec2i,
+        # Data out:
+        contact_dist_out: wp.array(dtype=float),
+        contact_pos_out: wp.array(dtype=wp.vec3),
+        contact_frame_out: wp.array(dtype=wp.mat33),
+        contact_friction_out: wp.array(dtype=vec5),
+        contact_dim_out: wp.array(dtype=int),
+        contact_curvature_out: wp.array(dtype=float),
+        contact_stiffness_out: wp.array(dtype=float),
+        contact_dissipation_out: wp.array(dtype=float),
+        contact_transition_velocity_out: wp.array(dtype=float),
+        contact_geom_out: wp.array(dtype=wp.vec2i),
+        contact_worldid_out: wp.array(dtype=int),
+        nacon_out: wp.array(dtype=int),
+):
+    """Calculates contacts between a box and a plane."""
+    dist, pos, normal = plane_box(plane.normal, plane.pos, box.pos, box.rot, box.size)
+    frame = make_frame(normal)
+    curvature = wp.cbrt(box.size[0] * box.size[1] * box.size[2])  # todo: corners have no natural curvature
+
+    for i in range(8):
+        write_contact(
+            naconmax_in,
+            i,
+            dist[i],
+            pos[i],
+            frame,
+            condim,
+            curvature,
+            stiffness,
+            dissipation,
+            transition_velocity,
+            friction,
+            geoms,
+            pairid,
+            worldid,
+            contact_dist_out,
+            contact_pos_out,
+            contact_frame_out,
+            contact_friction_out,
+            contact_dim_out,
+            contact_curvature_out,
+            contact_stiffness_out,
+            contact_dissipation_out,
+            contact_transition_velocity_out,
+            contact_geom_out,
+            contact_worldid_out,
+            nacon_out,
+        )
+
+
+@wp.func
+def capsule_box_wrapper(
+        # Data in:
+        naconmax_in: int,
+        # In:
+        cap: Geom,
+        box: Geom,
+        worldid: int,
+        condim: int,
+        friction: vec5,
+        stiffness: float,
+        dissipation: float,
+        transition_velocity: float,
+        geoms: wp.vec2i,
+        pairid: wp.vec2i,
+        # Data out:
+        contact_dist_out: wp.array(dtype=float),
+        contact_pos_out: wp.array(dtype=wp.vec3),
+        contact_frame_out: wp.array(dtype=wp.mat33),
+        contact_friction_out: wp.array(dtype=vec5),
+        contact_dim_out: wp.array(dtype=int),
+        contact_curvature_out: wp.array(dtype=float),
+        contact_stiffness_out: wp.array(dtype=float),
+        contact_dissipation_out: wp.array(dtype=float),
+        contact_transition_velocity_out: wp.array(dtype=float),
+        contact_geom_out: wp.array(dtype=wp.vec2i),
+        contact_worldid_out: wp.array(dtype=int),
+        nacon_out: wp.array(dtype=int),
+):
+    """Calculates contacts between a capsule and a box."""
+    # capsule axis
+    axis = wp.vec3(cap.rot[0, 2], cap.rot[1, 2], cap.rot[2, 2])
+    curvature = cap.size[0]  # box faces are flat, as for plane-capsule
+
+    dist, pos, normal = capsule_box(
+        cap.pos,
+        axis,
+        cap.size[0],  # radius
+        cap.size[1],  # half_length
+        box.pos,
+        box.rot,
+        box.size,
+    )
+
+    for i in range(2):
+        write_contact(
+            naconmax_in,
+            i,
+            dist[i],
+            pos[i],
+            make_frame(normal[i]),
+            condim,
+            curvature,
+            stiffness,
+            dissipation,
+            transition_velocity,
+            friction,
+            geoms,
+            pairid,
+            worldid,
+            contact_dist_out,
+            contact_pos_out,
+            contact_frame_out,
+            contact_friction_out,
+            contact_dim_out,
+            contact_curvature_out,
+            contact_stiffness_out,
+            contact_dissipation_out,
+            contact_transition_velocity_out,
+            contact_geom_out,
+            contact_worldid_out,
+            nacon_out,
+        )
+
+
+@wp.func
+def box_box_wrapper(
+        # Data in:
+        naconmax_in: int,
+        # In:
+        box1: Geom,
+        box2: Geom,
+        worldid: int,
+        condim: int,
+        friction: vec5,
+        stiffness: float,
+        dissipation: float,
+        transition_velocity: float,
+        geoms: wp.vec2i,
+        pairid: wp.vec2i,
+        # Data out:
+        contact_dist_out: wp.array(dtype=float),
+        contact_pos_out: wp.array(dtype=wp.vec3),
+        contact_frame_out: wp.array(dtype=wp.mat33),
+        contact_friction_out: wp.array(dtype=vec5),
+        contact_dim_out: wp.array(dtype=int),
+        contact_curvature_out: wp.array(dtype=float),
+        contact_stiffness_out: wp.array(dtype=float),
+        contact_dissipation_out: wp.array(dtype=float),
+        contact_transition_velocity_out: wp.array(dtype=float),
+        contact_geom_out: wp.array(dtype=wp.vec2i),
+        contact_worldid_out: wp.array(dtype=int),
+        nacon_out: wp.array(dtype=int),
+):
+    """Calculates contacts between two boxes."""
+    dist, pos, normal = box_box(box1.pos, box1.rot, box1.size, box2.pos, box2.rot, box2.size, 0.0)
+    # todo: corners and edges have no natural curvature; same placeholder as plane-box
+    curvature1 = wp.cbrt(box1.size[0] * box1.size[1] * box1.size[2])
+    curvature2 = wp.cbrt(box2.size[0] * box2.size[1] * box2.size[2])
+    curvature = wp.sqrt(curvature1 * curvature2)
+
+    for i in range(8):
+        write_contact(
+            naconmax_in,
+            i,
+            dist[i],
+            pos[i],
+            make_frame(normal[i]),
+            condim,
+            curvature,
+            stiffness,
+            dissipation,
+            transition_velocity,
+            friction,
+            geoms,
+            pairid,
+            worldid,
+            contact_dist_out,
+            contact_pos_out,
+            contact_frame_out,
+            contact_friction_out,
+            contact_dim_out,
+            contact_curvature_out,
+            contact_stiffness_out,
+            contact_dissipation_out,
+            contact_transition_velocity_out,
+            contact_geom_out,
+            contact_worldid_out,
+            nacon_out,
+        )
+
+
 _PRIMITIVE_COLLISIONS = {
     (GeomType.PLANE, GeomType.SPHERE): plane_sphere_wrapper,
     (GeomType.PLANE, GeomType.CAPSULE): plane_capsule_wrapper,
     (GeomType.PLANE, GeomType.ELLIPSOID): plane_ellipsoid_wrapper,
+    (GeomType.PLANE, GeomType.BOX): plane_box_wrapper,
     (GeomType.SPHERE, GeomType.SPHERE): sphere_sphere_wrapper,
     (GeomType.SPHERE, GeomType.CAPSULE): sphere_capsule_wrapper,
+    (GeomType.SPHERE, GeomType.BOX): sphere_box_wrapper,
     (GeomType.CAPSULE, GeomType.CAPSULE): capsule_capsule_wrapper,
+    (GeomType.CAPSULE, GeomType.BOX): capsule_box_wrapper,
+    (GeomType.BOX, GeomType.BOX): box_box_wrapper,
 }
 
 

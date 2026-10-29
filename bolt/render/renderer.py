@@ -101,6 +101,7 @@ class Renderer:
             "sphere": (0.7, 0.5, 0.5),
             "capsule": (0.7, 0.5, 0.5),
             "ellipsoid": (0.7, 0.5, 0.5),
+            "box": (0.7, 0.5, 0.5),
             "beam": (0.82, 0.78, 0.74),
             "muscle_site": (1.0, 0.0, 1.0),
             "exp_contact_site": (0.7, 0.5, 0.5),
@@ -265,6 +266,14 @@ class Renderer:
                             rot=rot,
                             scale=(rx, ry, rz),
                             colors=self.colors["ellipsoid"],
+                        )
+                    elif self.geom_types[i] == types.GeomType.BOX:
+                        self.renderer.render_box(
+                            f"box_{obj_id}",
+                            pos,
+                            rot,
+                            extents=tuple(float(e) for e in self.geom_sizes[i]),  # half-extents
+                            color=self.colors["box"],
                         )
                     obj_id += 1
 
