@@ -265,28 +265,33 @@ class NewtonRenderer:
         geom_types = m.geom_type.numpy()
         geom_sizes = m.geom_size.numpy()
 
-        # Colliders: spheres and ellipsoids share a unit sphere scaled per instance; capsules
-        # are already Z-aligned in Bolt, matching Newton's capsule convention.
+        # Colliders: spheres and ellipsoids share a unit sphere scaled per instance, and boxes a unit
+        # box scaled by their half-extents; capsules are already Z-aligned in Bolt, matching Newton's
+        # capsule convention.
         self.geom_batches = []
         if self.draw_colliders:
             sphere_mesh = "/bolt/geometry/unit_sphere"
             if sphere_mesh not in self.viewer.objects:
                 self.viewer.log_geo(sphere_mesh, newton.GeoType.SPHERE, (1.0,), 0.0, True, hidden=True)
+            box_mesh = "/bolt/geometry/unit_box"
+            if box_mesh not in self.viewer.objects:
+                self.viewer.log_geo(box_mesh, newton.GeoType.BOX, (1.0, 1.0, 1.0), 0.0, True, hidden=True)
             for gtype, name in ((types.GeomType.SPHERE, "spheres"), (types.GeomType.ELLIPSOID, "ellipsoids"),
-                                (types.GeomType.CAPSULE, "capsules")):
+                                (types.GeomType.CAPSULE, "capsules"), (types.GeomType.BOX, "boxes")):
                 ids = np.flatnonzero(geom_types == gtype)
                 if len(ids) == 0:
                     continue
                 sizes = geom_sizes[ids]
                 if gtype == types.GeomType.SPHERE:
                     scale = np.repeat(sizes[:, :1], 3, axis=1)
-                elif gtype == types.GeomType.ELLIPSOID:
+                elif gtype in (types.GeomType.ELLIPSOID, types.GeomType.BOX):
                     scale = sizes
                 else:
                     scale = np.stack([sizes[:, 0], sizes[:, 0], sizes[:, 1]], axis=1)
                 self.geom_batches.append(dict(
                     name=f"/bolt/{name}",
                     capsule=gtype == types.GeomType.CAPSULE,
+                    mesh=box_mesh if gtype == types.GeomType.BOX else sphere_mesh,
                     ids=wp.array(ids, dtype=int, device=dev),
                     xforms=wp.empty((len(ids), nw), dtype=wp.transform, device=dev),
                     scales=wp.array(np.repeat(scale, nw, axis=0), dtype=wp.vec3, device=dev),
@@ -363,7 +368,7 @@ class NewtonRenderer:
                       inputs=[d.geom_X, batch["ids"], self.worlds_wp, self.world_offsets],
                       outputs=[batch["xforms"]], device=dev)
             log = v.log_capsules if batch["capsule"] else v.log_instances
-            log(batch["name"], "/bolt/geometry/unit_sphere", batch["xforms"].flatten(), batch["scales"],
+            log(batch["name"], batch["mesh"], batch["xforms"].flatten(), batch["scales"],
                 static(batch["colors"]), static(batch["materials"]))
 
         if self.draw_visuals and self.mesh_loads:
