@@ -23,6 +23,8 @@ Inspired by [MuJoCo Warp](https://github.com/google-deepmind/mujoco_warp) and [O
     - Bolt also features its own `StatefulHalfspaceContact` which uses the Hunt-Crossley normal force model and 
     the fast friction model of ExponentialContactForces
   - Joint limits: [MobilityLinearStop](https://simtk.org/api_docs/simbody/api_docs33/Simbody/html/classSimTK_1_1Force_1_1MobilityLinearStop.html) and [CoordinateLimitForce](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CoordinateLimitForce.html)
+- **Constraint Projection**
+    - Bolt also supports some closed-loop kinematic trees; e.g., the [CoordinateCouplerConstraint](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CoordinateCouplerConstraint.html) found in the Rajagopal model.
 - **Geometry-based and polynomial/function-based muscle paths**
   - Optimized kernels for polynomial evaluations within function-based paths
 - **Several integrators, including error-controlled adaptive integrators**
@@ -33,9 +35,6 @@ We also include basic [OpenGL](bolt/render/renderer.py) and [Newton](bolt/render
 for debugging. The Newton renderer is preferred for performance.
 
 ## Limitations/Unsupported Features
-- Bolt only supports open-loop kinematic trees. Closed-loop kinematic trees 
-(e.g., via [CoordinateCouplerConstraint](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1CoordinateCouplerConstraint.html)) are
-not planned to be supported in the near future.
 - Bolt currently has very limited support for muscle wrapping.
 - The above can be worked around by using [function-based muscle paths](https://simtk.org/api_docs/opensim/api_docs/classOpenSim_1_1FunctionBasedPath.html), 
 which can be fitted to OpenSim models with wrapping surfaces. 
