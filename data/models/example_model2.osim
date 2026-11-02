@@ -264,9 +264,9 @@
 							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
 							<socket_frame>..</socket_frame>
 							<!--The location of the contact geometry center in the PhysicalFrame.-->
-							<location>0.0077027704206046226 -0.10907143784042804 0.019298091415293532</location>
+							<location>0.0081353391593282382 -0.10933683976076396 0.019071573325146429</location>
 							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
-							<orientation>1.6565624380109021 0.25177407076497538 0.012711630596698775</orientation>
+							<orientation>1.6487375552756232 0.2687074264309155 -0.01135870797640548</orientation>
 							<!--The default appearance for this Geometry-->
 							<Appearance>
 								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
@@ -277,7 +277,7 @@
 								<color>0 1 1</color>
 							</Appearance>
 							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
-							<radii>0.0082505637894506757 0.014011610634576547 0.18991681122672202</radii>
+							<radii>0.0082500000000000004 0.013785266958527812 0.18771313249428759</radii>
 						</ContactEllipsoid>
 						<ContactEllipsoid name="addlong_r_obstacle">
 							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
@@ -359,9 +359,9 @@
 							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
 							<socket_frame>..</socket_frame>
 							<!--The location of the contact geometry center in the PhysicalFrame.-->
-							<location>-0.0029805993273450708 -0.061742416601732374 0.024438592861546499</location>
+							<location>-0.00245881949055378 -0.053106015822901823 0.026222797858095032</location>
 							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
-							<orientation>1.6311587906726031 0.16709363451032333 0.069666148645832204</orientation>
+							<orientation>1.5727199924491697 0.099879842892231396 -0.01632062435253312</orientation>
 							<!--The default appearance for this Geometry-->
 							<Appearance>
 								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
@@ -372,7 +372,7 @@
 								<color>0 1 1</color>
 							</Appearance>
 							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
-							<radii>0.012643332746875801 0.01805524362001831 0.076197949190250108</radii>
+							<radii>0.013396781920725399 0.020212901233491561 0.17626929586039455</radii>
 						</ContactEllipsoid>
 						<ContactEllipsoid name="hamstrings_r_obstacle">
 							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
@@ -392,6 +392,44 @@
 							</Appearance>
 							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
 							<radii>0.02 0.02 0.125</radii>
+						</ContactEllipsoid>
+						<ContactEllipsoid name="knee_extensors_r_obstacle">
+							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
+							<socket_frame>..</socket_frame>
+							<!--The location of the contact geometry center in the PhysicalFrame.-->
+							<location>0.0035882800000000001 -0.40273199999999998 0.0020911100000000002</location>
+							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
+							<orientation>-0.062336599999999999 0.050760100000000002 0</orientation>
+							<!--The default appearance for this Geometry-->
+							<Appearance>
+								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
+								<visible>false</visible>
+								<!--The opacity used to display the geometry between 0:transparent, 1:opaque.-->
+								<opacity>0.5</opacity>
+								<!--The color, (red, green, blue), [0, 1], used to display the geometry. -->
+								<color>0 1 1</color>
+							</Appearance>
+							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
+							<radii>0.025000000000000001 0.025000000000000001 0.125</radii>
+						</ContactEllipsoid>
+						<ContactEllipsoid name="vaslat_r_obstacle">
+							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
+							<socket_frame>..</socket_frame>
+							<!--The location of the contact geometry center in the PhysicalFrame.-->
+							<location>0.00188828 -0.40273199999999998 0.0020911100000000002</location>
+							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
+							<orientation>-0.062336599999999999 0.050760100000000002 0</orientation>
+							<!--The default appearance for this Geometry-->
+							<Appearance>
+								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
+								<visible>false</visible>
+								<!--The opacity used to display the geometry between 0:transparent, 1:opaque.-->
+								<opacity>0.5</opacity>
+								<!--The color, (red, green, blue), [0, 1], used to display the geometry. -->
+								<color>0 1 1</color>
+							</Appearance>
+							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
+							<radii>0.025000000000000001 0.025000000000000001 0.125</radii>
 						</ContactEllipsoid>
 						<ContactEllipsoid name="hamstrings_r_obstacle_semimem_r">
 							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
@@ -436,6 +474,50 @@
 							</Appearance>
 							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
 							<radii>0.02 0.02 0.125</radii>
+						</ContactEllipsoid>
+						<ContactEllipsoid name="knee_extensors_r_obstacle_vasint_r">
+							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
+							<socket_frame>..</socket_frame>
+							<!--The location of the contact geometry center in the PhysicalFrame.-->
+							<location>0.0035882800000000001 -0.40273199999999998 0.0020911100000000002</location>
+							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
+							<orientation>-0.062336599999999999 0.050760100000000002 0</orientation>
+							<!--The default appearance for this Geometry-->
+							<Appearance>
+								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
+								<visible>false</visible>
+								<!--The color, (red, green, blue), [0, 1], used to display the geometry. -->
+								<color>0 1 1</color>
+								<!--Visuals applied to surfaces associated with this Appearance.-->
+								<SurfaceProperties>
+									<!--The representation (1:Points, 2:Wire, 3:Shaded) used to display the object.-->
+									<representation>2</representation>
+								</SurfaceProperties>
+							</Appearance>
+							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
+							<radii>0.025000000000000001 0.025000000000000001 0.125</radii>
+						</ContactEllipsoid>
+						<ContactEllipsoid name="knee_extensors_r_obstacle_vasmed_r">
+							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
+							<socket_frame>..</socket_frame>
+							<!--The location of the contact geometry center in the PhysicalFrame.-->
+							<location>0.0035882800000000001 -0.40273199999999998 0.0020911100000000002</location>
+							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
+							<orientation>-0.062336599999999999 0.050760100000000002 0</orientation>
+							<!--The default appearance for this Geometry-->
+							<Appearance>
+								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
+								<visible>false</visible>
+								<!--The color, (red, green, blue), [0, 1], used to display the geometry. -->
+								<color>0 1 1</color>
+								<!--Visuals applied to surfaces associated with this Appearance.-->
+								<SurfaceProperties>
+									<!--The representation (1:Points, 2:Wire, 3:Shaded) used to display the object.-->
+									<representation>2</representation>
+								</SurfaceProperties>
+							</Appearance>
+							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
+							<radii>0.025000000000000001 0.025000000000000001 0.125</radii>
 						</ContactEllipsoid>
 					</components>
 					<!--The geometry used to display the axes of this Frame.-->
@@ -585,6 +667,36 @@
 					<mass_center>0 -0.1867 0</mass_center>
 					<!--The elements of the inertia tensor (Vec6) as [Ixx Iyy Izz Ixy Ixz Iyz] measured about the mass_center and not the body origin.-->
 					<inertia>0.0504 0.0051000000000000004 0.0511 0 0 0</inertia>
+				</Body>
+				<Body name="patella_r">
+					<!--The geometry used to display the axes of this Frame.-->
+					<FrameGeometry name="frame_geometry">
+						<!--Path to a Component that satisfies the Socket 'frame' of type Frame.-->
+						<socket_frame>..</socket_frame>
+						<!--Scale factors in X, Y, Z directions respectively.-->
+						<scale_factors>0.20000000000000001 0.20000000000000001 0.20000000000000001</scale_factors>
+					</FrameGeometry>
+					<!--List of geometry attached to this Frame. Note, the geometry are treated as fixed to the frame and they share the transform of the frame when visualized-->
+					<attached_geometry>
+						<Mesh name="patella_r_mesh">
+							<!--Path to a Component that satisfies the Socket 'frame' of type Frame.-->
+							<socket_frame>..</socket_frame>
+							<!--Scale factors in X, Y, Z directions respectively.-->
+							<scale_factors>1 1 1</scale_factors>
+							<!--Default appearance attributes for this Geometry-->
+							<Appearance>
+								<!--All properties of this object have their default values.-->
+							</Appearance>
+							<!--Name of geometry file.-->
+							<mesh_file>patella_r.obj</mesh_file>
+						</Mesh>
+					</attached_geometry>
+					<!--The mass of the body (kg)-->
+					<mass>0.086199999999999999</mass>
+					<!--The location (Vec3) of the mass center in the body frame.-->
+					<mass_center>0.0018 0.0264 0</mass_center>
+					<!--The elements of the inertia tensor (Vec6) as [Ixx Iyy Izz Ixy Ixz Iyz] measured about the mass_center and not the body origin.-->
+					<inertia>2.8700000000000001e-06 1.311e-05 1.311e-05 0 0 0</inertia>
 				</Body>
 				<Body name="talus_r">
 					<!--The geometry used to display the axes of this Frame.-->
@@ -764,9 +876,9 @@
 							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
 							<socket_frame>..</socket_frame>
 							<!--The location of the contact geometry center in the PhysicalFrame.-->
-							<location>0.0077027704206046226 -0.10907143784042804 -0.019298091415293532</location>
+							<location>0.0081353391593282382 -0.10933683976076396 -0.019071573325146429</location>
 							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
-							<orientation>-1.6565624380109014 -0.25177407076497516 0.012711630596698775</orientation>
+							<orientation>-1.6487375552756234 -0.2687074264309155 -0.01135870797640548</orientation>
 							<!--The default appearance for this Geometry-->
 							<Appearance>
 								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
@@ -777,7 +889,7 @@
 								<color>0 1 1</color>
 							</Appearance>
 							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
-							<radii>0.0082505637894506757 0.014011610634576547 0.18991681122672202</radii>
+							<radii>0.0082500000000000004 0.013785266958527812 0.18771313249428759</radii>
 						</ContactEllipsoid>
 						<ContactEllipsoid name="addlong_l_obstacle">
 							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
@@ -859,9 +971,9 @@
 							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
 							<socket_frame>..</socket_frame>
 							<!--The location of the contact geometry center in the PhysicalFrame.-->
-							<location>-0.0029805993273450708 -0.061742416601732374 -0.024438592861546499</location>
+							<location>-0.00245881949055378 -0.053106015822901823 -0.026222797858095032</location>
 							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
-							<orientation>-1.6311587906726031 -0.16709363451032333 0.069666148645832315</orientation>
+							<orientation>-1.5727199924491693 -0.099879842892231396 -0.01632062435253312</orientation>
 							<!--The default appearance for this Geometry-->
 							<Appearance>
 								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
@@ -872,7 +984,7 @@
 								<color>0 1 1</color>
 							</Appearance>
 							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
-							<radii>0.012643332746875801 0.01805524362001831 0.076197949190250108</radii>
+							<radii>0.013396781920725399 0.020212901233491561 0.17626929586039455</radii>
 						</ContactEllipsoid>
 						<ContactEllipsoid name="hamstrings_l_obstacle">
 							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
@@ -892,6 +1004,44 @@
 							</Appearance>
 							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
 							<radii>0.02 0.02 0.125</radii>
+						</ContactEllipsoid>
+						<ContactEllipsoid name="knee_extensors_l_obstacle">
+							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
+							<socket_frame>..</socket_frame>
+							<!--The location of the contact geometry center in the PhysicalFrame.-->
+							<location>0.0035882800000000001 -0.40273199999999998 -0.0020911100000000002</location>
+							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
+							<orientation>0.062336599999999999 -0.050760100000000002 0</orientation>
+							<!--The default appearance for this Geometry-->
+							<Appearance>
+								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
+								<visible>false</visible>
+								<!--The opacity used to display the geometry between 0:transparent, 1:opaque.-->
+								<opacity>0.5</opacity>
+								<!--The color, (red, green, blue), [0, 1], used to display the geometry. -->
+								<color>0 1 1</color>
+							</Appearance>
+							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
+							<radii>0.025000000000000001 0.025000000000000001 0.125</radii>
+						</ContactEllipsoid>
+						<ContactEllipsoid name="vaslat_l_obstacle">
+							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
+							<socket_frame>..</socket_frame>
+							<!--The location of the contact geometry center in the PhysicalFrame.-->
+							<location>0.00188828 -0.40273199999999998 -0.0020911100000000002</location>
+							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
+							<orientation>0.062336599999999999 -0.050760100000000002 0</orientation>
+							<!--The default appearance for this Geometry-->
+							<Appearance>
+								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
+								<visible>false</visible>
+								<!--The opacity used to display the geometry between 0:transparent, 1:opaque.-->
+								<opacity>0.5</opacity>
+								<!--The color, (red, green, blue), [0, 1], used to display the geometry. -->
+								<color>0 1 1</color>
+							</Appearance>
+							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
+							<radii>0.025000000000000001 0.025000000000000001 0.125</radii>
 						</ContactEllipsoid>
 						<ContactEllipsoid name="hamstrings_l_obstacle_semimem_l">
 							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
@@ -936,6 +1086,50 @@
 							</Appearance>
 							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
 							<radii>0.02 0.02 0.125</radii>
+						</ContactEllipsoid>
+						<ContactEllipsoid name="knee_extensors_l_obstacle_vasint_l">
+							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
+							<socket_frame>..</socket_frame>
+							<!--The location of the contact geometry center in the PhysicalFrame.-->
+							<location>0.0035882800000000001 -0.40273199999999998 -0.0020911100000000002</location>
+							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
+							<orientation>0.062336599999999999 -0.050760100000000002 0</orientation>
+							<!--The default appearance for this Geometry-->
+							<Appearance>
+								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
+								<visible>false</visible>
+								<!--The color, (red, green, blue), [0, 1], used to display the geometry. -->
+								<color>0 1 1</color>
+								<!--Visuals applied to surfaces associated with this Appearance.-->
+								<SurfaceProperties>
+									<!--The representation (1:Points, 2:Wire, 3:Shaded) used to display the object.-->
+									<representation>2</representation>
+								</SurfaceProperties>
+							</Appearance>
+							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
+							<radii>0.025000000000000001 0.025000000000000001 0.125</radii>
+						</ContactEllipsoid>
+						<ContactEllipsoid name="knee_extensors_l_obstacle_vasmed_l">
+							<!--Path to a Component that satisfies the Socket 'frame' of type PhysicalFrame (description: The frame to which this contact geometry is attached.).-->
+							<socket_frame>..</socket_frame>
+							<!--The location of the contact geometry center in the PhysicalFrame.-->
+							<location>0.0035882800000000001 -0.40273199999999998 -0.0020911100000000002</location>
+							<!--The orientation of the contact geometry in the PhysicalFrame in body-fixed XYZ Euler angles.-->
+							<orientation>0.062336599999999999 -0.050760100000000002 0</orientation>
+							<!--The default appearance for this Geometry-->
+							<Appearance>
+								<!--Flag indicating whether the associated Geometry is visible or hidden.-->
+								<visible>false</visible>
+								<!--The color, (red, green, blue), [0, 1], used to display the geometry. -->
+								<color>0 1 1</color>
+								<!--Visuals applied to surfaces associated with this Appearance.-->
+								<SurfaceProperties>
+									<!--The representation (1:Points, 2:Wire, 3:Shaded) used to display the object.-->
+									<representation>2</representation>
+								</SurfaceProperties>
+							</Appearance>
+							<!--The radii of the ellipsoid (default: [0, 0, 0]).-->
+							<radii>0.025000000000000001 0.025000000000000001 0.125</radii>
 						</ContactEllipsoid>
 					</components>
 					<!--The geometry used to display the axes of this Frame.-->
@@ -1085,6 +1279,36 @@
 					<mass_center>0 -0.1867 0</mass_center>
 					<!--The elements of the inertia tensor (Vec6) as [Ixx Iyy Izz Ixy Ixz Iyz] measured about the mass_center and not the body origin.-->
 					<inertia>0.0504 0.0051000000000000004 0.0511 0 0 0</inertia>
+				</Body>
+				<Body name="patella_l">
+					<!--The geometry used to display the axes of this Frame.-->
+					<FrameGeometry name="frame_geometry">
+						<!--Path to a Component that satisfies the Socket 'frame' of type Frame.-->
+						<socket_frame>..</socket_frame>
+						<!--Scale factors in X, Y, Z directions respectively.-->
+						<scale_factors>0.20000000000000001 0.20000000000000001 0.20000000000000001</scale_factors>
+					</FrameGeometry>
+					<!--List of geometry attached to this Frame. Note, the geometry are treated as fixed to the frame and they share the transform of the frame when visualized-->
+					<attached_geometry>
+						<Mesh name="patella_l_mesh">
+							<!--Path to a Component that satisfies the Socket 'frame' of type Frame.-->
+							<socket_frame>..</socket_frame>
+							<!--Scale factors in X, Y, Z directions respectively.-->
+							<scale_factors>1 1 1</scale_factors>
+							<!--Default appearance attributes for this Geometry-->
+							<Appearance>
+								<!--All properties of this object have their default values.-->
+							</Appearance>
+							<!--Name of geometry file.-->
+							<mesh_file>patella_l.obj</mesh_file>
+						</Mesh>
+					</attached_geometry>
+					<!--The mass of the body (kg)-->
+					<mass>0.086199999999999999</mass>
+					<!--The location (Vec3) of the mass center in the body frame.-->
+					<mass_center>0.0018 0.0264 0</mass_center>
+					<!--The elements of the inertia tensor (Vec6) as [Ixx Iyy Izz Ixy Ixz Iyz] measured about the mass_center and not the body origin.-->
+					<inertia>2.8700000000000001e-06 1.311e-05 1.311e-05 0 0 0</inertia>
 				</Body>
 				<Body name="talus_l">
 					<!--The geometry used to display the axes of this Frame.-->
@@ -1618,6 +1842,119 @@
 						</TransformAxis>
 					</SpatialTransform>
 				</CustomJoint>
+				<CustomJoint name="patellofemoral_r">
+					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
+					<socket_parent_frame>patellofemoral_r_parent_frame</socket_parent_frame>
+					<!--Path to a Component that satisfies the Socket 'child_frame' of type PhysicalFrame (description: The child frame for the joint.).-->
+					<socket_child_frame>/bodyset/patella_r</socket_child_frame>
+					<!--List containing the generalized coordinates (q's) that parameterize this joint.-->
+					<coordinates>
+						<Coordinate name="knee_angle_r_beta">
+							<!--The value of this coordinate before any value has been set. Rotational coordinate value is in radians and Translational in meters.-->
+							<default_value>0</default_value>
+							<!--The speed value of this coordinate before any value has been set. Rotational coordinate value is in rad/s and Translational in m/s.-->
+							<default_speed_value>0</default_speed_value>
+							<!--The minimum and maximum values that the coordinate can range between. Rotational coordinate range in radians and Translational in meters.-->
+							<range>0 2.4448191856729911</range>
+							<!--Flag indicating whether or not the values of the coordinates should be limited to the range, above.-->
+							<clamped>false</clamped>
+							<!--Flag indicating whether or not the values of the coordinates should be constrained to the current (e.g. default) value, above.-->
+							<locked>false</locked>
+							<!--Flag indicating whether or not the values of the coordinates should be prescribed according to the function above. It is ignored if the no prescribed function is specified.-->
+							<prescribed>false</prescribed>
+						</Coordinate>
+					</coordinates>
+					<!--Physical offset frames owned by the Joint that are typically used to satisfy the owning Joint's parent and child frame connections (sockets). PhysicalOffsetFrames are often used to describe the fixed transformation from a Body's origin to another location of interest on the Body (e.g., the joint center). When the joint is deleted, so are the PhysicalOffsetFrame components in this list.-->
+					<frames>
+						<PhysicalOffsetFrame name="patellofemoral_r_parent_frame">
+							<!--The geometry used to display the axes of this Frame.-->
+							<FrameGeometry name="frame_geometry">
+								<!--Path to a Component that satisfies the Socket 'frame' of type Frame.-->
+								<socket_frame>..</socket_frame>
+								<!--Scale factors in X, Y, Z directions respectively.-->
+								<scale_factors>0.20000000000000001 0.20000000000000001 0.20000000000000001</scale_factors>
+							</FrameGeometry>
+							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
+							<socket_parent>/bodyset/femur_r</socket_parent>
+							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
+							<translation>-0.00809 -0.40795999999999999 -0.0027499999999999998</translation>
+							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
+							<orientation>0 0 0</orientation>
+						</PhysicalOffsetFrame>
+					</frames>
+					<!--The spatial transform defining how the child body moves with respectto the parent as a function of the generalized coordinates.-->
+					<SpatialTransform>
+						<!--The first TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation1">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 0 1</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>-0.0391921445837385 0.44100110627885492 -2.0521816204641632 5.0390479768394982 -6.773456208358736 4.2656679284617445 0.28139660075009121 -2.1824515648981619 0.3182795166431131 0.00043652431215141424</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The second TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation2">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 1 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<Constant name="function">
+								<value>0</value>
+							</Constant>
+						</TransformAxis>
+						<!--The third TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation3">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>1 0 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<Constant name="function">
+								<value>0</value>
+							</Constant>
+						</TransformAxis>
+						<!--The first TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation1">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>1 0 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>0.00066214722069161741 -0.0066795005529495625 0.025444550321663387 -0.043454834259993469 0.023747556022554756 0.021992749785505916 -0.022499029922521663 -0.019255961125890765 -0.016614340383845429 0.05239534597015412</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The second TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation2">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 1 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>-0.00042605871148575637 0.0050105202132502353 -0.023190337769098453 0.054087958715095877 -0.066987155241549926 0.038552548903485979 0.0017296185008224606 0.010611817956675245 -0.04920926352647377 -0.010777583446596297</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The third TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation3">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_r_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 0 1</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<Constant name="function">
+								<value>0.0027499999999999998</value>
+							</Constant>
+						</TransformAxis>
+					</SpatialTransform>
+				</CustomJoint>
 				<PinJoint name="ankle_r">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>ankle_r_parent_frame</socket_parent_frame>
@@ -2030,6 +2367,119 @@
 						</TransformAxis>
 					</SpatialTransform>
 				</CustomJoint>
+				<CustomJoint name="patellofemoral_l">
+					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
+					<socket_parent_frame>patellofemoral_l_parent_frame</socket_parent_frame>
+					<!--Path to a Component that satisfies the Socket 'child_frame' of type PhysicalFrame (description: The child frame for the joint.).-->
+					<socket_child_frame>/bodyset/patella_l</socket_child_frame>
+					<!--List containing the generalized coordinates (q's) that parameterize this joint.-->
+					<coordinates>
+						<Coordinate name="knee_angle_l_beta">
+							<!--The value of this coordinate before any value has been set. Rotational coordinate value is in radians and Translational in meters.-->
+							<default_value>0</default_value>
+							<!--The speed value of this coordinate before any value has been set. Rotational coordinate value is in rad/s and Translational in m/s.-->
+							<default_speed_value>0</default_speed_value>
+							<!--The minimum and maximum values that the coordinate can range between. Rotational coordinate range in radians and Translational in meters.-->
+							<range>0 2.4448191856729911</range>
+							<!--Flag indicating whether or not the values of the coordinates should be limited to the range, above.-->
+							<clamped>false</clamped>
+							<!--Flag indicating whether or not the values of the coordinates should be constrained to the current (e.g. default) value, above.-->
+							<locked>false</locked>
+							<!--Flag indicating whether or not the values of the coordinates should be prescribed according to the function above. It is ignored if the no prescribed function is specified.-->
+							<prescribed>false</prescribed>
+						</Coordinate>
+					</coordinates>
+					<!--Physical offset frames owned by the Joint that are typically used to satisfy the owning Joint's parent and child frame connections (sockets). PhysicalOffsetFrames are often used to describe the fixed transformation from a Body's origin to another location of interest on the Body (e.g., the joint center). When the joint is deleted, so are the PhysicalOffsetFrame components in this list.-->
+					<frames>
+						<PhysicalOffsetFrame name="patellofemoral_l_parent_frame">
+							<!--The geometry used to display the axes of this Frame.-->
+							<FrameGeometry name="frame_geometry">
+								<!--Path to a Component that satisfies the Socket 'frame' of type Frame.-->
+								<socket_frame>..</socket_frame>
+								<!--Scale factors in X, Y, Z directions respectively.-->
+								<scale_factors>0.20000000000000001 0.20000000000000001 0.20000000000000001</scale_factors>
+							</FrameGeometry>
+							<!--Path to a Component that satisfies the Socket 'parent' of type C (description: The parent frame to this frame.).-->
+							<socket_parent>/bodyset/femur_l</socket_parent>
+							<!--Translational offset (in meters) of this frame's origin from the parent frame's origin, expressed in the parent frame.-->
+							<translation>-0.00809 -0.40795999999999999 0.0027499999999999998</translation>
+							<!--Orientation offset (in radians) of this frame in its parent frame, expressed as a frame-fixed x-y-z rotation sequence.-->
+							<orientation>0 0 0</orientation>
+						</PhysicalOffsetFrame>
+					</frames>
+					<!--The spatial transform defining how the child body moves with respectto the parent as a function of the generalized coordinates.-->
+					<SpatialTransform>
+						<!--The first TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation1">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 0 1</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>-0.0391921445837385 0.44100110627885492 -2.0521816204641632 5.0390479768394982 -6.773456208358736 4.2656679284617445 0.28139660075009121 -2.1824515648981619 0.3182795166431131 0.00043652431215141424</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The second TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation2">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 1 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<Constant name="function">
+								<value>0</value>
+							</Constant>
+						</TransformAxis>
+						<!--The third TransformAxis defining a rotation about an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="rotation3">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>1 0 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<Constant name="function">
+								<value>0</value>
+							</Constant>
+						</TransformAxis>
+						<!--The first TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation1">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>1 0 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>0.00066214722069161741 -0.0066795005529495625 0.025444550321663387 -0.043454834259993469 0.023747556022554756 0.021992749785505916 -0.022499029922521663 -0.019255961125890765 -0.016614340383845429 0.05239534597015412</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The second TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation2">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 1 0</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<PolynomialFunction name="function">
+								<!--Coefficients of a polynomial function, from highest to lowest order.Polynomial order is n-1, where n is the number of coefficients.-->
+								<coefficients>-0.00042605871148575637 0.0050105202132502353 -0.023190337769098453 0.054087958715095877 -0.066987155241549926 0.038552548903485979 0.0017296185008224606 0.010611817956675245 -0.04920926352647377 -0.010777583446596297</coefficients>
+							</PolynomialFunction>
+						</TransformAxis>
+						<!--The third TransformAxis defining a translation along an axis with to a set of generalized coordinates.-->
+						<TransformAxis name="translation3">
+							<!--The names of the generalized coordinates that serve as the independent variables of the transform function.-->
+							<coordinates>knee_angle_l_beta</coordinates>
+							<!--The rotation or translation axis for the transform. Default: (1,0,0).-->
+							<axis>0 0 1</axis>
+							<!--The transform function with respect to the generalized coordinates used to represent the amount of displacement about or along the TransformAxis. Default: Constant(0).-->
+							<Constant name="function">
+								<value>-0.0027499999999999998</value>
+							</Constant>
+						</TransformAxis>
+					</SpatialTransform>
+				</CustomJoint>
 				<PinJoint name="ankle_l">
 					<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The parent frame for the joint.).-->
 					<socket_parent_frame>ankle_l_parent_frame</socket_parent_frame>
@@ -2206,6 +2656,36 @@
 			<objects />
 			<groups />
 		</ControllerSet>
+		<!--Constraints in the model.-->
+		<ConstraintSet name="constraintset">
+			<objects>
+				<CoordinateCouplerConstraint name="patellofemoral_r_constraint">
+					<!--Constraint function of generalized coordinates (to be specified) used to evaluate the constraint errors and their derivatives, and must valid to at least 2nd order. Constraint function must evaluate to zero when coordinates satisfy the constraint.-->
+					<coupled_coordinates_function>
+						<LinearFunction>
+							<coefficients> 1 0</coefficients>
+						</LinearFunction>
+					</coupled_coordinates_function>
+					<!--List of names of the right hand side (independent) coordinates. Note the constraint function above, must be able to handle multiple coordinate values if more than one coordinate name is provided.-->
+					<independent_coordinate_names>knee_angle_r</independent_coordinate_names>
+					<!--Name of the left-hand side (dependent) coordinate of the constraint coupling function.-->
+					<dependent_coordinate_name>knee_angle_r_beta</dependent_coordinate_name>
+				</CoordinateCouplerConstraint>
+				<CoordinateCouplerConstraint name="patellofemoral_l_constraint">
+					<!--Constraint function of generalized coordinates (to be specified) used to evaluate the constraint errors and their derivatives, and must valid to at least 2nd order. Constraint function must evaluate to zero when coordinates satisfy the constraint.-->
+					<coupled_coordinates_function>
+						<LinearFunction>
+							<coefficients> 1 0</coefficients>
+						</LinearFunction>
+					</coupled_coordinates_function>
+					<!--List of names of the right hand side (independent) coordinates. Note the constraint function above, must be able to handle multiple coordinate values if more than one coordinate name is provided.-->
+					<independent_coordinate_names>knee_angle_l</independent_coordinate_names>
+					<!--Name of the left-hand side (dependent) coordinate of the constraint coupling function.-->
+					<dependent_coordinate_name>knee_angle_l_beta</dependent_coordinate_name>
+				</CoordinateCouplerConstraint>
+			</objects>
+			<groups />
+		</ConstraintSet>
 		<!--Forces in the model (includes Actuators).-->
 		<ForceSet name="forceset">
 			<objects>
@@ -5406,19 +5886,10 @@
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
 									<socket_parent_frame>/bodyset/pelvis</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>-0.060600000000000001 0.062 0.039</location>
-								</PathPoint>
-							</Scholz2015GeometryPathPoint>
-							<Scholz2015GeometryPathPoint name="path_point_1">
-								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
-								<PathPoint name="pathpoint">
-									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/pelvis</socket_parent_frame>
-									<!--The fixed location of the path point expressed in its parent frame.-->
 									<location>-0.020500000000000001 -0.0654 0.065600000000000006</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
-							<Scholz2015GeometryPathPoint name="path_point_2">
+							<Scholz2015GeometryPathPoint name="path_point_1">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
@@ -5432,9 +5903,9 @@
 					<!--Maximum isometric force that the fibers can generate-->
 					<max_isometric_force>1426.79016393443</max_isometric_force>
 					<!--Optimal length of the muscle fibers-->
-					<optimal_fiber_length>0.11690000005443217</optimal_fiber_length>
+					<optimal_fiber_length>0.176635900082</optimal_fiber_length>
 					<!--Resting length of the tendon-->
-					<tendon_slack_length>0.099543165901858605</tendon_slack_length>
+					<tendon_slack_length>0.15043103721199999</tendon_slack_length>
 					<!--Angle between tendon and fibers at optimal fiber length expressed in radians-->
 					<pennation_angle_at_optimal>0.21552513000000001</pennation_angle_at_optimal>
 					<!--Compute muscle dynamics ignoring tendon compliance. Tendon is assumed to be rigid.-->
@@ -5504,25 +5975,40 @@
 									<location>-0.052999999999999999 -0.038800000000000001 0.093299999999999994</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
+							<Scholz2015GeometryPathObstacle name="obstacle_0">
+								<!--Path to a Component that satisfies the Socket 'contact_geometry' of type ContactGeometry (description: The contact geometry representing the obstacle.).-->
+								<socket_contact_geometry>/bodyset/femur_r/knee_extensors_r_obstacle</socket_contact_geometry>
+								<!--The contact hint for the obstacle.-->
+								<contact_hint>0.012500000000000001 0.021649999999999999 0</contact_hint>
+							</Scholz2015GeometryPathObstacle>
 							<Scholz2015GeometryPathPoint name="path_point_1">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/femur_r</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_r</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.037999999999999999 -0.42499999999999999 0</location>
+									<location>0.01 0.049000000000000002 0.00069999999999999999</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_2">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/tibia_r</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_r</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.029999999999999999 -0.025000000000000001 0</location>
+									<location>0.0121 0.043700000000000003 -0.001</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_3">
+								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
+								<PathPoint name="pathpoint">
+									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
+									<socket_parent_frame>/bodyset/patella_r</socket_parent_frame>
+									<!--The fixed location of the path point expressed in its parent frame.-->
+									<location>0.0050000000000000001 0.00247 3.0000000000000001e-05</location>
+								</PathPoint>
+							</Scholz2015GeometryPathPoint>
+							<Scholz2015GeometryPathPoint name="path_point_4">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
@@ -6312,22 +6798,28 @@
 									<location>0.033500000000000002 -0.2084 0.028500000000000001</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
+							<Scholz2015GeometryPathObstacle name="obstacle_0">
+								<!--Path to a Component that satisfies the Socket 'contact_geometry' of type ContactGeometry (description: The contact geometry representing the obstacle.).-->
+								<socket_contact_geometry>/bodyset/femur_r/knee_extensors_r_obstacle_vasint_r</socket_contact_geometry>
+								<!--The contact hint for the obstacle.-->
+								<contact_hint>0.012500000000000001 0.021649999999999999 0</contact_hint>
+							</Scholz2015GeometryPathObstacle>
 							<Scholz2015GeometryPathPoint name="path_point_2">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/femur_r</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_r</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.037999999999999999 -0.42499999999999999 0.00050000000000000001</location>
+									<location>0.0057999999999999996 0.048000000000000001 -0.00059999999999999995</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_3">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/tibia_r</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_r</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.029999999999999999 -0.025000000000000001 0.00050000000000000001</location>
+									<location>0.0050000000000000001 0.00247 -0.00038999999999999999</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_4">
@@ -6425,22 +6917,28 @@
 									<location>0.0269 -0.2591 0.040899999999999999</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
+							<Scholz2015GeometryPathObstacle name="obstacle_0">
+								<!--Path to a Component that satisfies the Socket 'contact_geometry' of type ContactGeometry (description: The contact geometry representing the obstacle.).-->
+								<socket_contact_geometry>/bodyset/femur_r/vaslat_r_obstacle</socket_contact_geometry>
+								<!--The contact hint for the obstacle.-->
+								<contact_hint>0.012500000000000001 0.021649999999999999 0</contact_hint>
+							</Scholz2015GeometryPathObstacle>
 							<Scholz2015GeometryPathPoint name="path_point_2">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/femur_r</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_r</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.037999999999999999 -0.42499999999999999 0.0050000000000000001</location>
+									<location>0.0103 0.042299999999999997 0.0141</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_3">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/tibia_r</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_r</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.029999999999999999 -0.025000000000000001 0.0050000000000000001</location>
+									<location>0.0050000000000000001 0.00247 0.0073299999999999997</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_4">
@@ -6538,22 +7036,28 @@
 									<location>0.0356 -0.27689999999999998 0.00089999999999999998</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
+							<Scholz2015GeometryPathObstacle name="obstacle_0">
+								<!--Path to a Component that satisfies the Socket 'contact_geometry' of type ContactGeometry (description: The contact geometry representing the obstacle.).-->
+								<socket_contact_geometry>/bodyset/femur_r/knee_extensors_r_obstacle_vasmed_r</socket_contact_geometry>
+								<!--The contact hint for the obstacle.-->
+								<contact_hint>0.012500000000000001 0.021649999999999999 0</contact_hint>
+							</Scholz2015GeometryPathObstacle>
 							<Scholz2015GeometryPathPoint name="path_point_2">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/femur_r</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_r</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.037999999999999999 -0.42499999999999999 -0.0050000000000000001</location>
+									<location>0.0063 0.044499999999999998 -0.017000000000000001</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_3">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/tibia_r</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_r</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.029999999999999999 -0.025000000000000001 -0.0050000000000000001</location>
+									<location>0.0050000000000000001 0.00247 -0.0085000000000000006</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_4">
@@ -9452,19 +9956,10 @@
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
 									<socket_parent_frame>/bodyset/pelvis</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>-0.060600000000000001 0.062 -0.039</location>
-								</PathPoint>
-							</Scholz2015GeometryPathPoint>
-							<Scholz2015GeometryPathPoint name="path_point_1">
-								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
-								<PathPoint name="pathpoint">
-									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/pelvis</socket_parent_frame>
-									<!--The fixed location of the path point expressed in its parent frame.-->
 									<location>-0.020500000000000001 -0.0654 -0.065600000000000006</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
-							<Scholz2015GeometryPathPoint name="path_point_2">
+							<Scholz2015GeometryPathPoint name="path_point_1">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
@@ -9478,9 +9973,9 @@
 					<!--Maximum isometric force that the fibers can generate-->
 					<max_isometric_force>1426.79016393443</max_isometric_force>
 					<!--Optimal length of the muscle fibers-->
-					<optimal_fiber_length>0.11690000005443217</optimal_fiber_length>
+					<optimal_fiber_length>0.176635900082</optimal_fiber_length>
 					<!--Resting length of the tendon-->
-					<tendon_slack_length>0.099543165901858605</tendon_slack_length>
+					<tendon_slack_length>0.15043103721199999</tendon_slack_length>
 					<!--Angle between tendon and fibers at optimal fiber length expressed in radians-->
 					<pennation_angle_at_optimal>0.21552513000000001</pennation_angle_at_optimal>
 					<!--Compute muscle dynamics ignoring tendon compliance. Tendon is assumed to be rigid.-->
@@ -9550,25 +10045,40 @@
 									<location>-0.052999999999999999 -0.038800000000000001 -0.093299999999999994</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
+							<Scholz2015GeometryPathObstacle name="obstacle_0">
+								<!--Path to a Component that satisfies the Socket 'contact_geometry' of type ContactGeometry (description: The contact geometry representing the obstacle.).-->
+								<socket_contact_geometry>/bodyset/femur_l/knee_extensors_l_obstacle</socket_contact_geometry>
+								<!--The contact hint for the obstacle.-->
+								<contact_hint>0.012500000000000001 0.021649999999999999 0</contact_hint>
+							</Scholz2015GeometryPathObstacle>
 							<Scholz2015GeometryPathPoint name="path_point_1">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/femur_l</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_l</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.037999999999999999 -0.42499999999999999 0</location>
+									<location>0.01 0.049000000000000002 -0.00069999999999999999</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_2">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/tibia_l</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_l</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.029999999999999999 -0.025000000000000001 0</location>
+									<location>0.0121 0.043700000000000003 0.001</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_3">
+								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
+								<PathPoint name="pathpoint">
+									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
+									<socket_parent_frame>/bodyset/patella_l</socket_parent_frame>
+									<!--The fixed location of the path point expressed in its parent frame.-->
+									<location>0.0050000000000000001 0.00247 -3.0000000000000001e-05</location>
+								</PathPoint>
+							</Scholz2015GeometryPathPoint>
+							<Scholz2015GeometryPathPoint name="path_point_4">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
@@ -10358,22 +10868,28 @@
 									<location>0.033500000000000002 -0.2084 -0.028500000000000001</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
+							<Scholz2015GeometryPathObstacle name="obstacle_0">
+								<!--Path to a Component that satisfies the Socket 'contact_geometry' of type ContactGeometry (description: The contact geometry representing the obstacle.).-->
+								<socket_contact_geometry>/bodyset/femur_l/knee_extensors_l_obstacle_vasint_l</socket_contact_geometry>
+								<!--The contact hint for the obstacle.-->
+								<contact_hint>0.012500000000000001 0.021649999999999999 0</contact_hint>
+							</Scholz2015GeometryPathObstacle>
 							<Scholz2015GeometryPathPoint name="path_point_2">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/femur_l</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_l</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.037999999999999999 -0.42499999999999999 -0.00050000000000000001</location>
+									<location>0.0057999999999999996 0.048000000000000001 0.00059999999999999995</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_3">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/tibia_l</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_l</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.029999999999999999 -0.025000000000000001 -0.00050000000000000001</location>
+									<location>0.0050000000000000001 0.00247 0.00038999999999999999</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_4">
@@ -10471,22 +10987,28 @@
 									<location>0.0269 -0.2591 -0.040899999999999999</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
+							<Scholz2015GeometryPathObstacle name="obstacle_0">
+								<!--Path to a Component that satisfies the Socket 'contact_geometry' of type ContactGeometry (description: The contact geometry representing the obstacle.).-->
+								<socket_contact_geometry>/bodyset/femur_l/vaslat_l_obstacle</socket_contact_geometry>
+								<!--The contact hint for the obstacle.-->
+								<contact_hint>0.012500000000000001 0.021649999999999999 0</contact_hint>
+							</Scholz2015GeometryPathObstacle>
 							<Scholz2015GeometryPathPoint name="path_point_2">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/femur_l</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_l</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.037999999999999999 -0.42499999999999999 -0.0050000000000000001</location>
+									<location>0.0103 0.042299999999999997 -0.0141</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_3">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/tibia_l</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_l</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.029999999999999999 -0.025000000000000001 -0.0050000000000000001</location>
+									<location>0.0050000000000000001 0.00247 -0.0073299999999999997</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_4">
@@ -10584,22 +11106,28 @@
 									<location>0.0356 -0.27689999999999998 -0.00089999999999999998</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
+							<Scholz2015GeometryPathObstacle name="obstacle_0">
+								<!--Path to a Component that satisfies the Socket 'contact_geometry' of type ContactGeometry (description: The contact geometry representing the obstacle.).-->
+								<socket_contact_geometry>/bodyset/femur_l/knee_extensors_l_obstacle_vasmed_l</socket_contact_geometry>
+								<!--The contact hint for the obstacle.-->
+								<contact_hint>0.012500000000000001 0.021649999999999999 0</contact_hint>
+							</Scholz2015GeometryPathObstacle>
 							<Scholz2015GeometryPathPoint name="path_point_2">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/femur_l</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_l</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.037999999999999999 -0.42499999999999999 0.0050000000000000001</location>
+									<location>0.0063 0.044499999999999998 0.017000000000000001</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_3">
 								<!--A point fixed to a PhysicalFrame that the path must pass through.-->
 								<PathPoint name="pathpoint">
 									<!--Path to a Component that satisfies the Socket 'parent_frame' of type PhysicalFrame (description: The frame in which this path point is defined.).-->
-									<socket_parent_frame>/bodyset/tibia_l</socket_parent_frame>
+									<socket_parent_frame>/bodyset/patella_l</socket_parent_frame>
 									<!--The fixed location of the path point expressed in its parent frame.-->
-									<location>0.029999999999999999 -0.025000000000000001 0.0050000000000000001</location>
+									<location>0.0050000000000000001 0.00247 0.0085000000000000006</location>
 								</PathPoint>
 							</Scholz2015GeometryPathPoint>
 							<Scholz2015GeometryPathPoint name="path_point_4">
