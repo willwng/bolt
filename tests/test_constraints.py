@@ -51,7 +51,10 @@ def case(load_case, tmp_path_factory):
 
 
 def test_couplers_loaded(case):
-    assert case.m.ncoupler == len(_couplers())
+    """ The model's own couplers (e.g. of the patellae) and the ones added here """
+    model = osim.Model(model_path(MODEL))
+    n_own = sum(c.getConcreteClassName() == "CoordinateCouplerConstraint" for c in model.getConstraintSet())
+    assert case.m.ncoupler == n_own + len(_couplers())
 
 
 @pytest.mark.parametrize("speed_scale", [0.0, 1.0, 3.0], ids=["static", "moving", "fast"])

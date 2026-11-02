@@ -26,7 +26,7 @@ def kinematics(case):
     forward.realize_position(case.m, case.d)
     forward.realize_velocity(case.m, case.d)
 
-    refs = [opensim_oracle.body_kinematics(case.osim_model, case.osim_state, qi, ui) for qi, ui in zip(q, u)]
+    refs = [opensim_oracle.body_kinematics(case.osim_skeleton, case.osim_skeleton_state, qi, ui) for qi, ui in zip(q, u)]
     X = case.d.mob_X_GB.numpy()
     V = case.d.body_V_GB.numpy()
     return case, refs, X, V

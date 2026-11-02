@@ -120,6 +120,20 @@ def forward_dynamics(model: osim.Model, state: osim.State, q, u):
     return body_acc, udot
 
 
+def without_forces(model_path: str, names: set[str] | None = None) -> tuple[osim.Model, osim.State]:
+    """
+    The model (initialized) without the named forces, or without any. Realizing a model solves all of its muscle
+    paths, and a wrapping path that can't be solved at a random pose fails the whole realization
+    """
+    model = osim.Model(model_path)
+    forces = model.updForceSet()
+    for i in reversed(range(forces.getSize())):
+        if names is None or forces.get(i).getName() in names:
+            forces.remove(i)
+    model.finalizeFromProperties()
+    return model, model.initSystem()
+
+
 def skeleton_only_model(model_path: str, out_dir: str, gravity=None) -> str:
     """
     Writes a copy of the model with all forces, contact geometry and markers removed,

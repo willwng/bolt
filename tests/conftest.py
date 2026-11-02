@@ -35,11 +35,13 @@ class Case:
         self.m, self.d = self.load_result.model, self.load_result.data
         self.osim_model = osim.Model(path)
         self.osim_state = self.osim_model.initSystem()
+        # For kinematics only
+        self.osim_skeleton, self.osim_skeleton_state = opensim_oracle.without_forces(path)
 
     def set_states(self, q: np.ndarray, u: np.ndarray):
         """ Sets each Bolt world i to the OpenSim state (q[i], u[i]) """
         qpos, qvel = zip(*[
-            opensim_oracle.bolt_state(self.osim_model, self.osim_state, self.load_result, qi, ui)
+            opensim_oracle.bolt_state(self.osim_skeleton, self.osim_skeleton_state, self.load_result, qi, ui)
             for qi, ui in zip(q, u)
         ])
         self.d.qpos.assign(np.array(qpos, dtype=np.float32))

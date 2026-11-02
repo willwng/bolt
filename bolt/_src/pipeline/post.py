@@ -3,6 +3,7 @@ import warp as wp
 from bolt.types import Data
 from bolt.types import Model
 
+from ..dynamics import constraints
 from ..dynamics import forces
 from ..dynamics import operators
 from ..kinematics import mobilizers
@@ -18,7 +19,9 @@ wp.set_module_options({"enable_backward": False})
 @event_scope
 def compute_muscle_moments(m: Model, d: Data):
     """
-    Used for computing muscle moment arms (especially for point-based muscles). Applies muscle forces
+    Used for computing muscle moment arms (especially for point-based muscles).
+    Applies unit-tension to each muscle. On coupled coordinates, the moment arms are OpenSim's (see
+    constraints.couple_moment_arms); function-based paths' stay the partial derivatives their forces are applied with
     """
     # Point-path based muscles.
     body_F_tmp = wp.zeros((d.nworld, m.nbody), dtype=wp.spatial_vector)
@@ -38,6 +41,7 @@ def compute_muscle_moments(m: Model, d: Data):
         # Reset for next muscle
         body_F_tmp.zero_()
         qfrc_moving_tmp.zero_()
+
     # Wrapping paths (which have no moving points), along the path at the current positions
     wrap_path.muscle_wrap_path(m, d)
     for muscle_id in m.muscle_wrap_group_tuple:
@@ -46,6 +50,10 @@ def compute_muscle_moments(m: Model, d: Data):
         forces.ufrc_to_qfrc(m, d, ufrc_in=ufrc_tmp, qfrc_out=qfrc_tmp)
         point_path.copy_ufrc_into_moment_arm(m, d, muscle_id=muscle_id, qfrc=qfrc_tmp, qfrc_moving=qfrc_moving_tmp)
         body_F_tmp.zero_()
+
+    # For post: combine the moment arms for dependent coordinates into independent coordinates
+    constraints.couple_moment_arms(m, d, m.muscle_pt_group)
+    constraints.couple_moment_arms(m, d, m.muscle_wrap_group)
     return
 
 

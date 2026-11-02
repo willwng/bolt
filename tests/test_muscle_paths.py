@@ -44,13 +44,20 @@ def _realize_paths(case, q, u):
     return case.d.muscle_length.numpy(), case.d.muscle_velocity.numpy()
 
 
+def _point_path_model(case):
+    """ The OpenSim model without its Scholz-wrapped muscles (tested elsewhere): one that can't be solved at a random
+    pose would fail the realization of the whole model """
+    return opensim_oracle.without_forces(case.path, opensim_oracle.scholz_wrapped_muscles(case.path))
+
+
 # --- Point (geometry) paths ---
 @pytest.fixture(scope="module", params=MODEL_NAMES)
 def point_paths(request, load_case):
     case = load_case(model_path(request.param))
     q, u = opensim_oracle.random_states(case.osim_model, N_STATES, seed=2)
     L, V = _realize_paths(case, q, u)
-    refs = [opensim_oracle.muscle_paths(case.osim_model, case.osim_state, qi, ui) for qi, ui in zip(q, u)]
+    model, state = _point_path_model(case)
+    refs = [opensim_oracle.muscle_paths(model, state, qi, ui) for qi, ui in zip(q, u)]
     unsupported = {feature: find(case.path) for feature, (_, find) in UNSUPPORTED.items()}
     unsupported |= {feature: find(case.path) for feature, find in TESTED_ELSEWHERE.items()}
     return case, refs, L, V, unsupported
@@ -104,8 +111,8 @@ def point_moment_arms(request, load_case):
     coords = [c for c in opensim_oracle.coordinate_names(case.osim_model) if c not in root]
     muscles = [lr_name for lr_name in lr.muscle_id_lookup if
                lr.muscle_id_lookup[lr_name] in case.m.muscle_pt_group_tuple]
-    refs = [opensim_oracle.muscle_paths(case.osim_model, case.osim_state, q[w], u[w],
-                                        moment_arm_coords={mu: coords for mu in muscles})[1]
+    model, state = _point_path_model(case)
+    refs = [opensim_oracle.muscle_paths(model, state, q[w], u[w], moment_arm_coords={mu: coords for mu in muscles})[1]
             for w in range(N_MOMENT_ARM_STATES)]
     unsupported = {feature: find(case.path) for feature, (_, find) in UNSUPPORTED.items()}
     return case, MA, refs, muscles, unsupported
