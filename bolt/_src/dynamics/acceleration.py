@@ -249,7 +249,24 @@ def calc_udot(m: Model, d: Data):
             inputs=[d.integration_done, m.opt.gravity],
             outputs=[d.body_A_GB]
         )
+    solve_udot(m, d, d.ufrc_total, d.body_F, d.body_articulated_centrifugal_force, d.mob_coriolis_acc,
+               d.qacc, d.body_A_GB)
 
+
+def solve_udot(
+        m: Model,
+        d: Data,
+        ufrc: wp.array2d,
+        body_F: wp.array2d,
+        centrifugal_force: wp.array2d,
+        coriolis_acc: wp.array2d,
+        qacc_out: wp.array2d,
+        body_A_GB_out: wp.array2d,
+):
+    """
+    Articulated-body solve for udot given the generalized and body forces and the velocity-dependent terms,
+    using the current articulated inertias. body_A_GB_out[:, 0] holds the ground acceleration
+    """
     if tree_pass_per_world(m.body_tree):  # one thread per world
         launch(
             _calc_udot_tree,
@@ -257,11 +274,11 @@ def calc_udot(m: Model, d: Data):
             inputs=[
                 m.body_parentid, m.body_children, m.body_children_num, m.body_children_adr, m.mob_dofnum,
                 m.mob_dofadr,
-                d.integration_done, d.ufrc_total, d.body_F, d.mob_phi, d.mob_coriolis_acc, d.mob_H, d.mob_G,
-                d.mob_DI, d.body_articulated_centrifugal_force,
+                d.integration_done, ufrc, body_F, d.mob_phi, coriolis_acc, d.mob_H, d.mob_G,
+                d.mob_DI, centrifugal_force,
                 m.nbody,
             ],
-            outputs=[d.body_eps, d.body_zPlus, d.qacc, d.body_A_GB],
+            outputs=[d.body_eps, d.body_zPlus, qacc_out, body_A_GB_out],
         )
         return
 
@@ -273,8 +290,8 @@ def calc_udot(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[
                 m.body_children, m.body_children_num, m.body_children_adr, m.mob_dofnum, m.mob_dofadr,
-                d.integration_done, d.ufrc_total, d.body_F, d.mob_phi, d.mob_H, d.mob_G,
-                d.body_articulated_centrifugal_force,
+                d.integration_done, ufrc, body_F, d.mob_phi, d.mob_H, d.mob_G,
+                centrifugal_force,
                 body_tree,
             ],
             outputs=[d.body_eps, d.body_zPlus]
@@ -288,8 +305,8 @@ def calc_udot(m: Model, d: Data):
             dim=(d.nworld, body_tree.size),
             inputs=[
                 m.body_parentid, m.mob_dofnum, m.mob_dofadr,
-                d.integration_done, d.mob_phi, d.mob_coriolis_acc, d.mob_H, d.mob_G, d.mob_DI, d.body_eps,
+                d.integration_done, d.mob_phi, coriolis_acc, d.mob_H, d.mob_G, d.mob_DI, d.body_eps,
                 body_tree,
             ],
-            outputs=[d.qacc, d.body_A_GB]
+            outputs=[qacc_out, body_A_GB_out]
         )

@@ -187,4 +187,4 @@ def integrate(m: Model, d: Data):
     """Steps from d.time to d.next_time using RK4 """
     common.update_step_size(m, d)
     rungekutta4(m, d)
-    forward.fwd(m, d)  # realize for next step
+    forward.fwd(m, d, project=True)  # realize for next step

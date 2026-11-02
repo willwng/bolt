@@ -50,7 +50,7 @@ def attempt_adaptive_step(m: Model, d: Data):
 
     # Prepare derivatives for the next attempt (or step). Must run before check_done_integrating, which
     # would otherwise make fwd skip the worlds that just finished
-    forward.fwd(m, d)
+    forward.fwd(m, d, project=True)
 
     # Check if we've reached the target time
     adaptive_common.check_done_integrating(m, d)

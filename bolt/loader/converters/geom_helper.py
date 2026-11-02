@@ -60,6 +60,11 @@ def collect_user_geom_aabb(geom: UserGeomData) -> tuple[AABB, float]:
         aabb = (wp.vec3(0.0), wp.vec3(radius, radius, half_height + radius))  # axis is local z
         rbound = half_height + radius  # distance from the center to the tips
         return aabb, rbound
+    elif geom_type == GeomType.BOX:
+        half_extents = np.array(geom.size, dtype=float)
+        aabb = (wp.vec3(0.0), wp.vec3(geom.size))
+        rbound = float(np.linalg.norm(half_extents))  # distance from the center to the corners
+        return aabb, rbound
     else:
         raise NotImplementedError(f"Unsupported contact geometry: {geom_type}")
 
