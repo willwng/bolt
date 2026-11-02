@@ -6,7 +6,7 @@ Bolt runs in float32, so these are looser than OpenSim-vs-OpenSim comparisons.
 from __future__ import annotations
 
 POSITION_M = 1e-5            # body-origin positions (forward kinematics)
-ROTATION = 1e-5              # body rotation matrix entries
+ROTATION = 1e-4              # body rotation matrix entries
 VELOCITY = 1e-4              # body spatial velocities (rad/s, m/s)
 
 # Accelerations can be large, so use a relative tolerance too

@@ -189,3 +189,49 @@ def project(m: Model, d: Data):
         ],
         outputs=[d.qpos, d.qvel],
     )
+
+
+@wp.kernel
+def _couple_moment_arms(
+        # Model:
+        coupler_fnadr: wp.array(dtype=int),
+        coupler_scale: wp.array(dtype=float),
+        coupler_indep_qposadr: wp.array(dtype=int),
+        coupler_dep_qposadr: wp.array(dtype=int),
+        muscle_group: wp.array(dtype=int),
+        ncoupler: int,
+        # Data in:
+        cst_fn_output_in: wp.array2d(dtype=wp.vec3),
+        # Data out:
+        muscle_moment_arm_out: wp.array3d(dtype=float),
+):
+    worldid, groupid = wp.tid()
+    moment_arm = muscle_moment_arm_out[worldid, muscle_group[groupid]]
+    # About an independent coordinate: its dependents move along, at their slopes
+    for k in range(ncoupler):
+        slope = coupler_scale[k] * cst_fn_output_in[worldid, coupler_fnadr[k]][1]
+        moment_arm[coupler_indep_qposadr[k]] += slope * moment_arm[coupler_dep_qposadr[k]]
+    # About a dependent one: the independent's, per unit of the dependent's motion (undefined at a zero slope, where
+    # the partial derivative is kept)
+    for k in range(ncoupler):
+        slope = coupler_scale[k] * cst_fn_output_in[worldid, coupler_fnadr[k]][1]
+        if wp.abs(slope) > 1.0e-6:
+            moment_arm[coupler_dep_qposadr[k]] = moment_arm[coupler_indep_qposadr[k]] / slope
+
+
+@event_scope
+def couple_moment_arms(m: Model, d: Data, muscle_group: wp.array):
+    """
+    Move the coupled coordinates along: about q_indep, plus scale * f'(q_indep) times q_dep's, and about q_dep, that
+    divided by scale * f'(q_indep). Assumes no coupler's independent coordinate is another's dependent one
+    """
+    if m.ncoupler and muscle_group.size:
+        launch(
+            _couple_moment_arms,
+            dim=(d.nworld, muscle_group.size),
+            inputs=[
+                m.coupler_fnadr, m.coupler_scale, m.coupler_indep_qposadr, m.coupler_dep_qposadr, muscle_group,
+                m.ncoupler, d.cst_fn_output,
+            ],
+            outputs=[d.muscle_moment_arm],
+        )

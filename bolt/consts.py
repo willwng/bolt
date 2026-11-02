@@ -19,6 +19,19 @@ __all__ = [
     "M_MIN_PENNATION_ANGLE",
     "M_MAX_PENNATION_ANGLE",
     "MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH",
+    "WRAP_SMOOTHNESS_TOL",
+    "WRAP_MAX_ITERATIONS",
+    "WRAP_GEODESIC_ACCURACY",
+    "WRAP_MAX_STEP_ANGLE",
+    "WRAP_PROJECTION_TOL",
+    "WRAP_NEAREST_POINT_TOL",
+    "WRAP_NEAREST_POINT_MAX_ITERATIONS",
+    "WRAP_MAX_GEODESIC_STEPS",
+    "WRAP_INITIAL_STEP_SIZE",
+    "WRAP_FOLD_SAMPLE_ANGLE",
+    "WRAP_FOLD_MAX_SAMPLES",
+    "WRAP_FOLD_MAX_TRIM_TURNING",
+    "WRAP_FOLD_MIN_RESTART_ALIGNMENT",
 ]
 
 
@@ -57,3 +70,20 @@ M_MAX_PENNATION_ANGLE = 1.47062891
 
 # MILLARD only: minimum active fiber length
 MILLARD_MIN_NORM_ACTIVE_FIBER_LENGTH = 0.4441
+
+# Muscle wrapping (Scholz2015GeometryPath), defaults for the Option fields
+WRAP_SMOOTHNESS_TOL = 1e-5  # rad
+WRAP_MAX_ITERATIONS = 50
+WRAP_GEODESIC_ACCURACY = 1e-6
+# Muscle wrapping solver internals (Simbody's CableSpan, relaxed for float32)
+WRAP_MAX_STEP_ANGLE = 10.0 / 180.0 * 3.141592653589793  # max angular correction per solver iteration
+WRAP_PROJECTION_TOL = 1e-5  # implicit surface value tolerance when projecting the geodesic onto the surface
+WRAP_NEAREST_POINT_TOL = 1e-6  # touchdown: convergence of the point on the line nearest the surface
+WRAP_NEAREST_POINT_MAX_ITERATIONS = 50
+WRAP_MAX_GEODESIC_STEPS = 200  # integration steps per geodesic over an implicit surface
+WRAP_INITIAL_STEP_SIZE = 1e-4  # first integration step size for a new geodesic
+# Undoing folds, where a straight line runs backward along a curve (Simbody PR #887)
+WRAP_FOLD_SAMPLE_ANGLE = 0.087  # curvature angle (~5 deg) between the samples of a curve searched for a trim point
+WRAP_FOLD_MAX_SAMPLES = 1000  # cap on the samples of a very long or very curved curve
+WRAP_FOLD_MAX_TRIM_TURNING = 3.141592653589793  # trim only within half a turn of a folded end, to keep the windings
+WRAP_FOLD_MIN_RESTART_ALIGNMENT = 0.1  # cos(~84 deg): a zero-length restart's tangent must align with both lines

@@ -27,6 +27,8 @@ class OSimType:
     ThelenMuscle = osim.Thelen2003Muscle
     Path = osim.AbstractGeometryPath
     ScholzPath = osim.Scholz2015GeometryPath
+    ScholzPathPoint = osim.Scholz2015GeometryPathPoint
+    ScholzPathObstacle = osim.Scholz2015GeometryPathObstacle
     GeometryPath = osim.GeometryPath
     FunctionBasedPath = osim.FunctionBasedPath
 
@@ -46,6 +48,8 @@ class OSimType:
     ContactGeometry = osim.ContactGeometry
     ContactSphere = osim.ContactSphere
     ContactEllipsoid = osim.ContactEllipsoid
+    ContactCylinder = osim.ContactCylinder
+    ContactTorus = osim.ContactTorus
     ContactHalfSpace = osim.ContactHalfSpace
     ExponentialContactForce = osim.ExponentialContactForce
 

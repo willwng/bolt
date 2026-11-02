@@ -7,6 +7,7 @@ from bolt.consts import INITIAL_STEP_SIZE
 from bolt.types import Data
 from bolt.types import Model
 from bolt.types import StepEstimator
+from bolt.types import WrapGeodesic
 
 from .. import math
 from ..contact import collision_driver
@@ -533,6 +534,8 @@ def save_state(m: Model, d: Data, idx: int):
         wp.copy(dest.a_act, d.a_act)
     if m.nstlcontact:
         wp.copy(dest.stl_contact_state, d.stl_contact_state)
+    if m.nwrap:
+        wp.copy(dest.wrap_geodesic, d.wrap_geodesic)
 
 
 @event_scope
@@ -591,6 +594,22 @@ def _restore_state_kernel(nq: int, nv: int, nm: int, na: int, nstl: int):
     return restore_state_conditional
 
 
+@wp.kernel
+def _restore_wrap_geodesic_kernel(
+        # Data in:
+        done_integrating_in: wp.array(dtype=bool),
+        step_accepted_in: wp.array(dtype=bool),
+        wrap_geodesic_in: wp.array2d(dtype=WrapGeodesic),
+        # Data out:
+        wrap_geodesic_out: wp.array2d(dtype=WrapGeodesic),
+):
+    """ Restores the wrapping solver's warm start for worlds whose step was rejected """
+    worldid, wrapid = wp.tid()
+    if step_accepted_in[worldid] or done_integrating_in[worldid]:
+        return
+    wrap_geodesic_out[worldid, wrapid] = wrap_geodesic_in[worldid, wrapid]
+
+
 @event_scope
 def restore_state(m: Model, d: Data, idx: int, only_on_reject: bool):
     """ Restores the state from integrator_scratch[idx], for every world or only those whose step was rejected """
@@ -604,6 +623,10 @@ def restore_state(m: Model, d: Data, idx: int, only_on_reject: bool):
             outputs=[d.time, d.qpos, d.qvel, d.m_state, d.m_act, d.a_act, d.stl_contact_state],
             block_dim=m.block_dim.restore_state,
         )
+        # The geodesics are the warm start of the next evaluation: one solved at a rejected state would carry over
+        if m.nwrap:
+            launch(_restore_wrap_geodesic_kernel, dim=(d.nworld, m.nwrap),
+                   inputs=[d.integration_done, d.step_accepted, src.wrap_geodesic], outputs=[d.wrap_geodesic])
     else:  # everyone gets restored!
         wp.copy(d.time, src.time)
         wp.copy(d.qpos, src.qpos)
@@ -615,6 +638,8 @@ def restore_state(m: Model, d: Data, idx: int, only_on_reject: bool):
             wp.copy(d.a_act, src.a_act)
         if m.nstlcontact:
             wp.copy(d.stl_contact_state, src.stl_contact_state)
+        if m.nwrap:
+            wp.copy(d.wrap_geodesic, src.wrap_geodesic)
 
 
 @functools.cache
