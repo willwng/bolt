@@ -342,7 +342,8 @@ class Option:
 
       use_linear_stop: (debugging) use LinearStop instead of CoordinateLimitForce
 
-      wrap_smoothness_tol: (wrapping) max misalignment (rad) between straight and curved path segments
+      wrap_smoothness_tol: (wrapping) max misalignment (rad) between straight and curved path segments. A path
+        that folds back on itself (a straight segment running backward along a curved one) is therefore never smooth
       wrap_max_iterations: (wrapping) max solver iterations per path segment and evaluation
       wrap_geodesic_accuracy: (wrapping) accuracy of the geodesic integrator over implicit surfaces
 
@@ -673,9 +674,10 @@ class Model:
       wrap_size: surface-specific size parameters              (nwrap, 3)
       wrap_segment: index of the path point before obstacle,   (nwrap,)
                     relative to the muscle's first path point
-      wrap_hint_S: contact point hint in the surface frame,    (nwrap, 3)
-                   NaN if none
-      wrap_hint_on_surface_S: hint projected onto the surface  (nwrap, 3)
+      wrap_hint_on_surface_S: contact point hint in the        (nwrap, 3)
+                              surface frame, projected to the
+                              nearest point of the surface
+                              (NaN if none)
     """
 
     nbody: int
@@ -827,7 +829,6 @@ class Model:
     wrap_X_BS: array("nwrap", wp.transform)
     wrap_size: array("nwrap", wp.vec3)
     wrap_segment: array("nwrap", int)
-    wrap_hint_S: array("nwrap", wp.vec3)
     wrap_hint_on_surface_S: array("nwrap", wp.vec3)
 
     block_dim: TileBlockDim
@@ -873,6 +874,7 @@ class IntegratorStateScratch:
     m_act: array("nworld", "nmuscle", float)
     a_act: array("nworld", "nactuator", float)
     stl_contact_state: array("nworld", "nstlcontact", wp.vec3)
+    wrap_geodesic: array("nworld", "nwrap", WrapGeodesic)  # warm start of the wrapping solver
 
 
 @dataclass
@@ -1015,6 +1017,10 @@ class Data:
      * muscle paths
       muscle_length: muscle lengths                               (nworld, nmuscle)
       muscle_velocity: muscle velocities                          (nworld, nmuscle)
+      muscle_wrap_smoothness: (wrapping) max misalignment (rad)   (nworld, nmuscle)
+                        between the straight and curved segments of
+                        each wrapping path at its last solve, folds
+                        included: converged if <= wrap_smoothness_tol
       wrap_geodesic: geodesic over each obstacle, also the        (nworld, nwrap)
                      warm start for the next path evaluation
 
@@ -1143,6 +1149,7 @@ class Data:
 
     muscle_length: array("nworld", "nmuscle", float)
     muscle_velocity: array("nworld", "nmuscle", float)
+    muscle_wrap_smoothness: array("nworld", "nmuscle", float)
     wrap_geodesic: array("nworld", "nwrap", WrapGeodesic)
 
     site_rel_pos_B: array("nworld", "nsite", wp.vec3)

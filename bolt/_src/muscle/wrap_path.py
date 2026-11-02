@@ -6,12 +6,18 @@ contact. Each geodesic has four natural variations: tangential and binormal shif
 its initial tangent, and lengthening. Each solver iteration computes the corrections that drive the misalignment
 between the straight lines and the geodesics' boundary frames to zero, and re-shoots the geodesics. The geodesics are
 kept in Data as the warm start of the next evaluation, which also tracks the touchdown and liftoff of each obstacle.
+A path that folds back on an obstacle (a straight line running backward along a curve) is never smooth, and the folded
+curve is trimmed or restarted, as in Simbody PR #887.
 """
 import functools
 
 import warp as wp
 
 from bolt.consts import BOLT_MINVAL
+from bolt.consts import WRAP_FOLD_MAX_SAMPLES
+from bolt.consts import WRAP_FOLD_MAX_TRIM_TURNING
+from bolt.consts import WRAP_FOLD_MIN_RESTART_ALIGNMENT
+from bolt.consts import WRAP_FOLD_SAMPLE_ANGLE
 from bolt.consts import WRAP_INITIAL_STEP_SIZE
 from bolt.consts import WRAP_MAX_STEP_ANGLE
 from bolt.types import Data
@@ -93,27 +99,227 @@ def init_geodesic(hint_on_surface: wp.vec3) -> WrapGeodesic:
     return g
 
 
+# --- Undoing folds (Simbody PR #887) ---
+# A curve folds when the straight line entering it at P, or leaving it at Q, runs opposite to its tangent there. The
+# normal and binormal path errors vanish for a fully reversed line as well, so the solver can converge to a fold, or get
+# stuck near one, e.g. after a large motion leaves a warm-started curve wrapped too far around the obstacle
+@wp.func
+def unit_angle(a: wp.vec3, b: wp.vec3) -> float:
+    """ Angle between two unit vectors """
+    return wp.acos(wp.clamp(wp.dot(a, b), -1.0, 1.0))
+
+
+@wp.func
+def fold_angle(e: wp.vec3, t: wp.vec3) -> float:
+    """ Angle between a line direction e and a curve tangent t if they point in opposite directions, else zero """
+    cos_angle = wp.dot(e, t)
+    if cos_angle < 0.0:
+        return wp.acos(wp.max(cos_angle, -1.0))
+    return 0.0
+
+
+@wp.func
+def fold_num_samples(g: WrapGeodesic) -> int:
+    """ Samples of the curve searched for a trim point: ~WRAP_FOLD_SAMPLE_ANGLE of its largest curvature apart """
+    curvature = wp.max(wp.max(wp.abs(g.curvatures_P[0]), wp.abs(g.curvatures_P[1])),
+                       wp.max(wp.abs(g.curvatures_Q[0]), wp.abs(g.curvatures_Q[1])))
+    intervals = wp.ceil(g.length * curvature / WRAP_FOLD_SAMPLE_ANGLE)
+    if not wp.isfinite(intervals):
+        return 2
+    return wp.max(int(wp.min(intervals, float(WRAP_FOLD_MAX_SAMPLES))) + 1, 2)
+
+
+@wp.func
+def walk_curve(
+        wrap_type: int, size: wp.vec3, g: WrapGeodesic, prev_S: wp.vec3, next_S: wp.vec3, num: int, from_P: bool,
+        stop: int, total: bool, accuracy: float,
+):
+    """
+    Walks the num samples of the curve (equally spaced in arc length), from P (sample 0) up to sample num - 1, or from Q
+    (sample num - 1) down to sample stop, and finds the first sample whose tangent points forward: away from prev_S
+    walking from P, toward next_S walking from Q. Then keeps walking while the alignment improves, to its first local
+    maximum. That only removes the folded part: the best aligned sample of the whole curve could be whole windings away.
+    Gives up if no sample points forward before the curve turns by WRAP_FOLD_MAX_TRIM_TURNING, as an overshooting curve
+    folds back by less than half a turn. The turning between samples is the larger of the turns of the tangent and of
+    the surface normal: on a steep helix, the tangent turns much less than a full turn per winding, the normal a full
+    turn. With total, only sums the turning over the whole walk.
+    Returns that sample's index (-1 if none), point and tangent, and the turning walked
+    """
+    ds = g.length / float(num - 1)
+    point = wp.vec3(g.p_P)
+    tangent = wp.vec3(g.t_P)
+    first = int(0)
+    count = num - 1
+    if not from_P:
+        point = wp.vec3(g.p_Q)
+        tangent = wp.vec3(g.t_Q)
+        first = num - 1
+        count = num - 1 - stop
+    normal = wrap_geometry.surface_unit_normal(wrap_type, size, point)
+    probe = g
+    best = int(-1)
+    best_align = float(0.0)
+    best_point = point
+    best_tangent = tangent
+    turning = float(0.0)
+    for k in range(count + 1):
+        if k > 0:
+            # The next sample: walking from Q follows the reversed curve, which is a geodesic too
+            walk = tangent
+            if not from_P:
+                walk = -tangent
+            probe = wrap_geometry.shoot_geodesic(wrap_type, size, probe, point, walk, ds, accuracy)
+            next_tangent = wp.vec3(probe.t_Q)
+            if not from_P:
+                next_tangent = -next_tangent
+            next_normal = wrap_geometry.surface_unit_normal(wrap_type, size, probe.p_Q)
+            turning += wp.max(unit_angle(tangent, next_tangent), unit_angle(normal, next_normal))
+            point = wp.vec3(probe.p_Q)
+            tangent = next_tangent
+            normal = next_normal
+        if total:
+            continue
+        if best < 0 and turning > WRAP_FOLD_MAX_TRIM_TURNING:
+            break  # trimming further would remove a winding
+        d = point - prev_S
+        if not from_P:
+            d = next_S - point
+        d_norm = wp.length(d)
+        align = float(-1.0)
+        if d_norm > 0.0:
+            align = wp.dot(tangent, d) / d_norm
+        if align > best_align:
+            best_align = align
+            best = first + k
+            if not from_P:
+                best = first - k
+            best_point = point
+            best_tangent = tangent
+        elif best >= 0:
+            break  # the first local maximum of the alignment
+    return best, best_point, best_tangent, turning
+
+
+@wp.func
+def tangential_direction(line: wp.vec3, normal: wp.vec3) -> wp.vec3:
+    """ A line projected onto the tangent plane, then normalized (zero if along the normal) """
+    tangential = line - wp.dot(line, normal) * normal
+    norm = wp.length(tangential)
+    if norm > 3.5e-4 * wp.length(line):  # Simbody's SqrtEps, for float32
+        return tangential / norm
+    return wp.vec3()
+
+
+@wp.func
+def restart_is_forward(tangent: wp.vec3, tangent_norm: float, direction: wp.vec3) -> bool:
+    return wp.length(direction) == 0.0 or wp.dot(tangent, direction) > WRAP_FOLD_MIN_RESTART_ALIGNMENT * tangent_norm
+
+
+@wp.func
+def trim_folded_curve(wrap_type: int, size: wp.vec3, g: WrapGeodesic, prev_S: wp.vec3, next_S: wp.vec3,
+                      accuracy: float):
+    """
+    Undoes a fold of a curve in contact. A curve with nonzero length is trimmed at each folded end to the nearest part
+    that heads away from prev_S (at P), or toward next_S (at Q) (see walk_curve). This keeps the side of the obstacle
+    the curve wraps over, and the useful part of the wrap, including its full windings: a curve that turns by more
+    than half a turn is never replaced.
+    If nothing useful is left, or the curve has zero length, it restarts as a zero-length curve whose tangent is the
+    bisector of the incoming and outgoing lines, projected onto the tangent plane (each before normalizing, so that a
+    steep line can't make it point backward). Only if that tangent clearly aligns with both lines: if they point in
+    nearly opposite directions, the bisector is dominated by roundoff. Otherwise the curve is left as is, and the solver
+    doesn't report the fold as converged (see the fold angle in solve_segment).
+    Returns whether to shoot a new geodesic, and its initial point, tangent and length
+    """
+    no = bool(False)
+    p_P = wp.vec3(g.p_P)
+    t_P = wp.vec3(g.t_P)
+    if not (g.length >= 0.0):
+        return no, p_P, t_P, g.length
+    # The path point before or after the curve can be the contact point of a neighbouring obstacle, which may lie
+    # inside this surface while the solver iterates: leave the curve as is then
+    if wrap_geometry.is_point_inside(wrap_type, size, prev_S) or wrap_geometry.is_point_inside(wrap_type, size, next_S):
+        return no, p_P, t_P, g.length
+    folds_P = wp.dot(g.t_P, g.p_P - prev_S) < 0.0
+    folds_Q = wp.dot(g.t_Q, next_S - g.p_Q) < 0.0
+    if not (folds_P or folds_Q):
+        return no, p_P, t_P, g.length
+
+    restart_point = p_P  # where to place a zero-length curve if nothing is left of this one
+    if g.length > 0.0:
+        num = fold_num_samples(g)
+        ds = g.length / float(num - 1)
+        first = int(0)
+        first_point = p_P
+        first_tangent = t_P
+        last = num - 1
+        found = bool(True)
+        if folds_P:
+            first, first_point, first_tangent, _turning = walk_curve(wrap_type, size, g, prev_S, next_S, num, True,
+                                                                     num - 1, False, accuracy)
+            found = first >= 0
+        if found:
+            restart_point = first_point
+            if folds_Q:
+                last, _point, _tangent, _turning = walk_curve(wrap_type, size, g, prev_S, next_S, num, False, first,
+                                                              False, accuracy)
+                found = last >= 0
+        if found and last > first:
+            return True, first_point, first_tangent, float(last - first) * ds
+        # Nothing forward-facing is left within reach of the folded end: if the curve winds around the obstacle,
+        # leave it as is (the solver may still unfold it without losing the winding)
+        _best, _point, _tangent, total_turning = walk_curve(wrap_type, size, g, prev_S, next_S, num, True, num - 1,
+                                                            True, accuracy)
+        if total_turning > WRAP_FOLD_MAX_TRIM_TURNING:
+            return no, p_P, t_P, g.length
+
+    normal = wrap_geometry.surface_unit_normal(wrap_type, size, restart_point)
+    incoming = tangential_direction(restart_point - prev_S, normal)
+    outgoing = tangential_direction(next_S - restart_point, normal)
+    tangent = incoming + outgoing
+    tangent_norm = wp.length(tangent)
+    if not (tangent_norm > 0.0 and restart_is_forward(tangent, tangent_norm, incoming)
+            and restart_is_forward(tangent, tangent_norm, outgoing)):
+        return no, p_P, t_P, g.length
+    return True, restart_point, tangent, 0.0
+
+
 @wp.func
 def update_wrap_status(
-        wrap_type: int, size: wp.vec3, hint: wp.vec3, g: WrapGeodesic, prev_S: wp.vec3, next_S: wp.vec3,
-        accuracy: float,
+        wrap_type: int, size: wp.vec3, g: WrapGeodesic, prev_S: wp.vec3, next_S: wp.vec3, accuracy: float,
 ) -> WrapGeodesic:
-    """ Initializes the geodesic from the hint, or detects liftoff / touchdown, given the neighbouring path points """
+    """
+    Initializes the geodesic from the contact hint, undoes a fold, or detects liftoff / touchdown, given the
+    neighbouring path points
+    """
+    # The geodesic to shoot, if any: a single call site keeps the kernels small (and quick to compile)
+    shoot = bool(False)
+    point = wp.vec3()
+    tangent = next_S - prev_S
+    length = float(0.0)
+    in_contact = g.status == WrapStatus.IN_CONTACT
     if g.status == WrapStatus.INITIAL_GUESS:
-        # Zero-length geodesic at the hint, directed along the straight line
-        g = wrap_geometry.shoot_geodesic(wrap_type, size, g, hint, next_S - prev_S, 0.0, accuracy)
-    elif g.status == WrapStatus.IN_CONTACT:
-        # Lift off once the geodesic has shrunk to zero length, and the neighbouring points are above the surface
-        if g.length <= 0.0 and wp.dot(prev_S - g.p_P, g.n_P) > 0.0 and wp.dot(next_S - g.p_P, g.n_P) > 0.0:
-            g.status = WrapStatus.LIFTED
-            g.tracking_point = g.p_P
+        # Zero-length geodesic at the hint (already projected onto the surface, see init_geodesic: the nearest point,
+        # rather than the geodesic integrator's projection), directed along the straight line
+        shoot = True
+        point = g.p_P
+    elif in_contact:
+        # Undo a fold before the solver tests for convergence. This can shrink the curve to zero length, so the liftoff
+        # test comes afterwards
+        shoot, point, tangent, length = trim_folded_curve(wrap_type, size, g, prev_S, next_S, accuracy)
     elif g.status == WrapStatus.LIFTED:
         # Touch down when the straight line between the neighbouring points dips below the surface
-        point, touchdown = wrap_geometry.nearest_point_on_line(wrap_type, size, prev_S, next_S, g.tracking_point)
+        nearest, touchdown = wrap_geometry.nearest_point_on_line(wrap_type, size, prev_S, next_S, g.tracking_point)
         if touchdown:
-            g = wrap_geometry.shoot_geodesic(wrap_type, size, g, point, next_S - prev_S, 0.0, accuracy)
+            shoot = True
+            point = nearest
         else:
-            g.tracking_point = point
+            g.tracking_point = nearest
+    if shoot:
+        g = wrap_geometry.shoot_geodesic(wrap_type, size, g, point, tangent, length, accuracy)
+    # Lift off once the geodesic has shrunk to zero length, and the neighbouring points are above the surface
+    if in_contact and g.length <= 0.0 and wp.dot(prev_S - g.p_P, g.n_P) > 0.0 and wp.dot(next_S - g.p_P, g.n_P) > 0.0:
+        g.status = WrapStatus.LIFTED
+        g.tracking_point = g.p_P
     return g
 
 
@@ -173,7 +379,11 @@ def variation_Q(t: wp.vec3, n: wp.vec3, b: wp.vec3, curvatures: wp.vec2, torsion
 @wp.func
 def max_angular_displacement(t_P: wp.vec3, n_P: wp.vec3, b_P: wp.vec3, g: WrapGeodesic, t_Q: wp.vec3, n_Q: wp.vec3,
                              b_Q: wp.vec3, c: wp.vec4) -> float:
-    """ Estimated rotation of the boundary frames by a correction: max of |column of w|_inf * c (signed, as Simbody) """
+    """
+    Estimated rotation of the boundary frames by a correction: max of |column of w|_inf * |c|. Simbody uses c signed,
+    which leaves negative corrections unlimited (and mirror-image paths solving differently: mirroring flips the sign of
+    some corrections)
+    """
     w_P0 = g.torsion_P * t_P + g.curvatures_P[0] * b_P
     w_P1 = -(g.curvatures_P[1] * t_P + g.torsion_P * b_P)
     w_Q0 = g.torsion_Q * t_Q + g.curvatures_Q[0] * b_Q
@@ -181,13 +391,13 @@ def max_angular_displacement(t_P: wp.vec3, n_P: wp.vec3, b_P: wp.vec3, g: WrapGe
     w_Q1 = g.jacobi_Q[0] * w_Qb - g.jacobi_dot_Q[0] * n_Q
     w_Q2 = g.jacobi_Q[1] * w_Qb - g.jacobi_dot_Q[1] * n_Q
     disp = float(0.0)
-    disp = wp.max(disp, wp.max(wp.abs(w_P0)) * c[0])
-    disp = wp.max(disp, wp.max(wp.abs(w_P1)) * c[1])
-    disp = wp.max(disp, wp.max(wp.abs(n_P)) * c[2])
-    disp = wp.max(disp, wp.max(wp.abs(w_Q0)) * c[0])
-    disp = wp.max(disp, wp.max(wp.abs(w_Q1)) * c[1])
-    disp = wp.max(disp, wp.max(wp.abs(w_Q2)) * c[2])
-    disp = wp.max(disp, wp.max(wp.abs(w_Q0)) * c[3])
+    disp = wp.max(disp, wp.max(wp.abs(w_P0)) * wp.abs(c[0]))
+    disp = wp.max(disp, wp.max(wp.abs(w_P1)) * wp.abs(c[1]))
+    disp = wp.max(disp, wp.max(wp.abs(n_P)) * wp.abs(c[2]))
+    disp = wp.max(disp, wp.max(wp.abs(w_Q0)) * wp.abs(c[0]))
+    disp = wp.max(disp, wp.max(wp.abs(w_Q1)) * wp.abs(c[1]))
+    disp = wp.max(disp, wp.max(wp.abs(w_Q2)) * wp.abs(c[2]))
+    disp = wp.max(disp, wp.max(wp.abs(w_Q0)) * wp.abs(c[3]))
     return disp
 
 
@@ -272,7 +482,6 @@ def _wrap_kernels(max_per_segment: int):
             wrap_bodyid: wp.array(dtype=int),
             wrap_X_BS: wp.array(dtype=wp.transform),
             wrap_size: wp.array(dtype=wp.vec3),
-            wrap_hint_S: wp.array(dtype=wp.vec3),
             smoothness_tol: float,
             max_iterations: int,
             accuracy: float,
@@ -285,8 +494,13 @@ def _wrap_kernels(max_per_segment: int):
             end_G: wp.vec3,
             # Data out:
             geodesics: wp.array(dtype=WrapGeodesic),
-    ):
-        """ Solves the path between two consecutive path points, over the obstacles seg_begin..seg_end-1 """
+    ) -> float:
+        """
+        Solves the path between two consecutive path points, over the obstacles seg_begin..seg_end-1. Returns its
+        smoothness: the max of the path errors and of the fold angles (see fold_angle), at most smoothness_tol if it
+        converged within max_iterations
+        """
+        smoothness = float(0.0)
         for loop_iter in range(max_iterations + 1):
             # Update each obstacle's wrapping status, in path order
             for o in range(seg_begin, seg_end):
@@ -295,14 +509,14 @@ def _wrap_kernels(max_per_segment: int):
                     o, seg_begin, start_G, geodesics, wrap_bodyid, wrap_X_BS, X_GB))
                 next_S = wp.transform_point(X_SG, next_path_point(
                     o, seg_end, end_G, geodesics, wrap_bodyid, wrap_X_BS, X_GB))
-                geodesics[o] = update_wrap_status(wrap_type[o], wrap_size[o], wrap_hint_S[o], geodesics[o], prev_S,
-                                                  next_S, accuracy)
+                geodesics[o] = update_wrap_status(wrap_type[o], wrap_size[o], geodesics[o], prev_S, next_S, accuracy)
 
             # Path errors: misalignment of the straight lines with the normals and binormals of the boundary frames,
             # (P normal, P binormal, Q normal, Q binormal) per obstacle in contact, and their Jacobian
             A = MatA()
             b = VecC()
             max_error = float(0.0)
+            max_fold = float(0.0)
             slot = int(0)
             for o in range(seg_begin, seg_end):
                 g = geodesics[o]
@@ -319,6 +533,8 @@ def _wrap_kernels(max_per_segment: int):
                                          X_GB) - wp.transform_point(X_GS, g.p_Q)
                 l_P, l_Q = wp.length(line_P), wp.length(line_Q)
                 e_P, e_Q = line_P / l_P, line_Q / l_Q
+                # A fold has no normal or binormal path error, but is never smooth
+                max_fold = wp.max(max_fold, wp.max(fold_angle(e_P, t_P), fold_angle(e_Q, t_Q)))
                 o_prev = prev_in_contact(o, seg_begin, geodesics)
                 o_next = next_in_contact(o, seg_end, geodesics)
 
@@ -369,7 +585,10 @@ def _wrap_kernels(max_per_segment: int):
                     max_error = wp.max(max_error, wp.abs(err))
                 slot += 1
 
-            if max_error <= smoothness_tol or loop_iter >= max_iterations:
+            # The fold angle only decides convergence (when the path errors are small, i.e. a line is nearly reversed):
+            # the corrections below still use the path errors alone
+            smoothness = wp.max(max_error, max_fold)
+            if smoothness <= smoothness_tol or loop_iter >= max_iterations:
                 break
 
             # Penalize changing the length of each curve, weighted by the path error: heavily when far from the
@@ -406,9 +625,10 @@ def _wrap_kernels(max_per_segment: int):
                 if not is_in_contact(g):
                     continue
                 c = step * wp.vec4(q[4 * slot], q[4 * slot + 1], q[4 * slot + 2], q[4 * slot + 3])
+                assert wp.isfinite(c[0]) and wp.isfinite(c[1]) and wp.isfinite(c[2]) and wp.isfinite(c[3])  # debug mode
                 geodesics[o] = apply_geodesic_correction(wrap_type[o], wrap_size[o], g, c, accuracy)
                 slot += 1
-        return
+        return smoothness
 
     @wp.kernel(module="unique")
     def compute_path_kernel(
@@ -422,7 +642,6 @@ def _wrap_kernels(max_per_segment: int):
             wrap_X_BS: wp.array(dtype=wp.transform),
             wrap_size: wp.array(dtype=wp.vec3),
             wrap_segment: wp.array(dtype=int),
-            wrap_hint_S: wp.array(dtype=wp.vec3),
             wrap_hint_on_surface_S: wp.array(dtype=wp.vec3),
             smoothness_tol: float,
             max_iterations: int,
@@ -439,6 +658,7 @@ def _wrap_kernels(max_per_segment: int):
             wrap_geodesic_out: wp.array2d(dtype=WrapGeodesic),
             muscle_length_out: wp.array2d(dtype=float),
             muscle_velocity_out: wp.array2d(dtype=float),
+            muscle_wrap_smoothness_out: wp.array2d(dtype=float),
     ):
         worldid, nodeid = wp.tid()
         if integration_done_in[worldid]:
@@ -457,14 +677,16 @@ def _wrap_kernels(max_per_segment: int):
 
         length = float(0.0)
         velocity = float(0.0)
+        smoothness = float(0.0)
         seg_begin = wrap_begin
         for s in range(muscle_pts_num[muscle_id] - 1):
             seg_end = segment_obstacle_end(seg_begin, wrap_end, wrap_segment, s)
             x0 = site_pos_G_in[worldid, pts_adr + s]
             x1 = site_pos_G_in[worldid, pts_adr + s + 1]
             if seg_end > seg_begin:
-                solve_segment(wrap_type, wrap_bodyid, wrap_X_BS, wrap_size, wrap_hint_S, smoothness_tol,
-                              max_iterations, accuracy, X_GB, seg_begin, seg_end, x0, x1, geodesics)
+                seg_smoothness = solve_segment(wrap_type, wrap_bodyid, wrap_X_BS, wrap_size, smoothness_tol,
+                                               max_iterations, accuracy, X_GB, seg_begin, seg_end, x0, x1, geodesics)
+                smoothness = wp.max(smoothness, seg_smoothness)
 
             # Sum the straight lines and the curves. The lengthening speed is that of the straight lines, whose
             # end points move with their bodies (the curves slide over the surfaces)
@@ -494,6 +716,7 @@ def _wrap_kernels(max_per_segment: int):
 
         muscle_length_out[worldid, muscle_id] = length
         muscle_velocity_out[worldid, muscle_id] = velocity
+        muscle_wrap_smoothness_out[worldid, muscle_id] = smoothness
 
     return compute_path_kernel
 
@@ -639,10 +862,12 @@ def reset_wrap_geodesics(m: Model, d: Data):
 
 @event_scope
 def muscle_wrap_path(m: Model, d: Data, length_out: wp.array2d | None = None,
-                     velocity_out: wp.array2d | None = None):
+                     velocity_out: wp.array2d | None = None, geodesic_out: wp.array2d | None = None,
+                     smoothness_out: wp.array2d | None = None):
     """
-    Computes the muscle path length and velocity for paths wrapping over obstacles, into d.muscle_length and
-    d.muscle_velocity unless other outputs are given
+    Computes the muscle path length, velocity and smoothness for paths wrapping over obstacles, into d.muscle_length,
+    d.muscle_velocity and d.muscle_wrap_smoothness unless other outputs are given. The geodesics are solved in place,
+    warm started from their current values: d.wrap_geodesic unless geodesic_out is given
     """
     if not m.muscle_wrap_group_tuple:
         return
@@ -651,13 +876,15 @@ def muscle_wrap_path(m: Model, d: Data, length_out: wp.array2d | None = None,
         dim=(d.nworld, m.muscle_wrap_group.size),
         inputs=[
             m.muscle_pts_adr, m.muscle_pts_num, m.muscle_wrap_adr, m.muscle_wrap_num, m.wrap_type, m.wrap_bodyid,
-            m.wrap_X_BS, m.wrap_size, m.wrap_segment, m.wrap_hint_S, m.wrap_hint_on_surface_S,
+            m.wrap_X_BS, m.wrap_size, m.wrap_segment, m.wrap_hint_on_surface_S,
             m.opt.wrap_smoothness_tol, m.opt.wrap_max_iterations, m.opt.wrap_geodesic_accuracy,
             d.integration_done, d.mob_X_GB, d.body_V_GB, d.site_pos_G, d.site_vel_G,
             m.muscle_wrap_group
         ],
-        outputs=[d.wrap_geodesic, d.muscle_length if length_out is None else length_out,
-                 d.muscle_velocity if velocity_out is None else velocity_out],
+        outputs=[d.wrap_geodesic if geodesic_out is None else geodesic_out,
+                 d.muscle_length if length_out is None else length_out,
+                 d.muscle_velocity if velocity_out is None else velocity_out,
+                 d.muscle_wrap_smoothness if smoothness_out is None else smoothness_out],
     )
 
 
@@ -772,19 +999,20 @@ def _sample_wrap_path_kernel(
 def sample_wrap_paths(m: Model, d: Data, render_adr: wp.array, worlds: wp.array, points_out: wp.array2d):
     """
     Polylines along the wrapping paths of the given worlds, laid out as wrap_render_layout. The paths are solved at
-    the current positions first (e.g. after only realizing positions), without changing the muscle lengths or speeds
+    the current positions first (e.g. after only realizing positions), on a copy of the geodesics
     """
     if not m.muscle_wrap_group_tuple:
         return
     scratch = wp.empty((d.nworld, m.nmuscle), dtype=float, device=d.muscle_length.device)
-    muscle_wrap_path(m, d, length_out=scratch, velocity_out=scratch)
+    geodesics = wp.clone(d.wrap_geodesic)
+    muscle_wrap_path(m, d, length_out=scratch, velocity_out=scratch, geodesic_out=geodesics, smoothness_out=scratch)
     wp.launch(
         _sample_wrap_path_kernel,
         dim=(worlds.shape[0], m.muscle_wrap_group.size),
         inputs=[
             m.muscle_pts_adr, m.muscle_pts_num, m.muscle_wrap_adr, m.muscle_wrap_num, m.wrap_type, m.wrap_bodyid,
             m.wrap_X_BS, m.wrap_size, m.wrap_segment, m.opt.wrap_geodesic_accuracy,
-            d.mob_X_GB, d.site_pos_G, d.wrap_geodesic,
+            d.mob_X_GB, d.site_pos_G, geodesics,
             m.muscle_wrap_group, render_adr, worlds,
         ],
         outputs=[points_out],

@@ -356,7 +356,6 @@ def pack_wrap_obstacles(m: Model, muscles: list[MuscleData | None], topology: Mo
     m.wrap_X_BS = wp.array([obstacle.transform for obstacle in obstacles], dtype=wp.transform)
     m.wrap_size = wp.array([obstacle.size for obstacle in obstacles], dtype=wp.vec3)
     m.wrap_segment = wp.array([obstacle.segment for obstacle in obstacles], dtype=int)
-    m.wrap_hint_S = wp.array([obstacle.hint for obstacle in obstacles], dtype=wp.vec3)
     m.wrap_hint_on_surface_S = wp.array([obstacle.hint_on_surface for obstacle in obstacles], dtype=wp.vec3)
     return
 

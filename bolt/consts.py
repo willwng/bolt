@@ -28,6 +28,10 @@ __all__ = [
     "WRAP_NEAREST_POINT_MAX_ITERATIONS",
     "WRAP_MAX_GEODESIC_STEPS",
     "WRAP_INITIAL_STEP_SIZE",
+    "WRAP_FOLD_SAMPLE_ANGLE",
+    "WRAP_FOLD_MAX_SAMPLES",
+    "WRAP_FOLD_MAX_TRIM_TURNING",
+    "WRAP_FOLD_MIN_RESTART_ALIGNMENT",
 ]
 
 
@@ -78,3 +82,8 @@ WRAP_NEAREST_POINT_TOL = 1e-6  # touchdown: convergence of the point on the line
 WRAP_NEAREST_POINT_MAX_ITERATIONS = 50
 WRAP_MAX_GEODESIC_STEPS = 200  # integration steps per geodesic over an implicit surface
 WRAP_INITIAL_STEP_SIZE = 1e-4  # first integration step size for a new geodesic
+# Undoing folds, where a straight line runs backward along a curve (Simbody PR #887)
+WRAP_FOLD_SAMPLE_ANGLE = 0.087  # curvature angle (~5 deg) between the samples of a curve searched for a trim point
+WRAP_FOLD_MAX_SAMPLES = 1000  # cap on the samples of a very long or very curved curve
+WRAP_FOLD_MAX_TRIM_TURNING = 3.141592653589793  # trim only within half a turn of a folded end, to keep the windings
+WRAP_FOLD_MIN_RESTART_ALIGNMENT = 0.1  # cos(~84 deg): a zero-length restart's tangent must align with both lines
