@@ -1,16 +1,48 @@
+import functools
+
 import warp as wp
 
 from bolt.types import ArticulatedInertia
 from bolt.types import Data
 from bolt.types import Model
 from bolt.types import SpatialInertia
+from bolt.types import TreeSpec
 
 from .. import math
+from ..codegen import TreePass
+from ..codegen import level_tables
+from ..codegen import sync_block
+from ..codegen import tree_pass
 from ..warp_util import event_scope
 from ..warp_util import launch
-from ..warp_util import tree_pass_per_world
 
 wp.set_module_options({"enable_backward": False})
+
+
+@wp.func
+def _initial_articulated_inertia_body(
+        worldid: int,
+        bodyid: int,
+        # Data in:
+        body_Mk_G_in: wp.array2d(dtype=SpatialInertia),
+        body_C_contact_in: wp.array2d(dtype=wp.spatial_matrix),
+        actual_step_size_in: wp.array(dtype=float),
+        # In:
+        implicit_friction_damping: bool,
+        implicit_step_scale: float,
+        # Data out:
+        body_P_out: wp.array2d(dtype=ArticulatedInertia),
+):
+    """ Starts body's articulated inertia from its own spatial inertia """
+    Mk_G = body_Mk_G_in[worldid, bodyid]
+    P = math.spatial_inertia_to_articulated_inertia(Mk_G)
+
+    # Implicit contact damping: M + h C
+    if implicit_friction_damping:
+        J, F, _, M = math.extract_33_blocks(
+            actual_step_size_in[worldid] * implicit_step_scale * body_C_contact_in[worldid, bodyid])
+        P = math.articulated_inertia_add(P, ArticulatedInertia(M, J, F))
+    body_P_out[worldid, bodyid] = P
 
 
 @wp.kernel
@@ -29,17 +61,10 @@ def _initialize_articulated_inertia(
     worldid, bodyid = wp.tid()
     if integration_done_in[worldid]:
         return
-
-    Mk_G = body_Mk_G_in[worldid, bodyid]
-    P = math.spatial_inertia_to_articulated_inertia(Mk_G)
-
-    # Implicit contact damping: M + h C
-    if implicit_friction_damping:
-        J, F, _, M = math.extract_33_blocks(
-            actual_step_size_in[worldid] * implicit_step_scale * body_C_contact_in[worldid, bodyid])
-        P = math.articulated_inertia_add(P, ArticulatedInertia(M, J, F))
-    body_P_out[worldid, bodyid] = P
-    return
+    _initial_articulated_inertia_body(
+        worldid, bodyid, body_Mk_G_in, body_C_contact_in, actual_step_size_in,
+        implicit_friction_damping, implicit_step_scale, body_P_out,
+    )
 
 
 @wp.func
@@ -194,6 +219,25 @@ def _articulated_inertia_level(
     )
 
 
+@wp.func
+def _articulated_body_velocity_body(
+        worldid: int,
+        bodyid: int,
+        # Data in:
+        mob_coriolis_acc_in: wp.array2d(dtype=wp.spatial_vector),
+        body_gyro_force_in: wp.array2d(dtype=wp.spatial_vector),
+        body_P_in: wp.array2d(dtype=ArticulatedInertia),
+        # Data out:
+        body_articulated_centrifugal_force_out: wp.array2d(dtype=wp.spatial_vector),
+):
+    """ Centrifugal force of body from its (accumulated) articulated inertia; not for ground """
+    P = body_P_in[worldid, bodyid]
+    mob_coriolis_acc = mob_coriolis_acc_in[worldid, bodyid]
+    gyro_force = body_gyro_force_in[worldid, bodyid]
+    body_articulated_centrifugal_force_out[worldid, bodyid] = (
+            math.articulated_inertia_mul(P, mob_coriolis_acc) + gyro_force)
+
+
 @wp.kernel
 def _articulated_body_velocity(
         # Data in:
@@ -207,13 +251,84 @@ def _articulated_body_velocity(
     worldid, bodyid = wp.tid()
     if integration_done_in[worldid] or bodyid == 0:
         return
+    _articulated_body_velocity_body(
+        worldid, bodyid, mob_coriolis_acc_in, body_gyro_force_in, body_P_in, body_articulated_centrifugal_force_out)
 
-    P = body_P_in[worldid, bodyid]
-    mob_coriolis_acc = mob_coriolis_acc_in[worldid, bodyid]
-    gyro_force = body_gyro_force_in[worldid, bodyid]
-    body_articulated_centrifugal_force_out[worldid, bodyid] = (
-            math.articulated_inertia_mul(P, mob_coriolis_acc) + gyro_force)
-    return
+
+@functools.cache
+def _articulated_inertia_fused_kernel(spec: TreeSpec):
+    """
+    initialize, accumulate and articulated_body_velocity in one kernel (one block per world), specialized to the tree
+    spec (its level tables): the initial inertias of all bodies, then the levels tip to base, a barrier after each; a
+    body's centrifugal force follows its accumulation directly
+    """
+
+    level_adr, level_width = level_tables(spec)
+
+    @wp.kernel(module="unique")
+    def articulated_inertia_fused(
+            # Model:
+            body_tree_bodies: wp.array(dtype=int),
+            body_children: wp.array(dtype=int),
+            body_children_num: wp.array(dtype=int),
+            body_children_adr: wp.array(dtype=int),
+            mob_dofnum: wp.array(dtype=int),
+            mob_dofadr: wp.array(dtype=int),
+            dof_damping: wp.array(dtype=float),
+            dof_armature: wp.array(dtype=float),
+            # Data in:
+            integration_done_in: wp.array(dtype=bool),
+            body_Mk_G_in: wp.array2d(dtype=SpatialInertia),
+            body_C_contact_in: wp.array2d(dtype=wp.spatial_matrix),
+            mob_phi_in: wp.array2d(dtype=wp.vec3),
+            mob_H_in: wp.array2d(dtype=wp.spatial_vector),
+            mob_coriolis_acc_in: wp.array2d(dtype=wp.spatial_vector),
+            body_gyro_force_in: wp.array2d(dtype=wp.spatial_vector),
+            actual_step_size_in: wp.array(dtype=float),
+            # In:
+            nlevel: int,
+            implicit_friction_damping: bool,
+            implicit_damping: bool,
+            implicit_step_scale: float,
+            # Data out:
+            body_P_out: wp.array2d(dtype=ArticulatedInertia),
+            mob_G_out: wp.array2d(dtype=wp.spatial_vector),
+            mob_DI_out: wp.array2d(dtype=wp.spatial_vector),
+            body_PPlus_out: wp.array2d(dtype=ArticulatedInertia),
+            body_articulated_centrifugal_force_out: wp.array2d(dtype=wp.spatial_vector),
+    ):
+        worldid, lane = wp.tid()
+        if integration_done_in[worldid]:  # uniform over the block: no thread is left waiting at a barrier
+            return
+        stride = wp.block_dim()
+
+        for bodyid in range(lane, wp.static(spec.nbody), stride):
+            _initial_articulated_inertia_body(
+                worldid, bodyid, body_Mk_G_in, body_C_contact_in, actual_step_size_in,
+                implicit_friction_damping, implicit_step_scale, body_P_out,
+            )
+        sync_block()
+
+        # Tip to base: a level's bodies need their children's P+ (the level below) only
+        for k in range(nlevel):
+            li = nlevel - 1 - k
+            for node in range(lane, level_width[li], stride):
+                bodyid = body_tree_bodies[level_adr[li] + node]
+                _articulated_inertia_body(
+                    worldid, bodyid,
+                    body_children, body_children_num, body_children_adr, mob_dofnum, mob_dofadr, dof_damping,
+                    dof_armature,
+                    mob_phi_in, mob_H_in, actual_step_size_in, implicit_damping, implicit_step_scale,
+                    body_P_out, mob_G_out, mob_DI_out, body_PPlus_out,
+                )
+                if li > 0:  # not ground
+                    _articulated_body_velocity_body(
+                        worldid, bodyid, mob_coriolis_acc_in, body_gyro_force_in, body_P_out,
+                        body_articulated_centrifugal_force_out,
+                    )
+            sync_block()
+
+    return articulated_inertia_fused
 
 
 @event_scope
@@ -244,7 +359,7 @@ def accumulate_articulated_body_inertia(m: Model, d: Data, implicit_step_scale: 
     ]
     outputs = [d.body_P, d.mob_G, d.mob_DI, d.body_PPlus]
 
-    if tree_pass_per_world(m.body_tree):
+    if tree_pass(m) == TreePass.PER_WORLD:
         launch(
             _articulated_inertia_tree,
             dim=d.nworld,
@@ -272,4 +387,31 @@ def articulated_body_velocity(m: Model, d: Data):
             d.integration_done, d.mob_coriolis_acc, d.body_gyro_force, d.body_P,
         ],
         outputs=[d.body_articulated_centrifugal_force]
+    )
+
+
+@event_scope
+def articulated_body_inertia(m: Model, d: Data, implicit_step_scale: float = 1.0):
+    """
+    Articulated inertias, G and DI of every body, and the velocity terms that depend on them
+    (initialize_articulated_body_inertia, accumulate_articulated_body_inertia and articulated_body_velocity)
+    """
+    if tree_pass(m) != TreePass.FUSED:
+        initialize_articulated_body_inertia(m, d, implicit_step_scale)
+        accumulate_articulated_body_inertia(m, d, implicit_step_scale)
+        articulated_body_velocity(m, d)
+        return
+
+    wp.launch_tiled(
+        _articulated_inertia_fused_kernel(m.body_tree_spec),
+        dim=d.nworld,
+        inputs=[
+            m.body_tree_bodies, m.body_children, m.body_children_num, m.body_children_adr,
+            m.mob_dofnum, m.mob_dofadr, m.dof_damping, m.dof_armature,
+            d.integration_done, d.body_Mk_G, d.body_C_contact, d.mob_phi, d.mob_H, d.mob_coriolis_acc,
+            d.body_gyro_force, d.actual_step_size,
+            m.body_tree_spec.nlevel, m.opt.implicit_friction_damping, m.opt.implicit_damping, implicit_step_scale,
+        ],
+        outputs=[d.body_P, d.mob_G, d.mob_DI, d.body_PPlus, d.body_articulated_centrifugal_force],
+        block_dim=m.block_dim.tree_pass,
     )

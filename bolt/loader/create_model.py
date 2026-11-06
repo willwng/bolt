@@ -40,6 +40,7 @@ from bolt.types import MobilizerType
 from bolt.types import Model
 from bolt.types import MuscleMetadata
 from bolt.types import Option
+from bolt.types import TreeSpec
 from bolt.types import PolyInts
 from bolt.types import StatefulContact
 from bolt.types import StepEstimator
@@ -83,6 +84,8 @@ def pack_bodies(m: Model, topology: ModelTopology):
     m.body_unit_inertia_OB_B = to_warp_array([body.unit_inertia_OB_B for body in bodies], dtype=wp.mat33)
     m.body_parentid = to_warp_array(topology.body_parent_id, dtype=int)
     m.body_tree = tuple([to_warp_array(level, dtype=int) for level in topology.body_tree])
+    m.body_tree_spec = TreeSpec.from_levels(topology.body_tree)
+    m.body_tree_bodies = to_warp_array(m.body_tree_spec.bodies, dtype=int)
     m.body_children = to_warp_array(topology.body_children, dtype=int)
     m.body_children_num = to_warp_array(topology.body_children_num, dtype=int)
     m.body_children_adr = to_warp_array(topology.body_children_adr, dtype=int)

@@ -94,9 +94,7 @@ def realize_velocity(m: Model, d: Data):
 
 @event_scope
 def realize_articulated_body_inertia(m: Model, d: Data, implicit_step_scale: float = 1.0):
-    inertia.initialize_articulated_body_inertia(m, d, implicit_step_scale)
-    inertia.accumulate_articulated_body_inertia(m, d, implicit_step_scale)
-    inertia.articulated_body_velocity(m, d)
+    inertia.articulated_body_inertia(m, d, implicit_step_scale)
     return
 
 

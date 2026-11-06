@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import warp as wp
 
 from bolt import consts
+from bolt._src.codegen.spec import TreeSpec
 
 __all__ = [
     "TileBlockDim",
@@ -58,6 +59,9 @@ class TileBlockDim:
 
     # function-based muscle paths
     muscle_path: int = 32
+
+    # fused tree passes (articulated inertias, accelerations): threads per world
+    tree_pass: int = 32
 
 
 class MobilizerType(enum.IntEnum):
@@ -564,6 +568,8 @@ class Model:
 
       body_parentid: id of body's parent                       (nbody,)
       body_tree: list of body ids by tree level
+      body_tree_bodies: body ids level by level (body_tree joined) (nbody,)
+      body_tree_spec: the tree's levels, baked into fused kernels (TreeSpec)
       body_children: list of body ids of each body's children
       body_children_adr: start adr in 'body_children'          (nbody,)
       body_children_num: number of children for each body      (nbody,)
@@ -735,6 +741,8 @@ class Model:
 
     body_parentid: array("nbody", int)
     body_tree: tuple[wp.array(dtype=int), ...]
+    body_tree_bodies: array("nbody", int)
+    body_tree_spec: TreeSpec
     body_children: array("*", int)
     body_children_adr: array("nbody", int)
     body_children_num: array("nbody", int)

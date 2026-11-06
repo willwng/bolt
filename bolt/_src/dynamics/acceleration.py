@@ -1,12 +1,18 @@
+import functools
+
 import warp as wp
 
 from bolt.types import Data
 from bolt.types import Model
+from bolt.types import TreeSpec
 
 from .. import math
+from ..codegen import TreePass
+from ..codegen import level_tables
+from ..codegen import sync_block
+from ..codegen import tree_pass
 from ..warp_util import event_scope
 from ..warp_util import launch
-from ..warp_util import tree_pass_per_world
 
 wp.set_module_options({"enable_backward": False})
 
@@ -239,6 +245,75 @@ def _calc_udot_pass_outward(
     )
 
 
+@functools.cache
+def _udot_fused_kernel(spec: TreeSpec):
+    """
+    Both passes of the articulated-body solve in one kernel (one block per world), specialized to the tree spec (its
+    level tables): the inward pass level by level tip to base, then the outward pass base to tip, a barrier after each
+    level
+    """
+
+    level_adr, level_width = level_tables(spec)
+
+    @wp.kernel(module="unique")
+    def udot_fused(
+            # Model:
+            body_tree_bodies: wp.array(dtype=int),
+            body_parentid: wp.array(dtype=int),
+            body_children: wp.array(dtype=int),
+            body_children_num: wp.array(dtype=int),
+            body_children_adr: wp.array(dtype=int),
+            mob_dofnum: wp.array(dtype=int),
+            mob_dofadr: wp.array(dtype=int),
+            # Data in:
+            integration_done_in: wp.array(dtype=bool),
+            ufrc_total_in: wp.array2d(dtype=float),
+            body_F_in: wp.array2d(dtype=wp.spatial_vector),
+            mob_phi_in: wp.array2d(dtype=wp.vec3),
+            mob_coriolis_in: wp.array2d(dtype=wp.spatial_vector),
+            mob_H_in: wp.array2d(dtype=wp.spatial_vector),
+            mob_G_in: wp.array2d(dtype=wp.spatial_vector),
+            mob_DI_in: wp.array2d(dtype=wp.spatial_vector),
+            body_articulated_centrifugal_force_in: wp.array2d(dtype=wp.spatial_vector),
+            # In:
+            nlevel: int,
+            # Data out:
+            body_eps_out: wp.array2d(dtype=wp.spatial_vector),
+            body_zPlus_out: wp.array2d(dtype=wp.spatial_vector),
+            qacc_out: wp.array2d(dtype=float),
+            body_A_GB_out: wp.array2d(dtype=wp.spatial_vector),
+    ):
+        worldid, lane = wp.tid()
+        if integration_done_in[worldid]:  # uniform over the block: no thread is left waiting at a barrier
+            return
+        stride = wp.block_dim()
+
+        # Tip to base, first inward pass
+        for k in range(nlevel):
+            li = nlevel - 1 - k
+            for node in range(lane, level_width[li], stride):
+                _udot_inward_body(
+                    worldid, body_tree_bodies[level_adr[li] + node],
+                    body_children, body_children_num, body_children_adr, mob_dofnum, mob_dofadr,
+                    ufrc_total_in, body_F_in, mob_phi_in, mob_H_in, mob_G_in, body_articulated_centrifugal_force_in,
+                    body_eps_out, body_zPlus_out,
+                )
+            sync_block()
+
+        # Base to tip: acceleration in internal coordinates
+        for li in range(1, nlevel):
+            for node in range(lane, level_width[li], stride):
+                _udot_outward_body(
+                    worldid, body_tree_bodies[level_adr[li] + node],
+                    body_parentid, mob_dofnum, mob_dofadr,
+                    mob_phi_in, mob_coriolis_in, mob_H_in, mob_G_in, mob_DI_in, body_eps_out,
+                    qacc_out, body_A_GB_out,
+                )
+            sync_block()
+
+    return udot_fused
+
+
 @event_scope
 def calc_udot(m: Model, d: Data):
     # Initialize world acceleration if not explicitly using gravity force
@@ -267,7 +342,24 @@ def solve_udot(
     Articulated-body solve for udot given the generalized and body forces and the velocity-dependent terms,
     using the current articulated inertias. body_A_GB_out[:, 0] holds the ground acceleration
     """
-    if tree_pass_per_world(m.body_tree):  # one thread per world
+    schedule = tree_pass(m)
+    if schedule == TreePass.FUSED:
+        wp.launch_tiled(
+            _udot_fused_kernel(m.body_tree_spec),
+            dim=d.nworld,
+            inputs=[
+                m.body_tree_bodies, m.body_parentid, m.body_children, m.body_children_num, m.body_children_adr,
+                m.mob_dofnum, m.mob_dofadr,
+                d.integration_done, ufrc, body_F, d.mob_phi, coriolis_acc, d.mob_H, d.mob_G, d.mob_DI,
+                centrifugal_force,
+                m.body_tree_spec.nlevel,
+            ],
+            outputs=[d.body_eps, d.body_zPlus, qacc_out, body_A_GB_out],
+            block_dim=m.block_dim.tree_pass,
+        )
+        return
+
+    if schedule == TreePass.PER_WORLD:  # one thread per world
         launch(
             _calc_udot_tree,
             dim=d.nworld,
