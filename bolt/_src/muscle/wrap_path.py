@@ -38,9 +38,16 @@ def is_in_contact(g: WrapGeodesic) -> bool:
 
 
 @wp.func
+def body_frame(X_GB: wp.transform, origin: wp.vec3) -> wp.transform:
+    """ A body frame, translated so that the local origin is at zero """
+    return wp.transform(wp.transform_get_translation(X_GB) - origin, wp.transform_get_rotation(X_GB))
+
+
+@wp.func
 def surface_frame(wrapid: int, wrap_bodyid: wp.array(dtype=int), wrap_X_BS: wp.array(dtype=wp.transform),
-                  X_GB: wp.array(dtype=wp.transform)) -> wp.transform:
-    return wp.transform_multiply(X_GB[wrap_bodyid[wrapid]], wrap_X_BS[wrapid])
+                  X_GB: wp.array(dtype=wp.transform), origin: wp.vec3) -> wp.transform:
+    """ An obstacle's surface frame relative to the local origin (see compute_path_kernel) """
+    return wp.transform_multiply(body_frame(X_GB[wrap_bodyid[wrapid]], origin), wrap_X_BS[wrapid])
 
 
 @wp.func
@@ -65,24 +72,26 @@ def next_in_contact(wrapid: int, seg_end: int, geodesics: wp.array(dtype=WrapGeo
 def prev_path_point(
         wrapid: int, seg_begin: int, start_G: wp.vec3, geodesics: wp.array(dtype=WrapGeodesic),
         wrap_bodyid: wp.array(dtype=int), wrap_X_BS: wp.array(dtype=wp.transform), X_GB: wp.array(dtype=wp.transform),
+        origin: wp.vec3,
 ) -> wp.vec3:
     """ The final contact point of the previous obstacle in contact, or else the path point starting the segment """
     j = prev_in_contact(wrapid, seg_begin, geodesics)
     if j < 0:
         return start_G
-    return wp.transform_point(surface_frame(j, wrap_bodyid, wrap_X_BS, X_GB), geodesics[j].p_Q)
+    return wp.transform_point(surface_frame(j, wrap_bodyid, wrap_X_BS, X_GB, origin), geodesics[j].p_Q)
 
 
 @wp.func
 def next_path_point(
         wrapid: int, seg_end: int, end_G: wp.vec3, geodesics: wp.array(dtype=WrapGeodesic),
         wrap_bodyid: wp.array(dtype=int), wrap_X_BS: wp.array(dtype=wp.transform), X_GB: wp.array(dtype=wp.transform),
+        origin: wp.vec3,
 ) -> wp.vec3:
     """ The initial contact point of the next obstacle in contact, or else the path point ending the segment """
     j = next_in_contact(wrapid, seg_end, geodesics)
     if j < 0:
         return end_G
-    return wp.transform_point(surface_frame(j, wrap_bodyid, wrap_X_BS, X_GB), geodesics[j].p_P)
+    return wp.transform_point(surface_frame(j, wrap_bodyid, wrap_X_BS, X_GB, origin), geodesics[j].p_P)
 
 
 @wp.func
@@ -178,6 +187,8 @@ def walk_curve(
             tangent = next_tangent
             normal = next_normal
         if total:
+            if turning > WRAP_FOLD_MAX_TRIM_TURNING:
+                break  # only whether the curve turns by more than this is used
             continue
         if best < 0 and turning > WRAP_FOLD_MAX_TRIM_TURNING:
             break  # trimming further would remove a winding
@@ -253,10 +264,15 @@ def trim_folded_curve(wrap_type: int, size: wp.vec3, g: WrapGeodesic, prev_S: wp
         first_tangent = t_P
         last = num - 1
         found = bool(True)
+        total_turning = float(-1.0)  # unknown
         if folds_P:
-            first, first_point, first_tangent, _turning = walk_curve(wrap_type, size, g, prev_S, next_S, num, True,
-                                                                     num - 1, False, accuracy)
+            first, first_point, first_tangent, turning_P = walk_curve(wrap_type, size, g, prev_S, next_S, num, True,
+                                                                      num - 1, False, accuracy)
             found = first >= 0
+            if not found:
+                # The walk from P either stopped past the max trim turning, or walked the whole curve: its turning
+                # answers the winding test below
+                total_turning = turning_P
         if found:
             restart_point = first_point
             if folds_Q:
@@ -267,8 +283,9 @@ def trim_folded_curve(wrap_type: int, size: wp.vec3, g: WrapGeodesic, prev_S: wp
             return True, first_point, first_tangent, float(last - first) * ds
         # Nothing forward-facing is left within reach of the folded end: if the curve winds around the obstacle,
         # leave it as is (the solver may still unfold it without losing the winding)
-        _best, _point, _tangent, total_turning = walk_curve(wrap_type, size, g, prev_S, next_S, num, True, num - 1,
-                                                            True, accuracy)
+        if total_turning < 0.0:
+            _best, _point, _tangent, total_turning = walk_curve(wrap_type, size, g, prev_S, next_S, num, True,
+                                                                num - 1, True, accuracy)
         if total_turning > WRAP_FOLD_MAX_TRIM_TURNING:
             return no, p_P, t_P, g.length
 
@@ -488,6 +505,7 @@ def _wrap_kernels(max_per_segment: int):
             # Data in:
             X_GB: wp.array(dtype=wp.transform),
             # In:
+            origin: wp.vec3,
             seg_begin: int,
             seg_end: int,
             start_G: wp.vec3,
@@ -504,11 +522,11 @@ def _wrap_kernels(max_per_segment: int):
         for loop_iter in range(max_iterations + 1):
             # Update each obstacle's wrapping status, in path order
             for o in range(seg_begin, seg_end):
-                X_SG = wp.transform_inverse(surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB))
+                X_SG = wp.transform_inverse(surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB, origin))
                 prev_S = wp.transform_point(X_SG, prev_path_point(
-                    o, seg_begin, start_G, geodesics, wrap_bodyid, wrap_X_BS, X_GB))
+                    o, seg_begin, start_G, geodesics, wrap_bodyid, wrap_X_BS, X_GB, origin))
                 next_S = wp.transform_point(X_SG, next_path_point(
-                    o, seg_end, end_G, geodesics, wrap_bodyid, wrap_X_BS, X_GB))
+                    o, seg_end, end_G, geodesics, wrap_bodyid, wrap_X_BS, X_GB, origin))
                 geodesics[o] = update_wrap_status(wrap_type[o], wrap_size[o], geodesics[o], prev_S, next_S, accuracy)
 
             # Path errors: misalignment of the straight lines with the normals and binormals of the boundary frames,
@@ -522,17 +540,26 @@ def _wrap_kernels(max_per_segment: int):
                 g = geodesics[o]
                 if not is_in_contact(g):
                     continue
-                X_GS = surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB)
+                X_GS = surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB, origin)
                 R = wp.transform_get_rotation(X_GS)
                 t_P, n_P = wp.quat_rotate(R, g.t_P), wp.quat_rotate(R, g.n_P)
                 t_Q, n_Q = wp.quat_rotate(R, g.t_Q), wp.quat_rotate(R, g.n_Q)
                 b_P, b_Q = wrap_geometry.binormal(t_P, n_P), wrap_geometry.binormal(t_Q, n_Q)
                 line_P = wp.transform_point(X_GS, g.p_P) - prev_path_point(
-                    o, seg_begin, start_G, geodesics, wrap_bodyid, wrap_X_BS, X_GB)
+                    o, seg_begin, start_G, geodesics, wrap_bodyid, wrap_X_BS, X_GB, origin)
                 line_Q = next_path_point(o, seg_end, end_G, geodesics, wrap_bodyid, wrap_X_BS,
-                                         X_GB) - wp.transform_point(X_GS, g.p_Q)
+                                         X_GB, origin) - wp.transform_point(X_GS, g.p_Q)
                 l_P, l_Q = wp.length(line_P), wp.length(line_Q)
-                e_P, e_Q = line_P / l_P, line_Q / l_Q
+                # A path point on the contact point leaves the line's direction undefined: no path error from it
+                e_P, e_Q = t_P, t_Q
+                if l_P >= BOLT_MINVAL:
+                    e_P = line_P / l_P
+                else:
+                    l_P = 1.0
+                if l_Q >= BOLT_MINVAL:
+                    e_Q = line_Q / l_Q
+                else:
+                    l_Q = 1.0
                 # A fold has no normal or binormal path error, but is never smooth
                 max_fold = wp.max(max_fold, wp.max(fold_angle(e_P, t_P), fold_angle(e_Q, t_Q)))
                 o_prev = prev_in_contact(o, seg_begin, geodesics)
@@ -553,7 +580,7 @@ def _wrap_kernels(max_per_segment: int):
                         # The line at P also moves with the final point of the previous obstacle in contact
                         if o_prev >= 0:
                             g_prev = geodesics[o_prev]
-                            R_prev = wp.transform_get_rotation(surface_frame(o_prev, wrap_bodyid, wrap_X_BS, X_GB))
+                            R_prev = wp.transform_get_rotation(surface_frame(o_prev, wrap_bodyid, wrap_X_BS, X_GB, origin))
                             t_prev = wp.quat_rotate(R_prev, g_prev.t_Q)
                             n_prev = wp.quat_rotate(R_prev, g_prev.n_Q)
                             block_prev = variation_Q(t_prev, n_prev, wrap_geometry.binormal(t_prev, n_prev),
@@ -574,7 +601,7 @@ def _wrap_kernels(max_per_segment: int):
                         # The line at Q also moves with the initial point of the next obstacle in contact
                         if o_next >= 0:
                             g_next = geodesics[o_next]
-                            R_next = wp.transform_get_rotation(surface_frame(o_next, wrap_bodyid, wrap_X_BS, X_GB))
+                            R_next = wp.transform_get_rotation(surface_frame(o_next, wrap_bodyid, wrap_X_BS, X_GB, origin))
                             t_next = wp.quat_rotate(R_next, g_next.t_P)
                             n_next = wp.quat_rotate(R_next, g_next.n_P)
                             block_next = variation_P(t_next, n_next, wrap_geometry.binormal(t_next, n_next),
@@ -608,7 +635,7 @@ def _wrap_kernels(max_per_segment: int):
                 g = geodesics[o]
                 if not is_in_contact(g):
                     continue
-                R = wp.transform_get_rotation(surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB))
+                R = wp.transform_get_rotation(surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB, origin))
                 t_P, n_P = wp.quat_rotate(R, g.t_P), wp.quat_rotate(R, g.n_P)
                 t_Q, n_Q = wp.quat_rotate(R, g.t_Q), wp.quat_rotate(R, g.n_Q)
                 c = wp.vec4(q[4 * slot], q[4 * slot + 1], q[4 * slot + 2], q[4 * slot + 3])
@@ -675,17 +702,21 @@ def _wrap_kernels(max_per_segment: int):
             if geodesics[o].status == WrapStatus.UNINITIALIZED:
                 geodesics[o] = init_geodesic(wrap_hint_on_surface_S[o])
 
+        # Solve relative to the muscle's first path point: in float32, ground coordinates far from the origin (e.g. a
+        # runner 15 m down the track) carry ~1e-6 m roundoff, which over a short straight line between an obstacle
+        # and a path point exceeds the smoothness tolerance in angle, so the solver never converges
+        origin = site_pos_G_in[worldid, pts_adr]
         length = float(0.0)
         velocity = float(0.0)
         smoothness = float(0.0)
         seg_begin = wrap_begin
         for s in range(muscle_pts_num[muscle_id] - 1):
             seg_end = segment_obstacle_end(seg_begin, wrap_end, wrap_segment, s)
-            x0 = site_pos_G_in[worldid, pts_adr + s]
-            x1 = site_pos_G_in[worldid, pts_adr + s + 1]
+            x0 = site_pos_G_in[worldid, pts_adr + s] - origin
+            x1 = site_pos_G_in[worldid, pts_adr + s + 1] - origin
             if seg_end > seg_begin:
                 seg_smoothness = solve_segment(wrap_type, wrap_bodyid, wrap_X_BS, wrap_size, smoothness_tol,
-                                               max_iterations, accuracy, X_GB, seg_begin, seg_end, x0, x1, geodesics)
+                                               max_iterations, accuracy, X_GB, origin, seg_begin, seg_end, x0, x1, geodesics)
                 smoothness = wp.max(smoothness, seg_smoothness)
 
             # Sum the straight lines and the curves. The lengthening speed is that of the straight lines, whose
@@ -696,17 +727,18 @@ def _wrap_kernels(max_per_segment: int):
                 g = geodesics[o]
                 if not is_in_contact(g):
                     continue
-                X_GS = surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB)
+                X_GS = surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB, origin)
                 bodyid = wrap_bodyid[o]
+                X_OB = body_frame(X_GB[bodyid], origin)
                 x_P, x_Q = wp.transform_point(X_GS, g.p_P), wp.transform_point(X_GS, g.p_Q)
-                v_P = contact_point_velocity(x_P, X_GB[bodyid], V_GB[bodyid])
+                v_P = contact_point_velocity(x_P, X_OB, V_GB[bodyid])
                 line = x_P - x_prev
                 dist = wp.length(line)
                 length += dist + g.length
                 if dist >= BOLT_MINVAL:
                     velocity += wp.dot(line / dist, v_P - v_prev)
                 x_prev = x_Q
-                v_prev = contact_point_velocity(x_Q, X_GB[bodyid], V_GB[bodyid])
+                v_prev = contact_point_velocity(x_Q, X_OB, V_GB[bodyid])
             line = x1 - x_prev
             dist = wp.length(line)
             length += dist
@@ -722,9 +754,10 @@ def _wrap_kernels(max_per_segment: int):
 
 
 @wp.func
-def apply_point_force(bodyid: int, x_G: wp.vec3, frc: wp.vec3, X_GB: wp.array(dtype=wp.transform),
+def apply_point_force(bodyid: int, x: wp.vec3, frc: wp.vec3, X_GB: wp.array(dtype=wp.transform), origin: wp.vec3,
                       body_F_out: wp.array(dtype=wp.spatial_vector)):
-    arm = x_G - wp.transform_get_translation(X_GB[bodyid])
+    """ A force at x (relative to the local origin) on a body, as a spatial force about the body origin """
+    arm = x - (wp.transform_get_translation(X_GB[bodyid]) - origin)
     wp.atomic_add(body_F_out, bodyid, wp.spatial_vector(wp.cross(arm, frc), frc))
 
 
@@ -748,32 +781,35 @@ def apply_wrap_force_to_bodies(
     The tension pulls each path point along the straight lines leaving it, and each obstacle along the curve's
     tangents at its contact points
     """
+    # Relative to the first path point, as the path solve (see compute_path_kernel)
+    origin = site_pos_G[pts_adr]
     seg_begin = wrap_begin
     for s in range(pts_num - 1):
         seg_end = segment_obstacle_end(seg_begin, wrap_end, wrap_segment, s)
         site0, site1 = pts_adr + s, pts_adr + s + 1
-        x_prev = site_pos_G[site0]
+        x0, x1 = site_pos_G[site0] - origin, site_pos_G[site1] - origin
+        x_prev = x0
         first_line = bool(True)
         for o in range(seg_begin, seg_end):
             g = geodesics[o]
             if not is_in_contact(g):
                 continue
-            X_GS = surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB)
+            X_GS = surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB, origin)
             R = wp.transform_get_rotation(X_GS)
             x_P, x_Q = wp.transform_point(X_GS, g.p_P), wp.transform_point(X_GS, g.p_Q)
             if first_line:
-                apply_point_force(site_bodyid[site0], site_pos_G[site0], actuation * wp.normalize(x_P - x_prev), X_GB,
+                apply_point_force(site_bodyid[site0], x0, actuation * wp.normalize(x_P - x_prev), X_GB, origin,
                                   body_F_out)
                 first_line = False
-            apply_point_force(wrap_bodyid[o], x_P, -actuation * wp.quat_rotate(R, g.t_P), X_GB, body_F_out)
-            apply_point_force(wrap_bodyid[o], x_Q, actuation * wp.quat_rotate(R, g.t_Q), X_GB, body_F_out)
+            apply_point_force(wrap_bodyid[o], x_P, -actuation * wp.quat_rotate(R, g.t_P), X_GB, origin, body_F_out)
+            apply_point_force(wrap_bodyid[o], x_Q, actuation * wp.quat_rotate(R, g.t_Q), X_GB, origin, body_F_out)
             x_prev = x_Q
-        line = site_pos_G[site1] - x_prev
+        line = x1 - x_prev
         if wp.length(line) >= BOLT_MINVAL:
             direction = wp.normalize(line)
             if first_line:
-                apply_point_force(site_bodyid[site0], site_pos_G[site0], actuation * direction, X_GB, body_F_out)
-            apply_point_force(site_bodyid[site1], site_pos_G[site1], -actuation * direction, X_GB, body_F_out)
+                apply_point_force(site_bodyid[site0], x0, actuation * direction, X_GB, origin, body_F_out)
+            apply_point_force(site_bodyid[site1], x1, -actuation * direction, X_GB, origin, body_F_out)
         seg_begin = seg_end
 
 
@@ -978,7 +1014,7 @@ def _sample_wrap_path_kernel(
         k += 1
         for o in range(seg_begin, seg_end):
             g = wrap_geodesic_in[worldid, o]
-            X_GS = surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB)
+            X_GS = surface_frame(o, wrap_bodyid, wrap_X_BS, X_GB, wp.vec3(0.0))
             for i in range(WRAP_RENDER_SAMPLES):
                 # Obstacles that are not in contact collapse onto the previous point
                 if is_in_contact(g):

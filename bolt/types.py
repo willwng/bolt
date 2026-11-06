@@ -205,6 +205,7 @@ class WrapGeodesic:
     jacobi_dot_Q: wp.vec2
     tracking_point: wp.vec3  # if lifted: the point on the straight line nearest the surface
     step_size: float  # initial step size for the next geodesic integration (implicit surfaces only)
+    turning: float  # total turning of the tangent along the geodesic (integral of |normal curvature|)
 
 
 @wp.struct

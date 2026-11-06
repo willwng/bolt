@@ -32,6 +32,7 @@ __all__ = [
     "WRAP_FOLD_MAX_SAMPLES",
     "WRAP_FOLD_MAX_TRIM_TURNING",
     "WRAP_FOLD_MIN_RESTART_ALIGNMENT",
+    "WRAP_MAX_TURNING",
 ]
 
 
@@ -87,3 +88,6 @@ WRAP_FOLD_SAMPLE_ANGLE = 0.087  # curvature angle (~5 deg) between the samples o
 WRAP_FOLD_MAX_SAMPLES = 1000  # cap on the samples of a very long or very curved curve
 WRAP_FOLD_MAX_TRIM_TURNING = 3.141592653589793  # trim only within half a turn of a folded end, to keep the windings
 WRAP_FOLD_MIN_RESTART_ALIGNMENT = 0.1  # cos(~84 deg): a zero-length restart's tangent must align with both lines
+# Validity of a geodesic in contact: max total turning of its tangent (rad). Larger curves (extra windings) restart from
+# the straight line. Simbody keeps windings (no limit); musculoskeletal paths never wind, so cap at 1.5 pi
+WRAP_MAX_TURNING = 4.71238898038469

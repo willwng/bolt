@@ -10,6 +10,7 @@ import warp as wp
 
 from bolt.consts import BOLT_MINVAL
 from bolt.consts import WRAP_MAX_GEODESIC_STEPS
+from bolt.consts import WRAP_MAX_TURNING
 from bolt.consts import WRAP_NEAREST_POINT_MAX_ITERATIONS
 from bolt.consts import WRAP_NEAREST_POINT_TOL
 from bolt.consts import WRAP_PROJECTION_TOL
@@ -177,6 +178,8 @@ def shoot_sphere(size: wp.vec3, g: WrapGeodesic, point: wp.vec3, tangent: wp.vec
     g = set_boundary_frames(WrapType.SPHERE, size, g, radius * n, t, radius * (c * n + s * t), c * t - s * n)
     g.jacobi_Q = wp.vec2(c, radius * s)
     g.jacobi_dot_Q = wp.vec2(-s / radius, c)
+    g.length = length
+    g.turning = theta
     return g
 
 
@@ -195,6 +198,8 @@ def shoot_cylinder(size: wp.vec3, g: WrapGeodesic, point: wp.vec3, tangent: wp.v
     # The cylinder unrolls into a plane, where the geodesic is a straight line
     g.jacobi_Q = wp.vec2(1.0, length)
     g.jacobi_dot_Q = wp.vec2(0.0, 1.0)
+    g.length = length
+    g.turning = wp.abs(surface_curvature(WrapType.CYLINDER, size, p_P, t)) * length  # constant along a helix
     return g
 
 
@@ -262,6 +267,7 @@ def shoot_implicit(
     h_first = float(0.0)
     h_second = float(0.0)
     num_steps = int(0)
+    turning = float(0.0)
     while s < length and num_steps < WRAP_MAX_GEODESIC_STEPS:
         s1 = s + h_next
         if s1 + 0.1 * h_next > length:
@@ -275,8 +281,11 @@ def shoot_implicit(
             h = wp.clamp(0.9 * h * wp.sqrt(wp.sqrt(accuracy / err)), 0.1 * h, 0.9 * h)
             s1 = s + h
             y1, err = geodesic_rkm_step(wrap_type, size, y, f, h)
+        # Tangent turning over the step: |d(tangent)/ds| = |normal curvature| (trapezoidal)
+        k0 = wp.length(wp.vec3(f[5], f[6], f[7]))
         y = geodesic_project(wrap_type, size, y1)
         f = geodesic_derivs(wrap_type, size, y)
+        turning += 0.5 * (k0 + wp.length(wp.vec3(f[5], f[6], f[7]))) * h
         if num_steps == 0:
             h_first = h
         elif num_steps == 1:
@@ -294,6 +303,9 @@ def shoot_implicit(
     g = set_boundary_frames(wrap_type, size, g, p_P, t_P, wp.vec3(y[0], y[1], y[2]), wp.vec3(y[5], y[6], y[7]))
     g.jacobi_Q = wp.vec2(y[4], y[3])
     g.jacobi_dot_Q = wp.vec2(y[9], y[8])
+    # The arc length actually integrated: short of the requested length if the step cap was hit (see shoot_geodesic)
+    g.length = s
+    g.turning = turning
 
     # Initial step size for the next geodesic: shrink it if it was rejected, grow it if the next step was larger
     if num_steps >= 2:
@@ -309,16 +321,46 @@ def shoot_geodesic(
         wrap_type: int, size: wp.vec3, g: WrapGeodesic, point: wp.vec3, tangent: wp.vec3, length: float,
         accuracy: float,
 ) -> WrapGeodesic:
-    """ Shoots a new geodesic of the given length from (near) the given point and tangent, and makes contact """
+    """
+    Shoots a new geodesic of the given length from (near) the given point and tangent, and makes contact. An invalid
+    geodesic (see geodesic_is_valid) restarts from the straight line instead: the obstacle is lifted, and touches down
+    again where the line between its neighbouring path points dips below the surface (update_wrap_status)
+    """
     if wrap_type == WrapType.SPHERE:
         g = shoot_sphere(size, g, point, tangent, length)
     elif wrap_type == WrapType.CYLINDER:
         g = shoot_cylinder(size, g, point, tangent, length)
     else:
         g = shoot_implicit(wrap_type, size, g, point, tangent, length, accuracy)
+    valid = geodesic_is_valid(wrap_type, g, length)
     g.length = length
     g.status = WrapStatus.IN_CONTACT
+    if not valid:
+        g.status = WrapStatus.LIFTED
+        g.length = 0.0
+        g.tracking_point = wp.vec3(0.0)
+        if wp.isfinite(point):
+            g.tracking_point = point
     return g
+
+
+@wp.func
+def geodesic_is_valid(wrap_type: int, g: WrapGeodesic, length: float) -> bool:
+    """
+    A geodesic is valid if it is finite, reached the requested length (the integrator's step cap was not hit), turns by
+    at most WRAP_MAX_TURNING, and has no conjugate point (the rotational Jacobi scalar stays positive: past one, the
+    curve is no longer locally shortest). Invalid geodesics are wrong solutions the solver could otherwise keep
+    """
+    if not (wp.isfinite(g.p_P) and wp.isfinite(g.t_P) and wp.isfinite(g.p_Q) and wp.isfinite(g.t_Q)
+            and wp.isfinite(g.length) and wp.isfinite(g.turning)):
+        return False
+    if g.length < length - 1e-6 * wp.max(length, 1.0):
+        return False  # truncated
+    if g.turning > WRAP_MAX_TURNING:
+        return False
+    if wrap_type != WrapType.CYLINDER and length > 0.0 and g.jacobi_Q[1] < 0.0:
+        return False  # past a conjugate point
+    return True
 
 
 # --- Touchdown ---
